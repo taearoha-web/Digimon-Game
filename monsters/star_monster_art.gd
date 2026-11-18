@@ -21,7 +21,9 @@ static func attach(root: Node3D, definition: Dictionary) -> void:
 	var royal := bool(definition.get("boss", false))
 	var elite := bool(definition.get("elite", false))
 	var unit := h * 0.22
-	if theme == "dawn_forest":
+	if style == "baked":
+		pass  # halo / wings / mantle sculpted into the monster's own remastered model
+	elif theme == "dawn_forest":
 		_add(head, "leaves", theme, Vector3(0, unit * 0.38, 0), Vector3.ONE * unit)
 		if style in ["flower", "spirit", "forest_king"]:
 			_add(head, "flower", theme, Vector3(0, unit * 0.85, 0), Vector3.ONE * unit * 0.65)
