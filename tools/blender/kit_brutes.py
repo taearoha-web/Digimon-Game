@@ -260,6 +260,9 @@ def export(arm, body, path, clips):
             m["alphaMode"] = "MASK"
             m["alphaCutoff"] = 0.5
             used_ext.add("KHR_materials_unlit")
+        if n.endswith("Detail") and n != "Detail":
+            m["alphaMode"] = "MASK"
+            m["alphaCutoff"] = 0.5
         if n in base_colors:
             c = C(base_colors[n])
             m.setdefault("pbrMetallicRoughness", {})["baseColorFactor"] = [c[0], c[1], c[2], 1.0]
@@ -483,3 +486,37 @@ def retag(obj, verts, name):
     for p in me.polygons:
         if all(v in verts for v in p.vertices):
             p.material_index = i
+
+
+def hash01(v, seed=0):
+    """A stable pseudo-random 0..1 from a position (per-facet colour jitter)."""
+    x = math.sin(v.x * 127.1 + v.y * 311.7 + v.z * 74.7 + seed * 19.3) * 43758.5453
+    return x - math.floor(x)
+
+
+def flat(obj, mat_names):
+    """Flat-shades the faces of the given materials (cut stone, crystal facets)."""
+    names = [m.name for m in obj.data.materials]
+    for p in obj.data.polygons:
+        if names[p.material_index] in mat_names:
+            p.use_smooth = False
+
+
+def rock(parts, center, radius, color_fn, weights, seed=0, seg=7, rings=5, squash=(1.0, 1.0, 0.8), mat=IVORY,
+         up=Vector((0, 0, 1))):
+    """A faceted boulder (flat shade it with flat()): a low ellipsoid with jittered radii."""
+    rng = random.Random(seed)
+    radii = (radius * squash[0] * rng.uniform(0.85, 1.1), radius * squash[1] * rng.uniform(0.85, 1.1),
+             radius * squash[2] * rng.uniform(0.85, 1.1))
+    b = basis(up) @ Matrix.Rotation(rng.uniform(0, 6.28), 3, "Z")
+    with parts.on(mat):
+        vs = parts.ellipsoid(center, radii, b, color=None, weights=weights, seg=seg, rings=rings, color_fn=color_fn)
+    for v in vs:
+        v.co += (v.co - center) * rng.uniform(-0.12, 0.12)
+    return vs
+
+
+def crystal(parts, base, direction, length, radius, weights, root, tip_col, mat=SKIN, sides=5):
+    with parts.on(mat):
+        return parts.blob(base, radius, direction, length, None, weights=weights, seg=sides, rings=3, tip=0.02,
+                          color_fn=lambda t: L.mix(root, tip_col, t))
