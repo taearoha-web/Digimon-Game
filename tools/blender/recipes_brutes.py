@@ -1,0 +1,156 @@
+"""Remaster recipes for the fierce monsters (team "brutes"): orcs, demons, golems, ninjas,
+yetis, dinos and their bosses. Same pipeline as remaster_monsters.py (see its docstring):
+
+    /opt/bpy5/bin/python tools/blender/recipes_brutes.py [big/Demon ...]
+
+writes assets/models/monsters/remaster/<dir>/<Name>.glb (all recipes with no argument).
+remaster_monsters.py registers these recipes too. Design rule: no blush, no googly eyes -
+glowing slit / narrow eyes under heavy lids, brows, tusks, horns, scars, runes, fur.
+Several rigs are shared by tinted monsters (MonsterData "tint" multiplies Skin / Detail /
+Glow): their skin is painted in light, low-saturation tones so every tint reads, while
+bone, tusks and fixed-colour eyes sit on the untinted Ivory / IvoryGlow materials.
+"""
+import math
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import remaster_lib as L  # noqa: E402
+import kit_brutes as K  # noqa: E402
+from mathutils import Vector  # noqa: E402
+
+L.export = K.export  # unlit Glow, base colour factors (no-op for other models)
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SRC = os.path.join(ROOT, "assets", "models", "monsters")
+OUT = os.path.join(SRC, "remaster")
+
+C = L.srgb
+SKIN, DETAIL, GLOW, IVORY, IVORY_GLOW = K.SKIN, K.DETAIL, K.GLOW, K.IVORY, K.IVORY_GLOW
+WHITE = C("ffffff")
+
+
+# ---------------------------------------------------------------- big/Demon
+
+def demon(arm, body):
+    """hell_orc (red) and void_emperor (violet boss): a horned, winged demon lord.
+    Burnt-black hands and feet, lighter chest, glowing ember cracks over the chest and
+    arms (tinted: lava red / void violet), fiery untinted eyes under a scowling brow,
+    ivory fangs and lower tusks, obsidian-to-bone horns, the halo turned into a glowing
+    ring of hellfire."""
+    keys = K.regions(body)
+    BODY, DARK, EYE, PUPIL = "b25868", "666966", "c5c7d0", "606266"
+    K.tag_regions(body, keys)
+    L.delete_faces(body, ("R_" + EYE, "R_" + PUPIL))
+    crisp = K.split_where(body, lambda p: body.data.materials[p.material_index].name == "R_" + DARK)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4100)
+    L.relax(body, 2, 0.4)
+    L.clean(crisp, quads=False)
+    halo = K.face_islands(crisp, lambda p: abs(p.center.x) < 0.42 and p.center.z > 2.7 and abs(p.center.y) < 0.42)
+    K.retag(crisp, {v for _c, _h, vs in halo for v in vs}, "R_halo")
+    L.join(body, crisp)
+
+    chest, main, back, burnt = C("f0d2c8"), C("cf9e94"), C("94635f"), C("2e2228")
+
+    def paint(region, co, n, info):
+        bone = info["bone"]
+        r = region[2:]
+        if r == "halo":
+            return C("fff0d8"), GLOW  # the halo, turned into a ring of hellfire
+        if r == DARK:
+            if bone == "Middle1.L" or bone.startswith(("Index", "Pinky", "Thumb", "Middle")):
+                # the trident: dark iron, bright edges
+                return L.mix(C("2a2830"), C("8a8898"), L.smooth(0.0, 0.03, info["bump"])), IVORY
+
+            if bone == "Head":  # horns: obsidian roots, bone tips
+                t = L.smooth(2.5, 3.0, co.z)
+                return L.mix(C("1e1820"), C("efe2c8"), t ** 1.3), IVORY
+            # wing frame
+            return L.mix(C("231c22"), C("4a3a40"), L.smooth(1.7, 2.3, co.z)), IVORY
+        if bone == "Neck" and co.y > 0.4:  # wing membrane, darker to the edges
+            d = (co - Vector((0.0, 0.5, 1.9))).length
+            return L.mix(C("d6a49a"), C("5a3438"), L.smooth(0.35, 1.15, d))
+        c = L.mix(back, main, L.smooth(0.45, -0.2, n.y))
+        c = L.mix(c, chest, L.smooth(-0.35, -0.9, n.y) * L.smooth(0.9, 1.4, co.z) * L.smooth(2.3, 1.9, co.z))
+        # burnt extremities: hands, forearm ends, feet and shins
+        ext = max(L.smooth(1.25, 1.75, abs(co.x)), L.smooth(0.55, 0.15, co.z))
+        c = L.mix(c, burnt, ext * 0.92)
+        return c
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    lid = C("b07a74")
+    for sx in (-1.0, 1.0):
+        c = Vector((0.31 * sx, -0.47, 2.2))
+        gaze = Vector((0.28 * sx, -1.0, 0.05)).normalized()
+        K.fierce_eye(parts, c, 0.135, gaze, sx, C("fff6b0"), C("ff7a10"), head, lid=lid, open_=0.5,
+                     glow_mat=IVORY_GLOW)
+        # heavy brow ridge, low over the nose
+        K.ridge(parts, Vector((0.5 * sx, -0.4, 2.42)), Vector((0.07 * sx, -0.6, 2.3)), 0.075, C("8a5550"), head,
+                bulge=Vector((0, -0.05, 0.04)), tip=0.7)
+        # upper fangs hanging over the lip, lower tusks jutting up
+        K.fang(parts, Vector((0.14 * sx, -0.6, 1.98)), Vector((0.05 * sx, -0.25, -1.0)), 0.2, 0.045, head)
+        K.fang(parts, Vector((0.26 * sx, -0.58, 1.86)), Vector((0.12 * sx, -0.3, 1.0)), 0.24, 0.055, head,
+               root=C("d8c6a0"), bend=Vector((0.02 * sx, -0.05, 0.0)))
+        # bone spikes on the shoulders
+        for k, (dx, dz) in enumerate(((0.0, 0.0), (0.18, -0.06), (-0.16, -0.04))):
+            p, n = K.dir_hit(surf, Vector((0.62 * sx + dx * sx, 0.15, 1.8)), Vector((0.35 * sx, 0.2, 1.0)))
+            if p is not None:
+                K.horn(parts, p - n * 0.03, (n + Vector((0.2 * sx, 0.1, 0.5))).normalized(), 0.26 - 0.06 * k,
+                       0.06 - 0.01 * k, p, C("231c22"), C("efe2c8"), seg=8, rings=5)
+    p, n = K.front_hit(surf, 0.0, 1.96)
+    with parts.on(DETAIL):
+        parts.stroke(p, n, [(x / 8.0 * 0.32, -0.04 * (1.0 - (x / 8.0) ** 2) - 0.02 * abs(x / 8.0)) for x in
+                            range(-8, 9)], 0.05, C("2a0e12"), lift=0.012, taper=True)
+    # Ember cracks: over the chest and down the arms.
+    rng = random.Random(11)
+    ember = C("ffe2c0")
+    for (x, z, head_a, ln) in ((0.25, 1.55, -1.9, 0.55), (-0.3, 1.45, -1.2, 0.5), (0.05, 1.2, -1.6, 0.45),
+                               (0.4, 1.25, -2.2, 0.35), (-0.15, 1.75, -0.6, 0.35)):
+        p, n = K.front_hit(surf, x, z)
+        if p is not None:
+            K.glow_path(parts, p, n, K.crack_path(rng, ln, 6, 0.3, heading=head_a), 0.055, ember)
+    for sx in (-1.0, 1.0):
+        for k in range(2):
+            p, n = K.dir_hit(surf, Vector((0.9 * sx + 0.3 * k * sx, 0.05, 1.82)), Vector((0, -0.3, 1.0)))
+            if p is not None:
+                K.glow_path(parts, p, n, K.crack_path(rng, 0.35, 5, 0.25, heading=0.0 if sx > 0 else math.pi), 0.035,
+                            ember, up=Vector((0, -1, 0)))
+    # a row of spines down the back
+    for k, z in enumerate((2.45, 2.2, 1.95, 1.7, 1.45)):
+        p, n = K.dir_hit(surf, Vector((0, 0.1, z)), Vector((0, 1.0, 0.15)))
+        if p is not None:
+            K.horn(parts, p - n * 0.03, (n + Vector((0, 0.0, 0.45))).normalized(), 0.34 - 0.035 * k, 0.07 - 0.007 * k,
+                   p, C("231c22"), C("efe2c8"), seg=8, rings=5)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
+RECIPES = {
+    "big/Demon": demon,
+}
+
+
+def build(name):
+    import bpy
+    L.reset()
+    arm, body = L.load(os.path.join(SRC, name + ".gltf"))
+    clips = sorted(a.name for a in bpy.data.actions)
+    before = L.tri_count(body)
+    RECIPES[name](arm, body)
+    out = os.path.join(OUT, name + ".glb")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    L.export(arm, body, out, clips)
+    print("REMASTER %s tris %d -> %d, %d bytes, mats %s" % (name, before, L.tri_count(body), os.path.getsize(out),
+                                                         ",".join(m.name for m in body.data.materials)))
+
+
+if __name__ == "__main__":
+    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
+    for name in (args or list(RECIPES)):
+        build(name)

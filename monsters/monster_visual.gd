@@ -161,7 +161,9 @@ func _apply_finish(tint: Color, fit: float, skin: Texture2D = null) -> void:
 				painted.set_meta("storybook_key", "%s|%s" % [source.resource_path, skin.resource_path])
 				source = painted
 			if source:
-				mi.set_surface_override_material(i, StorybookFinish.material(source, tint, mesh_width, _soft_body))
+				# Remastered "Ivory*" surfaces (bone, tusks, glowing eyes) keep their own colour under a tint.
+				var own_tint := Color.WHITE if String(source.resource_name).begins_with("Ivory") else tint
+				mi.set_surface_override_material(i, StorybookFinish.material(source, own_tint, mesh_width, _soft_body))
 
 
 func _process(delta: float) -> void:
