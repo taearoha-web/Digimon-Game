@@ -304,9 +304,10 @@ def fierce_eye(parts, center, radius, gaze, weights, lid_col, lid_dark=None, glo
     parts.ellipsoid(center, (radius, radius, radius), color=None, weights=weights, detail=glow, seg=16, rings=10,
                     color_fn=lambda u: L.mix(ball_col, ball_col * 0.55, L.smooth(0.3, -0.9, u.z)))
     if ring is not None:
-        parts.sphere_cap(center, radius, gaze, (0.62, 0.62), ring, weights, lift=0.01, seg=20, rings=2,
-                         color_fn=lambda x, y: L.mix(ring, ball_col, L.smooth(0.55, 1.0, math.hypot(x, y))),
-                         detail=glow)
+        # Iris: lit (not emissive) so its colour shows around the glowing pupil slit.
+        parts.sphere_cap(center, radius, gaze, (0.5, 0.5), ring, weights, lift=0.012, seg=20, rings=3,
+                         color_fn=lambda x, y: L.mix(ring * 1.4, ring * 0.6, L.smooth(0.2, 1.0, math.hypot(x, y))),
+                         detail=True)
     if slit:
         parts.sphere_cap(center, radius, gaze, slit, pupil, weights, lift=0.03, up=up, seg=14, rings=2)
     # Upper lid: a cap whose axis is "up" tilted towards the nose; it covers all but open_.

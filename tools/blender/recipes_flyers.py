@@ -218,7 +218,7 @@ def ghost(arm, body):
     for c, r in eyes:
         sx = 1.0 if c.x > 0 else -1.0
         K.hollow_eye(parts, c, r * 1.0, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, lid_col=C("cbb8f6"),
-                     tilt=0.55, open_=0.45, pupil=0.48, sink=0.6)
+                     tilt=0.55, open_=0.5, pupil=0.5, sink=0.3)
     _wisps(parts, surf, 0.55, lambda t: L.mix(C("8a6ad0"), C("3a1a70"), t), count=5, length=0.5)
     K.join_parts(body, parts.to_object())
     L.bake_ao(body, strength=0.4, shade=Vector((0.55, 0.5, 0.8)))
@@ -450,7 +450,7 @@ def _bat(arm, body, fur_top, fur_low, chest, membrane, membrane_edge, inner_ear,
 def blood_bat(arm, body):
     """Goleling: blood_bat. A vampire bat: streaky dark fur with a paler chest, pink inner
     ears, thin veined membranes, burning red slit eyes under a heavy brow, long fangs."""
-    _bat(arm, body, C("a06a5e"), C("5a3438"), C("d8a090"), C("3a1a22"), C("b05a5a"), C("e88a90"), C("8a4c4c"),
+    _bat(arm, body, C("c8907e"), C("6a3c40"), C("e8b8a8"), C("3a1a22"), C("b05a5a"), C("e88a90"), C("8a4c4c"),
          2.55, C("ff6060"))
     return {"glow": "ff3020", "strength": 1.6}
 
@@ -620,7 +620,7 @@ def storm_wizard(arm, body):
     parts = K.FParts(surf)
     for c, r in eyes:
         K.fierce_eye(parts, c, r * 0.95, Vector((0.0, -1.0, 0.05)), {"Head": 1.0}, face_low, ball=C("d8f4ff"),
-                     slit=(0.08, 0.55), tilt=0.0, open_=0.38, lower_lid=0.5, ring=C("4aa8ff"),
+                     slit=(0.08, 0.5), tilt=0.0, open_=0.5, lower_lid=0.75, ring=C("4aa8ff"),
                      brow=hood_low)
     # Lightning runes on the hood.
     rng = random.Random(7)
