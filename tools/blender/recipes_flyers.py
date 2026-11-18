@@ -278,7 +278,116 @@ def skull_ghost(arm, body):
     return {"glow": "a8ecff", "strength": 1.7}
 
 
+# ---------------------------------------------------------------- bees
+
+def _compound(centre, dark, mid, rim):
+    """Faceted compound-eye paint around an eyeball centre."""
+    def col(co):
+        d = (co - centre).normalized()
+        f = K.scales(d, 0.11)
+        c = L.mix(mid, dark, L.smooth(-0.2, 0.7, d.z))
+        c = L.mix(c, rim, L.smooth(0.4, 1.0, -d.y) * L.smooth(0.3, -0.5, d.z) * 0.5)
+        return L.mix(c, dark * 0.5, f * 0.8)
+    return col
+
+
+def _bee(arm, body, chitin_top, chitin_low, stripe_a, stripe_b, eye_dark, eye_mid, eye_rim, wing_root, wing_tip,
+         stinger_col, ice=False):
+    eyes = K.eye_balls(body, ("Eye_White",))
+    snap = K.Snapshot(body, ("Armabee_Main", "Armabee_Secondary"))
+    L.delete_faces(body, ("Eye_Black",))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5600)
+    L.relax(body, 2, 0.3, ("Armabee_Main", "Armabee_Secondary"))
+    eye_cols = [_compound(c, eye_dark, eye_mid, eye_rim) for c, r in eyes]
+
+    def paint(name, co, n, info):
+        if name == "Eye_White":
+            k = 0 if (len(eyes) < 2 or abs(co.x - eyes[0][0].x) < abs(co.x - eyes[1][0].x)) else 1
+            return eye_cols[k](co)
+        if name == "Wings":
+            # Membrane: smoky root, clear pale blade, dark veins.
+            t = L.smooth(0.4, 2.0, abs(co.x))
+            c = L.mix(wing_root, wing_tip, t)
+            vein = abs(math.sin((co.y * 1.3 + abs(co.x) * 0.45) * 9.0))
+            return L.mix(c, wing_root * 0.6, L.smooth(0.12, 0.0, vein) * 0.7)
+        if name == "Teeth":
+            return L.mix(C("e8dcc4"), C("fffaf0"), L.smooth(-0.01, 0.05, info["bump"]))
+        if name == "Tongue":
+            return C("5a1a4a")
+        stripe = 0.0
+        if name in ("Armabee_Secondary", "Armabee_Main"):
+            stripe = 1.0 if snap.region(co) == "Armabee_Secondary" else 0.0
+        if stripe > 0.0:
+            c = L.mix(stripe_b, stripe_a, L.smooth(-0.6, 0.6, n.z) * 0.6 + 0.4 * max(0.0, -n.y))
+            c = L.mix(c, c * 0.8, abs(K.fbm(co, 0.12, 2)) * 0.35)
+            if stripe >= 1.0:
+                return c
+        k = L.mix(chitin_low, chitin_top, L.smooth(-0.5, 0.8, n.z))
+        # Hard chitin catches a cool rim of light.
+        k = L.mix(k, L.mix(k, C("8aa0d0"), 0.5), L.smooth(0.55, 0.95, abs(n.x)) * 0.45)
+        return L.mix(k, c, stripe) if stripe > 0.0 else k
+
+    K.paint_body_glow(body, paint, glow=lambda name, co, bone: 2 if name == "Wings" else 0)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        # A glint on the compound eye, and a chitin brow plate scowling over it.
+        parts.sphere_cap(c, r, Vector((0.2 * sx, -1.0, 0.6)).normalized(), (0.16, 0.11), WHITE, {"Head": 1.0},
+                         lift=0.02, seg=12, rings=2)
+        a = c + Vector((0.9 * sx, -0.25, 0.85)).normalized() * r * 1.05
+        b = c + Vector((-0.75 * sx, -0.6, 0.35)).normalized() * r * 1.05
+        parts.blob(a, (r * 0.32, r * 0.16), b - a, (b - a).length * 1.2, None, weights={"Head": 1.0}, seg=10,
+                   rings=6, tip=0.5, up=Vector((0, -1, 0.3)),
+                   color_fn=lambda t: L.mix(chitin_top, chitin_low, t))
+    # Stinger out of the abdomen tip, with a venom-lit point.
+    lo, hi = L.bounds(body)
+    axis = Vector((0.0, 0.55, -1.0)).normalized()
+    p, n = dir_hit(surf, Vector((0.0, 0.1, lo.z + 0.6)), axis)
+    if p is not None:
+        parts.blob(p - axis * 0.05, 0.11, axis, 0.42, None, weights=p, seg=10, rings=6, tip=0.05,
+                   color_fn=lambda t: L.mix(chitin_low, chitin_top, t))
+        parts.blob(p + axis * 0.28, 0.035, axis, 0.18, None, weights=p, seg=6, rings=4, tip=0.05,
+                   detail="glow", color_fn=lambda t: stinger_col)
+    if ice:
+        # Frost crystals along the back.
+        rng = random.Random(3)
+        for k in range(7):
+            d = Vector((rng.uniform(-0.6, 0.6), 1.0, rng.uniform(-0.2, 0.9)))
+            p, n = dir_hit(surf, Vector((0.0, 0.0, 1.9)), d)
+            if p is None:
+                continue
+            s = rng.uniform(0.7, 1.15)
+            parts.blob(p - n * 0.04, (0.07 * s, 0.05 * s), (n + Vector((0, 0, 0.4))).normalized(), 0.38 * s, None,
+                       weights=p, seg=6, rings=3, tip=0.05,
+                       color_fn=lambda t: L.mix(C("a8d8f8"), C("ffffff"), t))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.4)
+
+
+def poison_bee(arm, body):
+    """Armabee: poison_bee. Glossy black chitin with acid-yellow bands, red faceted
+    compound eyes under scowling brow plates, smoky veined wings with a faint sheen and a
+    venom-lit stinger."""
+    _bee(arm, body, C("3a3848"), C("0e0c14"), C("e8f048"), C("8ab020"), C("3a0606"), C("c8281a"), C("ff9a5a"),
+         C("6a6a7a"), C("e8f4ff"), C("b8ff40"))
+    return {"glow": "a8ff30", "strength": 1.6, "glow2": "b8d8f0", "strength2": 0.35}
+
+
+def ice_bee(arm, body):
+    """Armabee_Evolved: ice_bee (icy tint), gold pollen bee. Pale steel chitin and frost-white
+    bands, ice crystals on the back, deep blue compound eyes, glittering wings, an icy
+    stinger and mandibles."""
+    _bee(arm, body, C("56648a"), C("181e34"), C("ffffff"), C("cfe4f8"), C("0a1440"), C("3a6ad0"), C("b0e0ff"),
+         C("7a8aa0"), C("f4fbff"), C("a8f0ff"), ice=True)
+    return {"glow": "a0f0ff", "strength": 1.6, "glow2": "c8e8ff", "strength2": 0.35}
+
+
 RECIPES = {
+    "flying/Armabee": poison_bee,
+    "flying/Armabee_Evolved": ice_bee,
     "flying/Ghost_Skull": skull_ghost,
     "flying/Ghost": ghost,
     "flying/Dragon": dragon_young,

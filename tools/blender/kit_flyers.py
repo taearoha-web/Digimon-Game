@@ -392,3 +392,21 @@ def hollow_eye(parts, center, radius, gaze, weights, socket=C("12061c"), lid_col
         half = math.pi * 0.5 - open_
         parts.sphere_cap(c, radius * 1.06, ax, (half, half), lid_col, weights, lift=0.0, up=gaze, seg=22, rings=5,
                          detail=False)
+
+
+class Snapshot:
+    """The body's regions as they were before reshaping: region(co) -> the material name
+    of the nearest original face (keeps painted bands crisp after subdivide/decimate)."""
+
+    def __init__(self, body, names=None):
+        from mathutils.bvhtree import BVHTree
+        me = body.data
+        mats = [m.name if m else "" for m in me.materials]
+        polys = [p for p in me.polygons if names is None or mats[p.material_index] in names]
+        self.verts = [v.co.copy() for v in me.vertices]
+        self.names = [mats[p.material_index] for p in polys]
+        self.bvh = BVHTree.FromPolygons(self.verts, [list(p.vertices) for p in polys])
+
+    def region(self, co):
+        _loc, _n, idx, _d = self.bvh.find_nearest(co)
+        return self.names[idx] if idx is not None else ""
