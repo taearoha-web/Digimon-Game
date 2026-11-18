@@ -37,7 +37,7 @@ const MONSTERS := {
 	&"abyss_angler": {"name": "ปลาโคมมรณะ", "model": "big/Fish", "height": 2.3, "hover": 0.5, "hp": 2.0, "atk": 2.2, "def": 1.3, "speed": 2.8, "aggro": true, "attack": "ranged",
 		"color": Color("6ef3ff"), "tint": Color(0.5, 1.15, 1.5), "aura": Color("6ef3ff"), "behavior": "mortar", "exp": 1.6, "gold": 2.0},
 	&"reef_crab": {"name": "ปูเกราะปะการังโลหิต", "model": "remaster/dawn/Crab_reef_crab", "height": 2.4, "hp": 2.6, "atk": 2.1, "def": 1.8, "speed": 2.6, "aggro": true, "attack": "melee",
-		"color": Color("ff5a7a"), "aura": Color("ff5a7a"), "behavior": "spin", "exp": 1.7, "gold": 2.1},
+		"color": Color("ff5a7a"), "tint": Color(1, 1, 1), "aura": Color("ff5a7a"), "behavior": "spin", "exp": 1.7, "gold": 2.1},
 	&"tide_squid": {"name": "หมึกเงาคลื่นคลั่ง", "model": "flying/Squidle", "height": 2.3, "hover": 0.9, "hp": 2.0, "atk": 2.4, "def": 1.2, "speed": 2.9, "aggro": true, "attack": "ranged",
 		"color": Color("b98cff"), "tint": Color(0.9, 0.7, 1.6), "aura": Color("b98cff"), "behavior": "beam", "exp": 1.65, "gold": 2.0},
 	&"drown_jelly": {"name": "แมงกะพรุนวิญญาณจมน้ำ", "model": "flying/Glub_Evolved", "height": 2.1, "hover": 1.1, "hp": 1.9, "atk": 2.3, "def": 1.2, "speed": 2.7, "aggro": true, "attack": "ranged",
