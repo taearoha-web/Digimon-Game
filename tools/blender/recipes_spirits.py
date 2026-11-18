@@ -540,6 +540,285 @@ def eclipse_wraith(arm, body):
     return {"glow": "ffe0a0", "strength": 1.6, "glow2": "ffd070", "strength2": 1.7}
 
 
+
+# ================================================================ Glub_Evolved
+
+def drown_jelly(arm, body):
+    """Glub_Evolved -> drown_jelly (แมงกะพรุนวิญญาณจมน้ำ): the spirit of a drowned jellyfish.
+    The head's tip is pressed down under a wide glassy bell with a scalloped glowing rim
+    and radial canals; long trailing tentacles and frilly oral arms hang from it round the
+    pale body column; three drowned-soul eyes glow sea-green; the wings become fin-lobes
+    dotted with bioluminescence; little air bubbles cling to the skin. No lava, no cracks."""
+    eyes = [e for e in K.eye_balls(body, ("c_8f92a0",)) if e[0].z < 2.8]
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    # Press the head's horn-tip down into the bell.
+    for v in body.data.vertices:
+        if v.co.z > 2.95:
+            v.co.z = 2.95 + (v.co.z - 2.95) * 0.35
+            v.co.y *= 0.6
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3000)
+    L.relax(body, 2, 0.3, ("c_403a5a",))
+    top, low, deep = C("f4f0ff"), C("b8c8f0"), C("4a5aa0")
+
+    def paint(name, co, n, info):
+        if name == "c_818181":  # fin lobes: pale membrane, deeper root, glowing dots
+            t = L.smooth(0.4, 2.0, abs(co.x))
+            c = L.mix(C("6a7ab8"), C("f0f4ff"), t)
+            d0, _d1 = K.cells(co, 0.2)
+            return L.mix(c, C("ffffff"), L.smooth(0.12, 0.05, d0) * 0.7)
+        c = L.mix(deep, low, L.smooth(0.5, 1.6, co.z))
+        c = L.mix(c, top, L.smooth(1.6, 2.6, co.z))
+        # Gentle vertical canals down the column.
+        canal = abs(math.sin(math.atan2(co.x, co.y) * 6.0))
+        c = L.mix(c, c * 0.8, L.smooth(0.2, 0.0, canal) * 0.6)
+        return L.mix(c, c * 1.2, max(0.0, -n.y) * 0.2)
+
+    K.paint_body_glow(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    for c, r in eyes:
+        sx = 0.0 if abs(c.x) < 0.05 else (1.0 if c.x > 0 else -1.0)
+        K.hollow_eye(parts, c, r * 0.95, Vector((0.3 * sx, -1.0, 0.0)), {"Head": 1.0}, lid_col=C("c8d4f4"),
+                     tilt=0.35 if sx else 0.0, open_=0.45, pupil=0.5, sink=0.3, ball=C("d8fff0"))
+    # The bell.
+    apex, _an = dir_hit(surf, Vector((0.0, 0.0, 2.8)), UP)
+    anchor = apex if apex is not None else Vector((0, 0, 3.1))
+    bc = Vector((0.0, 0.05, anchor.z + 0.02))
+    R = 1.05
+
+    def bell_col(u):
+        c = L.mix(C("dcd8ff"), C("ffffff"), L.smooth(-0.2, 0.9, u.z))
+        rad = abs(math.sin(math.atan2(u.y, u.x) * 8.0))
+        c = L.mix(c, C("a8b8ff"), L.smooth(0.25, 0.0, rad) * L.smooth(0.95, 0.2, u.z) * 0.6)
+        return L.mix(c, C("8a9ae0"), L.smooth(0.25, -0.2, u.z) * 0.5)
+    parts.ellipsoid(bc, (R, R * 0.95, 0.72), color=None, weights=anchor, seg=28, rings=12, squash_bottom=0.72,
+                    color_fn=bell_col)
+    # Scalloped glowing rim.
+    for k in range(16):
+        a = 2.0 * math.pi * k / 16
+        d = Vector((math.cos(a), math.sin(a) * 0.95, 0.0))
+        parts.ellipsoid(bc + d * R * 0.97 + Vector((0, 0, -0.14)), (0.14, 0.14, 0.09), K.basis(d), color=None,
+                        weights=anchor, seg=7, rings=4, detail="glow2" if k % 2 == 0 else False,
+                        color_fn=lambda u: L.mix(C("b8fff0"), C("e8fff8"), L.smooth(-0.5, 0.8, u.z)))
+    # Glowing spots on the bell's crown.
+    for k in range(7):
+        a = 2.0 * math.pi * k / 7 + 0.3
+        p = bc + Vector((math.cos(a) * 0.45, math.sin(a) * 0.43, 0.62))
+        parts.ellipsoid(p, (0.07, 0.07, 0.04), color=None, weights=anchor, detail="glow", seg=8, rings=4,
+                        color_fn=lambda u: C("d0fff4"))
+    # Long trailing tentacles from under the rim.
+    rng = random.Random(8)
+    for k in range(12):
+        a = 2.0 * math.pi * (k + 0.5) / 12
+        out = Vector((math.cos(a), math.sin(a), 0.0))
+        base = bc + out * R * 0.8 + Vector((0, 0, -0.2))
+        ln = rng.uniform(1.6, 2.3)
+        parts.blob(base, 0.05, Vector((out.x * 0.12, out.y * 0.12 + 0.12, -1.0)), ln, None, weights=anchor, seg=6,
+                   rings=8, tip=0.25, bend=Vector((out.x * 0.3 + rng.uniform(-0.15, 0.15), 0.3, 0.0)),
+                   color_fn=lambda t: L.mix(C("c8d0ff"), C("e8fff8"), t))
+    # Frilly oral arms hugging the column.
+    for k in range(4):
+        a = 2.0 * math.pi * (k + 0.5) / 4
+        out = Vector((math.cos(a), math.sin(a), 0.0))
+        p, n = dir_hit(surf, Vector((0, 0.0, 2.6)), out + Vector((0, 0, 0.2)))
+        if p is None:
+            continue
+        parts.blob(p + n * 0.02, (0.14, 0.05), Vector((out.x * 0.25, out.y * 0.25, -1.0)), 1.5, None, weights=anchor,
+                   seg=8, rings=8, tip=0.3, up=out, bend=Vector((out.x * 0.25, out.y * 0.25 + 0.15, 0)),
+                   color_fn=lambda t: L.mix(C("ffe8f8"), C("e8c8ff"), t))
+    # Air bubbles on the skin.
+    for k in range(9):
+        a = rng.uniform(0, 2 * math.pi)
+        z = rng.uniform(0.9, 2.6)
+        d = Vector((math.cos(a), math.sin(a), 0.0))
+        p, n = surf.toward(Vector((0, 0.0, z)) + d * 5.0, Vector((0, 0.0, z)))
+        if p is None or any((p - e[0]).length < e[1] * 1.6 for e in eyes):
+            continue
+        s = rng.uniform(0.04, 0.08)
+        parts.ellipsoid(p + n * s * 0.7, (s, s, s), color=None, weights=p, seg=8, rings=5,
+                        color_fn=lambda u: L.mix(C("a8c0ff"), WHITE, L.smooth(-0.2, 0.9, u.z)))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.35, shade=Vector((0.55, 0.62, 0.8)))
+    return {"glow": "b8fff0", "strength": 1.6, "glow2": "8affe0", "strength2": 1.2}
+
+
+# ================================================================ Squidle
+
+def tide_squid(arm, body):
+    """Squidle -> tide_squid (หมึกเงาคลื่นคลั่ง): a shadow squid of the raging tide. The bone
+    horns are gone; a tall finned mantle sweeps up and back from the head, the hanging
+    tongue becomes a beak ringed by curling tentacles, the arms are tentacles with sucker
+    rows beneath, the wings are wave-striped fins, big squid eyes with bar pupils, and
+    photophores glow cyan along mantle and arms over chromatophore-spotted skin."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22", "c_a58c72"))
+    L.clean(body, fill_holes=30)
+    L.decimate_to(body, 4200)
+    skin_top, skin_low, belly, spot = C("8a7ad8"), C("2a2060"), C("e8e0ff"), C("c84a8a")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "c_2a6f8b":  # fins with wave stripes
+            t = L.smooth(0.5, 1.9, abs(co.x))
+            c = L.mix(C("3a3a90"), C("a8c8ff"), t)
+            wave = math.sin(abs(co.x) * 9.0 + math.sin(co.y * 6.0) * 1.5)
+            return L.mix(c, C("f0f8ff"), L.smooth(0.75, 0.95, wave) * 0.8)
+        if name == "c_5b354a":  # beak / mouth
+            return L.mix(C("1a1028"), C("4a3a5a"), L.smooth(1.2, 1.8, co.z))
+        c = L.mix(skin_low, skin_top, L.smooth(1.2, 2.5, co.z))
+        on_arm = bone.startswith(("UpperArm", "LowerArm", "Middle", "Index", "Pinky", "Thumb"))
+        if on_arm and n.z < -0.2:
+            # Sucker rows under the tentacle-arms: pale rings.
+            c = L.mix(c, belly, 0.6)
+            d0, _d1 = K.cells(Vector((co.x * 1.0, co.y * 2.5, co.z * 2.5)), 0.12)
+            return L.mix(c, C("b8a0d0"), L.smooth(0.1, 0.05, d0))
+        c = L.mix(c, belly, L.smooth(-0.3, -0.85, n.y) * L.smooth(2.1, 1.5, co.z) * 0.7)
+        # Chromatophores.
+        d0, _d1 = K.cells(co, 0.14)
+        return L.mix(c, spot, L.smooth(0.08, 0.03, d0) * 0.55)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 1.0, Vector((0.45 * sx, -1.0, 0.0)), wh, skin_top * 0.9, lid_dark=skin_low,
+                     ball=C("ffc838"), slit=None, tilt=0.1, open_=0.62, lower_lid=0.8, brow=skin_low)
+        # The cephalopod's bar pupil, bent into a shallow W.
+        g = Vector((0.3 * sx, -1.0, 0.0)).normalized()
+        for k, (ox, oy) in enumerate(((-0.32, 0.05), (0.0, -0.04), (0.32, 0.05))):
+            parts.sphere_cap(c, r * 1.0, g, (0.24, 0.12), C("0a0610"), wh, lift=0.04, offset=(ox, oy), seg=12,
+                             rings=1, detail=False)
+    # The mantle: a tall cone sweeping up and back, with two fins at its tip.
+    apex, _n = dir_hit(surf, Vector((0.0, 0.1, 2.2)), Vector((0.0, 0.3, 1.0)))
+    base = (apex if apex is not None else Vector((0, 0.15, 2.55))) - Vector((0, 0, 0.25))
+    axis = Vector((0.0, 0.55, 1.0)).normalized()
+    mantle = lambda t: L.mix(skin_top, L.mix(skin_top, C("d8d0ff"), 0.5), t)
+    parts.blob(base, (0.48, 0.42), axis, 1.25, None, weights=wh, seg=14, rings=10, tip=0.12, color_fn=mantle,
+               up=Vector((0, -1, 0)))
+    tip = base + axis * 1.0
+    for sx in (-1.0, 1.0):
+        parts.blob(tip - axis * 0.15, (0.42, 0.06), Vector((sx, 0.35, -0.1)), 0.75, None, weights=wh, seg=10, rings=6,
+                   tip=0.1, up=Vector((0, 0, 1)), bend=axis * 0.2,
+                   color_fn=lambda t: L.mix(skin_top, C("b8d0ff"), t))
+    # Photophores along the mantle and on the brow.
+    for k in range(6):
+        p = base + axis * (0.25 + 0.14 * k)
+        for sx in (-1.0, 1.0):
+            side = Vector((sx, -0.25, 0)).normalized()
+            rr = 0.46 * (1.0 - 0.75 * (0.25 + 0.14 * k) / 1.25)
+            parts.ellipsoid(p + side * rr, (0.045, 0.045, 0.045), color=None, weights=wh, detail="glow2", seg=6,
+                            rings=4, color_fn=lambda u: C("a8fff8"))
+    # Beak tentacles: a ring of curling short tentacles round the mouth.
+    p0, _n0 = front_hit(surf, 0.0, 1.55)
+    mc = (p0 if p0 is not None else Vector((0, -0.5, 1.55))) + Vector((0, 0.15, 0))
+    for k in range(6):
+        a = math.pi * (0.15 + 0.7 * k / 5)
+        d = Vector((math.cos(a) * 0.9, -0.35, -0.6 - 0.3 * math.sin(a))).normalized()
+        parts.blob(mc + Vector((math.cos(a) * 0.22, 0.0, -0.05)), 0.075, d, 0.75, None, weights=wh, seg=8, rings=7,
+                   tip=0.2, bend=Vector((-math.cos(a) * 0.25, -0.12, 0.18)),
+                   color_fn=lambda t: L.mix(skin_top, C("e8d8ff"), L.smooth(0.4, 1.0, t)))
+    # Photophores on the tentacle-arms.
+    for side in ("L", "R"):
+        for bn, f in (("UpperArm." + side, 0.5), ("LowerArm." + side, 0.3), ("LowerArm." + side, 0.85)):
+            b = arm.data.bones[bn]
+            c = b.head_local.lerp(b.tail_local, f)
+            p, n = surf.toward(c + Vector((0, 0, 2.0)), c)
+            if p is not None:
+                parts.ellipsoid(p + n * 0.02, (0.05, 0.05, 0.04), K.basis(n), color=None, weights={bn: 1.0},
+                                detail="glow2", seg=6, rings=4, color_fn=lambda u: C("a8fff8"))
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.5, 0.5, 0.75)))
+    return {"glow": "ffb820", "strength": 1.5, "glow2": "6afff0", "strength2": 1.5}
+
+
+# ================================================================ Hywirl
+
+def sky_wind_spirit(arm, body):
+    """Hywirl -> sky_wind_spirit (ภูตวายุนภา): a spirit of the high wind. Cloud-white body
+    fading to sky blue, painted wind swirls, the jagged crest swept back into two long
+    streaming plumes, the tail wrapped in a puffy cloud, long sky ribbons trailing from
+    the wrists, a glowing spiral on the chest and calm narrow cyan eyes. No lava, no fangs."""
+    eyes = K.eye_balls(body, ("c_8f92a0",))
+    L.delete_faces(body, ("c_8f92a0", "c_1e1f22"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3300)
+    L.relax(body, 3, 0.4)
+    top, low, sky = C("ffffff"), C("a8d0ff"), C("5a9aff")
+
+    def paint(name, co, n, info):
+        c = L.mix(low, top, L.smooth(1.2, 2.5, co.z))
+        c = L.mix(c, sky, L.smooth(1.4, 2.7, abs(co.x)) * 0.7)
+        # Wind streaks: long curved bands round the body.
+        sw = math.sin(math.atan2(co.x, co.y) * 2.0 + co.z * 5.0)
+        c = L.mix(c, C("dff0ff"), L.smooth(0.85, 1.0, sw) * 0.7)
+        return L.mix(c, c * 0.85, L.smooth(1.0, 0.2, co.z) * 0.4)
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    wh = {"Head": 1.0}
+    for c, r in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.85, Vector((0.4 * sx, -1.0, 0.0)), wh, C("e8f4ff"), lid_dark=C("7aa8e0"),
+                     ball=C("c8fbff"), slit=None, tilt=0.3, open_=0.3, lower_lid=0.6, ring=C("2ab8e8"))
+    # Two long plumes streaming back from the crest.
+    for sx in (-1.0, 1.0):
+        p, n = dir_hit(surf, Vector((0.0, 0.0, 2.3)), Vector((0.35 * sx, 0.2, 1.0)))
+        if p is None:
+            continue
+        for k, (ln, wd, lift) in enumerate(((1.35, 0.26, 0.05), (0.95, 0.19, 0.25))):
+            parts.blob(p - n * 0.05, (wd, wd * 0.22), Vector((0.35 * sx, 1.0, lift)), ln, None, weights=wh, seg=8,
+                       rings=8, tip=0.3, up=Vector((0, 0, 1)), bend=Vector((0.2 * sx, 0.1, 0.25 - 0.15 * k)),
+                       color_fn=lambda t: L.mix(C("ffffff"), C("9ad4ff"), L.smooth(0.45, 1.0, t)))
+    # Cloud puffs round the tail and on the shoulders.
+    rng = random.Random(6)
+    for k in range(9):
+        z = 0.2 + 0.12 * k
+        a = rng.uniform(0, 2 * math.pi)
+        c = Vector((math.cos(a) * 0.25, 0.45 + math.sin(a) * 0.25, z))
+        s = 0.3 - 0.015 * k
+        parts.ellipsoid(c, (s, s, s * 0.8), color=None, weights=c, seg=10, rings=7,
+                        color_fn=lambda u: L.mix(C("c8dcf8"), C("ffffff"), L.smooth(-0.6, 0.6, u.z)))
+    for sx in (-1.0, 1.0):
+        c = Vector((0.5 * sx, 0.15, 1.9))
+        for k in range(3):
+            q = c + Vector((0.15 * k * sx, rng.uniform(-0.08, 0.08), 0.05 * (1 - k)))
+            s = 0.2 - 0.03 * k
+            parts.ellipsoid(q, (s, s, s * 0.8), color=None, weights=q, seg=10, rings=7,
+                            color_fn=lambda u: L.mix(C("c8dcf8"), C("ffffff"), L.smooth(-0.6, 0.6, u.z)))
+    # Sky ribbons trailing from the wrists.
+    for side, sx in (("L", 1.0), ("R", -1.0)):
+        b = arm.data.bones["LowerArm." + side]
+        c = b.head_local.lerp(b.tail_local, 0.7)
+        w = {"LowerArm." + side: 1.0}
+        torus(parts, c, Vector((1, 0, 0)), 0.17, 0.045, lambda u, v: C("ffe9a8"), w, seg=14, sides=5)
+        parts.blob(c + Vector((0, 0.1, -0.05)), (0.2, 0.03), Vector((0.1 * sx, 1.0, -0.5)), 1.15, None, weights=w,
+                   seg=8, rings=8, tip=0.55, up=Vector((1, 0, 0)), bend=Vector((0.2 * sx, 0.1, 0.35)),
+                   color_fn=lambda t: L.mix(C("8ad0ff"), C("e8f8ff"), t))
+    # Glowing wind spiral on the chest and swirl runes on the arms.
+    p, n = front_hit(surf, 0.0, 1.55)
+    if p is not None:
+        spiral = [(math.cos(t * 4.0) * 0.02 * t * 3.0, math.sin(t * 4.0) * 0.02 * t * 3.0)
+                  for t in [i * 0.25 for i in range(15)]]
+        parts.stroke(p, n, spiral, 0.035, C("c8faff"), detail="glow2", taper=False, lift=0.014)
+    for side, sx in (("L", 1.0), ("R", -1.0)):
+        b = arm.data.bones["UpperArm." + side]
+        c = b.head_local.lerp(b.tail_local, 0.55)
+        q, n = surf.toward(c + Vector((0, -2.0, 0.6)), c)
+        if q is not None:
+            arc = [(math.cos(a) * 0.12 * (1 - a / 9), math.sin(a) * 0.12 * (1 - a / 9)) for a in
+                   [i * 0.5 for i in range(11)]]
+            parts.stroke(q, n, arc, 0.03, C("c8faff"), detail="glow2", taper=False, lift=0.012)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.35, shade=Vector((0.6, 0.7, 0.9)))
+    return {"glow": "c8fbff", "strength": 1.5, "glow2": "a8f0ff", "strength2": 1.3}
+
+
 def F_ellipse(rx, ry, n=16):
     return [(math.cos(2 * math.pi * i / n) * rx, math.sin(2 * math.pi * i / n) * ry) for i in range(n)]
 
@@ -547,12 +826,18 @@ def F_ellipse(rx, ry, n=16):
 # ================================================================ registry / runner
 
 RECIPES = {
+    "flying/Hywirl_sky_wind_spirit": sky_wind_spirit,
+    "flying/Squidle_tide_squid": tide_squid,
+    "flying/Glub_Evolved_drown_jelly": drown_jelly,
     "flying/Ghost_Skull_eclipse_wraith": eclipse_wraith,
     "flying/Ghost_Skull_star_wraith": star_wraith,
     "flying/Ghost_abyss_ghost": abyss_ghost,
     "flying/Ghost_lotus_sprite": lotus_sprite,
 }
 SOURCE = {
+    "flying/Hywirl_sky_wind_spirit": "flying/Hywirl",
+    "flying/Squidle_tide_squid": "flying/Squidle",
+    "flying/Glub_Evolved_drown_jelly": "flying/Glub_Evolved",
     "flying/Ghost_Skull_eclipse_wraith": "flying/Ghost_Skull",
     "flying/Ghost_Skull_star_wraith": "flying/Ghost_Skull",
     "flying/Ghost_abyss_ghost": "flying/Ghost",
