@@ -538,6 +538,7 @@ RECIPES = {
     "blob/Mushnub": mush_baby,
     "big/MushroomKing": mush_king,
 }
+RECIPES.update(__import__("recipes_brutes").RECIPES)  # the fierce monsters (team brutes)
 
 
 def build(name):
