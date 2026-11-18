@@ -39,7 +39,7 @@ const KINDS := {
 	"guardian": {"model": "big/Monkroose", "height": 2.0, "hover": 0.0, "tint": Color(1.3, 1.1, 0.8), "ranged": false, "speed": 5.0, "range": 2.4, "color": Color("c8a070")},
 	"treant": {"model": "big/MushroomKing", "height": 2.1, "hover": 0.0, "tint": Color(0.8, 1.4, 0.6), "ranged": false, "speed": 4.4, "range": 2.6, "color": Color("b0e070")},
 	"drake": {"model": "flying/Dragon", "height": 1.5, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
-	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 1.95, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
+	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 2.15, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
 	"sword": {"proc": true, "real_sword": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 ## Health as a share of the summoner's: legends stand longer, but no summon outlasts a swarm.

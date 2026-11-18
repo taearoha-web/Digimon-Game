@@ -46,8 +46,8 @@ const MONSTERS := {
 		"color": Color("4ad8c8"), "tint": Color(0.45, 1.0, 1.1), "aura": Color("4ad8c8"), "behavior": "lunge", "exp": 1.75, "gold": 2.2},
 	&"trench_horror": {"name": "อสูรหนวดร่องลึก", "model": "cute/Cthulhu", "height": 3.5, "hp": 5.5, "atk": 2.8, "def": 2.2, "speed": 2.9, "aggro": true, "attack": "ranged", "elite": true,
 		"color": Color("3affc8"), "tint": Color(0.4, 1.4, 1.2), "aura": Color("3affc8"), "behavior": "beam", "exp": 2.6, "gold": 3.0},
-	&"leviathan_whelp": {"name": "ลูกเลวีอาธานคลั่ง", "model": "flying/Dragon", "height": 3.7, "hover": 0.5, "hp": 6.0, "atk": 2.7, "def": 2.4, "speed": 3.2, "aggro": true, "attack": "melee", "elite": true,
-		"color": Color("2ab8ff"), "tint": Color(0.4, 0.9, 1.6), "aura": Color("2ab8ff"), "behavior": "pounce", "exp": 2.7, "gold": 3.0},
+	&"leviathan_whelp": {"name": "ลูกเลวีอาธานคลั่ง", "model": "remaster/flying/Dragon_leviathan_whelp", "height": 3.7, "hover": 0.5, "hp": 6.0, "atk": 2.7, "def": 2.4, "speed": 3.2, "aggro": true, "attack": "melee", "elite": true,
+		"color": Color("2ab8ff"), "tint": Color(0.95, 1.0, 1.1), "aura": Color("2ab8ff"), "behavior": "pounce", "exp": 2.7, "gold": 3.0},
 	# The summoner's Poseidon himself, grown to a boss: the same rig and clips (Attack throws
 	# a water orb, Skill1 / Skill2 cast his two legend skills, LegendMoves) and his own colours.
 	&"tidal_tyrant": {"name": "โพไซดอน ราชันสมุทรอสูร", "model": "summon/Poseidon", "height": 5.8, "hp": 32.0, "atk": 3.4, "def": 2.6, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
