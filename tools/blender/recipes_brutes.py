@@ -357,10 +357,155 @@ def swamp_beast(arm, body):
     K.bake_ao(body, shade=Vector((0.5, 0.55, 0.45)))
 
 
+# ---------------------------------------------------------------- big/Dino
+
+def claws(parts, arm, side, length=0.16, radius=0.04, root=C("4a3a30"), tip_col=C("e8dcc4"), toes=None):
+    """Hooked claws on a big rig's finger tips (and optionally toes [(point, direction)])."""
+    for f in ("Index3", "Middle3", "Pinky3", "Thumb2"):
+        b = arm.data.bones["%s.%s" % (f, side)]
+        d = (b.tail_local - b.head_local).normalized()
+        K.fang(parts, b.tail_local - d * 0.04, (d + Vector((0, -0.2, -0.5))).normalized(), length, radius,
+               {b.name: 1.0}, root=root, tip_col=tip_col, bend=Vector((0, 0, -length * 0.35)), seg=6, rings=4)
+    for (p, d) in toes or ():
+        K.fang(parts, p, d, length * 0.9, radius * 1.1, p, root=root, tip_col=tip_col,
+               bend=Vector((0, 0, -length * 0.3)), seg=6, rings=4)
+
+
+def sand_raptor(arm, body):
+    """sand_dino (plus the summoner's green beast and the jade drake, which repaint it):
+    a desert raptor-dino. Its hue lives in the Dino_Main / Dino_Secondary base colours
+    (so a template's "paint" still recolours it); the vertex paint carries the pattern:
+    dark tiger bands over the back, mottled scales, pale throat. Lit amber slit eyes under
+    horned brows, ivory fangs, hooked claws on hands and feet."""
+    L.delete_faces(body, ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4300)
+    L.relax(body, 2, 0.4)
+    body["base_colors"] = '{"Dino_Main": "e2b67e", "Dino_Secondary": "f4e2b8"}'
+
+    def paint(name, co, n, info):
+        if name == "Dino_Teeth":
+            return L.mix(C("d8c8a0"), C("fffaf0"), L.smooth(2.1, 1.8, co.z)), IVORY
+        if name == "Dino_Tongue":
+            return L.mix(C("8a2a34"), C("e0607a"), L.smooth(-0.3, 0.6, n.z)), IVORY
+        if name == "Dino_Secondary":
+            if co.y < -0.05 and co.z < 2.3:  # belly plates: pale, ribbed
+                v = 0.93 + 0.07 * math.cos(co.z * 26.0)
+                return Vector((v, v, v)), "Dino_Secondary"
+            # crest and back plates: dark roots, pale tips
+            t = L.smooth(-0.02, 0.12, info["bump"])
+            return L.mix(C("b08a6a"), C("ffffff"), t), "Dino_Secondary"
+        c = L.mix(C("ffffff"), C("e4d8cc"), L.smooth(-0.3, 0.5, n.y))  # shaded back
+        throat = L.smooth(-0.3, -0.85, n.y) * L.smooth(2.4, 1.6, co.z) * L.smooth(0.9, 1.3, co.z)
+        c = L.mix(c, C("fff8ec"), throat)
+        # tiger bands across the back and down the limbs
+        band = math.sin(co.z * 9.0 + K.noise(co, 2.0, 5) * 3.0) if n.y > -0.2 else -1.0
+        c = L.mix(c, C("a8785a"), L.smooth(0.5, 0.9, band) * L.smooth(-0.3, 0.3, n.y) * 0.55)
+        c = L.mix(c, C("8a7060"), L.smooth(0.6, 0.8, K.noise(co, 9.0, 2)) * 0.25)  # scale mottling
+        c = L.mix(c, C("6a5040"), L.smooth(0.35, 0.05, co.z) * 0.6)  # dusty feet
+        return c, "Dino_Main"
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.36 * sx, -0.4, 2.5))
+        gaze = Vector((0.45 * sx, -1.0, 0.0)).normalized()
+        K.fierce_eye(parts, c, 0.125, gaze, sx, C("ffd040"), C("c86010"), head, lid=C("c8a070"), open_=0.5,
+                     glow_mat=IVORY, slant=0.28, lid_mat="Dino_Main")
+        # horned brow scutes
+        K.horn(parts, Vector((0.36 * sx, -0.42, 2.66)), Vector((0.5 * sx, 0.3, 0.6)).normalized(), 0.2, 0.06, head,
+               C("6a5040"), C("f4e8d0"), mat="Dino_Secondary", seg=8, rings=5)
+        K.ridge(parts, Vector((0.56 * sx, -0.3, 2.66)), Vector((0.14 * sx, -0.55, 2.6)), 0.06, C("b89070"), head,
+                bulge=Vector((0, -0.04, 0.03)), tip=0.7, mat="Dino_Main")
+        side = "L" if sx > 0 else "R"
+        toes = []
+        for k in (-1, 0, 1):
+            toes.append((Vector((0.36 * sx + 0.09 * k, -0.18, 0.08)), Vector((0.2 * k, -1.0, -0.3)).normalized()))
+        claws(parts, arm, side, toes=toes)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body, shade=Vector((0.62, 0.52, 0.5)))
+
+
+# ---------------------------------------------------------------- big/Orc
+
+def forest_orc(arm, body):
+    """forest_orc: a hulking woodland orc. Moss-green hide with darker back and war-paint
+    stripes, a dark leaf-and-hair mohawk, big ivory tusks under a heavy scowl, small
+    ember eyes, a scar over one eye, a necklace of fangs, a gnarled wooden club with
+    iron spikes."""
+    L.delete_faces(body, ("Eye_Black",), where=lambda c, n, g: n == "Eye_White" and c.z > 2.2)
+    L.clean(body)
+    wood = L.split_off(body, ("Middle1.L", "Index1.L", "Pinky1.L", "Thumb1.L"))
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4300)
+    L.relax(body, 2, 0.4)
+    L.join(body, wood)
+    hide_hi, hide, back = C("bcd474"), C("94b456"), C("688c42")
+
+    def paint(name, co, n, info):
+        bone = info["bone"]
+        if name == "Wood":
+            return L.mix(C("3e2818"), C("8a6040"), K.noise(co * Vector((1, 0.3, 1)), 9.0, 1)), IVORY
+        if name == "Metal":
+            return L.mix(C("4a4a52"), C("c8ccd4"), L.smooth(0.0, 0.04, info["bump"])), IVORY
+        if name == "Eye_White":  # the tusks and teeth
+            return L.mix(C("c8b890"), C("fffaf0"), L.smooth(1.85, 2.15, co.z)), IVORY
+        if name == "Gold":
+            return C("e0b040"), IVORY
+        if name == "Orc_Hair":
+            return L.mix(C("2e2216"), C("6a5236"), L.smooth(2.6, 3.1, co.z))
+        if name == "Tongue":
+            return C("7a2a30")
+        if name == "Orc_Mouth":
+            return C("2a0e10")
+        if name == "Belt":
+            return L.mix(C("3a2a1a"), C("6a4a30"), K.noise(co, 12.0, 4))
+        c = L.mix(back, hide, L.smooth(0.4, -0.3, n.y))
+        c = L.mix(c, hide_hi, L.smooth(-0.4, -0.9, n.y) * L.smooth(1.2, 1.9, co.z) * 0.6)
+        c = L.mix(c, C("587a36"), L.smooth(0.58, 0.78, K.fbm(co, 2.2, 3)) * 0.35)
+        if name == "Orc_Secondary":  # war paint bands, soft
+            c = L.mix(c, C("3e5a2a"), 0.55)
+        return c
+
+    K.paint(body, paint)
+    surf = L.Surface(body)
+    parts = K.BParts(surf)
+    head = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        c = Vector((0.26 * sx, -0.5, 2.34))
+        gaze = Vector((0.25 * sx, -1.0, 0.0)).normalized()
+        K.fierce_eye(parts, c, 0.1, gaze, sx, C("ffe070"), C("e04010"), head, lid=C("7a9a48"), open_=0.45,
+                     glow_mat=IVORY_GLOW, pupil="dot", slant=0.4)
+        K.ridge(parts, Vector((0.45 * sx, -0.45, 2.5)), Vector((0.04 * sx, -0.66, 2.42)), 0.075, C("6a8c40"), head,
+                bulge=Vector((0, -0.05, 0.03)), tip=0.75)
+        # big lower tusks
+        K.fang(parts, Vector((0.24 * sx, -0.58, 1.95)), Vector((0.25 * sx, -0.3, 1.0)), 0.34, 0.075, head,
+               root=C("c8b890"), bend=Vector((0.04 * sx, -0.06, 0.0)))
+    # a scar across the left eye
+    p, n = K.front_hit(surf, 0.28, 2.36)
+    with parts.on(DETAIL):
+        parts.stroke(p, n, [(-0.06, 0.2), (0.0, 0.05), (0.04, -0.06), (0.09, -0.2)], 0.035, C("c08068"), lift=0.03)
+    # a necklace of fangs
+    for k in range(-3, 4):
+        a = k * 0.32
+        q, m = K.dir_hit(surf, Vector((0, 0.05, 1.85)), Vector((math.sin(a), -math.cos(a), -0.25)))
+        if q is not None:
+            K.fang(parts, q + m * 0.03, Vector((0, -0.25, -1.0)), 0.13 - 0.015 * abs(k), 0.03, q,
+                   root=C("c8b890"), seg=6, rings=3)
+            parts.ellipsoid(q + m * 0.02, (0.025, 0.025, 0.025), color=C("6a4a30"), weights=q, seg=6, rings=4)
+    K.join_parts(body, parts.to_object())
+    K.bake_ao(body)
+
+
 RECIPES = {
     "big/Demon": demon,
     "big/BlueDemon": stone_golem,
     "big/Alien": swamp_beast,
+    "big/Dino": sand_raptor,
+    "big/Orc": forest_orc,
 }
 
 
