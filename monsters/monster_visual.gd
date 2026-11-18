@@ -210,6 +210,162 @@ func hold(key: String) -> void:
 	anim.play(_clips[key], 0.08)
 
 
+# ---------------------------------------------------------------------------
+# Boss casts (BossCast): the rigs carry no cast clips, so a special move's wind-up is
+# played procedurally. The move's clip (attack, or Poseidon's Skill1/2) creeps through
+# its anticipation in slow motion and freezes there, while this node leans back / rises
+# / crouches; the release fast-plays the rest of the clip with a strike lean and a
+# squash. The body lives on this node's own transform (rest: origin, no tilt, unit
+# scale), so Mob's yaw (rotation.y) and the model's breathing are left alone.
+# ---------------------------------------------------------------------------
+
+## How far into the clip the wind-up frame sits (the anticipation of the rigs' strikes).
+const CAST_ANTICIPATION := 0.32
+var _cast_tween: Tween
+var _cast_mat: StandardMaterial3D
+var _cast_clip := ""
+var _cast_pose := ""
+var _cast_serial := 0
+var casting := false
+
+
+## The body's wind-up for [param pose] ("rear", "crouch", "raise"):
+## {lean (rad, minus = back), lift (m), sx, sy (scale)}. Hovering bodies rise higher.
+func cast_body(pose: String) -> Dictionary:
+	var air := _hover > 0.05
+	match pose:
+		"crouch":
+			return {"lean": 0.08, "lift": 0.0, "sx": 1.12, "sy": 0.82}
+		"raise":
+			return {"lean": -0.16, "lift": height * (0.18 if air else 0.07), "sx": 1.05, "sy": 1.13}
+	return {"lean": -0.3, "lift": height * (0.08 if air else 0.03), "sx": 1.03, "sy": 1.08}
+
+
+## Starts the wind-up: [param secs] to draw into the pose, then [param hold] seconds
+## held there (cast_release lets go). [param clip] is the move's clip.
+func cast_windup(secs: float, hold: float, clip: String, pose: String) -> void:
+	cast_cancel()
+	casting = true
+	_cast_pose = pose
+	secs = maxf(secs, 0.1)
+	_cast_clip_windup(secs, hold, clip)
+	var p := cast_body(pose)
+	_cast_tween = create_tween().set_parallel(true)
+	_cast_tween.tween_property(self, "rotation:x", float(p.lean), secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_cast_tween.tween_property(self, "position:y", float(p.lift), secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_cast_tween.tween_property(self, "scale", Vector3(float(p.sx), float(p.sy), float(p.sx)), secs).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## The clip's part of the wind-up: slow-motion into the anticipation frame, then frozen.
+func _cast_clip_windup(secs: float, hold: float, clip: String) -> void:
+	if anim == null:
+		return
+	if not _clips.has(clip):
+		clip = "attack"
+	if not _clips.has(clip):
+		return
+	var length := maxf(anim.get_animation(_clips[clip]).length, 0.05)
+	_cast_clip = clip
+	current = clip
+	busy_until = Time.get_ticks_msec() + int((secs + hold + length + 0.5) * 1000.0)
+	anim.play(_clips[clip], 0.12)
+	anim.speed_scale = length * CAST_ANTICIPATION / secs
+	_cast_serial += 1
+	var serial := _cast_serial
+	var t := create_tween()
+	t.tween_interval(secs)
+	t.tween_callback(func():
+		if casting and serial == _cast_serial and anim != null and _cast_clip != "":
+			anim.speed_scale = 0.0)
+
+
+## The release: the strike plays out fast, the body snaps forward and squashes, then
+## eases back to rest over about [param secs].
+func cast_release(secs := 0.45) -> void:
+	if not casting:
+		return
+	casting = false
+	_cast_clip_release(secs)
+	if _cast_tween:
+		_cast_tween.kill()
+	var p := cast_body(_cast_pose)
+	var strike := 0.0 if is_zero_approx(float(p.lean)) else (0.2 if _cast_pose == "rear" else (0.1 if _cast_pose == "raise" else 0.04))
+	_cast_tween = create_tween()
+	if _cast_pose == "crouch":
+		_cast_tween.tween_property(self, "scale", Vector3(0.94, 1.14, 0.94), 0.06)
+	_cast_tween.tween_property(self, "rotation:x", strike, 0.08).set_ease(Tween.EASE_OUT)
+	_cast_tween.parallel().tween_property(self, "scale", Vector3(1.14, 0.86, 1.14), 0.08)
+	_cast_tween.parallel().tween_property(self, "position:y", float(p.lift) * 0.2, 0.08)
+	_cast_tween.tween_property(self, "rotation:x", 0.0, secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cast_tween.parallel().tween_property(self, "scale", Vector3.ONE, secs).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	_cast_tween.parallel().tween_property(self, "position:y", 0.0, secs).set_trans(Tween.TRANS_SINE)
+	cast_glow(Color.WHITE, 0.0)
+
+
+func _cast_clip_release(secs: float) -> void:
+	if anim == null or _cast_clip == "" or not _clips.has(_cast_clip):
+		_cast_clip = ""
+		return
+	var length := maxf(anim.get_animation(_clips[_cast_clip]).length, 0.05)
+	var left := maxf(length - anim.current_animation_position, 0.05)
+	var speed := clampf(left / maxf(secs, 0.1), 1.2, 3.5)
+	anim.speed_scale = speed
+	busy_until = Time.get_ticks_msec() + int(left / speed * 1000.0) + 80
+	_cast_clip = ""
+
+
+## Stops a cast at once (stun, death, a leash reset): everything back at rest.
+func cast_cancel() -> void:
+	casting = false
+	_cast_serial += 1
+	if _cast_tween:
+		_cast_tween.kill()
+		_cast_tween = null
+	rotation.x = 0.0
+	position = Vector3.ZERO
+	scale = Vector3.ONE
+	if anim != null and _cast_clip != "":
+		anim.speed_scale = 1.0
+		busy_until = 0
+	_cast_clip = ""
+	cast_glow(Color.WHITE, 0.0)
+
+
+## The charge glow on the body, [param amount] 0..1 (an additive overlay on the rigs).
+## A hit flash covers it while it shows (and hands it back after).
+func cast_glow(color: Color, amount: float) -> void:
+	if model == null:
+		return
+	if amount <= 0.001:
+		if _cast_mat == null:
+			return
+		for mi in _flash_targets():
+			if is_instance_valid(mi) and (mi as MeshInstance3D).material_overlay == _cast_mat:
+				(mi as MeshInstance3D).material_overlay = null
+		for mesh in _flash_restore.keys():
+			if _flash_restore[mesh] == _cast_mat:
+				_flash_restore.erase(mesh)
+		return
+	if _cast_mat == null:
+		_cast_mat = StandardMaterial3D.new()
+		_cast_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_cast_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_cast_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_cast_mat.albedo_color = Color(color.r, color.g, color.b, clampf(amount, 0.0, 1.0) * 0.5)
+	for mi in _flash_targets():
+		var mesh := mi as MeshInstance3D
+		if is_instance_valid(mesh) and mesh.material_overlay == null:
+			mesh.material_overlay = _cast_mat
+
+
+## Where the cast gathers, in this node's space: "mouth" (the head, a little forward)
+## or "chest".
+func cast_point(part: String) -> Vector3:
+	if part == "mouth":
+		return Vector3(0, height * 0.82, height * 0.22)
+	return Vector3(0, height * 0.55, height * 0.08)
+
+
 ## The hit flash's own overlay and the model's meshes, made once: a crowd hit by one
 ## blow used to search every model and make a new material per hit.
 var _flash_mat: StandardMaterial3D

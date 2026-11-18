@@ -167,6 +167,7 @@ func begin_crystals() -> void:
 	telegraphs.clear()
 	_clear_shapes()
 	_winding = false
+	BossCast.cancel_on(self)
 	_raise_crystals()
 	var parent := get_parent() as Node3D
 	VfxKit.shockwave(parent, global_position + Vector3(0, 0.1, 0), CRYSTAL_COLOR, 9.0)
@@ -359,10 +360,14 @@ func force_special(kind: String) -> void:
 		return
 	_winding = true
 	var wind := CONE_TIME if kind == "cone" else MARK_TIME
-	visual.flash(Color(1.0, 0.5, 0.3), wind)
-	visual.action("attack", int(wind * 1000.0))
-	_anim_lock = GameClock.msec() + int(wind * 1000.0)
-	BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("d8ffb0"), 1.4)
+	# The wind-up fills the telegraph (BossCast), mirrored to the party's games.
+	_anim_lock = GameClock.msec() + int((wind + 0.5) * 1000.0)
+	EntitySync.cast(self, [], "attack", String(TITLES[kind]), "tomb_" + kind, wind)
+	if BossCast.begin(self, null, "tomb_" + kind, wind, {"title": String(TITLES[kind]), "color": CONE_COLOR if kind == "cone" else MARK_COLOR}) == null:
+		visual.flash(Color(1.0, 0.5, 0.3), wind)
+		visual.action("attack", int(wind * 1000.0))
+		_anim_lock = GameClock.msec() + int(wind * 1000.0)
+		BattleVfx.floating_text(parent, top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("d8ffb0"), 1.4)
 
 
 ## Without a Defender the claw goes to someone else each time.
@@ -400,6 +405,7 @@ func _tick_telegraphs(delta: float) -> void:
 	_clear_shapes()
 	_winding = false
 	specials += 1
+	BossCast.release_on(self)
 	var hit := {}
 	for t in fired:
 		_land(t, hit)
