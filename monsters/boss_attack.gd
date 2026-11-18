@@ -47,12 +47,20 @@ const MOVES := {
 	# Cast with the celestial dragon's breath (skill1) and heaven's call (skill2), CelestialDragonVisual.
 	"dragon_breath": {"th": "ลมหายใจเทพมังกร", "style": "dragonfire", "slow": 0.0, "clip": "skill1"},
 	"heavens_fall": {"th": "อัสนีสวรรค์ถล่ม", "style": "heaven", "slow": 2.0, "clip": "skill2"},
+	# Second signature moves of the star-region kings and the lotus queen (their templates'
+	# "special2"; Mob._begin_slam alternates them with the first, StarAttack / DivineAttack).
+	"stone_thorns": {"th": "หนามศิลาพฤกษา", "style": "verdant", "slow": 1.5},
+	"frost_crown": {"th": "มงกุฎน้ำแข็งคราม", "style": "ice", "slow": 2.0},
+	"radiant_wings": {"th": "ปีกสุริยะพิพากษา", "style": "light", "slow": 0.0},
+	"eclipse_cleave": {"th": "ดาบคราสผ่าฟ้า", "style": "eclipse", "slow": 0.0},
+	"lotus_rain": {"th": "ฝนกลีบบัวดารา", "style": "lotus", "slow": 1.5},
 }
 const STYLE_COLORS := {
 	"spore": Color("8fe05a"), "fire": Color("ff6a2a"), "sand": Color("e8c06a"), "ice": Color("9fe8ff"),
 	"bone": Color("e8e0d0"), "poison": Color("9ae04a"), "bolt": Color("7ab8ff"), "light": Color("ffd84a"),
 	"void": Color("b05aff"), "whirl": Color("5cc8ff"), "glacier": Color("bff4ff"),
 	"dragonfire": Color("ffc23a"), "heaven": Color("fff0a0"),
+	"verdant": Color("9ee05a"), "eclipse": Color("ffc867"), "lotus": Color("ffb8e4"),
 }
 
 var mob: Mob
@@ -89,12 +97,13 @@ static func pick(actor: Mob) -> String:
 	return base
 
 
-static func start(actor: Mob) -> void:
+## [param forced] casts that move instead of the template's (a star king's "special2").
+static func start(actor: Mob, forced := "") -> void:
 	if not actor._alive(actor._victim):
 		return
 	var attack := BossAttack.new()
 	attack.mob = actor
-	attack.move = pick(actor)
+	attack.move = forced if MOVES.has(forced) else pick(actor)
 	actor._winding = true
 	# A faster boss (MonsterData "slam_every": the rare dragon) keeps its own rhythm, quicker still enraged.
 	var every := float(actor.template.get("slam_every", Mob.SLAM_INTERVAL))
@@ -275,6 +284,16 @@ func _strike_vfx(shot: Dictionary) -> void:
 		"light", "void":
 			VfxKit.pillar(parent, pos, color, 9.0, r * 0.55, 0.45)
 			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), color, r)
+		"verdant":
+			VfxKit.spikes(parent, pos, r * 0.8, Color("8a6a44"), 5, 2.0)
+			BattleVfx.burst(parent, pos + Vector3(0, 0.6, 0), Color("ffc0de"), 8, 0.9)
+			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), color, r)
+		"eclipse":
+			VfxKit.pillar(parent, pos, Color("6a3aa8"), 8.0, r * 0.5, 0.45, color)
+			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), color, r)
+		"lotus":
+			VfxKit.impact_ring(parent, pos + Vector3(0, 0.1, 0), color, r, 0.45)
+			BattleVfx.burst(parent, pos + Vector3(0, 0.5, 0), color, 10, 0.9)
 		_:
 			VfxKit.shockwave(parent, pos + Vector3(0, 0.1, 0), color, r)
 			BattleVfx.burst(parent, pos + Vector3(0, 0.4, 0), color, 12, 1.0)
@@ -431,6 +450,40 @@ static func plan(move_id: String, o: Vector3, f: Vector3, h: Vector3, heading: V
 			out.append(_shot(h, 3.0, 2.0, 1.6, 1))
 			for p in _ring(h, 9.4, 4, rng.randf() * TAU, []):
 				out.append(_shot(p, 2.2, 2.7, 1.4, 2))
+		"stone_thorns":
+			# Two roots fork out of the ground toward the target, thorns erupting along each,
+			# then a stone flower bursts open where the target stood.
+			for i in 4:
+				for fork in [-0.36, 0.36]:
+					out.append(_shot(o + f.rotated(Vector3.UP, fork) * (3.0 + 2.5 * i), 1.7, 1.0 + 0.22 * i, 1.35, i))
+			out.append(_shot(h, 2.5, 2.2, 1.4, 4))
+		"frost_crown":
+			# A crown of ice: an inner ring of crystals, then an outer ring between them.
+			var a0 := rng.randf() * TAU
+			for p in _ring(o, 4.6, 6, a0, []):
+				out.append(_shot(p, 2.0, 1.1, 1.35, 0))
+			for p in _ring(o, 8.4, 6, a0 + PI / 6.0, []):
+				out.append(_shot(p, 2.2, 1.9, 1.35, 1))
+		"radiant_wings":
+			# The wings spread: two fans of light sweep out on each side of the line to the
+			# target, inside to outside, then the sun falls on the target.
+			for k in 4:
+				for wing in [-1.0, 1.0]:
+					out.append(_shot(o + f.rotated(Vector3.UP, wing * (0.55 + 0.32 * k)) * 5.6, 1.9, 1.0 + 0.2 * k, 1.35, k))
+			out.append(_shot(h, 2.4, 2.1, 1.5, 4))
+		"eclipse_cleave":
+			# The great sword splits the ground toward the target, then the eclipse ring
+			# flares around the king with one gap to escape through.
+			for i in 5:
+				out.append(_shot(o + f * (2.6 + 2.3 * i), 1.6, 1.0 + 0.12 * i, 1.5, i))
+			var gap := rng.randi() % 7
+			for p in _ring(o, 6.8, 7, atan2(f.z, f.x) + PI / 7.0, [gap]):
+				out.append(_shot(p, 2.0, 2.1, 1.35, 5))
+		"lotus_rain":
+			# A lotus opens on the target: its heart first, then five petals around it.
+			out.append(_shot(h, 2.0, 1.1, 1.4, 0))
+			for p in _ring(h, 3.5, 5, rng.randf() * TAU, []):
+				out.append(_shot(p, 1.5, 1.6, 1.3, 1))
 		"event_horizon":
 			out.append(_shot(h, 2.2, 1.4, 1.4, 0))
 			for p in _around(h, 3, 3.0, 6.0, rng):

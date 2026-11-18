@@ -18,7 +18,7 @@ const MONSTERS := {
 	&"jade_monk": {"name":"นักพรตวานรหยก", "model":"big/Monkroose", "height":2.2, "hp":1.9, "atk":2.3, "def":1.2, "speed":2.8, "aggro":true, "attack":"melee", "color":Color("8fe3c0"), "tint":Color(0.8,1.15,0.95), "behavior":"jade_charge", "exp":1.6, "gold":2.0},
 	&"gold_bee": {"name":"ผึ้งเกสรทองคำ", "model":"flying/Armabee_Evolved", "height":1.7, "hover":1.1, "hp":2.0, "atk":2.4, "def":1.2, "speed":3.0, "aggro":true, "attack":"ranged", "color":Color("ffd98a"), "tint":Color(1.25,1.1,0.8), "behavior":"lotus_bolt", "exp":1.65, "gold":2.0},
 	&"temple_guardian": {"name":"โกเลมพิทักษ์วิหาร", "model":"flying/Goleling_Evolved", "height":3.0, "hover":0.4, "hp":5.75, "atk":2.75, "def":2.3, "speed":2.4, "aggro":true, "attack":"melee", "elite":true, "color":Color("ffdc91"), "tint":Color(1.3,1.15,0.8), "behavior":"divine_slam", "exp":2.65, "gold":3.0},
-	&"lotus_seraph": {"name":"ออเรเลีย ราชันปีกบัวดารา", "model":"flying/Alpaking_Evolved", "height":5.0, "hover":0.6, "hp":32.0, "atk":3.4, "def":2.6, "speed":2.6, "aggro":true, "attack":"ranged", "boss":true, "color":Color("ffe3b3"), "tint":Color(1.3,1.2,1.05), "behavior":"lotus_judgment", "exp":3.4, "gold":5.0},
+	&"lotus_seraph": {"name":"ออเรเลีย ราชันปีกบัวดารา", "model":"flying/Alpaking_Evolved", "height":5.0, "hover":0.6, "hp":32.0, "atk":3.4, "def":2.6, "speed":2.6, "aggro":true, "attack":"ranged", "boss":true, "color":Color("ffe3b3"), "tint":Color(1.3,1.2,1.05), "behavior":"lotus_judgment", "special2":"lotus_rain", "exp":3.4, "gold":5.0},
 }
 
 static func has_monster(id: StringName) -> bool:

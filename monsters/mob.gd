@@ -652,6 +652,14 @@ func _nearest_victim() -> Node3D:
 
 
 func _begin_slam() -> void:
+	# The star kings and the lotus queen take turns with a second signature move
+	# (template "special2", a BossAttack move), their first move opening the fight.
+	var second := String(template.get("special2", ""))
+	if BossAttack.MOVES.has(second) and (StarMonsters.has(monster_id) or DivineRegionData.has_monster(monster_id)):
+		_boss_moves += 1
+		if _boss_moves % 2 == 0:
+			BossAttack.start(self, second)
+			return
 	if DivineRegionData.has_monster(monster_id):
 		DivineAttack.start(self, true)
 		return

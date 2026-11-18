@@ -24,8 +24,10 @@ const MAX_PTS := 72
 const PALETTES := {
 	"god": {"back": Color("fbf4e2"), "back_dk": Color("e9cf96"), "belly": Color("ffd766"), "belly_dk": Color("e9a62c"), "horn": Color("ffcf45"), "horn_dk": Color("c98418"),
 		"mane": Color("6ee8bc"), "mane_tip": Color("e8fff6"), "fin": Color("ffc93a"), "eye": Color("8ffff0"), "rim": Color("fff1c2"), "shade": Color(0.66, 0.6, 0.72)},
-	"guardian": {"back": Color("1aa684"), "back_dk": Color("0b5a4c"), "belly": Color("fff0c2"), "belly_dk": Color("e8b75a"), "horn": Color("ffd25a"), "horn_dk": Color("c07a14"),
-		"mane": Color("ff5a3c"), "mane_tip": Color("ffd0a0"), "fin": Color("ff6a3a"), "eye": Color("fff2a0"), "rim": Color("d6fff0"), "shade": Color(0.42, 0.52, 0.72)},
+	# The shrine guardian (shrine_dragon): a temple dragon in lacquer vermilion and gold, as its
+	# rig fallback is painted (SkyIsleData "paint"), unlike the jade elder beside it.
+	"guardian": {"back": Color("e04a32"), "back_dk": Color("7c1a16"), "belly": Color("fff0c2"), "belly_dk": Color("f2bd48"), "horn": Color("fff0c8"), "horn_dk": Color("d8a03a"),
+		"mane": Color("ffc84a"), "mane_tip": Color("fff3c8"), "fin": Color("ffb43a"), "eye": Color("fff2a0"), "rim": Color("ffe2c0"), "shade": Color(0.62, 0.46, 0.5)},
 	"elder": {"back": Color("38d884"), "back_dk": Color("0a6040"), "belly": Color("f4eaa8"), "belly_dk": Color("c9b860"), "horn": Color("f6efd6"), "horn_dk": Color("b8a77c"),
 		"mane": Color("f4f8ec"), "mane_tip": Color("b9ffd8"), "fin": Color("1f9a64"), "eye": Color("ffe27a"), "rim": Color("e4ffd0"), "shade": Color(0.4, 0.55, 0.62)},
 	"prism": {"back": Color("eef9ff"), "back_dk": Color("a8d4ff"), "belly": Color("ffffff"), "belly_dk": Color("d8ecff"), "horn": Color("e8fbff"), "horn_dk": Color("9ee8ff"),
