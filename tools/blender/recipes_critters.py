@@ -1073,6 +1073,226 @@ def cloud_deer(arm, body):
     finish(body, parts)
 
 
+# ================================================================ big/Cactoro  giant_cactus
+
+def giant_cactus(arm, body):
+    """Giant saguaro (giant_cactus): a grumpy desert giant - deep ribbed green with pale
+    rib ridges, big white spine clusters that read at range, stern amber eyes under heavy
+    brows, a grim mouth, its sombrero, desert flowers on the shoulders and hat."""
+    drop_islands(body, lambda c, size, mat: mat == "Cactoro_Secondary" and c.z < 3.0)  # the old brown spikes
+    drop_islands(body, lambda c, size, mat: mat in ("Eye_White", "Eye_Black"))
+    L.clean(body, fill_holes=12)
+    L.decimate_to(body, 4400)
+    green_top, green_low, rib = D("7ac850"), D("2f7a3a"), D("b8e888")
+    straw_top, straw_low = D("ffd27a"), D("c8802e")
+
+    def paint(name, co, n, info):
+        if co.z > 3.1:  # sombrero
+            if name == "Cactoro_Red":
+                return D("e8443a")
+            if name == "Cactoro_Main":
+                return D("2fa85a")
+            return L.mix(straw_low, straw_top, max(0.0, n.z) * 0.8 + 0.2)
+        c = L.mix(green_low, green_top, L.smooth(0.0, 2.8, co.z) * 0.6 + max(0.0, n.z) * 0.3)
+        a = math.atan2(co.y - 0.1, co.x)
+        if abs(co.x) < 0.75:
+            c = L.mix(c, rib, L.smooth(0.8, 0.97, math.cos(a * 8.0)) * 0.7)
+        return c
+
+    K.paint_body(body, paint)
+    surf, parts = start(body)
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.33 * sx, -0.36, 2.3)), 0.17, V((0.3 * sx, -1.0, 0.0)).normalized(), D("ffd86a"),
+                     D("d8801a"), {"Head": 1.0}, lid=D("3f8a42"), slant=0.3, side=sx, slit=False, iris=0.85,
+                     lid_drop=1.7)
+        p, n = M.front_hit(surf, 0.34 * sx, 2.55)
+        parts.stroke(p, n, [(0.22 * sx, 0.07), (0.06 * sx, 0.0), (-0.1 * sx, -0.06)], 0.1, D("1f4a24"), lift=0.02)
+    p, n = M.front_hit(surf, 0.0, 2.05)
+    parts.stroke(p, n, [(x / 8.0 * 0.2, -0.04 * (x / 8.0) ** 2) for x in range(-8, 9)], 0.04, D("1a2a14"), lift=0.014,
+                 taper=False)
+    spine_clusters(parts, surf, V((0, 0.1, 1.5)), 34,
+                   lambda p: (p.y < -0.25 and abs(p.x) < 0.55 and 1.85 < p.z < 2.75) or p.z > 3.0,
+                   length=0.3, radius=0.055, z_range=(0.3, 3.0), seed=7)
+    for sx, x in ((-1.0, 1.75), (1.0, 1.75)):
+        p, n = M.dir_hit(surf, V((x * sx, 0.1, 1.85)), V((0.0, -0.2, 1.0)))
+        if p is not None:
+            M.flower(parts, p, n, 0.22, D("ff5fa2"), D("ffe066"), weights=p)
+    p, n = M.dir_hit(surf, V((0.15, -0.25, 3.5)), V((-0.6, -0.8, 0.3)))
+    if p is not None:
+        M.flower(parts, p, n, 0.3, D("ff7a3a"), D("ffe066"), weights={"Head": 1.0}, turn=0.3)
+    finish(body, parts)
+
+
+# ================================================================ big/Fish  ice_fish, abyss_angler
+
+def frost_fish(arm, body):
+    """Frost fish-man (ice_fish; the abyss angler under its teal tint): pale scales over a
+    darker back, fins with ribbed rays, a crest of ice-crystal spines, white teeth and cold
+    glowing eyes - a predator that suits sky ice and the deep alike."""
+    drop_islands(body, lambda c, size, mat: (mat == "Eye_White" and c.z > 2.3) or mat == "Eye_Black")
+    L.clean(body)
+    L.decimate_to(body, 4600)
+    L.relax(body, 2, 0.3, ("Fish_Main",))
+    back, side, belly = D("7c8ca4"), D("c8d4e2"), D("f4f8fc")
+
+    def paint(name, co, n, info):
+        if name == "Eye_White":
+            return D("fbfbf4")
+        if name == "Mouth":
+            return D("2a1424")
+        if name == "Fish_Flaps":
+            return L.mix(D("9aa8c0"), D("eef4fa"), L.smooth(-0.02, 0.06, info["bump"]))
+        if name == "Fish_Secondary" and co.y > 0.2:
+            return D("dfe8f4")  # dorsal fins
+        if name == "Fish_Secondary":
+            return L.mix(belly, WHITE, L.smooth(1.0, 2.0, co.z))
+        c = L.mix(side, back, L.smooth(-0.2, 0.7, n.y * 0.7 + n.z * 0.3))
+        sc = 0.5 + 0.5 * math.sin(co.z * 11.0 + abs(co.x) * 5.0) * math.sin(co.y * 10.0 + co.x * 3.0)
+        c = L.mix(c, back, L.smooth(0.8, 0.97, sc) * 0.4)
+        return L.mix(c, belly, max(0.0, -n.y) * 0.25)
+
+    K.paint_body(body, paint, lambda name, c, n, bone: "keep" if name in ("Eye_White", "Mouth") else "skin")
+    surf, parts = start(body)
+    for sx in (-1.0, 1.0):
+        c = V((0.31 * sx, -0.4, 2.43))
+        with parts.use("keep"):
+            K.fierce_eye(parts, c, 0.16, V((0.35 * sx, -1.0, 0.0)).normalized(), D("f0ffff"), D("4ad8ff"),
+                         {"Head": 1.0}, lid=D("6a7a94"), slant=0.45, side=sx, slit=True, pupil_w=0.1, iris=0.9,
+                         glow=True, sclera=D("1a2a3a"), lid_drop=1.8)
+    # Ice-crystal spines along the dorsal ridge.
+    with parts.use("keep"):
+        for k, (y, z, ln) in enumerate(((0.05, 3.5, 0.5), (0.4, 3.25, 0.45), (0.7, 2.85, 0.4), (0.85, 2.4, 0.36),
+                                        (0.9, 1.95, 0.3))):
+            p, n = M.dir_hit(surf, V((0, 0.0, z - 0.2)), V((0, y + 0.3, 0.8)))
+            if p is None:
+                continue
+            for sx in (-1.0, 1.0):
+                d = (n + V((0.35 * sx, 0, 0.3))).normalized()
+                parts.blob(p - n * 0.05 + V((0.06 * sx, 0, 0)), (0.07, 0.05), d, ln, None, weights=p, seg=6, rings=4,
+                           tip=0.05, color_fn=lambda t: L.mix(D("8ad8f8"), D("f4ffff"), t))
+    finish(body, parts)
+
+
+# ================================================================ big/Monkroose  volt_bunny, jade_monk, guardian
+
+def thunder_monkey(arm, body):
+    """Fierce monkey warrior (volt_bunny 'thunder monkey'; jade_monk; the guardian
+    summon): sturdier limbs, light fur with darker gauntlet-like arms and legs, a dark
+    mask around glaring amber eyes, cream muzzle, fangs, cheek ruffs and a crest of fur.
+    Near-neutral paint so the yellow / jade / bronze tints each land."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    K.thicken(body, arm, {"UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"}, 1.25)
+    K.thicken(body, arm, {"UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"}, 1.3)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5200)
+    fur, fur_hi, limb, mask, cream = D("ddd2bc"), D("f4ecda"), D("8a6e4e"), D("4a4036"), D("fff6e4")
+
+    def paint(name, co, n, info):
+        orange = tex_is(info, "9c632e", 0.1)
+        dark = tex_is(info, "635c43", 0.06)
+        head = co.z > 1.95
+        if dark:
+            return mask
+        if orange and head:
+            if co.y < -0.45 and abs(co.x) < 0.35:
+                if co.y < -0.78 and co.z > 2.1:
+                    return D("2a2024")  # nose
+                return L.mix(D("efe2c8"), cream, max(0.0, n.z) * 0.5)  # muzzle
+            if abs(co.x) > 0.5:
+                return D("e8b8a0")  # inner ears
+            return limb  # crown spots
+        if orange and abs(co.x) > 0.55 or orange and co.z < 0.75:
+            return L.mix(limb, D("6a5038"), L.smooth(1.4, 0.4, abs(co.x)) * 0.3)
+        c = L.mix(fur, fur_hi, max(0.0, n.z) * 0.4 + max(0.0, -n.y) * 0.3)
+        return L.mix(c, D("b8aa90"), max(0.0, n.y) * 0.35)
+
+    K.paint_body(body, paint, tex=True)
+    # A shorter snout: the long orange mongoose muzzle read as a duck bill.
+    K.scale_region(body, lambda c: c.z > 1.9 and c.y < -0.35 and abs(c.x) < 0.4, V((0, -0.35, 2.2)),
+                   (0.9, 0.62, 0.9), lambda c: L.smooth(-0.35, -0.55, c.y))
+    body.data.update()
+    surf, parts = start(body)
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c + V((0, -0.02, 0)), r * 0.95, V((0.3 * sx, -1.0, 0.0)).normalized(), D("ffe27a"),
+                     D("e88a1a"), {"Head": 1.0}, lid=mask, slant=0.45, side=sx, slit=False, iris=0.9, lid_drop=1.75)
+        p, n = M.front_hit(surf, c.x, c.z + r * 1.3)
+        if p is not None:
+            parts.stroke(p, n, [(0.2 * sx, 0.07), (0.05 * sx, 0.0), (-0.1 * sx, -0.07)], 0.08, D("2a2018"), lift=0.02)
+        fur_tufts(parts, surf, V((0, -0.2, 2.2)), [V((sx, -0.4, -0.4))], 0.24, fur, fur_hi, weights={"Head": 1.0},
+                  seed=31 + int(sx))
+    p, n = M.front_hit(surf, 0.0, 2.08)
+    if p is not None:
+        for sx in (-1.0, 1.0):
+            K.fang(parts, p + V((0.07 * sx, 0.02, 0.0)), V((0, -0.3, -1)), 0.11, 0.032, {"Head": 1.0})
+    fur_tufts(parts, surf, V((0, 0, 2.4)), [V((0, -0.2, 1)), V((0, 0.4, 1)), V((0, 0.8, 0.6))], 0.3, limb, fur,
+              weights={"Head": 1.0}, seed=33)
+    finish(body, parts)
+
+
+# ================================================================ big/Birb  lava_dino
+
+def lava_dino(arm, body):
+    """Little lava dragon (lava_dino only): basalt-black scaly hide split by glowing magma
+    cracks, a molten belly, an obsidian beak with ember nostrils, horns and spikes that heat
+    to orange at the tips, ember eyes. Painted final colours (untinted)."""
+    eyes = atlas_eyes(body)
+    L.clean(body)
+    K.thicken(body, arm, {"UpperArm.L", "UpperArm.R", "LowerArm.L", "LowerArm.R"}, 1.2)
+    K.thicken(body, arm, {"UpperLeg.L", "UpperLeg.R", "LowerLeg.L", "LowerLeg.R"}, 1.25)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5000)
+    rock, rock_hi = D("2a1c1c"), D("5a3a32")
+
+    def paint(name, co, n, info):
+        if tex_is(info, "94261e", 0.1):
+            return L.mix(D("1a1214"), D("4a3a3a"), max(0.0, n.z) * 0.6)  # obsidian beak
+        if tex_is(info, "959391", 0.1):
+            if abs(co.x) < 0.45 and co.y < 0.0 and co.z < 2.0:
+                return L.mix(D("ff4a10"), D("ffd04a"), L.smooth(0.9, 1.9, co.z))  # molten belly
+            return L.mix(rock_hi, D("ff8a2a"), L.smooth(0.0, 0.12, info["bump"]))  # horns / spikes
+        c = L.mix(rock, rock_hi, max(0.0, n.z) * 0.5 + max(0.0, -n.y) * 0.2)
+        sc = 0.5 + 0.5 * math.sin(co.z * 13.0 + co.x * 4.0) * math.sin(co.x * 12.0 + co.y * 9.0)
+        return L.mix(c, D("6a4a40"), L.smooth(0.85, 0.98, sc) * 0.5)
+
+    K.paint_body(body, paint, tex=True)
+    # Belly faces glow: pick them by their painted colour (molten orange).
+    me = body.data
+    col = me.color_attributes["Col"]
+    for poly in me.polygons:
+        cc = col.data[poly.loop_indices[0]].color
+        if cc[0] > 0.6 and cc[2] < 0.2:
+            poly.material_index = K.MODES["glow"]
+        else:
+            poly.material_index = K.MODES["keep"]
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for (c, r) in eyes:
+        sx = 1.0 if c.x > 0 else -1.0
+        K.fierce_eye(parts, c, r * 0.9, V((0.35 * sx, -1.0, 0.0)).normalized(), D("fff07a"), D("ff6a10"),
+                     {"Head": 1.0}, lid=D("3a2624"), slant=0.5, side=sx, slit=True, pupil_w=0.1, iris=0.92,
+                     glow=True, sclera=D("2a1410"), lid_drop=1.75)
+    with parts.use("glow"):
+        # Ember nostrils.
+        for sx in (-1.0, 1.0):
+            p, n = M.front_hit(surf, 0.08 * sx, 2.42)
+            if p is not None:
+                parts.decal(p, n, M.ellipse(0.03, 0.02, 8), D("ffb02a"), rings=1, lift=0.02)
+        # Magma cracks over the hide.
+        rng = random.Random(17)
+        for d in M.fibonacci(46):
+            p, n = M.dir_hit(surf, V((0, 0.15, 1.5)), d)
+            if p is None or (abs(p.x) < 0.45 and p.y < 0.0 and 0.8 < p.z < 2.0):
+                continue
+            pts = [(0.0, 0.0)]
+            for k in range(4):
+                x, y = pts[-1]
+                pts.append((x + rng.uniform(-0.06, 0.06), y + rng.uniform(0.05, 0.09) * (1 if k % 2 else -1) + 0.02))
+            parts.stroke(p, n, pts, 0.035, D("ff7a1a"), lift=0.014, up=V((0, 0, 1)))
+    finish(body, parts)
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
@@ -1092,6 +1312,10 @@ RECIPES = {
     "blob/Fish": mud_fish,
     "blob/Pigeon": volt_pigeon,
     "cute/Deer": cloud_deer,
+    "big/Cactoro": giant_cactus,
+    "big/Fish": frost_fish,
+    "big/Monkroose": thunder_monkey,
+    "big/Birb": lava_dino,
 }
 SOURCE = {"big/FrogToxic": "big/Frog", "big/FrogKing": "big/Frog", "blob/CatGhoul": "blob/Cat"}
 
