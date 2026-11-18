@@ -9,6 +9,13 @@ Built and checked with Blender 5.3 (bpy). Re-import in Godot afterwards.
 
 A recipe is a function (arm, body) -> None that reshapes the body, paints it and adds
 parts; the shared steps (load, AO, export, clip check) live in remaster_lib.
+
+Adding a monster: write a recipe (usually: drop the old eye faces, clean, subdivide or
+decimate to ~4-5k tris, paint_body with a gradient, sparkly_eye / cheek / smile_mouth on
+the face bone, a few characterful parts, bake_ao), register it in RECIPES, run this
+script, import twice in Godot, then compare with
+    godot --rendering-driver opengl3 --path . res://tests/tools/remaster_review.tscn -- <outdir> orig|new <ids>
+Keep each model under ~8k tris; MonsterData tints still multiply the painted colours.
 """
 import math
 import random
