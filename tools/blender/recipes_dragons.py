@@ -211,7 +211,6 @@ def _fill_head_holes(body):
     bm.from_mesh(body.data)
     edges = [e for e in bm.edges if e.is_boundary and all(
         not groups[v.index].startswith("Wing") and v.co.z > 2.3 for v in e.verts)]
-    print("HOLE EDGES", len(edges))
     res = bmesh.ops.holes_fill(bm, edges=edges, sides=400)
     faces = res.get("faces", [])
     if faces:
@@ -333,7 +332,7 @@ def storm_dragon(arm, body):
     horns, a tall three-blade crest, a collar of dark storm cloud round the neck, slate
     hide crackling with glowing bolts, storm-dark wing skin veined with lightning."""
     eyes = prep(body, 4400, sub=True)
-    top, mid, belly = C("2c3858"), C("62789e"), C("d8e0ee")
+    top, mid, belly = C("3a4a72"), C("7890bc"), C("dce4f2")
     horn_root, horn_tip = C("1a1e30"), C("d8f4ff")
 
     def storm(name, co, n, info, c):
