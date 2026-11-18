@@ -652,11 +652,19 @@ func _nearest_victim() -> Node3D:
 
 
 func _begin_slam() -> void:
+	# The star kings and the lotus queen take turns with a second signature move
+	# (template "special2", a BossAttack move), their first move opening the fight.
+	var second := String(template.get("special2", ""))
+	if BossAttack.MOVES.has(second) and (StarMonsters.has(monster_id) or DivineRegionData.has_monster(monster_id)):
+		_boss_moves += 1
+		if _boss_moves % 2 == 0:
+			BossAttack.start(self, second)
+			return
 	if DivineRegionData.has_monster(monster_id):
-		DivineAttack.start(self, true)
+		_cast_special(func(): DivineAttack.start(self, true), DivineAttack, 1.3)
 		return
 	if StarMonsters.has(monster_id):
-		StarAttack.start(self,true)
+		_cast_special(func(): StarAttack.start(self, true), StarAttack, 1.25)
 		return
 	if BossAttack.has_moves(template):
 		BossAttack.start(self)
@@ -667,12 +675,15 @@ func _begin_slam() -> void:
 	var center := global_position
 	var color: Color = template.get("color", Color("ff6a4a"))
 	VfxKit.danger_circle(get_parent(), center, radius, 1.2)
-	EntitySync.cast(self, [[center, radius, 1.2]])
-	visual.flash(Color(1.0, 0.3, 0.2), 1.2)
-	visual.action("attack", 700)
-	_anim_lock = GameClock.msec() + 900
+	EntitySync.cast(self, [[center, radius, 1.2]], "attack", "", "slam", 1.2)
+	_anim_lock = GameClock.msec() + 1600
+	if BossCast.begin(self, null, "slam", 1.2) == null:
+		visual.flash(Color(1.0, 0.3, 0.2), 1.2)
+		visual.action("attack", 700)
+		_anim_lock = GameClock.msec() + 900
 	get_tree().create_timer(1.2).timeout.connect(func():
 		_winding = false
+		BossCast.release_on(self)
 		if _dead:
 			return
 		VfxKit.shockwave(get_parent(), center + Vector3(0, 0.1, 0), color, radius)
@@ -681,6 +692,28 @@ func _begin_slam() -> void:
 			if _flat_distance_from(t.global_position, center) <= radius:
 				Mob.strike(t, float(stats.atk) * _atk_scale * 1.9, self)
 		, CONNECT_ONE_SHOT)
+
+
+## A star king's or the lotus queen's first special (StarAttack / DivineAttack, started
+## by [param starter]) cast like the BossAttack moves (BossCast): the cast is a child of
+## the move's node, its wind-up the move's own time to contact (its "contact", else
+## [param contact]). The cast key rides to the mirrors on the move's cast event.
+func _cast_special(starter: Callable, kind: Variant, contact: float) -> void:
+	var key := String(template.get("behavior", ""))
+	if not BossCast.LOOKS.has(key):
+		key = "star_special"
+	var spec := BossCast.look(key)
+	set_meta(EntitySync.PENDING_CAST, {"bc": key, "w": contact, "n": spec.title})
+	var before := get_child_count()
+	starter.call()
+	remove_meta(EntitySync.PENDING_CAST)
+	if get_child_count() <= before:
+		return
+	var move := get_child(get_child_count() - 1)
+	if not is_instance_of(move, kind):
+		return
+	var at: Variant = move.get("contact")
+	BossCast.begin(self, move, key, float(at) if at is float else contact)
 
 
 ## Bosses change tactics as they lose health: help arrives at 70%, rage at 40%.

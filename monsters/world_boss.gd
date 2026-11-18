@@ -97,10 +97,13 @@ func force_special(kind: String) -> void:
 	_cycle = _rng.randf_range(CYCLE.x, CYCLE.y) * _haste
 	mob._winding = true
 	mob._slam_timer = maxf(mob._slam_timer, TELEGRAPH + 1.0)
-	mob.visual.flash(Color(1.0, 0.3, 0.2), TELEGRAPH)
-	mob.visual.action("attack", int(TELEGRAPH * 1000.0))
-	mob._anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
-	BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.3)
+	mob._anim_lock = GameClock.msec() + int((TELEGRAPH + 0.5) * 1000.0)
+	# The wind-up fills the telegraph, the move's name over the boss (BossCast).
+	if BossCast.begin(mob, self, "world_" + kind, TELEGRAPH, {"title": String(TITLES[kind])}) == null:
+		mob.visual.flash(Color(1.0, 0.3, 0.2), TELEGRAPH)
+		mob.visual.action("attack", int(TELEGRAPH * 1000.0))
+		mob._anim_lock = GameClock.msec() + int(TELEGRAPH * 1000.0)
+		BattleVfx.floating_text(zone, mob.top_point() + Vector3(0, 0.9, 0), String(TITLES[kind]) + "!", Color("ffb3a0"), 1.3)
 	_draw_telegraph()
 	if EntitySync.hosting():
 		# The online party sees the same shape: a circle, or the beam as a row of circles.
@@ -110,7 +113,7 @@ func force_special(kind: String) -> void:
 				circles.append([center + dir * (BEAM_WIDTH * 0.5 + float(i) * BEAM_LENGTH / 6.0), BEAM_WIDTH * 0.5, TELEGRAPH])
 		else:
 			circles.append([center, STOMP_RADIUS if kind == "stomp" else SUMMON_RADIUS, TELEGRAPH])
-		EntitySync.cast(mob, circles, "attack", String(TITLES[kind]) + "!")
+		EntitySync.cast(mob, circles, "attack", String(TITLES[kind]) + "!", "world_" + kind, TELEGRAPH)
 
 
 ## Is a flat point inside the telegraph on the ground now?
@@ -159,6 +162,7 @@ func _fire() -> void:
 	mob._winding = false
 	if mob.is_dead():
 		return
+	BossCast.release_on(mob)
 	var color: Color = mob.template.get("color", Color("ff6a4a"))
 	match kind:
 		"stomp":

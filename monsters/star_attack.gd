@@ -1,6 +1,8 @@
 class_name StarAttack
 extends Node
 ## Owner-bound, dodgeable attacks: warnings lock their positions before impact.
+## The region kings' moves live here (and their plain blow); ordinary and elite
+## monsters run their own signature move instead (MonsterMove, StarMoves).
 var mob: Mob
 var victim: WeakRef
 var special := false
@@ -18,6 +20,7 @@ var seed_skill: Dictionary
 
 static func start(actor: Mob, boss_move := false) -> void:
 	if not actor._alive(actor._victim): return
+	if not boss_move and MonsterMove.start(actor, 2.4): return
 	var attack := StarAttack.new()
 	attack.mob=actor
 	attack.victim=weakref(actor._victim)
@@ -46,9 +49,6 @@ func _ready() -> void:
 			_:
 				radius=2.5
 				for i in 8: points.append(origin+Vector3(cos(TAU*i/8.0),0,sin(TAU*i/8.0))*6.5)
-	elif behavior in ["pounce","charge"]:
-		contact=0.8;end=1.55;radius=2.0 if behavior=="pounce" else 2.8
-		points.append(origin+forward*minf(5.5,origin.distance_to(target.global_position)))
 	elif String(mob.template.attack)=="ranged":
 		contact=1.0;radius=2.3
 		points.append(target.global_position*Vector3(1,0,1))
@@ -70,9 +70,6 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(mob) or mob.is_dead() or mob._stun>0.0 or mob._returning:
 		queue_free();return
 	age+=delta
-	if not special and behavior in ["charge","pounce"] and age>contact-0.28 and age<=contact:
-		var move: Vector3=(points[0]-mob.global_position)*Vector3(1,0,1)
-		mob.move_and_collide(move.limit_length(18.0*delta))
 	if not fired and age>=contact:
 		fired=true
 		if special: StarSkillArt.strike(mob.get_parent(),seed_skill,origin,0,origin-forward)

@@ -11,17 +11,37 @@ static var _materials: Dictionary = {}
 static func attach(root: Node3D, definition: Dictionary) -> void:
 	if root == null or not definition.has("decor") or root.has_meta("star_art_attached"):
 		return
+	# The regional kings wear their own sculpted crowns, wings and armour (models under boss/).
+	if String(definition.get("model", "")).begins_with("boss/"):
+		return
 	root.set_meta("star_art_attached", true)
 	var h := float(definition.get("height", 2.0))
 	var theme := String(definition.get("region", "dawn_forest"))
 	var style := String(definition.decor)
 	var skeleton := _find_skeleton(root)
-	var head := _anchor(root, skeleton, ["head", "Head"], "StarCrown", Vector3(0, h * 0.72, 0))
-	var torso := _anchor(root, skeleton, ["chest", "Torso3", "Torso"], "StarMantle", Vector3(0, h * 0.45, 0))
+	# Blob rigs keep "Head" low in the body: a definition may name the bones its crown
+	# ("decor_head") and mantle ("decor_torso") follow, and lift the crown ("decor_lift",
+	# in crown units) so it sits on top of the creature, not inside it.
+	var head_bones: Array = ["head", "Head"]
+	if definition.has("decor_head"):
+		head_bones.push_front(String(definition.decor_head))
+	var torso_bones: Array = ["chest", "Torso3", "Torso"]
+	if definition.has("decor_torso"):
+		torso_bones.push_front(String(definition.decor_torso))
+	var head := _anchor(root, skeleton, head_bones, "StarCrown", Vector3(0, h * 0.72, 0))
+	var torso := _anchor(root, skeleton, torso_bones, "StarMantle", Vector3(0, h * 0.45, 0))
 	var royal := bool(definition.get("boss", false))
 	var elite := bool(definition.get("elite", false))
 	var unit := h * 0.22
-	if theme == "dawn_forest":
+	if definition.has("decor_lift"):
+		var lifted := Node3D.new()
+		lifted.name = "StarCrownLift"
+		lifted.position = Vector3(0, unit * float(definition.decor_lift), 0)
+		head.add_child(lifted)
+		head = lifted
+	if style == "baked":
+		pass  # halo / wings / mantle sculpted into the monster's own remastered model
+	elif theme == "dawn_forest":
 		_add(head, "leaves", theme, Vector3(0, unit * 0.38, 0), Vector3.ONE * unit)
 		if style in ["flower", "spirit", "forest_king"]:
 			_add(head, "flower", theme, Vector3(0, unit * 0.85, 0), Vector3.ONE * unit * 0.65)
@@ -37,7 +57,13 @@ static func attach(root: Node3D, definition: Dictionary) -> void:
 			_add(torso, "mantle", theme, Vector3(0, unit * 0.2, 0), Vector3.ONE * unit * 2.6)
 			_add(head, "crystals", theme, Vector3(0, unit * 0.68, 0), Vector3.ONE * unit * 0.9)
 	elif theme == "sky_citadel":
-		_add(head, "halo", theme, Vector3(0, unit * 1.35, 0), Vector3.ONE * unit * 0.95)
+		# The halo floats over where the head rests, carried by the chest: on the head bone it
+		# swung down in front of the face whenever the head dipped to attack.
+		var halo := _anchor(root, skeleton, ["Torso3", "chest", "Torso"], "StarHalo", Vector3(0, h * 0.72, 0))
+		var over := Vector3(0, unit * 1.35, 0)
+		if halo.get_parent() is BoneAttachment3D:
+			over += _rest_point(root, skeleton, ["head", "Head"]) - _rest_point(root, skeleton, ["Torso3", "chest", "Torso"])
+		_add(halo, "halo", theme, over, Vector3.ONE * unit * 0.95)
 		if style in ["wings", "storm_wings", "sky_commander", "sky_king"]:
 			_add(torso, "wings", theme, Vector3(0, unit * 0.32, unit * 0.15), Vector3.ONE * unit * (2.6 if royal else 1.8))
 		if elite or royal:
@@ -104,6 +130,21 @@ static func _anchor(root: Node3D, skeleton: Skeleton3D, names: Array, label: Str
 	root.add_child(pivot)
 	pivot.position = fallback
 	return pivot
+
+## Where the first of [param names] found sits at rest, in [param root]'s space.
+static func _rest_point(root: Node3D, skeleton: Skeleton3D, names: Array) -> Vector3:
+	for bone_name in names:
+		var index := skeleton.find_bone(String(bone_name))
+		if index < 0:
+			continue
+		var to_root := Transform3D.IDENTITY
+		var ancestor: Node = skeleton
+		while ancestor != null and ancestor != root:
+			if ancestor is Node3D:
+				to_root = (ancestor as Node3D).transform * to_root
+			ancestor = ancestor.get_parent()
+		return to_root * skeleton.get_bone_global_rest(index).origin
+	return Vector3.ZERO
 
 static func _material(theme: String) -> StandardMaterial3D:
 	if _materials.has(theme):

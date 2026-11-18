@@ -217,25 +217,26 @@ try {
   // server's reason on the conflict screen, not land back on the login form.
   rejectPost={status:400,code:'invalid_save',message:'The character class, level or save version is invalid.'};
   await page.reload();
-  await page.getByRole('heading',{name:'พบเซฟใหม่จากอีกเครื่อง'}).waitFor();
+  await page.getByRole('heading',{name:'เซฟในเครื่องนี้ใหม่กว่าเซฟออนไลน์'}).waitFor();
+  ok((await page.locator('.ta-actions button').first().innerText())==='ใช้เซฟในเครื่องนี้ (ใหม่กว่า)','the refused (newer) local save is the first choice, not the older online one');
   let note=await page.locator('.ta-feedback').innerText();
   ok(note.includes('HTTP 400')&&note.includes('invalid_save')&&note.includes(rejectPost.message),'refused auto-upload names HTTP code, server code and detail: '+note);
   ok((await page.locator('.ta-compare').innerText()).includes('สายโล่'),'the conflict screen names the defender class');
   ok(two.revision===stuckRevision&&two.bundle.slots['1'].level===10,'a refused auto-upload changes nothing online');
   // 2. Another device saved meanwhile; the explicit choice is refused the same way.
   two.bundle=bundle('Assotix',12,3500);two.bundle.slots['1'].class='vagabond';two.revision++;
-  await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).click();
+  await page.getByRole('button',{name:'ใช้เซฟในเครื่องนี้ (ใหม่กว่า)',exact:true}).click();
   await poll(async()=>(await page.locator('.ta-feedback').innerText()).includes('HTTP 400'),'refusal shown');
   note=await page.locator('.ta-feedback').innerText();
   ok(note.includes('invalid_save')&&note.includes(rejectPost.message),'refused replacement shows the server detail: '+note);
-  ok(await page.getByRole('heading',{name:'พบเซฟใหม่จากอีกเครื่อง'}).isVisible(),'the choice stays on screen after a refusal');
-  ok(await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).isEnabled(),'buttons are usable again after a refusal');
+  ok(await page.getByRole('heading',{name:'เซฟในเครื่องนี้ใหม่กว่าเซฟออนไลน์'}).isVisible(),'the choice stays on screen after a refusal');
+  ok(await page.getByRole('button',{name:'ใช้เซฟในเครื่องนี้ (ใหม่กว่า)',exact:true}).isEnabled(),'buttons are usable again after a refusal');
   ok(two.bundle.slots['1'].level===12&&!(await page.evaluate(()=>window.ready)),'a refused replacement leaves the online save and does not start the game');
   const kept=await cache(page,'account:u_other');
   ok(kept.dirty===true&&kept.bundle.slots['1'].level===23&&(await local(page)).level===23,'the local defender stays untouched after a refusal');
   // 3. Compare-and-swap keeps losing (the other device is still uploading): say so.
   rejectPost=null;driftOnPost=true;
-  await page.getByRole('button',{name:'ยืนยันใช้เซฟในเครื่องแทนออนไลน์',exact:true}).click();
+  await page.getByRole('button',{name:'ใช้เซฟในเครื่องนี้ (ใหม่กว่า)',exact:true}).click();
   await poll(async()=>(await page.locator('.ta-feedback').innerText()).includes('HTTP 409'),'conflict loop is reported');
   ok((await page.locator('.ta-compare').innerText()).includes('เลเวล 12'),'the re-read online save is shown with the 409 note');
   ok(two.bundle.slots['1'].level===12,'a lost compare-and-swap changes nothing online');
@@ -330,6 +331,50 @@ try {
   ok(!(await page.locator('.ta-body').innerText()).includes('คลังรวม'),'a bundle without a shared storage shows none');
   await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
   ok(!(await hasFile(page,STORAGE))&&(await local(page)).level===30,'installing a bundle without it removes the storage file');
+  // ★300 → ★250 (a phone that drops off the network): an upload reaches the server but its
+  // answer is lost, the retry gets 409 and the re-read of the online save fails too. The
+  // sync used to stop for the rest of the session without a word (state.conflict with no
+  // screen), and the next start offered the stale online copy as "the newer save from
+  // another device", first button. Now the upload keeps retrying until it gets through.
+  await poll(()=>page.evaluate(()=>{const s=JSON.parse(toonCloudStatus());return !s.pending&&!s.conflict;}),'synced before the lost answer');
+  let lostAnswer=true,failGet=true;
+  await page.route('**/api/account/save',async route=>{
+    const post=route.request().method()==='POST';
+    if(post&&lostAnswer){lostAnswer=false;await route.fetch();await route.abort('failed');return;}
+    if(!post&&failGet&&!lostAnswer){failGet=false;await route.abort('failed');return;}
+    await route.continue();
+  });
+  const sonya=(stars,saved_at)=>({...defender(100,saved_at),name:'ซอนย่า',paragon:{level:stars,exp:0,points:0,spent:stars,alloc:{}}});
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':sonya(250,9000)},selectedSlot:1}));
+  await poll(()=>two.bundle.slots['1']?.paragon?.level===250,'the upload whose answer is lost reaches the server');
+  await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await poll(()=>!failGet,'the re-read after the 409 failed');
+  await page.unroute('**/api/account/save');
+  ok(!(await page.locator('.ta-card').count())||!(await page.locator('.ta-card').isVisible()),'no screen after the lost answer');
+  // Fifty more stars of play: each autosave must reach the server.
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':sonya(300,9900)},selectedSlot:1}));
+  await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await poll(()=>two.bundle.slots['1'].paragon.level===300,'progress after a lost answer and a failed re-read is still uploaded (was: sync stopped silently)');
+  await poll(()=>page.evaluate(()=>{const s=JSON.parse(toonCloudStatus());return !s.pending&&!s.conflict;}),'the sync settles');
+  await page.reload();await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
+  ok((await page.locator('.ta-body').innerText()).includes('★300'),'the account screen shows the stars');
+  await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
+  ok((await local(page)).paragon.level===300,'after the page is killed and reopened the hero is still at ★300');
+  // A real conflict shows each hero's stars and level, so ★300 and ★250 are told apart, and
+  // a local copy that is newer than the online one is offered first.
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':sonya(300,9950)},selectedSlot:1}));
+  await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'settled before the stale online copy');
+  await page.route('**/api/account/save',route=>route.request().method()==='POST'?route.abort('failed'):route.continue());
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':sonya(300,10000)},selectedSlot:1}));
+  await poll(async()=>(await cache(page,'account:u_other')).bundle.slots['1'].saved_at===10000,'unsent local draft');
+  two.bundle={slots:{'1':sonya(250,9000)},selectedSlot:1};two.revision++;
+  await page.unroute('**/api/account/save');await page.reload();
+  await page.getByRole('heading',{name:'เซฟในเครื่องนี้ใหม่กว่าเซฟออนไลน์'}).waitFor();
+  const compare=await page.locator('.ta-compare').innerText();
+  ok(compare.includes('★300')&&compare.includes('★250'),'the choice shows the stars of both copies: '+compare);
+  ok((await page.locator('.ta-actions button').first().innerText()).includes('ใช้เซฟในเครื่อง'),'the newer local copy is the first choice');
+  await page.locator('.ta-actions button').first().click();await page.waitForFunction(()=>window.ready);
+  ok(two.bundle.slots['1'].paragon.level===300&&(await local(page)).paragon.level===300,'choosing it keeps ★300 online and on the device');
   await page.evaluate(()=>toonOpenAccountPanel());await page.setViewportSize({width:956,height:440});
   if(screenshotDir)await page.screenshot({path:screenshotDir+'/account-landscape.png',fullPage:true});
   ok(await page.locator('.ta-card').evaluate(el=>el.scrollWidth<=el.clientWidth),'landscape card has no horizontal overflow');

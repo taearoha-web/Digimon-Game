@@ -50,9 +50,9 @@ const LATE_HP := 6.0
 ## (the wyrmling's rig is textured: its "tint" does it), "aura" colours DragonMonsterArt's
 ## dressing, "decor" picks its extra piece, "halo" the colour of the god's sun-halo.
 const MONSTERS := {
-	&"cloud_whelp": {"name": "ลูกมังกรเมฆา", "celestial": "whelp", "model": "flying/Dragon", "height": 2.0, "hover": 0.9, "hp": 2.0, "atk": 2.3, "def": 1.3, "speed": 3.1, "aggro": true, "attack": "ranged",
+	&"cloud_whelp": {"name": "ลูกมังกรเมฆา", "celestial": "whelp", "model": "remaster/flying/Dragon_cloud_whelp", "height": 2.0, "hover": 0.9, "hp": 2.0, "atk": 2.3, "def": 1.3, "speed": 3.1, "aggro": true, "attack": "ranged",
 		"color": Color("bfe9ff"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("eef6ff"), "Dragon_Secondary": Color("6fbdf0"), "Dragon_Horn": Color("ffd76a")}, "aura": Color("bfe9ff"), "decor": "cloud", "behavior": "volley", "exp": 2.2, "gold": 2.8},
-	&"jade_drake": {"name": "เดรกเกล็ดหยก", "model": "big/Dino", "height": 2.7, "hp": 2.7, "atk": 2.2, "def": 1.9, "speed": 2.9, "aggro": true, "attack": "melee",
+	&"jade_drake": {"name": "เดรกเกล็ดหยก", "model": "remaster/big/Dino_jade_drake", "height": 2.7, "hp": 2.7, "atk": 2.2, "def": 1.9, "speed": 2.9, "aggro": true, "attack": "melee",
 		"color": Color("5fe0a8"), "tint": Color.WHITE, "paint": {"Dino_Main": Color("2fb48a"), "Dino_Secondary": Color("eaf4c4")}, "aura": Color("5fe0a8"), "decor": "horns", "behavior": "pounce", "exp": 2.3, "gold": 2.9},
 	&"gold_wyrmling": {"name": "มังกรน้อยเกล็ดทอง", "celestial": "wyrmling", "model": "cute/YellowDragon", "height": 2.3, "hp": 2.3, "atk": 2.4, "def": 1.5, "speed": 3.0, "aggro": true, "attack": "melee",
 		"color": Color("ffd05a"), "tint": Color(1.3, 1.15, 0.6), "paint": {}, "aura": Color("ffd05a"), "decor": "pearl", "behavior": "spin", "exp": 2.25, "gold": 3.1},
@@ -60,8 +60,8 @@ const MONSTERS := {
 		"color": Color("ffd36a"), "tint": Color.WHITE, "paint": {"Main": Color("fff6f2"), "Main_Light": Color("ffdbe8"), "Hooves": Color("f0bf4c"), "Hair": Color("ff8fbe"), "Muzzle": Color("ffd2c4")}, "aura": Color("6ff0cc"), "decor": "kirin", "behavior": "lunge", "exp": 2.3, "gold": 2.9},
 	&"storm_wyvern": {"name": "ไวเวิร์นอัสนี", "celestial": "wyvern", "model": "dawn/Bat", "height": 3.2, "hover": 0.4, "hp": 2.0, "atk": 2.7, "def": 1.2, "speed": 3.3, "aggro": true, "attack": "ranged",
 		"color": Color("b08cff"), "tint": Color.WHITE, "paint": {"Main": Color("6a4fd0"), "Black": Color("2c2670"), "Belly": Color("d4c4ff"), "Nose": Color("ff9ae0")}, "aura": Color("b08cff"), "decor": "sparks", "behavior": "beam", "exp": 2.35, "gold": 2.9},
-	&"shrine_dragon": {"name": "มังกรผู้เฝ้าศาลเทพ", "celestial": "guardian", "model": "flying/Dragon_Evolved", "height": 3.8, "hover": 0.6, "hp": 6.0, "atk": 3.0, "def": 2.3, "speed": 3.1, "aggro": true, "attack": "ranged", "elite": true,
-		"color": Color("5fe8b8"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("dc4630"), "Dragon_Secondary": Color("f2bd48"), "Dragon_Horn": Color("fff0c8")}, "aura": Color("7af0c8"), "decor": "pearl", "behavior": "mortar", "exp": 3.6, "gold": 4.2},
+	&"shrine_dragon": {"name": "มังกรผู้เฝ้าศาลเทพ", "celestial": "guardian", "model": "remaster/flying/Dragon_Evolved_shrine_dragon", "height": 3.8, "hover": 0.6, "hp": 6.0, "atk": 3.0, "def": 2.3, "speed": 3.1, "aggro": true, "attack": "ranged", "elite": true,
+		"color": Color("ffb84a"), "tint": Color.WHITE, "paint": {"Dragon_Main": Color("dc4630"), "Dragon_Secondary": Color("f2bd48"), "Dragon_Horn": Color("fff0c8")}, "aura": Color("ffcf6a"), "decor": "pearl", "behavior": "mortar", "exp": 3.6, "gold": 4.2},
 	&"emerald_elder": {"name": "พญามังกรมรกต", "celestial": "elder", "model": "dawn/Dragon", "height": 4.2, "hover": 0.0, "hp": 6.6, "atk": 2.9, "def": 2.6, "speed": 3.0, "aggro": true, "attack": "melee", "elite": true,
 		"color": Color("3ff0a0"), "tint": Color.WHITE, "paint": {"Main": Color("22a872"), "Wings": Color("0f6f60"), "Belly": Color("f2e6a0"), "Claws": Color("f0bf4c")}, "aura": Color("3ff0a0"), "decor": "horns", "behavior": "cleave", "exp": 3.7, "gold": 4.2},
 	# The Dragon God: the god skill's dragon in white gold, coiled on his cloud, crowned and

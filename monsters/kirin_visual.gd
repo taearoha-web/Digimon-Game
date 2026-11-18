@@ -149,3 +149,61 @@ func flash(color := Color(1, 1, 1), duration := 0.16) -> void:
 	mat.set_shader_parameter("glow", 0.55)
 	_glow_tween = create_tween()
 	_glow_tween.tween_method(_param.bind("glow"), 0.55, 0.0, maxf(duration, 0.05))
+
+
+# ---------------------------------------------------------------------------
+# Boss casts (BossCast): the horn charge held for the whole telegraph: reared on the hind
+# legs, forehooves curled, the head thrown back and the horn kindling; the release is the
+# plunge, head low and the burning horn driven forward.
+# ---------------------------------------------------------------------------
+
+func cast_body(_pose: String) -> Dictionary:
+	return {"lean": 0.0, "lift": 0.0, "sx": 1.03, "sy": 1.05}
+
+
+func _cast_clip_windup(secs: float, hold: float, clip: String) -> void:
+	if mat == null:
+		return
+	busy_until = Time.get_ticks_msec() + int((secs + hold + 1.0) * 1000.0)
+	_cast_clip = clip
+	current = clip
+	_gait_goal = GAITS.idle
+	_restart()
+	if _cast_pose == "crouch":
+		_to({"rear": -0.08, "head_pitch": 0.55, "lunge": -0.18, "charge": 0.7}, secs)
+	else:
+		_to({"rear": 0.7, "tuck": 1.0, "head_pitch": -0.5, "lift": 0.14, "charge": 0.7}, secs)
+	if hold > 0.05:
+		_to({"rear": float(_plan.get("rear", 0.0)) + 0.05, "charge": 1.0}, hold)
+
+
+func _cast_clip_release(secs: float) -> void:
+	if mat == null or _cast_clip == "":
+		_cast_clip = ""
+		return
+	busy_until = Time.get_ticks_msec() + int((secs + 0.4) * 1000.0)
+	_restart()
+	_to({"rear": -0.1, "tuck": 0.0, "head_pitch": 0.75, "lift": 0.0, "lunge": 0.5, "charge": 1.0}, 0.12)
+	_move_tween.tween_interval(0.2)
+	_to({"rear": 0.0, "head_pitch": 0.0, "lunge": 0.0, "charge": 0.0}, secs)
+	_cast_clip = ""
+
+
+func cast_cancel() -> void:
+	var was := _cast_clip != ""
+	super.cast_cancel()
+	if was and mat != null and current != "die":
+		_restart()
+		_to({"rear": 0.0, "tuck": 0.0, "head_pitch": 0.0, "lift": 0.0, "lunge": 0.0, "charge": 0.0}, 0.2)
+		busy_until = 0
+
+
+func cast_glow(color: Color, amount: float) -> void:
+	if mat == null or (_glow_tween != null and _glow_tween.is_running()):
+		return
+	mat.set_shader_parameter("glow_color", color)
+	mat.set_shader_parameter("glow", clampf(amount, 0.0, 1.0) * 0.45)
+
+
+func cast_point(part: String) -> Vector3:
+	return point("nose" if part == "mouth" else "chest")

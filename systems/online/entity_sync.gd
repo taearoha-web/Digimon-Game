@@ -202,11 +202,24 @@ static func remote_struck(victim: Node, raw: float, source: Node) -> void:
 
 
 ## A monster starts a telegraphed move: [param circles] are [position, radius, seconds]
-## (the danger circles), [param clip] the animation, [param title] the move's name.
-static func cast(mob: Node, circles: Array, clip := "attack", title := "") -> void:
+## (the danger circles), [param clip] the animation, [param title] the move's name;
+## [param cast_key] a boss's cast (BossCast: the mirrors play the same wind-up) and
+## [param windup] its seconds to the first blow. A move started by code that passes no
+## key (StarAttack, DivineAttack) takes the one Mob._begin_slam left on the boss
+## (meta PENDING_CAST).
+static func cast(mob: Node, circles: Array, clip := "attack", title := "", cast_key := "", windup := 0.0) -> void:
 	if not hosting() or mob == null or not is_instance_valid(mob) or not mob.has_meta("eid"):
 		return
-	current._send_cast(mob as Mob, circles, clip, title)
+	if cast_key == "" and mob.has_meta(PENDING_CAST):
+		var pending: Dictionary = mob.get_meta(PENDING_CAST)
+		cast_key = String(pending.get("bc", ""))
+		windup = float(pending.get("w", 0.0))
+		if title == "":
+			title = String(pending.get("n", ""))
+	current._send_cast(mob as Mob, circles, clip, title, cast_key, windup)
+
+
+const PENDING_CAST := "pending_boss_cast"
 
 
 ## The name of whoever [param node] is, for the war feed ("" when not a real player).
@@ -514,6 +527,10 @@ func describe(mob: Mob) -> Dictionary:
 	elif mob.has_meta(RareDragon.META):
 		d["k"] = "rare"
 		d["win"] = int(mob.get_meta(RareDragon.META, -1))
+	elif mob is RaidBoss:
+		d["k"] = "raid_boss"
+	elif mob is DragonBoss:
+		d["k"] = "tomb_boss"
 	return d
 
 
@@ -629,7 +646,7 @@ func _on_phase(mob: Mob, p: int) -> void:
 		_event(int(mob.get_meta("eid")), "phase", {"p": p})
 
 
-func _send_cast(mob: Mob, circles: Array, clip: String, title: String) -> void:
+func _send_cast(mob: Mob, circles: Array, clip: String, title: String, cast_key := "", windup := 0.0) -> void:
 	# Small monsters' moves only while the line has room (a boss's always go).
 	if not mob.is_boss and not bool(mob.template.get("elite", false)) and _tokens < 6.0:
 		return
@@ -650,6 +667,9 @@ func _send_cast(mob: Mob, circles: Array, clip: String, title: String) -> void:
 	var data := {"c": c, "a": clip}
 	if title != "":
 		data["n"] = title
+	if cast_key != "":
+		data["bc"] = cast_key
+		data["w"] = _q(windup, 0.05)
 	_event(int(mob.get_meta("eid")), "cast", data)
 
 
@@ -823,7 +843,7 @@ func _take_over() -> void:
 func _real_mob(m: MirrorMob, hero: Node3D) -> Mob:
 	var mob := Mob.new()
 	mob.setup(m.monster_id, m.level, m.home, hero)
-	if m.kind in ["world_boss", "golden"]:
+	if m.kind in ["world_boss", "golden", "raid_boss", "tomb_boss"]:
 		mob.template = m.template.duplicate()
 	for meta in ["world_boss", "golden", "field_boss", RareDragon.META]:
 		if m.has_meta(meta):

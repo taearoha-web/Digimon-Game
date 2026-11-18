@@ -28,7 +28,9 @@ const FLOORS := 3
 const BOSS_NAME := "ราชันอสูรโลหิต"
 const MID_NAME_PREFIX := "ผู้คุมชั้น · "
 const BOSS_MODEL: StringName = &"void_emperor"
-const BOSS_TINT := Color(1.9, 0.38, 0.42)
+## Its own model, a blood demon king (tools/blender/recipes_bosses.py "blood_king"), on the
+## monster BOSS_MODEL's numbers (it was the void emperor tinted red).
+const BOSS_LOOK := "boss/BloodDemonKing"
 const BOSS_COLOR := Color("ff2f4a")
 ## Seconds a party of its power needs for one boss / mid-boss / monster (before skills).
 const BOSS_TTK := 130.0
@@ -55,6 +57,17 @@ const F_CLEARS := "raid_clears"
 const FIELDS: Array[StringName] = [&"meadow", &"dark_forest", &"desert", &"snow", &"volcano", &"graveyard", &"swamp", &"storm", &"sky", &"abyss"]
 const STAR_POOL: Array[StringName] = [&"void_golem", &"star_wraith", &"rift_stalker", &"tentacle_horror", &"nova_drake"]
 const STAR_MID: StringName = &"abyss_dragon"
+
+
+## The boss's template as it appears: BOSS_MODEL's [param base] with its own name, model and
+## colour (RaidBoss / DragonBoss, and their mirrors on other players' screens).
+static func boss_template(base: Dictionary) -> Dictionary:
+	var t := base.duplicate(true)
+	t["name"] = BOSS_NAME
+	t["model"] = BOSS_LOOK
+	t["tint"] = Color.WHITE
+	t["color"] = BOSS_COLOR
+	return t
 
 
 static func zone() -> Dictionary:

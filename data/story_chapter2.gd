@@ -74,10 +74,10 @@ const ORDER: Array[String] = ["ch2_omen", "ch2_sprites", "ch2_scales", "ch2_land
 ## (MonsterData.stats_for tunes them as their home field, home_of) and carry StoryBoss
 ## for the telegraphed moves. Health is ten times the design like the fields (TOUGH_HP).
 const MONSTERS := {
-	&"shadow_seraph": {"name": "ซาเลีย วิหคเงาสะท้อน", "model": "flying/Alpaking_Evolved", "height": 5.0, "hover": 0.6, "hp": 26.0, "atk": 3.2, "def": 2.4, "speed": 2.7, "aggro": true, "attack": "ranged", "boss": true,
-		"color": Color("9a6cff"), "tint": Color(0.5, 0.4, 0.95), "home": DivineRegionData.ID, "moves": ["nova", "lance"], "exp": 3.0, "gold": 4.0},
-	&"shadow_queen": {"name": "นิรา ราชินีเงาแห่งห้วงลึก", "model": "flying/Demon", "height": 6.2, "hover": 0.8, "hp": 40.0, "atk": 3.6, "def": 2.8, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
-		"color": Color("7a4dff"), "tint": Color(0.42, 0.32, 0.8), "home": DrownedAbyssData.ID, "moves": ["lance", "nova"], "exp": 4.0, "gold": 6.0},
+	&"shadow_seraph": {"name": "ซาเลีย วิหคเงาสะท้อน", "model": "remaster/flying/Alpaking_Evolved_shadow_seraph", "height": 5.0, "hover": 0.6, "hp": 26.0, "atk": 3.2, "def": 2.4, "speed": 2.7, "aggro": true, "attack": "ranged", "boss": true,
+		"color": Color("9a6cff"), "tint": Color(0.65, 0.55, 1.0), "home": DivineRegionData.ID, "moves": ["nova", "lance"], "exp": 3.0, "gold": 4.0},
+	&"shadow_queen": {"name": "นิรา ราชินีเงาแห่งห้วงลึก", "model": "remaster/flying/Demon_shadow_queen", "height": 6.2, "hover": 0.8, "hp": 40.0, "atk": 3.6, "def": 2.8, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true,
+		"color": Color("7a4dff"), "tint": Color(0.6, 0.5, 0.95), "home": DrownedAbyssData.ID, "moves": ["lance", "nova"], "exp": 4.0, "gold": 6.0},
 }
 ## The adds the queen's veil calls (phase 2 and 3): drowned guardians of both fields.
 const QUEEN_ADDS: Array[StringName] = [&"lotus_sprite", &"tide_squid", &"drown_jelly"]

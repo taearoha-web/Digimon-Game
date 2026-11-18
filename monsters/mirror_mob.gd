@@ -46,6 +46,11 @@ func setup_mirror(p_sync: EntitySync, p_eid: int, d: Dictionary, p_hero: Node3D)
 			set_meta("golden", int(d.get("win", -1)))
 		"rare":
 			set_meta(RareDragon.META, int(d.get("win", -1)))
+		# The party raid's and the dragon tomb's bosses wear their own models.
+		"raid_boss":
+			template = RaidData.boss_template(template)
+		"tomb_boss":
+			template = DungeonData.boss_template(template)
 	max_hp = maxi(1, int(d.get("mhp", max_hp)))
 	hp = clampi(int(d.get("hp", max_hp)), 1, max_hp)
 	hostile = int(d.get("h", 0)) != 0
@@ -247,6 +252,16 @@ func mirror_cast(d: Dictionary) -> void:
 	if first > 50.0:
 		first = 0.5
 		last = 0.5
+	# A boss's cast (BossCast): the same wind-up, banner and release as on the host.
+	var cast_key := String(d.get("bc", ""))
+	if cast_key != "":
+		var windup := clampf(float(d.get("w", first)), 0.1, 6.0)
+		_anim_lock = GameClock.msec() + int((maxf(last, windup) + 0.6) * 1000.0)
+		var opts := {"clip": String(d.get("a", "attack"))}
+		if d.has("n"):
+			opts["title"] = String(d.get("n", "")).trim_suffix("!")
+		if BossCast.begin(self, null, cast_key, windup, opts) != null:
+			return
 	visual.flash(Color(1.0, 0.3, 0.2), first)
 	visual.action(String(d.get("a", "attack")), int((last + 0.4) * 1000.0))
 	_anim_lock = GameClock.msec() + int((last + 0.4) * 1000.0)

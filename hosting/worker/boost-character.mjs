@@ -8,7 +8,7 @@
 // apply checks the save with the same rules as the game server, keeps a snapshot of the save it
 // replaces, and only writes if nobody saved in between (compare-and-swap on the revision).
 import {readFileSync, writeFileSync} from 'node:fs';
-import {validateBundle} from '../accounts/server/accounts.js';
+import {validateBundle, SNAPSHOT_PRUNE_SQL} from '../accounts/server/accounts.js';
 
 const {CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account, DB_NAME: dbName} = process.env;
 if (!token || !account || !dbName) throw new Error('CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID and DB_NAME are required');
@@ -80,8 +80,7 @@ if (command === 'fetch') {
   if (!rows.length) throw new Error('The save changed while boosting (the game saved in between). Nothing was written; run the workflow again.');
   await query(id, `INSERT OR IGNORE INTO toon_save_snapshots (user_id, revision, bundle, updated_at)
     SELECT user_id, revision, bundle, updated_at FROM toon_saves WHERE user_id = ? AND revision = ?`, [meta.userId, rows[0].revision]);
-  await query(id, `DELETE FROM toon_save_snapshots WHERE user_id = ? AND revision NOT IN
-    (SELECT revision FROM toon_save_snapshots WHERE user_id = ? ORDER BY revision DESC LIMIT 5)`, [meta.userId, meta.userId]);
+  await query(id, SNAPSHOT_PRUNE_SQL, [meta.userId, meta.userId, meta.userId]);
   console.log(`Saved revision ${rows[0].revision} (was ${meta.revision})${command === 'wipe' ? ', every character removed' : boosted.created ? `, new character in slot ${boosted.slot}` : ''}. The previous save is kept as a snapshot.`);
 } else {
   throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json> | apply-slots <dir> <slots.json> | apply-bundle <dir> <slots.json> | wipe <dir>');
