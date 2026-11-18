@@ -225,7 +225,61 @@ def ghost(arm, body):
     return {"glow": "8af2ff", "strength": 1.5}
 
 
+def skull_ghost(arm, body):
+    """Ghost_Skull: grave_ghost (cold blue), star_wraith (violet), eclipse wraith. A cracked
+    bone skull with embers burning deep in its sockets over a shadowy wraith body that
+    frays into tatters; faint star motes in the shadow."""
+    L.clean(body)
+    skull = L.split_off(body, ("Head",))
+    L.subdivide(body, 1)
+    L.decimate_to(body, 4200)
+    L.relax(body, 2, 0.35)
+    L.clean(skull, quads=False)
+    L.join(body, skull)
+    bone_top, bone_low, crevice = C("fbf4e4"), C("d8cbb4"), C("2a1a2c")
+    shade_top, shade_low, mote = C("5a4a9a"), C("1c1438"), C("c8d8ff")
+
+    def paint(name, co, n, info):
+        if name == "c_a58c72":
+            c = L.mix(bone_low, bone_top, L.smooth(1.5, 2.5, co.z))
+            c = L.mix(c, crevice, L.smooth(-0.01, -0.06, info["bump"]) * 0.85)
+            return c
+        h = L.smooth(0.4, 2.4, co.z)
+        c = L.mix(shade_low, shade_top, h)
+        c = L.mix(c, shade_low * 0.6, L.smooth(1.3, 2.6, abs(co.x)) * 0.6)
+        star = K.fbm(co, 0.08, 1)
+        return L.mix(c, mote, L.smooth(0.42, 0.55, star))
+
+    L.paint_body(body, paint)
+    surf = L.Surface(body)
+    parts = K.FParts(surf)
+    # Embers in the sockets (the hollows sit at about x +-0.28, z 1.95).
+    for sx in (-1.0, 1.0):
+        c = Vector((0.27 * sx, -0.3, 1.95))
+        p, n = surf.toward(Vector((0.27 * sx, -5.0, 1.95)), c)
+        if p is None:
+            continue
+        g = p + Vector((0.0, -0.02, -0.01))
+        parts.ellipsoid(g, (0.115, 0.05, 0.1), color=None, weights={"Head": 1.0}, detail="glow", seg=10, rings=6,
+                        color_fn=lambda u: L.mix(C("e8f8ff"), C("7ad0ff"), L.smooth(0.3, -0.8, u.z)))
+        # A cruel slant: shadowed brow ridge over the socket, low at the nose.
+        p3, n3 = front_hit(surf, 0.27 * sx, 2.1)
+        if p3 is not None:
+            parts.stroke(p3, n3, [(0.17 * sx, 0.05), (0.05 * sx, 0.0), (-0.1 * sx, -0.07)], 0.06, crevice,
+                         lift=0.012)
+        # Brow crack running up from the socket.
+        p2, n2 = front_hit(surf, 0.18 * sx, 2.25)
+        if p2 is not None:
+            parts.stroke(p2, n2, [(0.0, -0.06), (0.04 * sx, 0.02), (0.01 * sx, 0.09), (0.06 * sx, 0.17), (0.04 * sx, 0.24)], 0.02,
+                         crevice, lift=0.01, taper=True)
+    _wisps(parts, surf, 0.5, lambda t: L.mix(C("3a2a6a"), C("120a24"), t), count=6, length=0.55, seed=9)
+    K.join_parts(body, parts.to_object())
+    L.bake_ao(body, strength=0.45, shade=Vector((0.5, 0.48, 0.7)))
+    return {"glow": "a8ecff", "strength": 1.7}
+
+
 RECIPES = {
+    "flying/Ghost_Skull": skull_ghost,
     "flying/Ghost": ghost,
     "flying/Dragon": dragon_young,
     "flying/Dragon_Evolved": dragon_elder,
