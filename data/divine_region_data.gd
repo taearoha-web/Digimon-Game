@@ -13,7 +13,7 @@ const TITLE := "วิหารบัวดารา"
 const TOUGH_HP := EndgameFields.TOUGH_HP
 const MONSTERS := {
 	&"lotus_sprite": {"name":"ภูตบัวประกายดาว", "model":"flying/Ghost", "height":1.8, "hover":0.9, "hp":2.0, "atk":2.2, "def":1.3, "speed":2.7, "aggro":true, "attack":"ranged", "color":Color("f8c6eb"), "tint":Color(1.25,0.95,1.15), "behavior":"lotus_bolt", "exp":1.6, "gold":2.0},
-	&"jade_qilin": {"name":"มังกรหยกเทวะ", "model":"cute/YellowDragon", "height":2.4, "hp":2.6, "atk":2.1, "def":1.8, "speed":3.0, "aggro":true, "attack":"melee", "color":Color("89e9c5"), "tint":Color(0.75,1.2,0.95), "behavior":"jade_charge", "exp":1.7, "gold":2.1},
+	&"jade_qilin": {"name":"มังกรหยกเทวะ", "model":"remaster/cute/YellowDragon_jade_qilin", "height":2.4, "hp":2.6, "atk":2.1, "def":1.8, "speed":3.0, "aggro":true, "attack":"melee", "color":Color("89e9c5"), "tint":Color(0.75,1.2,0.95), "behavior":"jade_charge", "exp":1.7, "gold":2.1},
 	&"lotus_frog": {"name":"กบทองบัวทิพย์", "model":"remaster/big/Frog_lotus_frog", "height":1.8, "hp":2.3, "atk":2.5, "def":1.5, "speed":2.6, "aggro":true, "attack":"melee", "color":Color("ffd98a"), "tint":Color(1.15,1.05,0.8), "behavior":"jade_charge", "exp":1.75, "gold":2.2},
 	&"jade_monk": {"name":"นักพรตวานรหยก", "model":"remaster/big/Monkroose_jade_monk", "height":2.2, "hp":1.9, "atk":2.3, "def":1.2, "speed":2.8, "aggro":true, "attack":"melee", "color":Color("8fe3c0"), "tint":Color(0.8,1.15,0.95), "behavior":"jade_charge", "exp":1.6, "gold":2.0},
 	&"gold_bee": {"name":"ผึ้งเกสรทองคำ", "model":"flying/Armabee_Evolved", "height":1.7, "hover":1.1, "hp":2.0, "atk":2.4, "def":1.2, "speed":3.0, "aggro":true, "attack":"ranged", "color":Color("ffd98a"), "tint":Color(1.25,1.1,0.8), "behavior":"lotus_bolt", "exp":1.65, "gold":2.0},

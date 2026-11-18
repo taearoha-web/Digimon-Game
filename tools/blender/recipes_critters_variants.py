@@ -423,6 +423,214 @@ def gold_birb(arm, body):
     finish(body, parts)
 
 
+# ================================================================ cute/YellowDragon  nova_drake, jade_qilin
+
+def _dragon_prep(body):
+    """The little dragon's base (as recipes_critters.little_dragon): atlas eyes and lids
+    dropped, smoothed once."""
+    def junk(c, size, col, n):
+        return n in (51, 37) and abs(c.x) > 0.3 and 0.7 < c.z < 1.0 and c.y < -0.3
+    K.delete_islands(body, junk)
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 5000)
+
+
+def _dragon_region(co, n, info):
+    """Which part of the little dragon a corner belongs to (from its atlas texture)."""
+    t = info.get("tex")
+    if abs(co.x) > 0.62 and co.z > 0.75:
+        return "wing_bone" if R.tex_is(info, "302d15", 0.05) or R.tex_is(info, "372e13", 0.05) else "wing"
+    if 1.05 < co.z and abs(co.x) > 0.2 and t is not None and t.length > 0.2 and co.y > -0.45:
+        return "horn"
+    if (R.tex_is(info, "27250f", 0.03) or R.tex_is(info, "2b2910", 0.03)) and info["bone"].startswith("Eyebrow"):
+        return "brow"
+    if co.y < -0.45 and 0.55 < co.z < 0.7 and abs(co.x) < 0.25 and t is not None and t.length > 0.15:
+        return "teeth"
+    if co.y < -0.35 and 0.3 < co.z < 0.72 and abs(co.x) < 0.3 and t is not None and t.length < 0.06:
+        return "mouth"
+    return "hide"
+
+
+def _dragon_paint(body, colours, hide_fn):
+    """Paints every region from colours (a colour or f(co, n) per region; hide_fn(co, n) for
+    the hide), all on the untinted material."""
+    def paint(name, co, n, info):
+        r = _dragon_region(co, n, info)
+        if r == "hide":
+            return hide_fn(co, n)
+        c = colours[r]
+        return c(co, n) if callable(c) else c
+
+    K.paint_body(body, paint, all_keep, tex=True)
+
+
+def _dragon_horn_tip(surf, sx, top=True):
+    """Base point and outward normal for a new horn beside the existing ones."""
+    if top:
+        return M.dir_hit(surf, V((0, -0.1, 1.0)), V((0.45 * sx, 0.25, 1.0)))
+    return M.dir_hit(surf, V((0, -0.1, 1.0)), V((1.0 * sx, 0.3, 0.45)))
+
+
+def nova_drake(arm, body):
+    """Supernova drake (nova_drake): a deep cosmic-violet hide scattered with glowing
+    stars, a crown of great swept-back horns
+    that burn from violet to white-hot tips plus a ridge of flame spikes, nebula wings,
+    and white-gold slit eyes."""
+    _dragon_prep(body)
+    void, void_hi, nebula = D("1e1040"), D("4a2a8a"), D("c02a9a")
+
+    def hide(co, n):
+        c = L.mix(void, void_hi, max(0.0, n.z) * 0.5 + max(0.0, -n.y) * 0.25)
+        sc = 0.5 + 0.5 * math.sin(co.z * 16.0 + co.x * 5.0) * math.sin(co.x * 15.0 - co.y * 9.0)
+        return L.mix(c, D("6a3ab0"), L.smooth(0.82, 0.97, sc) * 0.4 * max(0.0, n.y + 0.3))
+
+    def wing(co, n):
+        t = L.smooth(0.6, 1.6, abs(co.x))
+        return L.mix(L.mix(D("3a1a7a"), nebula, t), D("ff9a3a"), L.smooth(1.25, 1.6, abs(co.x)) * 0.8)
+
+    _dragon_paint(body, {"wing_bone": lambda co, n: wing(co, n) * 0.6, "wing": wing,
+                         "horn": lambda co, n: L.mix(D("5a2a9a"), D("ff6ad0"), L.smooth(1.1, 1.55, co.z)),
+                         "brow": D("6a2a9a"), "teeth": D("fff6ea"), "mouth": C("2a0820")}, hide)
+    K.bake_ao(body, strength=0.35)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.41 * sx, -0.44, 0.88)), 0.2, V((0.45 * sx, -1.0, 0.0)).normalized(), D("ffffff"),
+                     D("ffb02a"), w, lid=D("2a1650"), slant=0.45, side=sx, slit=True, pupil_w=0.1, iris=0.9,
+                     glow=True, sclera=D("1a0a30"), lid_drop=1.8, lid_size=0.8)
+    # Great swept-back horns, burning to white-hot tips.
+    with parts.use("glow"):
+        for sx in (-1.0, 1.0):
+            p, n = _dragon_horn_tip(surf, sx)
+            if p is not None:
+                parts.blob(p - n * 0.05, 0.09, V((0.5 * sx, 0.6, 1.0)), 0.75, None, weights={"Head3": 1.0}, seg=10,
+                           rings=7, tip=0.08, bend=V((0.05 * sx, 0.35, -0.12)),
+                           color_fn=lambda t: L.mix(L.mix(C("6a1ac0"), C("ff2a9a"), L.smooth(0.0, 0.5, t)),
+                                                    C("fff4c0"), L.smooth(0.55, 1.0, t)))
+        # Flame spikes down the back of the head and spine.
+        for k in range(5):
+            a = math.radians(-10 + 28 * k)
+            d = V((0, math.sin(a), math.cos(a)))
+            p, n = M.dir_hit(surf, V((0, 0.0, 0.75)), d)
+            if p is None:
+                continue
+            parts.blob(p - n * 0.04, (0.08, 0.035), (n + V((0, 0.5, 0.2))).normalized(), 0.32 - 0.03 * k, None,
+                       weights=p, seg=6, rings=5, tip=0.05, up=V((1, 0, 0)),
+                       color_fn=lambda t: L.mix(C("ff2a8a"), C("ffd060"), t))
+        # Stars over the hide and wings.
+        rng = random.Random(23)
+        placed = []
+        for d in M.fibonacci(160):
+            p, n = M.dir_hit(surf, V((0, 0.0, 0.8)), d)
+            if p is None or any((p - q).length < 0.16 for q in placed) or (p.y < -0.3 and p.z < 0.75 and abs(p.x) < 0.35):
+                continue
+            placed.append(p)
+            s = rng.uniform(0.022, 0.04)
+            parts.decal(p, n, [(0, s * 2.2), (s * 0.5, s * 0.5), (s * 2.2, 0), (s * 0.5, -s * 0.5), (0, -s * 2.2),
+                               (-s * 0.5, -s * 0.5), (-s * 2.2, 0), (-s * 0.5, s * 0.5)], C("fff8e0"), rings=1,
+                        lift=0.016)
+        for sx in (-1.0, 1.0):
+            for k in range(6):
+                x = 0.75 + 0.15 * k
+                z = 0.85 + 0.06 * k + (0.1 if k % 2 else -0.05)
+                for side in (-1.0, 1.0):
+                    p, n = surf.toward(V((x * sx, -4.0 * side, z)), V((x * sx, 0.0, z)))
+                    if p is not None:
+                        parts.decal(p, n, M.ellipse(0.025, 0.025, 6), C("fff0f8"), rings=1, lift=0.012)
+    K.join_parts(body, parts.to_object())
+
+
+def jade_qilin(arm, body):
+    """Jade god-dragon (jade_qilin): jade-green scales flecked with gold, a pale jade belly,
+    branching golden antlers, cloud-curl manes of white and jade at the cheeks and crown,
+    carved jade plates down its back, long golden whiskers, jade wings ribbed in gold and
+    calm golden eyes."""
+    _dragon_prep(body)
+    jade, jade_dk, belly, gold = D("3ab884"), D("17704e"), D("d8f4e0"), D("ffd04a")
+
+    def hide(co, n):
+        c = L.mix(jade, jade_dk, L.smooth(-0.2, 0.7, n.y * 0.8 + n.z * 0.3))
+        sc = 0.5 + 0.5 * math.sin(co.z * 16.0 + co.x * 5.0) * math.sin(co.x * 15.0 - co.y * 9.0)
+        c = L.mix(c, D("0e5a3a"), L.smooth(0.8, 0.97, sc) * 0.45 * max(0.0, n.y + 0.3))
+        return L.mix(c, belly, L.smooth(0.2, 0.8, -n.y) * L.smooth(0.95, 0.5, co.z))
+
+    def jwing(co, n):
+        return L.mix(L.mix(D("17704e"), D("7ae0b0"), L.smooth(0.6, 1.5, abs(co.x))), D("e8c050"),
+                     L.smooth(1.35, 1.6, abs(co.x)) * 0.7)
+
+    _dragon_paint(body, {"wing_bone": jwing, "wing": jwing,
+                         "horn": lambda co, n: L.mix(D("c08a20"), D("fff0a0"), L.smooth(1.1, 1.55, co.z)),
+                         "brow": D("1a5a3a"), "teeth": D("fffaf0"), "mouth": D("6a1a2a")}, hide)
+    K.bake_ao(body, strength=0.35)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    w = {"Head": 1.0}
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.41 * sx, -0.44, 0.88)), 0.2, V((0.45 * sx, -1.0, 0.0)).normalized(), D("fff4a0"),
+                     D("d89a10"), w, lid=D("2a8a60"), slant=0.15, side=sx, slit=True, pupil_w=0.14, iris=0.88,
+                     lid_drop=1.6, lid_size=0.8)
+    gold_fn = lambda t: L.mix(D("c08a20"), D("fff0a0"), t)  # noqa: E731
+    # Branching golden antlers.
+    for sx in (-1.0, 1.0):
+        p, n = _dragon_horn_tip(surf, sx)
+        if p is None:
+            continue
+        main = V((0.35 * sx, 0.35, 1.0)).normalized()
+        parts.blob(p - n * 0.04, 0.07, main, 0.7, None, weights={"Head3": 1.0}, seg=8, rings=7, tip=0.3,
+                   bend=V((0.12 * sx, 0.2, 0)), color_fn=gold_fn)
+        for k, (f, tine) in enumerate(((0.35, V((0.9 * sx, -0.2, 0.6))), (0.65, V((-0.2 * sx, -0.5, 0.8))))):
+            q = p + main * 0.7 * f + V((0.12 * sx, 0.2, 0)) * f * f
+            parts.blob(q, 0.045, tine, 0.28, None, weights={"Head3": 1.0}, seg=6, rings=5, tip=0.3, color_fn=gold_fn)
+    # Cloud-curl manes: cheeks and crown.
+    def curl(base, d, size, wgt):
+        for k in range(3):
+            a = (k - 1) * 0.5
+            dd = (d + V((0, 0, 0.3 * (k - 1)))).normalized()
+            parts.blob(base, (size * 0.5, size * 0.3), dd, size * (1.0 - 0.15 * abs(k - 1)), None, weights=wgt,
+                       seg=8, rings=5, tip=0.35, bend=V((0, 0, size * 0.5)), up=V((0, -1, 0)),
+                       color_fn=lambda t: L.mix(D("7ad8b0"), D("ffffff"), L.smooth(0.2, 1.0, t)))
+    for sx in (-1.0, 1.0):
+        p, n = M.dir_hit(surf, V((0, -0.1, 0.65)), V((1.0 * sx, -0.3, -0.1)))
+        if p is not None:
+            curl(p - n * 0.05, V((sx, 0.3, -0.2)), 0.36, w)
+    p, n = M.dir_hit(surf, V((0, 0.0, 1.0)), V((0, 0.6, 1.0)))
+    if p is not None:
+        curl(p - n * 0.05, V((0, 0.8, 0.5)), 0.4, {"Head3": 1.0})
+    # Carved jade plates down the back.
+    for k in range(4):
+        a = math.radians(35 + 25 * k)
+        d = V((0, math.sin(a), math.cos(a)))
+        p, n = M.dir_hit(surf, V((0, 0.0, 0.75)), d)
+        if p is None:
+            continue
+        s = 0.17 - 0.02 * k
+        parts.ellipsoid(p + n * 0.02, (s, s * 0.85, 0.05), M.basis(n), color=None, weights=p, seg=6, rings=4,
+                        color_fn=lambda u: L.mix(D("1a8a5a"), D("b8ffe0"), L.smooth(-0.2, 1.0, u.z)))
+        parts.ellipsoid(p + n * 0.065, (s * 0.35, s * 0.35, 0.025), M.basis(n), color=gold, weights=p, seg=8, rings=4)
+    # Long golden whiskers from the snout.
+    for sx in (-1.0, 1.0):
+        p, n = M.front_hit(surf, 0.22 * sx, 0.74)
+        if p is not None:
+            parts.blob(p - n * 0.02, 0.025, V((0.9 * sx, -0.5, 0.05)), 0.7, None, weights=w, seg=6, rings=6, tip=0.4,
+                       bend=V((0.1 * sx, 0.1, -0.35)), color_fn=gold_fn)
+    # Gold flecks over the scales.
+    rng = random.Random(9)
+    placed = []
+    for d in M.fibonacci(60):
+        p, n = M.dir_hit(surf, V((0, 0.0, 0.8)), d)
+        if p is None or p.y < -0.2 or any((p - q).length < 0.25 for q in placed):
+            continue
+        placed.append(p)
+        s = rng.uniform(0.03, 0.05)
+        parts.decal(p, n, M.ellipse(s, s * 0.8, 6), gold, rings=1, lift=0.014)
+    K.join_parts(body, parts.to_object())
+
+
+
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
@@ -430,6 +638,8 @@ RECIPES = {
     "big/Frog_lotus_frog": lotus_frog,
     "big/Monkroose_jade_monk": jade_monk,
     "blob/Birb_gold_birb": gold_birb,
+    "cute/YellowDragon_nova_drake": nova_drake,
+    "cute/YellowDragon_jade_qilin": jade_qilin,
 }
 
 
