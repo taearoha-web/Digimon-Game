@@ -75,10 +75,8 @@ var _rng := RandomNumberGenerator.new()
 func setup_raid(p_zone: Node3D, scaled: Dictionary, p_home: Vector3, p_hero: Node3D, ids: Array, p_add_stats: Dictionary, seed_value: int) -> void:
 	setup(RaidData.BOSS_MODEL, int(scaled.level), p_home, p_hero)
 	zone_ref = p_zone
-	template = template.duplicate(true)
-	template["name"] = RaidData.BOSS_NAME
-	template["tint"] = RaidData.BOSS_TINT
-	template["color"] = COLOR
+	# Its own model (RaidData.BOSS_LOOK), name and colour on the monster's numbers.
+	template = RaidData.boss_template(template)
 	stats["hp"] = int(scaled.hp)
 	stats["atk"] = int(scaled.atk)
 	stats["def"] = int(scaled.def)

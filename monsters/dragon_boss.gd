@@ -80,10 +80,8 @@ var _rng := RandomNumberGenerator.new()
 func setup_dungeon(p_zone: Node3D, scaled: Dictionary, p_home: Vector3, p_hero: Node3D, p_crystal_stats: Dictionary, seed_value: int) -> void:
 	setup(DungeonData.BOSS_MODEL, int(scaled.level), p_home, p_hero)
 	zone_ref = p_zone
-	template = template.duplicate(true)
-	template["name"] = DungeonData.BOSS_NAME
-	template["tint"] = DungeonData.BOSS_TINT
-	template["color"] = COLOR
+	# Its own model (DungeonData.BOSS_LOOK), name and colour on the monster's numbers.
+	template = DungeonData.boss_template(template)
 	# Its moves are its own (never the abyss dragon's inferno).
 	template.erase("behavior")
 	template.erase("behavior2")

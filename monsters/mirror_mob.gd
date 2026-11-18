@@ -46,6 +46,11 @@ func setup_mirror(p_sync: EntitySync, p_eid: int, d: Dictionary, p_hero: Node3D)
 			set_meta("golden", int(d.get("win", -1)))
 		"rare":
 			set_meta(RareDragon.META, int(d.get("win", -1)))
+		# The party raid's and the dragon tomb's bosses wear their own models.
+		"raid_boss":
+			template = RaidData.boss_template(template)
+		"tomb_boss":
+			template = DungeonData.boss_template(template)
 	max_hp = maxi(1, int(d.get("mhp", max_hp)))
 	hp = clampi(int(d.get("hp", max_hp)), 1, max_hp)
 	hostile = int(d.get("h", 0)) != 0

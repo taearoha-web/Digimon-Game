@@ -6,6 +6,8 @@ var failures := 0
 const BOSSES := [&"mush_king", &"fire_dragon", &"sand_dragon", &"yeti_king", &"magma_dragon", &"bone_lord",
 	&"toad_king", &"storm_dragon", &"gold_dragon", &"abyss_dragon", &"void_emperor", &"tidal_tyrant", &"dragon_god"]
 
+const SECOND_MOVES := [&"dawn_ancient_stag", &"crystal_horn_king", &"sky_celestial_king", &"eclipse_sovereign", &"lotus_seraph"]
+
 class Victim:
 	extends Node3D
 	var hits := 0
@@ -105,7 +107,13 @@ func _ready() -> void:
 		var zone: Dictionary = ZoneData.ZONES[zone_id]
 		if zone.has("boss") and MonsterData.MONSTERS.has(zone.boss.monster):
 			check(BossAttack.has_moves(MonsterData.MONSTERS[zone.boss.monster]), "field boss %s has moves" % zone.boss.monster)
+	# The star kings and the lotus queen: a second signature move each (template "special2").
+	for id in SECOND_MOVES:
+		var second := String(MonsterData.get_monster(id).get("special2", ""))
+		check(BossAttack.MOVES.has(second), "%s has a second signature move" % id)
+		run_move(id, second)
 	await run_runtime()
+	await run_alternation()
 	Game.has_profile = false
 	print("BOSS ATTACK: ", checks, " checks, ", failures, " failures")
 	get_tree().quit(failures)
@@ -213,4 +221,26 @@ func run_runtime() -> void:
 	var plain := make_actor(&"pink_slime", target)
 	check(not BossAttack.has_moves(plain.template), "plain monsters have no boss moves")
 	plain.free()
+	await get_tree().process_frame
+
+
+## The star kings and the lotus queen open with their first move, then take turns.
+func run_alternation() -> void:
+	var target := Victim.new()
+	add_child(target)
+	target.position = Vector3(5, 0, 0)
+	for id in SECOND_MOVES:
+		var actor := make_actor(id, target)
+		var kinds: Array[String] = []
+		for i in 4:
+			actor._winding = false
+			actor._begin_slam()
+			var last := actor.get_child(actor.get_child_count() - 1)
+			kinds.append("boss:" + (last as BossAttack).move if last is BossAttack else ("divine" if last is DivineAttack else ("star" if last is StarAttack else "?")))
+			last.free()
+		var first := "divine" if DivineRegionData.has_monster(id) else "star"
+		var second := "boss:" + String(actor.template.special2)
+		check(kinds == [first, second, first, second], "%s alternates its two signature moves (%s)" % [id, kinds])
+		actor.free()
+	target.free()
 	await get_tree().process_frame

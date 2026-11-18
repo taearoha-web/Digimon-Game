@@ -40,7 +40,9 @@ const PACK_SIZE := [5, 6]
 const BOSS_NAME := "ราชันมังกรโบราณ"
 const CRYSTAL_NAME := "ศิลามังกร"
 const BOSS_MODEL: StringName = &"abyss_dragon"
-const BOSS_TINT := Color(0.9, 1.6, 1.1)
+## Its own model, an ancient bone dragon king (tools/blender/recipes_bosses.py "bone_dragon"),
+## on the monster BOSS_MODEL's numbers (it was the abyss dragon tinted green).
+const BOSS_LOOK := "boss/BoneDragonKing"
 const BOSS_COLOR := Color("5cf28a")
 ## Seconds a party of its power needs for the boss / a crystal / a pack monster.
 const BOSS_TTK := 150.0
@@ -76,6 +78,17 @@ const SHOP := [
 ## The dungeon gear is this much better than a mythic field drop of its level.
 const GEAR_EDGE := 1.35
 const TRASH_POOL: Array[StringName] = [&"void_golem", &"rift_stalker", &"tentacle_horror", &"nova_drake"]
+
+
+## The boss's template as it appears: BOSS_MODEL's [param base] with its own name, model and
+## colour (RaidBoss / DragonBoss, and their mirrors on other players' screens).
+static func boss_template(base: Dictionary) -> Dictionary:
+	var t := base.duplicate(true)
+	t["name"] = BOSS_NAME
+	t["model"] = BOSS_LOOK
+	t["tint"] = Color.WHITE
+	t["color"] = BOSS_COLOR
+	return t
 
 
 static func zone() -> Dictionary:

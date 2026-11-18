@@ -514,6 +514,10 @@ func describe(mob: Mob) -> Dictionary:
 	elif mob.has_meta(RareDragon.META):
 		d["k"] = "rare"
 		d["win"] = int(mob.get_meta(RareDragon.META, -1))
+	elif mob is RaidBoss:
+		d["k"] = "raid_boss"
+	elif mob is DragonBoss:
+		d["k"] = "tomb_boss"
 	return d
 
 
@@ -823,7 +827,7 @@ func _take_over() -> void:
 func _real_mob(m: MirrorMob, hero: Node3D) -> Mob:
 	var mob := Mob.new()
 	mob.setup(m.monster_id, m.level, m.home, hero)
-	if m.kind in ["world_boss", "golden"]:
+	if m.kind in ["world_boss", "golden", "raid_boss", "tomb_boss"]:
 		mob.template = m.template.duplicate()
 	for meta in ["world_boss", "golden", "field_boss", RareDragon.META]:
 		if m.has_meta(meta):
