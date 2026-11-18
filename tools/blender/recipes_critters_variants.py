@@ -354,12 +354,82 @@ def jade_monk(arm, body):
     finish(body, parts)
 
 
+# ================================================================ blob/Birb  gold_birb
+
+def gold_birb(arm, body):
+    """Golden bird (gold_birb): gleaming metallic-gold plumage with bronze scallops and a
+    pale-gold breast, a crest of three tall ruby-tipped plumes, a fanned peacock tail with
+    jewel eye-spots, an ivory beak, a ruby on the brow and proud ruby eyes."""
+    R.drop_islands(body, lambda c, size, mat: mat in ("Eye_White", "Eye_Black"))
+    L.clean(body)
+    L.subdivide(body, 1)
+    L.decimate_to(body, 3800)
+    deep, gold, shine, breast = C("d8a818"), C("ffe04a"), C("fff8c8"), C("fff8e0")
+
+    def paint(name, co, n, info):
+        if name == "Birb_Beak":
+            return L.mix(D("c8a060"), D("fff8e8"), L.smooth(-0.2, 0.8, n.z) * 0.6 + L.smooth(0.0, 0.6, co.z) * 0.4)
+        if name == "Birb_Secondary":
+            return L.mix(D("8a4a10"), D("fff0b0"), L.smooth(0.0, 0.1, info["bump"]))
+        c = L.mix(deep, gold, L.smooth(-0.6, 0.7, n.z * 0.7 - n.y * 0.3))
+        c = L.mix(c, shine, L.smooth(0.55, 0.9, n.z * 0.6 - n.y * 0.5) * 0.7)  # metallic sheen
+        return L.mix(c, breast, L.smooth(0.2, 0.8, -n.y) * L.smooth(1.0, 0.4, co.z) * 0.7)
+
+    K.paint_body(body, paint, all_keep)
+    surf, parts = start(body)
+    parts.mode = "keep"
+    for sx in (-1.0, 1.0):
+        K.fierce_eye(parts, V((0.55 * sx, -0.95, 1.0)), 0.25, V((0.5 * sx, -1.0, 0.0)).normalized(), D("ffd0a0"),
+                     D("e81a3a"), {"Head": 1.0}, lid=D("e0a428"), slant=0.3, side=sx, slit=False, iris=0.9,
+                     glow=True, lid_drop=1.7)
+        p, n = M.front_hit(surf, 0.55 * sx, 1.36)
+        parts.stroke(p, n, [(0.3 * sx, 0.1), (0.08 * sx, 0.04), (-0.16 * sx, -0.06)], 0.09, D("7a4a10"), lift=0.02)
+    R.scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, -0.6, z)) for x in (-0.6, -0.2, 0.2, 0.6) for z in (-0.6, -0.3)],
+               0.12, D("d8a040"))
+    R.scallops(parts, surf, V((0, -0.4, 1.0)), [V((x, 1.0, z)) for x in (-0.5, 0.0, 0.5) for z in (-0.2, 0.3, 0.8)],
+               0.14, D("a06a14"))
+    # Ruby on the brow.
+    p, n = M.front_hit(surf, 0.0, 1.42)
+    if p is not None:
+        glow_spot(parts, p, n, 0.08, C("e0103a"), C("ffb0c0"), weights={"Head2": 1.0})
+        with parts.use("keep"):
+            parts.decal(p, n, M.ellipse(0.13, 0.11, 16), D("ffe070"), rings=1, lift=0.006)
+
+    def plume(base, d, ln, w, bend, tip_col):
+        parts.blob(base, (0.2, 0.05), d, ln, None, weights=w, seg=8, rings=7, tip=0.55, bend=bend,
+                   color_fn=lambda t: L.mix(L.mix(D("c88a1a"), D("fff0a0"), L.smooth(0.0, 0.6, t)), tip_col,
+                                            L.smooth(0.72, 0.9, t)), up=V((0, -1, 0)))
+
+    # Crest: three tall plumes rising from the crown and arching back.
+    top, tn = M.dir_hit(surf, V((0, -0.2, 1.6)), V((0, -0.1, 1)))
+    if top is not None:
+        for k, (x, ln) in enumerate(((-0.2, 1.2), (0.0, 1.6), (0.2, 1.2))):
+            d = V((x * 2.0, -0.1, 1.0)).normalized()
+            plume(top - tn * 0.08 + V((x, 0, 0)), d, ln, {"Head3": 1.0}, V((x * 1.2, 0.7, -0.1)), C("e8103a"))
+    # Tail fan with jewel eye-spots.
+    tail, tln = M.dir_hit(surf, V((0, 0.0, 0.7)), V((0, 1.0, 0.1)))
+    if tail is not None:
+        for k in range(5):
+            a = math.radians(-50 + 25 * k)
+            d = V((math.sin(a) * 1.3, 0.4, math.cos(a))).normalized()
+            ln = 1.7 - 0.2 * abs(k - 2)
+            base = tail - tln * 0.1
+            parts.blob(base, (0.26, 0.05), d, ln, None, weights={"Head": 1.0}, seg=8, rings=7, tip=0.7,
+                       bend=V((0, 0.2, -0.1)), up=V((0, 1, 0)),
+                       color_fn=lambda t: L.mix(L.mix(D("b07818"), D("ffe070"), L.smooth(0.0, 0.5, t)),
+                                                D("0e8a6a"), L.smooth(0.68, 0.76, t) * L.smooth(0.98, 0.9, t)))
+            tip = base + d * ln * 0.86 + V((0, 0.2, -0.1)) * 0.74
+            glow_spot(parts, tip + V((0, 0.05, 0)), V((0, 1, 0.3)).normalized(), 0.1, C("e0103a"), C("ff9ab0"), weights={"Head": 1.0})
+    finish(body, parts)
+
+
 # ================================================================ registry / runner
 
 RECIPES = {
     "big/Fish_abyss_angler": abyss_angler,
     "big/Frog_lotus_frog": lotus_frog,
     "big/Monkroose_jade_monk": jade_monk,
+    "blob/Birb_gold_birb": gold_birb,
 }
 
 

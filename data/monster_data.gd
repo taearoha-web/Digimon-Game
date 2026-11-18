@@ -70,7 +70,7 @@ const MONSTERS := {
 	&"storm_dragon": {"name": "มังกรสายฟ้าคำราม", "model": "flying/Dragon", "height": 4.6, "hp": 20.0, "atk": 3.0, "def": 2.7, "speed": 2.8, "aggro": true, "attack": "ranged", "boss": true, "hover": 0.9, "color": Color("7ab8ff"), "tint": Color(0.7, 1.1, 1.8), "behavior": "chain_lightning", "behavior2": "thunder_cage"},
 	# Sunken sky city
 	&"fallen_angel": {"name": "ทูตสวรรค์ตกต่ำ", "model": "flying/Demon", "height": 2.0, "hp": 2.3, "atk": 2.9, "def": 1.6, "speed": 3.0, "aggro": true, "attack": "ranged", "hover": 1.1, "color": Color("ffd84a"), "tint": Color(1.15, 1.08, 0.95), "behavior": "mortar"},
-	&"gold_birb": {"name": "นกทองคำ", "model": "blob/Birb", "height": 1.8, "hp": 2.2, "atk": 2.8, "def": 1.6, "speed": 3.8, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.5, 0.6), "behavior": "lunge"},
+	&"gold_birb": {"name": "นกทองคำ", "model": "remaster/blob/Birb_gold_birb", "height": 1.8, "hp": 2.2, "atk": 2.8, "def": 1.6, "speed": 3.8, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.5, 0.6), "behavior": "lunge"},
 	&"sun_dino": {"name": "มังกรน้อยสุริยะ", "model": "cute/YellowDragon", "height": 2.8, "hp": 3.0, "atk": 2.7, "def": 2.2, "speed": 2.9, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.6, 0.9), "behavior": "pounce"},
 	&"sky_hound": {"name": "กวางเมฆา", "model": "cute/Deer", "height": 1.9, "hp": 2.6, "atk": 2.9, "def": 1.9, "speed": 4.2, "aggro": true, "attack": "melee", "tint": Color(1.8, 1.8, 2.0), "behavior": "lunge"},
 	&"sky_priest": {"name": "นักบวชมืดเมฆา", "model": "flying/Alpaking_Evolved", "height": 2.0, "hp": 2.3, "atk": 3.2, "def": 1.7, "speed": 2.6, "aggro": true, "attack": "ranged", "color": Color("fff0a0"), "tint": Color(1.6, 1.5, 0.9), "hover": 1.0, "behavior": "mortar"},
