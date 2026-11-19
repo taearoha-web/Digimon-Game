@@ -1,166 +1,268 @@
 extends Node
-## Plays a guild war in fast forward (headless) to check the fight: who falls, how often,
-## the longest single hit, how the siege goes (gates, the altar, the castle's holder), that
-## the war ends and the result is paid out.
-##   godot --headless --path . res://tests/tools/guild_war_sim.tscn -- [class] [sim seconds] [time scale] [damage scale] [mode]
-## mode: "open" starts with the gates down; "guild" fights Alpha against Neverdie with every
-## member (run with TOON_WORLD_DAYS=20 so the guilds are full); "guild_open" both; with
-## "lead" the hero plays its guild's leader (its auto fight follows the front gate, then
-## goes for the altar and takes it), otherwise it fights round our camp.
-var _kills: Array[String] = []
-var _hit_max := 0.0
-var _finished := false
-var _tick := 0
-var _census0: Dictionary = {}
-## The siege as it went (for the SUMMARY line): when each gate fell, each capture, plan switches.
-var _gate_times: Array[int] = []
-var _captures: Array[String] = []
-var _plan_switches := [0, 0]
-var _m: GuildWarMatch
-var _hero: Hero
+## Headless guild-war simulator: whole seeded AI-only wars (watched: every guild AI, the
+## hero out of it), one after another, each guild played by the doctrine (GuildWarDoctrine
+## over GuildWarCommander: "smart") or by the old commander alone ("old"), for the old-vs-new
+## measurement. Every guild gets the SAME line-up (the seed's), so "equal strength" is
+## exact; SIM_MULT scales a guild's HP/attack/defence for the unequal wars. Each war is run
+## a second time with the brains handed round one guild (SIM_SWAP=1, the default) so a camp
+## or a line-up never favours one brain.
+##   $G --headless --audio-driver Dummy --fixed-fps 15 --path . res://tests/tools/guild_war_sim.tscn
+## env: SIM_TEAMS=2|4, SIM_SEEDS=1,2,3, SIM_SMART=1,0[,0,0], SIM_MULT=1,1[,..],
+##      SIM_SECONDS (default the whole war), SIM_SIZE (fighters a guild, 20), SIM_SWAP=0|1,
+##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4),
+##      SIM_OFF=muster,besiege,wait,exploit,squads (the doctrine's rules switched off),
+##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase).
+## The physics step is 1/15 s of war time (time_scale 4 at 60 ticks, as the capture
+## measurements in guild_war_capture_test / guild_war_4way_test); with --fixed-fps 15 the
+## wars run as fast as the machine can (tools/gw_sim_report.py sums the JSON lines up).
+
+class Hook:
+	extends RefCounted
+	var last: Dictionary = {}
+
+	func spectated_result(_info: Dictionary, result: Dictionary) -> void:
+		last = result
 
 
-func _census(root: Node) -> Dictionary:
-	var out := {}
-	for node in root.find_children("*", "", true, false):
-		var key := String(node.get_class())
-		if node.get_script() != null:
-			key += ":" + String(node.get_script().get_global_name())
-		out[key] = int(out.get(key, 0)) + 1
-	return out
+func _env(key: String, fallback: String) -> String:
+	var v := OS.get_environment(key)
+	return v if v != "" else fallback
 
 
-## "lead": the hero's auto fight is centred on the way to the front gate, then the altar;
-## on the altar it takes the castle (the same rule before and after any AI change).
-func _steer() -> void:
-	if _m == null or _m.state != "fight" or _hero.is_dead():
-		return
-	var gate := _m.front_gate()
-	var goal := SiegeArena.ALTAR
-	var radius := 3.0
-	if gate != null:
-		goal = SiegeArena.gate_front(gate.tier, gate.lane) + Vector3(-3.0, 0, 2.0)
-		radius = 10.0
-	elif _m.castle_owner == GuildFighter.TEAM_ALLY:
-		goal = SiegeArena.ALTAR + Vector3(0, 0, 5.0)
-		radius = 8.0
-	var way := SiegeArena.route(_hero.global_position, goal)
-	_hero._auto_center = Vector3(way.x, 0.0, way.z)
-	_hero._auto_radius = radius if way.distance_to(goal) < 0.5 else 2.0
-	if _m.hero_can_capture():
-		_m.start_hero_capture()
+func _ints(text: String) -> Array:
+	return Array(text.split(",")).map(func(x): return int(x))
+
+
+func _floats(text: String) -> Array:
+	return Array(text.split(",")).map(func(x): return float(x))
 
 
 func _ready() -> void:
+	InputSetup.ensure_defaults()
 	Game.set_process(false)
 	GameSettings.load_settings()
-	var args := OS.get_cmdline_user_args()
-	var cls := StringName(args[0]) if args.size() > 0 else &"warrior"
-	var seconds := float(args[1]) if args.size() > 1 else 120.0
-	var scale := float(args[2]) if args.size() > 2 else 4.0
-	if args.size() > 3:
-		GuildWarData.damage_scale = float(args[3])
-	Game.new_profile(cls, "Sim")
+	WorldPlayers.clear_bonus()
+	WorldEvents.festival_enabled = false
+	Game.new_profile(&"warrior", "Sim")
 	Game.profile.level = 100
-	Game.profile.adv = 4
-	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(200)}
-	var gear_rng := RandomNumberGenerator.new()
-	gear_rng.seed = 11
-	for slot in ItemData.SLOTS:
-		Game.profile.equip[slot] = StarProgression.item(cls, 150, slot, gear_rng)
-	Game.profile.equip["wings"] = StarWingData.item(String(cls), gear_rng)
-	var mode := String(args[4]) if args.size() > 4 else ""
-	if mode.contains("guild"):
-		Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
 	Game.current_zone = &"guildwar"
+	var teams := int(_env("SIM_TEAMS", "2"))
+	var seeds := _ints(_env("SIM_SEEDS", "1"))
+	var smart := _ints(_env("SIM_SMART", "1,0" if teams == 2 else "1,0,0,0"))
+	var ones: PackedStringArray = []
+	for t in teams:
+		ones.append("1")
+	var mults := _floats(_env("SIM_MULT", ",".join(ones)))
+	var seconds := float(_env("SIM_SECONDS", str(GuildWarData.DURATION)))
+	var size := int(_env("SIM_SIZE", str(GuildWarData.GUILD_SIDE)))
+	var swap := _env("SIM_SWAP", "1") == "1"
+	var out_path := _env("SIM_OUT", "")
+	var hook := Hook.new()
+	GuildWarSpectate.league_hook = hook
+	for key in _env("SIM_OFF", "").split(",", false):
+		GuildWarDoctrine.off[key] = true
+	for s in seeds:
+		var setups: Array = [[smart, mults]]
+		if swap:
+			# The same war with the brains (and the strength) handed round by one guild.
+			setups.append([smart.slice(1) + smart.slice(0, 1), mults.slice(1) + mults.slice(0, 1)])
+		for st in setups:
+			var r: Dictionary = await _war(int(s), teams, st[0], st[1], seconds, size, hook)
+			print("SIMRESULT ", JSON.stringify(r))
+			if out_path != "":
+				var fa := FileAccess.open(out_path, FileAccess.READ_WRITE if FileAccess.file_exists(out_path) else FileAccess.WRITE)
+				if fa != null:
+					fa.seek_end()
+					fa.store_line(JSON.stringify(r))
+					fa.close()
+	GuildWarSpectate.league_hook = null
+	get_tree().quit(0)
+
+
+## One line-up from the seed, the same fighters for every guild (names told apart), each
+## guild's strength scaled by its `mults` entry.
+static func roster(war_seed: int, teams: int, size: int, mults: Array) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = war_seed
+	var base := GuildWarSpectate.demo_war(rng, size, ["A"], [1])
+	var lineup: Array = base.sides[0].lineup
+	var names := ["Alpha", "Neverdie", "Titan", "3DLnw"]
+	var sides: Array = []
+	for t in teams:
+		var mine: Array = []
+		var power := 0.0
+		for i in lineup.size():
+			var f: Dictionary = (lineup[i] as Dictionary).duplicate(true)
+			f.member["name"] = "%s%d" % [String(f.member.name), t]
+			var k := float(mults[t]) if t < mults.size() else 1.0
+			f["mults"] = {"hp": k, "atk": k, "def": k}
+			f["power"] = float(f.power) * k
+			power += float(f.power)
+			mine.append(f)
+		sides.append({"lineup": mine, "name": names[t], "guild": t + 1, "power": power})
+	return {"sides": sides, "guilds": false, "owner": -1, "elapsed": 0.0, "slot_start": 1700000000 + war_seed}
+
+
+func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float, size: int, hook: Hook) -> Dictionary:
+	seed(war_seed)
+	hook.last = {}
+	var flags: Array[bool] = []
+	for t in teams:
+		flags.append(t < smart.size() and int(smart[t]) != 0)
+	GuildWarMatch.next_smart = flags
+	GuildWarSpectate._pending = roster(war_seed, teams, size, mults)
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
+	zone.layout_seed = 77
 	add_child(zone)
 	var m: GuildWarMatch = zone.gw_match
+	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults, "off": GuildWarDoctrine.off.keys()}
 	if m == null:
-		printerr("FAIL: no match")
-		get_tree().quit(1)
-		return
-	m.time_left = seconds
-	# "open": the gates are already down (to watch the fight for the altar).
-	if mode.contains("open"):
-		for g in m.gates:
-			g.set_broken_quietly()
-		m._update_breakable()
-	m.feed.connect(func(text: String, team: int):
-		var at := int(seconds - m.time_left)
-		_kills.append("%3d %s" % [at, text])
-		if text.contains("พังแล้ว") or text.contains("ประตูชั้นสุดท้ายพัง"):
-			_gate_times.append(at)
-		elif text.contains("ยึดปราสาทได้!"):
-			_captures.append("%s@%d" % ["A" if team == 0 else "E", at])
-		elif text.contains("วางแผน") and team >= 0:
-			_plan_switches[team] += 1)
-	m.finished.connect(func(r: Dictionary):
-		_finished = true
-		print("RESULT won=%s score %d:%d kills=%d deaths=%d gold=%d exp=%d" % [r.won, r.score_us, r.score_them, r.kills, r.deaths, r.gold, r.exp]))
-	var hero := zone.hero
-	if mode.contains("lead"):
-		_m = m
-		_hero = hero
-		get_tree().process_frame.connect(_steer)
-	var fighters := m.all_fighters().size()
-	var expected: int = 2 * GuildWarData.TEAM_SIZE - 1 if not bool(m.roster.get("guilds", false)) else m.roster.ally.size() + m.roster.enemy.size()
-	print("FIGHTERS %d (expected %d) nodes at start %d" % [fighters, expected, int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
-	if fighters != expected:
-		printerr("FAIL: %d fighters" % fighters)
-		get_tree().quit(1)
-		return
-	print("GUILDS ", m.ally_name, " vs ", m.enemy_name, " power ", int(m.roster.ally_power), " : ", int(m.roster.enemy_power))
-	for f in m.all_fighters():
-		print("  %s %-14s %-9s grade=%3d hp=%6d atk=%5.0f def=%4.0f" % ["A" if f.team == 0 else "E", f.rival_name, f.member["class"], f.grade, f.max_hp, f.rstats.atk, f.rstats.def])
-	Game.profile.hp = Game.stats_now().max_hp
-	Game.profile.mp = Game.stats_now().max_mp
-	Engine.time_scale = scale
-	hero.set_auto(true)
+		out["error"] = "no match"
+		return out
+	m._timer = 0.05
+	Engine.time_scale = float(_env("SIM_SPEED", "4"))
 	var t0 := Time.get_ticks_msec()
-	while not _finished and Time.get_ticks_msec() - t0 < 600000:
-		await get_tree().create_timer(0.5, true, false, true).timeout
-		if m.state == "fight" and hero.target == null:
-			hero.set_auto(true)
-		_tick += 1
-		if _tick == 60:
-			_census0 = _census(zone)
-		if _tick % 10 == 0:
-			print("  dbg ", GuildFighter.dbg, " vfx ", VfxBudget.counters(), " nodes ", int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)), " objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " resources ", int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)), " orphans ", int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)), " summons ", get_tree().get_nodes_in_group("summons").size(), " static_mb ", snappedf(OS.get_static_memory_usage() / 1048576.0, 0.1), " tweens ", get_tree().get_processed_tweens().size())
-			print("  t+%ds state=%s left=%d score=%s hero_hp=%d · %s" % [(Time.get_ticks_msec() - t0) / 1000, m.state, int(m.time_left), m.score, int(Game.profile.hp), m.siege_status()])
-			if "commanders" in m:
-				print("  TACTICS ours=%s theirs=%s plans=%s" % [m.commanders[0].tactic, m.commanders[1].tactic, m.plans])
-				var lead1: Node3D = m.leader_of(1)
-				print("  SWITCH owner=%d contested=%s squads=%d/%d securing=%s/%s rival_leader=%s" % [m.switch_owner, m.switch_contested, m.commanders[0].squad.size(), m.commanders[1].squad.size(), m.commanders[0].securing, m.commanders[1].securing, str(lead1.global_position) if lead1 != null else "-"])
-	Engine.time_scale = 1.0
-	var now := _census(zone)
-	var grow: Array = []
-	for key in now:
-		grow.append([key, int(now[key]) - int(_census0.get(key, 0)), int(now[key])])
-	grow.sort_custom(func(a, b): return a[1] > b[1])
-	print("NODE GROWTH since 30s (total nodes now %d):" % int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)))
-	for g in grow.slice(0, 14):
-		print("  GROW %-40s +%d (now %d)" % [g[0], g[1], g[2]])
-	var sig := {}
-	for node in zone.find_children("*", "CPUParticles3D", true, false):
-		var cp := node as CPUParticles3D
-		var par := cp.get_parent()
-		var k := "%s/%s amount=%d life=%.2f one_shot=%s emitting=%s" % [par.get_class(), String(par.name).substr(0, 24), cp.amount, cp.lifetime, cp.one_shot, cp.emitting]
-		sig[k] = int(sig.get(k, 0)) + 1
-	var sk: Array = sig.keys()
-	sk.sort_custom(func(a, b): return sig[a] > sig[b])
-	for k in sk.slice(0, 8):
-		print("  PARTICLES %5d  %s" % [sig[k], k])
-	for line in _kills:
-		print("  F ", line)
-	var r: Dictionary = m._result
-	var tactics := ""
-	if "commanders" in m:
-		for c in m.commanders:
-			tactics += " calls%d=%d" % [c.team, c.calls]
-	print("SUMMARY won=%s owner=%d score=%d:%d gates_down_at=%s captures=%s plan_switches=%s overtime=%s hero_deaths=%d%s" % [r.get("won", false), m.castle_owner, m.score[0], m.score[1], _gate_times, _captures, _plan_switches, m.overtime, m.hero_deaths, tactics])
-	print("score ", m.score, " hero kills ", m.hero_kills, " deaths ", m.hero_deaths, " overtime ", m.overtime, " finished ", _finished)
+	var clock := 0.0
+	var gate_down := {}
+	var tier_open := [-1.0, -1.0, -1.0]
+	var captures: Array = []
+	var owner_now := -1
+	var kills := []
+	var deaths := []
+	kills.resize(teams)
+	kills.fill(0)
+	deaths.resize(teams)
+	deaths.fill(0)
+	var phase_time: Array = []
+	var plan_time: Array = []
+	for t in teams:
+		phase_time.append({})
+		plan_time.append({})
+	var switch_time := []
+	switch_time.resize(teams)
+	switch_time.fill(0.0)
+	var stuck_max := 0.0
+	var stuck := {}
+	var last_pos := {}
 	for f in m.all_fighters():
-		print("  %s %-14s K%d D%d A%d hp=%3d%% pos=(%.0f,%.0f) frozen=%s retreat=%s" % ["A" if f.team == 0 else "E", f.rival_name, f.kills, f.deaths, f.assists, int(f.hp_ratio() * 100.0), f.global_position.x, f.global_position.z, f._frozen, f._retreating])
-	get_tree().quit(0 if _finished else 1)
+		f.fell.connect(func(victim: GuildFighter, killer: Node) -> void:
+			deaths[victim.team] += 1
+			if killer is GuildFighter and (killer as GuildFighter).team != victim.team:
+				kills[(killer as GuildFighter).team] += 1)
+	var sample := 0.0
+	var stuck_who := ""
+	var trace := _env("SIM_TRACE", "") != ""
+	if trace:
+		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [clock, team, text]))
+	var frame_peak := 0.0
+	var frame_sum := 0.0
+	var frames := 0
+	var last_tick := Time.get_ticks_usec()
+	while m.state != "done" and m.state != "ending" and clock < GuildWarData.DURATION + 400.0:
+		await get_tree().physics_frame
+		var now := Time.get_ticks_usec()
+		var frame_ms := float(now - last_tick) / 1000.0
+		last_tick = now
+		var dt := get_physics_process_delta_time()
+		if m.state != "fight":
+			continue
+		frames += 1
+		frame_sum += frame_ms
+		frame_peak = maxf(frame_peak, frame_ms)
+		clock += dt
+		if seconds < GuildWarData.DURATION and clock >= seconds:
+			break
+		for gi in m.gates.size():
+			if m.gates[gi].is_dead() and not gate_down.has(str(gi)):
+				gate_down[str(gi)] = snappedf(clock, 1.0)
+		for k in 3:
+			if float(tier_open[k]) < 0.0 and m.tier_open(k):
+				tier_open[k] = snappedf(clock, 1.0)
+		if m.castle_owner != owner_now:
+			owner_now = m.castle_owner
+			captures.append([snappedf(clock, 1.0), owner_now])
+		for t in teams:
+			if m.holds_switch(t):
+				switch_time[t] += dt
+			var ph := m.phase_key(t)
+			phase_time[t][ph] = float(phase_time[t].get(ph, 0.0)) + dt
+			var pl := String(m.plans[t])
+			plan_time[t][pl] = float(plan_time[t].get(pl, 0.0)) + dt
+		if trace and int(clock / 20.0) != int((clock - dt) / 20.0):
+			var rows: PackedStringArray = []
+			for t in teams:
+				var up := m.side(t).filter(func(f): return not f.is_dead())
+				var mid := Vector3.ZERO
+				for f in up:
+					mid += f.global_position
+				mid = mid / float(maxi(1, up.size()))
+				var dd: Variant = m.doctrines[t]
+				var extra := ""
+				if dd != null:
+					var fl: Dictionary = dd.field
+					extra = " bal %.2f spent %.2f gath %.2f" % [float(fl.get("balance", 0)), float(fl.get("foe_spent", 0)), float(fl.get("gathered", 0))]
+				rows.append("t%d %s/%s/%s up %d mid (%.0f,%.0f)%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), mid.x, mid.z, extra])
+			print("[%.0f] %s | sw %d own %d cap %s" % [clock, " | ".join(rows), m.switch_owner, m.castle_owner, str(m.capture.get("team", "-"))])
+		sample += dt
+		if sample >= 5.0:
+			sample = 0.0
+			# Stuck: standing, nobody to fight, far from its goal and hardly moved in 5 s.
+			for f in m.all_fighters():
+				var id := f.get_instance_id()
+				var p := f.global_position
+				var idle := not f.is_dead() and not f.is_retreating() and (f._victim == null or not is_instance_valid(f._victim)) and Vector2(p.x - f.goal_point.x, p.z - f.goal_point.z).length() > 6.0
+				if idle and last_pos.has(id) and (last_pos[id] as Vector3).distance_to(p) < 0.8:
+					stuck[id] = float(stuck.get(id, 0.0)) + 5.0
+					if float(stuck[id]) > stuck_max:
+						stuck_max = float(stuck[id])
+						stuck_who = "t%d %s at %s goal %s plan %s phase %s" % [f.team, f.fighter_class(), str(p.round()), str(f.goal_point.round()), m.plans[f.team], m.phase_key(f.team)]
+				else:
+					stuck[id] = 0.0
+				last_pos[id] = p
+	Engine.time_scale = 1.0
+	var r: Dictionary = hook.last
+	var rounded: Array = []
+	for t in teams:
+		var o := {}
+		for key in phase_time[t]:
+			o[key] = int(phase_time[t][key])
+		var p := {}
+		for key in plan_time[t]:
+			p[key] = int(plan_time[t][key])
+		rounded.append([o, p])
+	var peak_us := 0
+	var thinks := 0
+	var total_us := 0
+	var apply_us := 0
+	var applies := 0
+	var orders: Array = []
+	for d in m.doctrines:
+		if d != null:
+			peak_us = maxi(peak_us, d.peak_us)
+			thinks += d.thinks
+			total_us += d.total_us
+			apply_us += d.apply_us
+			applies += d.applies
+			orders.append(d.orders_said)
+		else:
+			orders.append(0)
+	var points: Array = []
+	for t in teams:
+		points.append(m.war_points(t))
+	out.merge({
+		"clock": snappedf(clock, 1.0), "winner": int(r.get("winner", -2)), "score": Array(m.score), "captures_n": Array(m.captures),
+		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
+		"switch_s": switch_time.map(func(x): return int(x)), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
+		"points": points, "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
+		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks,
+		"doctrine_think_avg_us": int(float(total_us) / float(maxi(1, thinks))), "doctrine_apply_avg_us": int(float(apply_us) / float(maxi(1, applies))), "orders": orders,
+		"frame_avg_ms": snappedf(frame_sum / float(maxi(1, frames)), 0.01), "frame_peak_ms": snappedf(frame_peak, 0.1),
+		"wall_s": snappedf((Time.get_ticks_msec() - t0) / 1000.0, 0.1),
+	})
+	GuildWarMatch.next_smart = []
+	zone.queue_free()
+	for i in 3:
+		await get_tree().process_frame
+	Game.guildwar_clear_checkpoint()
+	return out
