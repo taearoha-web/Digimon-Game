@@ -1851,6 +1851,7 @@ func adopt_shared(mob: Mob, kind: String) -> void:
 	match kind:
 		"field_boss":
 			_boss = mob
+			_boss_since = WorldPresence.clock()
 		"world_boss":
 			_wboss = mob
 			var special := WorldBoss.new()
