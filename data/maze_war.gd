@@ -102,6 +102,14 @@ static var _champs := {}
 static var revision := 0
 
 
+## The zone (ZoneData.get_zone; not in ZONES: no camps, no field boss, no warp chain).
+static func zone() -> Dictionary:
+	return {
+		"name": TITLE, "scene": "field", "level": [MIN_LEVEL, 100], "music": &"guildwar", "pvp": true, "maze": true,
+		"tree_density": 0.0, "camps": [], "sky": Color("3a3f78"), "ground": Color("4f6b45"), "prev": &"town", "next": &"",
+	}
+
+
 static func ai_on() -> bool:
 	return ai_mode == 1 or (ai_mode == -1 and WorldPresence.enabled)
 
@@ -162,6 +170,14 @@ static func interested(i: int) -> bool:
 	var yes := roll < interest(i)
 	_interest[i] = yes
 	return yes
+
+
+## The work (WorldGear's probe minutes) from which the maze race drives world player i at
+## the forge: where its own schedule stood when the maze opened (INF for one not in it).
+static func drive_from(i: int) -> float:
+	if not interested(i) or WorldPlayers.in_town_style(i):
+		return INF
+	return WorldPlayers.played_minutes(i, float(OPEN_UNIX)) * WorldPlayers.efficiency(i) + WorldPlayers.head_work(i)
 
 
 ## The share of its sessions an interested player spends in the maze.

@@ -67,6 +67,9 @@ var raid_seed := 0
 ## The mechanics dungeon (DungeonData) running here; tower-like too (no world players).
 var dungeon_run: DragonRun
 var pvp_match: PvpMatch
+## เขาวงกตหนึ่งในใต้หล้า (MazeWar): the live free-for-all, null elsewhere.
+var maze_match: MazeMatch
+var is_maze := false
 var hero: Hero
 ## The hero's pet (PetData), when it has one and pets come along here (PetData.allowed_in).
 var pet: Pet
@@ -223,6 +226,7 @@ func _ready() -> void:
 	is_town = bool(data.get("safe", false)) and not is_hall
 	is_pvp = bool(data.get("pvp", false))
 	is_tower = bool(data.get("tower", false))
+	is_maze = bool(data.get("maze", false))
 	# The shared surface textures follow the quality chosen now (none on low quality).
 	SurfaceKit.refresh()
 	await _slice()
@@ -232,6 +236,8 @@ func _ready() -> void:
 		await _build_town()
 	elif is_pvp and bool(data.get("guildwar", false)):
 		_build_siege()
+	elif is_maze:
+		_build_maze()
 	elif is_pvp:
 		_build_pvp()
 	else:
@@ -272,6 +278,12 @@ func _ready() -> void:
 		await gw_match.build(get_tree() if staged else null)
 		if not gw_match.spectating():
 			OnlineGuildWar.on_war_built(self)
+		_phase("spawn_fighters")
+	elif is_maze:
+		maze_match = MazeMatch.new()
+		maze_match.setup(self, hero)
+		add_child(maze_match)
+		await maze_match.build(get_tree() if staged else null)
 		_phase("spawn_fighters")
 	else:
 		pvp_match = PvpMatch.new()
@@ -448,6 +460,19 @@ func _build_pvp() -> void:
 	SpecialStageArt.decorate_pvp(self)
 	_start = Vector3(-PvpArena.SPAWN_X, 0, 0)
 	_make_boundary_walls(PvpArena.RADIUS + 1.5)
+
+
+## เขาวงกตหนึ่งในใต้หล้า (MazeArena, MazeLayout): the hero comes in at a random spot, a
+## warp crystal stands in each quadrant's plaza (the way home).
+func _build_maze() -> void:
+	MazeArena.build(self)
+	var spot_rng := RandomNumberGenerator.new()
+	spot_rng.randomize()
+	_start = MazeLayout.spawn_point(spot_rng, [])
+	for k in range(1, MazeLayout.PLAZAS.size()):
+		var at := MazeLayout.plaza_center(k)
+		var corner := Vector3(-signf(at.x), 0, -signf(at.z)) * (float(MazeLayout.PLAZAS[k][2]) * MazeLayout.CELL * 0.5 - 3.5)
+		_add_warp(at + corner, "วาปกลับเมือง")
 
 
 ## The guild war's castle siege: a camp per guild of the war coming (GuildWarMatch.arena_colors:
@@ -898,6 +923,8 @@ func _villagers() -> Array:
 		["raid", RaidData.KEEPER, &"warrior", "%s · วันละ %d รอบ" % [RaidData.SHORT, RaidData.RUNS_PER_DAY], V.PAGODA + Vector3(-5.6, 0, 10.4), "Knight", V.PAGODA + Vector3(-17.0, 0, 10.4)],
 		["dungeon", DungeonData.KEEPER, &"mage", "%s · ปาร์ตี้ %d คน Lv.%d" % [DungeonData.SHORT, DungeonData.PARTY_SIZE, DungeonData.SHOWN_MIN_LEVEL], V.PAGODA + Vector3(-5.6, 0, 14.6), "Mage", V.PAGODA + Vector3(-17.0, 0, 14.6)],
 		["pet", PetScreen.KEEPER, &"archer", "เลือกสัตว์เลี้ยงคู่ใจ", PetPen.KEEPER, "Ranger", PetPen.KEEPER_FACE],
+		# เขาวงกตหนึ่งในใต้หล้า (MazeWar): its keeper by the sparring ring.
+		["maze", "ผู้เฝ้าเขาวงกต", &"warrior", "%s · ฆ่าแข่งรายสัปดาห์" % MazeWar.TITLE, V.RING + Vector3(-12.0, 0, 7.0), "Knight", V.RING + Vector3(-12.0, 0, -12.0)],
 		["healer", "ซิสเตอร์เมตตา", &"priest", "รักษาฟรี", Vector3(-5.2, 0, -18.4), "Mage", Vector3(0, 0, -18.4)],
 		["guide", "ครูฝึกใจดี", &"mage", "แนะนำการเล่น", V.START + Vector3(4.0, 0, -2.0), "Ranger", V.START + Vector3(0, 0, 6)],
 	]
@@ -978,8 +1005,8 @@ func _spawn_hero() -> void:
 	hero.name = "Hero"
 	hero.field = self
 	hero.safe_zone = is_town
-	hero.field_radius = TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else PvpArena.RADIUS) if is_pvp else field_radius))
-	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else (GuildHall.rect() if is_hall else Rect2())
+	hero.field_radius = TOWN_RADIUS if is_town else (GuildHall.RADIUS if is_hall else ((SiegeArena.RADIUS if bool(data.get("guildwar", false)) else (MazeLayout.HALF if is_maze else PvpArena.RADIUS)) if is_pvp else field_radius))
+	hero.field_hall = SiegeArena.hall_rect() if bool(data.get("guildwar", false)) else (GuildHall.rect() if is_hall else (Rect2(-MazeLayout.HALF, -MazeLayout.HALF, MazeLayout.HALF * 2.0, MazeLayout.HALF * 2.0) if is_maze else Rect2()))
 	add_child(hero)
 	var spawn := _start
 	if Game.has_profile and Game.profile.get("spawn_override", "") != "":

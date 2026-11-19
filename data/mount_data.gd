@@ -121,7 +121,7 @@ static func bonus_text(id: String, level: int, with_speed := true) -> String:
 ## the arena, ranked duels or the tower).
 static func zone_allows(zone_data: Dictionary) -> bool:
 	# The guild war is flagged pvp too, but riding is allowed there.
-	if bool(zone_data.get("guildwar", false)):
+	if bool(zone_data.get("guildwar", false)) or bool(zone_data.get("maze", false)):
 		return true
 	for key in ["pvp", "tower", "arena"]:
 		if bool(zone_data.get(key, false)):

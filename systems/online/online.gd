@@ -276,6 +276,9 @@ func _dispatch(msg: Dictionary) -> void:
 		"boss_kill", "boss_state":
 			# A field boss a real player brought down (the server's book of the last kills).
 			BossWorld.receive(msg)
+		"maze_board", "maze_kill":
+			# เขาวงกตหนึ่งในใต้หล้า: the real players' kills of the week (the server's board).
+			MazeWar.receive(msg)
 		"error":
 			var text := str(msg.get("text", "")).strip_edges().left(160)
 			Game.say(text if text != "" else "เกิดข้อผิดพลาดในการเล่นออนไลน์", &"warning")

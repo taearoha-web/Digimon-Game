@@ -43,6 +43,10 @@ extends RefCounted
 ##   sockets its gear has (a new piece takes the old one's gems over; drilled sockets
 ##   stay with the old piece). Only a share of the gems a kill drops is kept (GEM_KEEN*).
 ##
+## * The maze race (MazeWar, from its opening): a player who takes part (MazeWar.interested)
+##   is keener from then on, at Lv.100: MazeWar.JEWEL_DRIVE times the jewels and feathers,
+##   MazeWar.GEM_DRIVE times the gems kept and the fuses it gets round to.
+##
 ## Every step is an event ({at, kind, slot, from, to, item}) the chats can quote; gear(i, t)
 ## is the state after the events up to t. A player's simulation is kept and only ever
 ## extended (snapshots every SNAP events make a read at any t a short replay), and the
@@ -474,6 +478,8 @@ class Sim:
 	var grng := RandomNumberGenerator.new()
 	var bag := {}
 	var drills := 0
+	## The work from which the maze race drives it (MazeWar.drive_from; INF never).
+	var maze_from := INF
 
 
 ## The fixed chunk grid: edges[c] is where chunk c starts (narrow while levelling, wider
@@ -517,6 +523,7 @@ static func _new_sim(i: int) -> Sim:
 	sim.rides = mrng.randf() < WorldPlayers.MOUNT_SHARE
 	sim.ride_from = mrng.randi_range(WorldPlayers.MOUNT_FROM.x, WorldPlayers.MOUNT_FROM.y)
 	sim.finds = _finds(name, sim)
+	sim.maze_from = MazeWar.drive_from(i)
 	return sim
 
 
@@ -729,23 +736,26 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var kills := (w1 - w0) * kills_per_minute(level, stars)
 	var top := level >= Game.MAX_LEVEL
 	var endgame := top and stars >= ENDGAME_STARS
+	# The maze race (MazeWar): a player in it buys and trades for more jewels to forge up.
+	var driven := top and w0 >= sim.maze_from
+	var diligence := JEWEL_DILIGENCE * (MazeWar.JEWEL_DRIVE if driven else 1.0)
 	if endgame:
-		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple) * JEWEL_DILIGENCE)
-		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink) * JEWEL_DILIGENCE)
-		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos) * JEWEL_DILIGENCE)
+		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple) * diligence)
+		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink) * diligence)
+		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos) * diligence)
 		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP)
 		sim.scales += _count(rng, kills * SCALE_DROP)
 	else:
-		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple) * JEWEL_DILIGENCE)
-		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink) * JEWEL_DILIGENCE)
-		sim.chaos += _count(rng, kills * float(ItemData.JEWEL_DROP.chaos) * JEWEL_DILIGENCE)
+		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple) * diligence)
+		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink) * diligence)
+		sim.chaos += _count(rng, kills * float(ItemData.JEWEL_DROP.chaos) * diligence)
 	if top:
 		var field_star := ENDGAME_STARS if endgame else 0
 		if not endgame:
 			for k in StarProgression.REGIONS.size():
 				if stars >= int(StarProgression.ENTRY[k]):
 					field_star = int(StarProgression.ENTRY[k])
-		sim.feather += _count(rng, kills * ItemData.feather_chance(field_star) * JEWEL_DILIGENCE)
+		sim.feather += _count(rng, kills * ItemData.feather_chance(field_star) * diligence)
 	if _mount_drops.is_empty():
 		for id in MountData.ORDER:
 			_mount_drops.append(float(MountData.info(id).drop))
@@ -778,7 +788,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
 	_forge(sim, at, level, stars)
-	_gems(i, sim, at + 0.01, level, stars, kills)
+	_gems(i, sim, at + 0.01, level, stars, kills, MazeWar.GEM_DRIVE if driven else 1.0)
 	# What the kills brought is picked up and forged bit by bit over the stretch: its
 	# events are spread evenly after the finds (their order kept).
 	var count := sim.events.size() - e0
@@ -791,7 +801,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 ## The gems of one stretch of play: what its kills dropped (the kinds its class uses, on
 ## the gem rolls), the fusing, the drilling, and its best gems back into its sockets. One
 ## "gems" event for each slot whose sockets changed.
-static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float) -> void:
+static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float, drive := 1.0) -> void:
 	var g := sim.grng
 	var cls := sim.job
 	var plan := gem_plan(cls)
@@ -808,14 +818,15 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	elif endgame:
 		rate = EndgameFields.GEM_NORMAL * (1.0 - ELITE_SHARE) + EndgameFields.GEM_ELITE * ELITE_SHARE
 		perfect = Zone.PERFECT_GEM_CHANCE
-	var mean := kills * rate * (GEM_KEEN_ENDGAME if endgame else GEM_KEEN_FIELD) / float(ItemData.STAT_GEMS.size())
+	# The maze race (drive): more of the gems it finds kept, fused and socketed.
+	var mean := kills * rate * (GEM_KEEN_ENDGAME if endgame else GEM_KEEN_FIELD) * drive / float(ItemData.STAT_GEMS.size())
 	if mean > 0.0:
 		for kind in [String(plan.main), String(plan.body)]:
 			_bag_add(sim, "%s_%d" % [kind, size], _count(g, mean * (1.0 - perfect)))
 			_bag_add(sim, "%s_3" % kind, _count(g, mean * perfect))
 	# The ★ fields: special gems (it keeps its own kind) and drills.
 	if top and stars >= 1:
-		for n in _count(g, kills * Zone.SPECIAL_GEM_STAR * GEM_KEEN / float(ItemData.SPECIAL_GEMS.size())):
+		for n in _count(g, kills * Zone.SPECIAL_GEM_STAR * GEM_KEEN * drive / float(ItemData.SPECIAL_GEMS.size())):
 			_bag_add(sim, "%s_%d" % [String(plan.special), g.randi_range(0, 1)], 1)
 		sim.drills += _count(g, kills * Zone.DRILL_STAR * GEM_KEEN)
 	var live: Dictionary = sim.live
@@ -862,7 +873,7 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	for kind in pool:
 		var sizes: Array = pool[kind]
 		for s in mini(GEM_FUSE_TOP, ItemData.GEM_MAX_SIZE):
-			while sizes[s] >= 3 and fuses < FUSES_PER_CHUNK:
+			while sizes[s] >= 3 and fuses < int(FUSES_PER_CHUNK * drive):
 				var total := 0
 				for n in sizes:
 					total += n

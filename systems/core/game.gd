@@ -160,6 +160,8 @@ func _process(delta: float) -> void:
 	if _ach_timer >= ACH_INTERVAL:
 		_check_achievements()
 	DailyPass.tick(delta)
+	# เขาวงกตหนึ่งในใต้หล้า: the world players' week worked out ahead, a little a frame.
+	MazeWar.warm(1500)
 	_gq_timer += delta
 	if _gq_timer >= GQ_CHECK_INTERVAL:
 		_gq_timer = 0.0
@@ -168,6 +170,8 @@ func _process(delta: float) -> void:
 		GuildLeague.tick()
 		# The season's Legendary Guild Wings, minted once the season is over.
 		LegendWings.tick()
+		# The maze's crown: awarded / taken back as the weeks pass (MazeCrown, team crown).
+		MazeCrown.settle(MazeWar.now())
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -1146,6 +1150,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The field bosses this hero saw fall (BossWorld): {zone: {at, by}}.
 	if data.has(BossWorld.KEY) and not BossWorld.valid(data[BossWorld.KEY]):
 		return false
+	# เขาวงกตหนึ่งในใต้หล้า: the hero's kills a week and the champions seen (MazeWar).
+	if data.has(MazeWar.KEY) and not MazeWar.valid(data[MazeWar.KEY]):
+		return false
 	# The dragon hunt week's record (DragonHunt).
 	if data.has(DragonHunt.KEY) and not DragonHunt.valid(data[DragonHunt.KEY]):
 		return false
@@ -1517,6 +1524,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	PlayerStall.repair(data)
 	DailyPass.repair(data)
 	DragonHunt.repair(data)
+	MazeWar.repair(data)
 	# The four guilds: every hero from before them leaves its guild once and picks again
 	# at the guild registrar (everything else stays).
 	migrate_guild4(data)

@@ -1754,11 +1754,17 @@ func apply_slow(seconds: float) -> void:
 	_slow_until = maxi(_slow_until, Time.get_ticks_msec() + int(seconds * 1000.0))
 
 
+## Who struck the hero last (MazeMatch: who took it when it falls).
+var last_hit_by: Node
+
+
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or safe_zone or spectating:
 		return
 	if Time.get_ticks_msec() < _invulnerable_until:
 		return
+	if _attacker != null:
+		last_hit_by = _attacker
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return

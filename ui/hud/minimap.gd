@@ -7,6 +7,11 @@ extends Control
 
 const RADIUS := 66.0
 const WORLD_RADIUS := 34.0
+## In เขาวงกตหนึ่งในใต้หล้า the map reaches farther (the walls round the hero are drawn).
+const MAZE_RADIUS := 46.0
+const MAZE_WALL := Color(0.92, 0.88, 0.78, 0.85)
+const MAZE_SHRINE := Color("8ff7ff")
+var world_radius := WORLD_RADIUS
 
 var zone: Zone
 var _timer := 0.0
@@ -32,7 +37,7 @@ func _to_map(world: Vector3, origin: Vector3, yaw: float) -> Vector2:
 	var basis := Basis(Vector3.UP, yaw)
 	var right := basis * Vector3.RIGHT
 	var forward := basis * Vector3(0, 0, -1)
-	return Vector2(rel.dot(right), -rel.dot(forward)) * (RADIUS / WORLD_RADIUS)
+	return Vector2(rel.dot(right), -rel.dot(forward)) * (RADIUS / world_radius)
 
 
 func _draw() -> void:
@@ -45,6 +50,9 @@ func _draw() -> void:
 		return
 	var origin := zone.hero.global_position
 	var yaw := zone.camera_rig.yaw if zone.camera_rig else 0.0
+	world_radius = MAZE_RADIUS if zone.maze_match != null else WORLD_RADIUS
+	if zone.maze_match != null:
+		_maze(c, origin, yaw)
 	for camp in zone._camps:
 		var p := _to_map(Vector3(camp.pos.x, 0, camp.pos.y), origin, yaw)
 		_ring(c, p, float(camp.radius) * RADIUS / WORLD_RADIUS, Color(0.5, 1.0, 0.6, 0.35))
@@ -65,6 +73,10 @@ func _draw() -> void:
 		var mob := node as Mob
 		if mob and not mob.is_dead():
 			var mark := mob_marker(mob)
+			if zone.maze_match != null and (mob is GuildFighter or mob is PvpProxy):
+				# The maze: every player is a foe (red), one out of reach now in cyan.
+				_dot(c, _to_map(mob.global_position, origin, yaw), MAZE_SHRINE if zone.maze_match.shields(mob) else Color("ff6a5a"), 3.6)
+				continue
 			if mob.has_meta(RareDragon.META):
 				# The rare dragon: a white-rimmed jade diamond, always on the map.
 				_dot(c, _to_map(mob.global_position, origin, yaw), Color.WHITE, float(mark[1]) + 2.0, true)
@@ -102,6 +114,33 @@ func _draw() -> void:
 	draw_colored_polygon(PackedVector2Array([c + dir * 8.0, c - dir * 5.0 + side * 5.0, c - dir * 5.0 - side * 5.0]), Color("ffffff"))
 	if zone.day_night != null:
 		_draw_clock(c)
+
+
+## The maze round the hero: its walls (MazeLayout.segments near enough to show) and the
+## shrines (a cyan ring; the nearest one by the maze's ways always shown, on the rim when far).
+func _maze(c: Vector2, origin: Vector3, yaw: float) -> void:
+	var reach := world_radius * 1.45
+	for s in MazeLayout.segments():
+		var a: Vector3 = s[0]
+		var b: Vector3 = s[1]
+		var lo := Vector2(minf(a.x, b.x) - reach, minf(a.z, b.z) - reach)
+		var hi := Vector2(maxf(a.x, b.x) + reach, maxf(a.z, b.z) + reach)
+		if origin.x < lo.x or origin.x > hi.x or origin.z < lo.y or origin.z > hi.y:
+			continue
+		var steps := maxi(1, int(a.distance_to(b) / 4.0))
+		var points := PackedVector2Array()
+		for k in steps + 1:
+			points.append(_to_map(a.lerp(b, float(k) / float(steps)), origin, yaw))
+		_clipped(c, points, MAZE_WALL, 2.0)
+	var near := MazeLayout.nearest_safe(origin)
+	for k in MazeLayout.safe_count():
+		var at := MazeLayout.safe_center(k)
+		var p := _to_map(at, origin, yaw)
+		if p.length() < RADIUS - 8.0:
+			_ring(c, p, MazeLayout.SAFE_RADIUS * RADIUS / world_radius, MAZE_SHRINE)
+			_dot(c, p, MAZE_SHRINE, 3.0, true)
+		elif k == near:
+			_dot(c, p, MAZE_SHRINE, 5.0, true)
 
 
 ## The world's time of day on a small pill at the foot of the map (zones that follow the
