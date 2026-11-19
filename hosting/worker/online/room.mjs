@@ -48,6 +48,12 @@ export const AI_CHAT_LINES = 8;
 export const AI_CHAT_TEXT = 200;
 export const AI_SPEAKER_MAX = 24;
 
+// boss_kill: the field bosses' last kills (BossWorld in the game), per open zone.
+export const BOSS_ZONE = /^[a-z0-9_]{1,48}$/;
+export const BOSS_GAP_MS = 30_000;          // the shortest respawn is a minute
+export const BOSS_KEEP_MS = 60 * 60_000;    // older kills are forgotten (respawns are minutes)
+export const BOSS_ZONES_MAX = 64;
+
 export const CLOSE_ELSEWHERE = 4000;
 export const CLOSE_IDLE = 4001;
 
@@ -124,6 +130,8 @@ export class Room {
     this.dirty = new Set();      // keys whose exported record changed
     this.seq = 0;
     this.lastTick = 0;
+    this.bosses = new Map();     // zone -> {at, name}: the last kill of its field boss (BossWorld)
+    this.bossesChanged = false;  // the wrapper stores the bosses when set
   }
 
   /** Connected sockets (one per account). */
@@ -167,6 +175,7 @@ export class Room {
     }
     this.dirty.add(key);
     this.send(session, {t: 'welcome', you: {id, user: session.user}, players: this.playerList(id), party: this.partyView(session.partyId)});
+    if (this.bosses.size) this.send(session, {t: 'boss_state', bosses: this.bossList()});
     this.syncWhost();
     if (rejoined) this.sendParty(rejoined);
     if (old || rejoined) this.syncHosts();
@@ -598,6 +607,30 @@ export class Room {
         if (now - since > PARTY_GRACE_MS && this.parties.has(party.id)) this.removeMember(party, id);
       }
     }
+    for (const [zone, boss] of this.bosses) {
+      if (now - boss.at > BOSS_KEEP_MS) {this.bosses.delete(zone); this.bossesChanged = true;}
+    }
+  }
+
+  /** The field bosses' last kills as the clients get them: how long ago, not when (the
+   * clocks of the games need not agree with the server's). */
+  bossList() {
+    const now = this.now();
+    return [...this.bosses].map(([zone, b]) => ({zone, name: b.name, ago: Math.max(0, now - b.at)}));
+  }
+
+  /** The bosses, for storage (a kill outlives the room restarting). */
+  exportBosses() {
+    return [...this.bosses].map(([zone, b]) => ({zone, at: b.at, name: b.name}));
+  }
+
+  importBosses(list) {
+    if (!Array.isArray(list)) return;
+    const now = this.now();
+    for (const b of list.slice(0, BOSS_ZONES_MAX)) {
+      if (!dict(b) || typeof b.zone !== 'string' || !BOSS_ZONE.test(b.zone) || !finite(b.at) || now - b.at > BOSS_KEEP_MS) continue;
+      this.bosses.set(b.zone, {at: Math.min(b.at, now), name: str(b.name, AI_SPEAKER_MAX)});
+    }
   }
 
   /** Copies the state fields of a hello / state frame; true when the zone changed. */
@@ -861,6 +894,32 @@ const HANDLERS = {
     rate.last = now;
     if (kind === 'rare') rate.rare = now;
     this.broadcast({t: 'announce', from: s.id, user: s.user, name: p.name, kind, what: msg.what, cls, zone: p.zone}, s.id);
+  },
+
+  /** The field boss of the sender's open zone fell (BossWorld in the game): only from the
+   * game that runs that zone's monsters (its host, or a player alone there), at most once
+   * in BOSS_GAP_MS a zone. The name is the server's: the sender's, a real player standing
+   * in that zone (`by`, an id) or a world player of the host's game (`ai`, a short name,
+   * like the AI world chat's speakers). Everyone online hears it. */
+  boss_kill(s, msg) {
+    const p = s.player;
+    const zone = typeof msg.zone === 'string' ? msg.zone : '';
+    if (!BOSS_ZONE.test(zone) || zone !== p.zone || isInstanced(zone)) return;
+    const host = this.hostFor(s);
+    if (host !== null && host !== s.id) return;
+    const now = this.now();
+    const last = this.bosses.get(zone);
+    if (last && now - last.at < BOSS_GAP_MS) return;
+    if (!last && this.bosses.size >= BOSS_ZONES_MAX) return;
+    let name = p.name || s.user;
+    const by = idOf(msg.by);
+    const other = by ? this.byId.get(by) : null;
+    const ai = str(msg.ai, AI_SPEAKER_MAX);
+    if (other?.player && other.player.zone === zone) name = other.player.name || other.user;
+    else if (ai) name = ai;
+    this.bosses.set(zone, {at: now, name});
+    this.bossesChanged = true;
+    this.broadcast({t: 'boss_kill', zone, name, ago: 0}, s.id);
   },
 
   ai_chat(s, msg) {

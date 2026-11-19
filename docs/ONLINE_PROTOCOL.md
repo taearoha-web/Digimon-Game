@@ -53,6 +53,7 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `wp_event` | `zone, index, ev, data` | zone host only: "skill", "bubble", "leave" (see Shared world) |
 | `ai_chat` | `lines:[{ch:"world", speaker, text, color?, index?}]` | world host only: the AI world-channel chat (see Shared world) |
 | `announce` | `kind, what, cls, zone` | my jackpot drop (`kind` "jackpot") or rare-dragon kill (`kind` "rare"), for everyone online; fields only, never text (see Announcements) |
+| `boss_kill` | `zone, by, ai` | the field boss of my open zone fell in the game that runs its monsters (I host it, or I am alone there); `by` a real player's id in that zone who took it ("" me), `ai` a world player's name of my game (see Field bosses) |
 | `trade_req` | `to` | |
 | `trade_answer` | `from, ok` | |
 | `trade_offer` | `items:[item dict], gold` | replaces my offer; unlocks both sides |
@@ -93,6 +94,8 @@ backed, WebSocket Hibernation API), next to the existing D1 account database.
 | `wp_snap` / `wp_event` | relayed from the zone host, plus `from` |
 | `ai_chat` | relayed from the world host, plus `from` |
 | `announce` | `from, user, name, kind, what, cls, zone` - another player's jackpot or rare-dragon kill; the client writes the line itself (see Announcements) |
+| `boss_kill` | `zone, name, ago` - a field boss fell (see Field bosses) |
+| `boss_state` | `bosses: [{zone, name, ago}]` - right after `welcome` when the server knows of any: each open zone's last field boss kill |
 | `trade_req` / `trade_answer` / `trade_offer` / `trade_lock` / `trade_confirm` / `trade_cancel` | relayed with `from`; the server keeps the trade session state |
 | `trade_done` | `give:{items,gold}, get:{items,gold}` - apply it: remove `give`, add `get` |
 | `duel_req` / `duel_answer` / `pvp_hit` / `duel_over` | relayed with `from` |
@@ -383,6 +386,23 @@ jackpot, jade for the dragon, queued) and a system line in the world chat
   cannot carry spam, markup, links or another player's name. A receiver never relays.
 - The limits are per connection and reset when the room wakes from hibernation; a
   reconnect cannot be used to pass the per-second gap of the frame limit (30 a second).
+
+## Field bosses (BossWorld, the same for every real player)
+
+Each levelling field's boss is up until somebody brings it down, then down for its
+respawn time (`data/boss_world.gd`). The world players' kills are worked out from the
+roster and the clock on every game alike; the real players' kills go through the server:
+
+- The game that runs the zone's monsters sends `boss_kill {zone, by, ai}` when the boss
+  dies there. The server takes it only for the sender's own open zone (not instanced), from
+  its host or from a player alone there, at most once in 30 s a zone, and writes the name
+  itself (the sender's, the real player `by` standing in that zone, or `ai` cut to 24
+  characters). It keeps the last kill of each zone (at most 64 zones, an hour; in storage
+  key `bosses`, so a restart keeps them) and tells everyone else `boss_kill {zone, name, ago: 0}`.
+- A new connection gets `boss_state {bosses: [{zone, name, ago}]}` after `welcome`.
+- `ago` is milliseconds before now on the server's clock, so the games' clocks need not agree.
+- Clients (`BossWorld.receive`) keep the latest kill of each zone; only the zone host
+  spawns the boss, the others mirror it (EntitySync).
 
 ## Pets (real players' pets fighting together)
 

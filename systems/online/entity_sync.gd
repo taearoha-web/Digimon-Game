@@ -1015,6 +1015,8 @@ func _on_event(data: Dictionary) -> void:
 			if not (m is MirrorFighter):
 				mirrors.erase(eid)
 			_pending.erase(eid)
+			# Who took it (a field boss's kill is kept by BossWorld, Zone._field_boss_killer).
+			(m as Node).set_meta("dead_data", d)
 			m.mirror_dead(d)
 		"gone":
 			var m: Variant = mirrors.get(eid)

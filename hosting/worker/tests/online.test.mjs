@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS,
-  ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS} from '../online/room.mjs';
+  ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS,
+  BOSS_GAP_MS, BOSS_KEEP_MS} from '../online/room.mjs';
 import {readFileSync} from 'node:fs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
@@ -1195,4 +1196,88 @@ test('guild league round rooms: party-scoped, first arrival hosts (the leader do
   // The host leaves: the one left plays alone.
   b.zone('town');
   assert.deepEqual(a.last('host'), {t: 'host', zone: room, id: null});
+});
+
+// ------------------------------------------------------------------ field bosses (BossWorld)
+
+test('boss_kill: only the game running the zone (its host, or alone there), the server\'s name, everyone hears it, once a gap', () => {
+  const {connect, clock, room} = world();
+  const a = connect('1').hello({name: 'Alice'});
+  const b = connect('2').hello({name: 'Bob'});
+  const c = connect('3').hello({name: 'Carol', zone: 'desert'});
+  clearAll(a, b, c);
+  // b is not the meadow's host (a came first): refused.
+  b.send({t: 'boss_kill', zone: 'meadow', by: '', ai: ''});
+  assert.equal(c.frames('boss_kill').length, 0, 'only the zone host may tell it');
+  // Not its own zone, a bad zone: refused.
+  a.send({t: 'boss_kill', zone: 'desert'});
+  a.send({t: 'boss_kill', zone: 'Bad Zone!'});
+  assert.equal(c.frames('boss_kill').length, 0, 'only for the sender\'s own open zone');
+  a.send({t: 'boss_kill', zone: 'meadow', by: '2', ai: 'x'});
+  assert.deepEqual(c.last('boss_kill'), {t: 'boss_kill', zone: 'meadow', name: 'Bob', ago: 0}, 'the real player who took it, named by the server, to everyone');
+  assert.deepEqual(b.last('boss_kill'), c.last('boss_kill'));
+  assert.equal(a.frames('boss_kill').length, 0, 'not back to the sender');
+  a.send({t: 'boss_kill', zone: 'meadow', by: '', ai: 'Spam'});
+  assert.equal(c.frames('boss_kill').length, 1, 'once in BOSS_GAP_MS a zone');
+  pass(clock, BOSS_GAP_MS, a, b, c);
+  a.send({t: 'boss_kill', zone: 'meadow', by: '9', ai: 'NightHawk_with_a_very_long_name'});
+  assert.equal(c.last('boss_kill').name, 'NightHawk_with_a_very_lo', 'a world player of the host\'s game, cut to 24');
+  // Alone in a zone: its own game runs it.
+  c.send({t: 'boss_kill', zone: 'desert', by: '1'});
+  assert.equal(a.last('boss_kill').name, 'Carol', 'alone there, and `by` not in that zone: the sender');
+  // A newcomer gets the book.
+  clock.t += 5_000;
+  const d = connect('4');
+  const book = d.last('boss_state');
+  assert.deepEqual(book.bosses.map(x => [x.zone, x.name]).sort(), [['desert', 'Carol'], ['meadow', 'NightHawk_with_a_very_lo']]);
+  assert.ok(book.bosses.every(x => x.ago >= 5_000 && x.ago < 70_000), 'ago, in ms by the server\'s clock');
+  // An hour later they are forgotten.
+  clock.t += BOSS_KEEP_MS + 1;
+  room.tick();
+  const e = connect('5');
+  assert.equal(e.frames('boss_state').length, 0, 'old kills are dropped');
+});
+
+test('boss_kill in an instanced zone is refused; nothing is sent while the book is empty', () => {
+  const {connect} = world();
+  const a = connect('1').hello({zone: 'raid'});
+  const b = connect('2').hello({zone: 'meadow'});
+  clearAll(a, b);
+  a.send({t: 'boss_kill', zone: 'raid'});
+  assert.equal(b.frames('boss_kill').length, 0);
+  assert.equal(connect('3').frames('boss_state').length, 0);
+});
+
+test('WorldRoom: the field bosses\' last kills outlive a restart (storage)', async () => {
+  const store = new Map();
+  const pending = [];
+  const ctxWith = () => ({
+    ...fakeCtx(),
+    storage: {
+      alarm: null,
+      async getAlarm() {return this.alarm;},
+      async setAlarm(at) {this.alarm = at;},
+      async get(k) {return store.get(k);},
+      async put(k, v) {store.set(k, JSON.parse(JSON.stringify(v)));},
+    },
+    blockConcurrencyWhile(fn) {const p = fn(); pending.push(p); return p;},
+  });
+  const ctx = ctxWith();
+  const dobj = new WorldRoom(ctx, {});
+  await Promise.all(pending);
+  const wa = fakeWs();
+  ctx.acceptWebSocket(wa);
+  dobj.accept(wa, '1', 'alice');
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'hello', name: 'Alice', cls: 'mage', level: 5, stars: 0, look: {}, zone: 'abyss', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''}));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'boss_kill', zone: 'abyss', by: '', ai: ''}));
+  await Promise.resolve();
+  assert.equal(store.get('bosses')[0].zone, 'abyss', 'stored');
+  const ctx2 = ctxWith();
+  const again = new WorldRoom(ctx2, {});
+  await Promise.all(pending);
+  const wb = fakeWs();
+  ctx2.acceptWebSocket(wb);
+  again.accept(wb, '2', 'bob');
+  const book = wb.sent.find(f => f.t === 'boss_state');
+  assert.equal(book?.bosses?.[0]?.name, 'Alice', 'the kill is still known after the restart');
 });

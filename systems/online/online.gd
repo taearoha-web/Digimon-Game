@@ -273,6 +273,9 @@ func _dispatch(msg: Dictionary) -> void:
 		"announce":
 			# Another player's jackpot or rare-dragon kill: fields only, the text is ours.
 			Announcer.receive(msg)
+		"boss_kill", "boss_state":
+			# A field boss a real player brought down (the server's book of the last kills).
+			BossWorld.receive(msg)
 		"error":
 			var text := str(msg.get("text", "")).strip_edges().left(160)
 			Game.say(text if text != "" else "เกิดข้อผิดพลาดในการเล่นออนไลน์", &"warning")

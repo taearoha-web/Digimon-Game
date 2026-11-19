@@ -89,6 +89,8 @@ var _burn_time := 0.0
 ## to the hero by its share, like kill credit between real players.
 var party_damage := 0
 var others_damage := 0
+## A boss's damage from world players by name (who brought a field boss down, BossWorld).
+var world_dealt := {}
 ## Who set the burn now ticking (its damage is credited like a hit).
 var burn_source: Node
 var _burn_tick := 0.0
@@ -268,6 +270,9 @@ func _credit(attacker: Node, amount: int) -> void:
 		return
 	if is_instance_valid(attacker) and attacker.is_in_group("world_players"):
 		others_damage += amount
+		if is_boss and attacker.get("member") is Dictionary:
+			var who := String(attacker.member.get("name", ""))
+			world_dealt[who] = int(world_dealt.get(who, 0)) + amount
 	else:
 		party_damage += amount
 

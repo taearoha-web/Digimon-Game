@@ -1143,6 +1143,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# Daily / weekly quests and the reward pass (DailyPass).
 	if data.has(DailyPass.KEY) and not DailyPass.valid(data[DailyPass.KEY]):
 		return false
+	# The field bosses this hero saw fall (BossWorld): {zone: {at, by}}.
+	if data.has(BossWorld.KEY) and not BossWorld.valid(data[BossWorld.KEY]):
+		return false
 	# The dragon hunt week's record (DragonHunt).
 	if data.has(DragonHunt.KEY) and not DragonHunt.valid(data[DragonHunt.KEY]):
 		return false
@@ -1476,6 +1479,15 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["pvp"][key] = int(data["pvp"][key])
 	for key in data["boss_pity"]:
 		data["boss_pity"][key] = maxi(0, int(data["boss_pity"][key]))
+	if data.get(BossWorld.KEY) is Dictionary:
+		var book: Dictionary = data[BossWorld.KEY]
+		for key in book.keys():
+			var e: Variant = book[key]
+			if e is Dictionary:
+				book[key] = {"at": int(e.get("at", 0)), "by": String(e.get("by", "")).left(BossWorld.NAME_MAX)}
+		BossWorld.prune(book, WorldPresence.clock())
+	else:
+		data.erase(BossWorld.KEY)
 	if not data.get("tower") is Dictionary:
 		data["tower"] = {}
 	for key in data["tower"]:

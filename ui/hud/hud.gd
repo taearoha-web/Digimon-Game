@@ -354,7 +354,9 @@ func _process(delta: float) -> void:
 		Announcer.tick(t)
 		announce.hold = _war() != null
 		var lines := PackedStringArray()
-		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t)] + WorldEvents.chip_lines(t):
+		# The field boss of this field while it is down (who took it, when it is back).
+		var boss_line := BossWorld.chip_text(zone.zone_id, t) if is_instance_valid(zone) and zone.data.has("boss") else ""
+		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t), boss_line] + WorldEvents.chip_lines(t):
 			if line != "":
 				lines.append(line)
 		_event_label.text = "\n".join(lines)

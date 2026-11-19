@@ -795,3 +795,18 @@ test('real game-generated saves of every class pass validation and round-trip un
     assert.deepEqual(stored.body.bundle, full, `${group.map(([key]) => key).join(', ')} changed on the way through the server`);
   }
 });
+
+test('the field boss record (bossw, BossWorld in the game) is accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const bossw = {meadow: {at: 1795000000, by: 'ลูน่า'}, sky_dragon_isle: {at: 1795000100, by: 'ปาร์ตี้ของ NightHawk'}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), bossw})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const read = await call('save', {cookie: account.cookie});
+  assert.deepEqual(read.body.bundle.slots['1'].bossw, bossw);
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), bossw: {}})));
+  for (const bad of [[], 5, {meadow: 5}, {meadow: {at: 'x'}}, {meadow: {at: -1}}, {meadow: {at: 1, by: 7}}, {meadow: {by: 'x'}},
+    {['m'.repeat(60)]: {at: 1}}, {meadow: {at: 1, by: 'x'.repeat(65)}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), bossw: bad})), /field boss record/, JSON.stringify(bad));
+  }
+});
