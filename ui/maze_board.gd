@@ -119,7 +119,7 @@ func _process(delta: float) -> void:
 
 func _head_text() -> String:
 	var t := MazeWar.now()
-	return "สัปดาห์ %s · %s · นับเฉพาะการฆ่าผู้เล่น (คน ผู้เล่นจริง และผู้เล่น AI)" % [MazeWar.week_text(MazeWar.week_of(t)), MazeWar.left_text(t)]
+	return "สัปดาห์ %s · %s · นับเฉพาะการฆ่าผู้เล่น (คุณ ผู้เล่นจริง และผู้เล่น AI)" % [MazeWar.week_text(MazeWar.week_of(t)), MazeWar.left_text(t)]
 
 
 func _rebuild() -> void:

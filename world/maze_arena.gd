@@ -27,7 +27,9 @@ const NAME_META := "maze_built"
 
 static func build(zone: Node3D) -> void:
 	MazeLayout.ensure()
-	Scenery.environment(zone, Color("3a3f78"), Color("7b8bb0"), Color(0.75, 0.8, 1.0), Color(1.0, 0.86, 0.7))
+	# Dusk over the old maze: a violet sky going amber at the horizon, a warm low sun.
+	Scenery.environment(zone, Color("3a3f78"), Color("c9a08a"), Color(0.78, 0.8, 1.0), Color(1.0, 0.82, 0.62),
+		{"palette": [Color("2b2f6e"), Color("8a6a9a"), Color("f2b07a")], "sun_size": 0.7})
 	Scenery.ground(zone, MazeLayout.HALF + 40.0, Color("4f6b45"), Color("5d7a4c"), 77, Color("6f6a58"), [], 3.0, [], &"meadow")
 	var root := Node3D.new()
 	root.name = "Maze"
@@ -49,6 +51,8 @@ static func build(zone: Node3D) -> void:
 		mi.visibility_range_end = 130.0 * GameSettings.view_scale()
 	_colliders(root)
 	_signs(root)
+	_forest(root, rng)
+	SiegeArena._hills(root, rng)
 	root.set_meta(NAME_META, true)
 
 
@@ -136,7 +140,7 @@ static func _walls(batches: Array[JapanKit.Batch], rng: RandomNumberGenerator) -
 ## A small stone lantern on a wall's top: base, glowing light box and a little roof.
 static func _lantern(b: JapanKit.Batch, at: Vector3, glow: Color) -> void:
 	b.box(at + Vector3(0, 0.12, 0), Vector3(0.5, 0.24, 0.5), POST_COLOR)
-	b.box(at + Vector3(0, 0.5, 0), Vector3(0.34, 0.42, 0.34), glow, Vector3.ZERO, true)
+	b.box(at + Vector3(0, 0.5, 0), Vector3(0.44, 0.46, 0.44), glow, Vector3.ZERO, true)
 	b.box(at + Vector3(0, 0.8, 0), Vector3(0.62, 0.14, 0.62), Color("5a5048"))
 
 
@@ -283,21 +287,20 @@ static func _shrines(batches: Array[JapanKit.Batch], root: Node3D) -> void:
 			var p := at + Vector3(cos(ang), 0, sin(ang)) * (r + 0.4)
 			b.box(p + Vector3(0, 0.75, 0), Vector3(0.5, 1.5, 0.5), Color("e6e1d4"))
 			b.ball(p + Vector3(0, 1.65, 0), Vector3(0.42, 0.42, 0.42), SAFE_COLOR, true)
-		b.box(at + Vector3(0, 0.35, 0), Vector3(1.6, 0.7, 1.6), Color("d8d0bc"))
-		b.ball(at + Vector3(0, 1.7, 0), Vector3(0.6, 1.0, 0.6), SAFE_COLOR, true)
-		for s in [Vector3(-0.7, 0, -0.7), Vector3(0.7, 0, -0.7), Vector3(-0.7, 0, 0.7), Vector3(0.7, 0, 0.7)]:
-			b.box(at + s + Vector3(0, 1.4, 0), Vector3(0.18, 2.1, 0.18), Color("8a3a2a"))
-		b.roof(at + Vector3(0, 2.75, 0), 2.6, 2.6, 0.8, Color("3a4a6a"))
+		# A low altar with a crystal hovering over it (low: whoever shelters by it is seen).
+		b.cyl(at + Vector3(0, 0.22, 0), 0.75, 0.44, Color("d8d0bc"), Vector3.ZERO, 8)
+		b.ball(at + Vector3(0, 1.0, 0), Vector3(0.42, 0.7, 0.42), SAFE_COLOR, true)
 		var tag := Label3D.new()
 		tag.name = "ShrineTag%d" % k
 		tag.text = "ที่หลบภัย"
-		tag.font_size = 44
-		tag.outline_size = 10
+		tag.font_size = 72
+		tag.pixel_size = 0.007
+		tag.outline_size = 14
 		tag.modulate = SAFE_COLOR.lerp(Color.WHITE, 0.4)
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		tag.no_depth_test = false
-		tag.position = at + Vector3(0, 4.0, 0)
-		tag.visibility_range_end = 46.0
+		tag.position = at + Vector3(0, 3.2, 0)
+		tag.visibility_range_end = 56.0
 		root.add_child(tag)
 
 
@@ -332,6 +335,32 @@ static func _signs(root: Node3D) -> void:
 		tag.position = at + Vector3(0, 11.5 if k == 0 else 10.5, 0)
 		tag.visibility_range_end = 90.0
 		root.add_child(tag)
+
+
+## A band of pines round the outer wall (one MultiMesh for the trunks, one for the crowns).
+static func _forest(root: Node3D, rng: RandomNumberGenerator) -> void:
+	var trunks: Array[Transform3D] = []
+	var trunk_colors: Array[Color] = []
+	var crowns: Array[Transform3D] = []
+	var crown_colors: Array[Color] = []
+	var placed := 0
+	var tries := 0
+	while placed < 150 and tries < 2000:
+		tries += 1
+		var p := Vector3(rng.randf_range(-1.0, 1.0), 0, rng.randf_range(-1.0, 1.0)) * (MazeLayout.HALF + 40.0)
+		var edge := maxf(absf(p.x), absf(p.z))
+		if edge < MazeLayout.HALF + 5.0:
+			continue
+		var h := rng.randf_range(6.0, 11.0)
+		trunks.append(Transform3D(Basis().scaled(Vector3(0.7, h * 0.5, 0.7)), p + Vector3(0, h * 0.25, 0)))
+		trunk_colors.append(Color("4a3428"))
+		for k in 3:
+			var size := (1.0 - float(k) * 0.26) * rng.randf_range(3.4, 4.8)
+			crowns.append(Transform3D(Basis().scaled(Vector3(size, size * 0.6, size)), p + Vector3(0, h * 0.45 + float(k) * h * 0.18, 0)))
+			crown_colors.append(Color("26483a").lerp(Color("3a6a48"), rng.randf()))
+		placed += 1
+	SiegeArena._batch(root, "MazePineTrunks", MeshKit.cylinder(), trunks, trunk_colors)
+	SiegeArena._batch(root, "MazePineCrowns", MeshKit.cone(), crowns, crown_colors)
 
 
 ## The walls' colliders: one static body per quadrant, a box per run.

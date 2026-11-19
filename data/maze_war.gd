@@ -86,6 +86,8 @@ const GEM_DRIVE := 1.6
 ## -1: the world players' fights follow WorldPresence.enabled (off headless: tests turn
 ## them on); 0 off; 1 on.
 static var ai_mode := -1
+## The maze race's drive at the forge (tests turn it off to compare; WorldGear.clear after).
+static var drive_on := true
 
 static var _interest := {}
 static var _ready := {}
@@ -175,7 +177,7 @@ static func interested(i: int) -> bool:
 ## The work (WorldGear's probe minutes) from which the maze race drives world player i at
 ## the forge: where its own schedule stood when the maze opened (INF for one not in it).
 static func drive_from(i: int) -> float:
-	if not interested(i) or WorldPlayers.in_town_style(i):
+	if not drive_on or not interested(i) or WorldPlayers.in_town_style(i):
 		return INF
 	return WorldPlayers.played_minutes(i, float(OPEN_UNIX)) * WorldPlayers.efficiency(i) + WorldPlayers.head_work(i)
 

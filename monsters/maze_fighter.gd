@@ -62,12 +62,11 @@ func _ready() -> void:
 	super._ready()
 	_label.text = shown_name()
 	_label.modulate = Color("ffd6a0")
-	# The crown holder (MazeCrown.holder): its title in gold over its name.
-	var crown := MazeCrown.holder(MazeWar.now())
-	if not crown.is_empty() and not bool(crown.get("hero", false)) and String(crown.get("name", "")) == rival_name:
-		_label.text = "%s\n%s" % [MazeCrown.TITLE_NAME, shown_name()]
-		_label.modulate = MazeWar.COLOR
 	_label.visibility_range_end = 40.0
+	# The crown holder (MazeCrown): the gold title plate over its name.
+	if MazeCrown.ai_holds(world_index, MazeWar.now()):
+		_label.modulate = MazeWar.COLOR
+		MazeCrown.attach_plate(_label, true)
 	start_fight()
 
 
