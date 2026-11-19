@@ -398,7 +398,7 @@ static func make_plate(pixel_size := 0.0034, range_end := 0.0) -> Node3D:
 	root.name = "CrownPlate"
 	var text := "%s %s %s" % [CROWN, TITLE_NAME, CROWN]
 	var rims: Array[Label3D] = []
-	for spec in [[30, 0.16], [18, 0.34]]:
+	for spec in [[30, 0.22], [18, 0.42]]:
 		var rim := _plate_label(text, pixel_size, range_end)
 		rim.modulate = Color(GLOW, 0.0)
 		rim.outline_size = int(spec[0])

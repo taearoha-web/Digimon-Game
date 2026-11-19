@@ -420,6 +420,10 @@ static func worn_of(p: Dictionary) -> String:
 	if not d is Dictionary:
 		return ""
 	var id := str((d as Dictionary).get("cos", ""))
+	# The crown's costume (MazeCrown) is shown only until its end (a save not loaded since,
+	# such as one on the character select, never shows an expired crown).
+	if id == MazeCrown.COSTUME_ID and not MazeCrown._alive(int((d as Dictionary).get("cx", 0)), MazeCrown.now()):
+		return ""
 	return id if COSTUMES.has(id) else ""
 
 

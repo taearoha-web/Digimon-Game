@@ -112,8 +112,16 @@ const MOTES := {
 	"maze_sovereign": {"n": 2, "shape": 5.0, "align": 1.0, "color": Color("ffd24a"), "size": 0.74, "r": [0.46, 0.52], "y": [0.35, 1.0], "orbit": 1.0, "bob": 0.08, "additive": 1.0},
 }
 
+## How far a costume's headpiece lifts the name plates above it (the sovereign's crown and
+## finial stand past where the plates sit).
+const PLATE_LIFT := {"maze_sovereign": 0.5}
+
 static var _meshes := {}
 static var _materials := {}
+
+
+static func plate_lift(id: String) -> float:
+	return float(PLATE_LIFT.get(id, 0.0))
 
 
 static func release_cache() -> void:
@@ -1316,6 +1324,11 @@ static func _sov_crown(b: Dictionary) -> void:
 	var face := _plane(brow, Vector3.RIGHT, tilt * Vector3(0, 1, -0.25), 1.0)
 	_flat(b, "solid", _star(0.052, 0.034, 12), face, 0.01, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
 	_prim(b, "glow", _dot(), IMP_JADE, brow + tilt * Vector3(0, 0.0, 0.014), Vector3(0.042, 0.048, 0.022), Vector3.ZERO, Vector2.ZERO, tilt)
+	# A gold sun with a ruby at the back of the band, for the view from behind.
+	var nape: Vector3 = at.call(Vector3(0, 0.05, -0.136))
+	var back := _plane(nape, Vector3.LEFT, tilt * Vector3(0, 1, 0.25), 1.0)
+	_flat(b, "solid", _star(0.046, 0.03, 10), back, 0.01, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+	_prim(b, "glow", _dot(), IMP_RED, nape + tilt * Vector3(0, 0.0, -0.014), Vector3(0.034, 0.036, 0.018), Vector3.ZERO, Vector2.ZERO, tilt)
 	# The finial: a gold bead, a spike and the glowing pearl.
 	_prim(b, "solid", _dot(), IMP_GOLD, at.call(Vector3(0, 0.15, 0)), Vector3(0.06, 0.05, 0.06))
 	_prim(b, "solid", MeshKit.cone(), IMP_GOLD, at.call(Vector3(0, 0.205, 0)), Vector3(0.032, 0.1, 0.032), Vector3.ZERO, Vector2.ZERO, tilt)
@@ -1331,8 +1344,7 @@ static func _sov_crown(b: Dictionary) -> void:
 		var top: Vector3 = at.call(Vector3(side * 0.136, -0.012, 0.035))
 		var cord := _bezier(top, top + Vector3(side * 0.012, -0.03, 0.006), top + Vector3(side * 0.016, -0.08, 0.0), top + Vector3(side * 0.014, -0.13, -0.006), 6)
 		_sweep(b, "solid", cord, 4, func(_t: float) -> float: return 0.0055, func(t: float) -> Color: return IMP_GOLD.lerp(IMP_GOLD_DEEP, t), func(t: float) -> Vector2: return Vector2(t, side))
-		_prim(b, "glow", _dot(), IMP_JADE, cord[2], Vector3.ONE * 0.022, Vector3.ZERO, Vector2(0.4, side))
-		_prim(b, "glow", _dot(), IMP_JADE, cord[4], Vector3.ONE * 0.026, Vector3.ZERO, Vector2(0.8, side))
+		_prim(b, "glow", _dot(), IMP_JADE, cord[4], Vector3.ONE * 0.03, Vector3.ZERO, Vector2(0.8, side))
 		_prim(b, "solid", MeshKit.cone(), IMP_RED, cord[5] + Vector3(0, -0.014, 0), Vector3(0.026, 0.04, 0.026), Vector3(180, 0, 0), Vector2(1.0, side))
 
 
@@ -1423,7 +1435,6 @@ static func _sov_belt(b: Dictionary) -> void:
 		var disc: Vector3 = cord[4] + Vector3(0, -0.032, 0)
 		var dxf := _plane(disc, Vector3(0, 0, 1), Vector3.UP, 1.0)
 		_flat(b, "solid", _ellipse(0.032, 0.032, 10), dxf, 0.008, IMP_JADE, IMP_JADE_DEEP, Vector2(0.75, phase))
-		_prim(b, "glow", _dot(), IMP_GOLD_LIGHT, disc + Vector3(side * 0.008, 0, 0), Vector3(0.016, 0.016, 0.016), Vector3.ZERO, Vector2(0.75, phase))
 		_prim(b, "solid", MeshKit.cone(), IMP_RED, disc + Vector3(0, -0.062, 0), Vector3(0.03, 0.06, 0.03), Vector3(180, 0, 0), Vector2(1.0, phase))
 
 

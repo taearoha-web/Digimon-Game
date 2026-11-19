@@ -804,6 +804,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-loy-krathong
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/loy_krathong_test.tscn
+      - name: "maze_crown_test (หนึ่งในใต้หล้า: the week's maze champion gets the title and the timed costume once, renewed on a repeat win, gone at its end from the bag, storages, the costume slot and a stall lot with notices, the title auto-unworn, a world player holder wears both, untradable, no shared storage, never bought, the grand plate, the announcement, save validation in the game and on the server)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-maze-crown
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/maze_crown_test.tscn
 
   star-art:
     # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none
