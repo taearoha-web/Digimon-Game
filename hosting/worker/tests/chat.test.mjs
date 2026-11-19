@@ -147,6 +147,22 @@ test('replies are read from the JSON answer and cut to size', () => {
   assert.equal(readReply({stop_reason: 'end_turn', content: []}).reply, '...');
 });
 
+test('the game\'s facts and its own answer reach the model as data, cut to size', () => {
+  const chat = readChat({text: 'เหงาจัง', player: {name: 'Kaito', level: 100, stars: 250}, hero: {name: 'ฮีโร่', stars: 300},
+    facts: ['Kaito Lv.100 ★250 นักดาบ', 'ก'.repeat(400), ...Array.from({length: 30}, (_, i) => `fact ${i}`)], gameAnswer: 'ไม่เป็นไรนะ'});
+  assert.equal(chat.player.stars, 250, 'stars go up to 300');
+  assert.equal(chat.hero.stars, 300);
+  assert.equal(chat.facts.length, 16);
+  assert.equal([...chat.facts[1]].length, 160);
+  const turn = userTurn(chat);
+  assert.match(turn, /<facts>\n- Kaito Lv\.100 ★250 นักดาบ/);
+  assert.match(turn, /<game_answer>\nไม่เป็นไรนะ\n<\/game_answer>/);
+  assert.ok(turn.indexOf('</facts>') < turn.indexOf('<hero_message>'));
+  const plain = userTurn(readChat({text: 'สวัสดี', player: {name: 'Kaito'}}));
+  assert.doesNotMatch(plain, /<facts>|<game_answer>/);
+  assert.match(chatRequest(chat).system[0].text, /must be true in the game right now/);
+});
+
 test('a model without server-side fallbacks is asked without them', () => {
   const chat = readChat(ask('สวัสดี'));
   const request = chatRequest(chat, 'claude-haiku-5-5');

@@ -20,9 +20,12 @@ extends Node
 ## (Game.party_invite).
 ##
 ## The transport is anything with send(json) -> id and poll(id) -> answer JSON. The
-## default is ChatBrain.LocalTransport. WebTransport would ask the account server's
-## Claude chat instead (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
-## per message and needs the owner's API key, so it is not used. Tests use a stand-in.
+## default is ChatBrain.LocalTransport: free, offline, every claim true (ChatMind,
+## ChatFacts; chat_coverage_test checks it with ChatTruth). WebTransport asks the account
+## server's Claude chat (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
+## per message: it is only ever used through ChatCloud, an optional helper for open small
+## talk that is off unless the project setting CLOUD_SETTING is true, and whose replies are
+## shown only when every claim holds (ChatTruth.grounded). Tests use a stand-in.
 ##
 ## Online (real players signed in, Online): a world line also goes to the real players, a
 ## party line to the real party as well as the AI members, and a whisper ("/w name text",
@@ -33,6 +36,8 @@ signal replied(index: int, text: String, action: String)
 signal failed(index: int, message: String)
 
 const HISTORY := 8
+## The project setting that switches the optional cloud small-talk helper on (ChatCloud).
+const CLOUD_SETTING := "toon_tale/cloud_chat"
 const HERO_COLOR := Color("ffe27a")
 const PLAYER_COLOR := Color("8ff0ff")
 const WAIT_LIMIT := 40.0
@@ -86,6 +91,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if transport == null:
 		transport = ChatBrain.LocalTransport.new()
+		# The optional cloud helper for small talk (off by default; it costs money).
+		ChatCloud.enabled = bool(ProjectSettings.get_setting(CLOUD_SETTING, false))
+		if ChatCloud.enabled and OS.has_feature("web"):
+			var cloud := ChatCloud.new()
+			cloud.web = WebTransport.new()
+			transport = cloud
 	rng.randomize()
 	if not Game.channel_chat.is_connected(_on_channel_chat):
 		Game.channel_chat.connect(_on_channel_chat)

@@ -94,6 +94,7 @@ func _ready() -> void:
 	ChatTruth.rules()
 	print("chat_coverage_test: index built in %d ms" % (Time.get_ticks_msec() - t0))
 	_lexicon()
+	_cloud(float(WorldPlayers.START_UNIX) + 4.0 * 86400.0 + 20.0 * 3600.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
 	var spoken := 0
@@ -306,3 +307,91 @@ func _debug_top() -> void:
 	keys.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
 	for k in keys.slice(0, 25):
 		print("TOP %d: %s" % [int(counts[k]), k])
+
+
+## Records what the cloud is sent; answers with what `reply` holds (an error when "").
+class FakeWeb:
+	extends RefCounted
+	var sent: Array = []
+	var reply := ""
+
+	func send(json: String) -> int:
+		sent.append(JSON.parse_string(json))
+		return sent.size()
+
+	func poll(_id: int) -> String:
+		if reply == "":
+			return JSON.stringify({"error": "chat_busy", "message": "busy"})
+		return JSON.stringify({"reply": reply, "action": "join_party"})
+
+
+## The optional cloud helper: off by default; on, only open small talk goes out, with the
+## facts; a reply is shown only when every claim holds; the action stays the game's.
+func _cloud(t: float) -> void:
+	WorldPresence.clock_offset = t - WorldPlayers.now()
+	var who := -1
+	for i in WorldPlayers.size():
+		if bool(WorldPlayers.state(i, t).online) and String(WorldPlayers.state(i, t).doing) == "hunt":
+			who = i
+			break
+	check(who >= 0, "someone hunts to talk to the cloud with")
+	if who < 0:
+		return
+	var s := WorldPlayers.state(who, t)
+	var body := {"text": "เหงาจัง", "player": _player(s), "hero": hero, "history": [], "t": t, "channel": "direct"}
+	var now := [100.0]
+	var make := func() -> ChatCloud:
+		var c := ChatCloud.new()
+		c.local.delay = Vector2.ZERO
+		c.web = FakeWeb.new()
+		c.clock = func() -> float: return float(now[0])
+		return c
+	var ask := func(c: ChatCloud, b: Dictionary) -> Dictionary:
+		var id := int(c.send(JSON.stringify(b)))
+		var raw := c.poll(id)
+		if raw == "":
+			now[0] = float(now[0]) + ChatCloud.WAIT + 1.0
+			raw = c.poll(id)
+		return JSON.parse_string(raw)
+	ChatCloud.reset()
+	ChatCloud.enabled = false
+	var off: ChatCloud = make.call()
+	ask.call(off, body)
+	check((off.web as FakeWeb).sent.is_empty(), "the cloud is off by default: nothing is sent")
+	ChatCloud.enabled = true
+	var on: ChatCloud = make.call()
+	(on.web as FakeWeb).reply = "ไม่เหงาหรอก มาคุยกันได้นะ"
+	var got: Dictionary = ask.call(on, body)
+	var sent: Array = (on.web as FakeWeb).sent
+	check(sent.size() == 1 and (sent[0].facts as Array).size() >= 4 and String(sent[0].gameAnswer) != "", "open small talk goes out with the facts and the game's answer (%s)" % [sent])
+	if sent.size() == 1:
+		check(String(sent[0].facts[0]).contains("Lv.%d" % int(s.level)), "the facts hold the player's real level (%s)" % sent[0].facts[0])
+	check(String(got.reply) == "ไม่เหงาหรอก มาคุยกันได้นะ" and String(got.action) == "none", "a grounded reply is shown, the action stays the game's (%s)" % [got])
+	ChatCloud.reset()
+	(on.web as FakeWeb).reply = "ตอนนี้ Lv.%d แล้วนะ" % (int(s.level) + 7)
+	got = ask.call(on, body)
+	check(not String(got.reply).contains("Lv.%d" % (int(s.level) + 7)), "a reply with a false level is not shown (%s)" % got.reply)
+	ChatCloud.reset()
+	(on.web as FakeWeb).reply = "เพิ่งได้เพชรชาออสมา 3 เม็ด"
+	var not_in_facts: Dictionary = ask.call(on, body)
+	check(not String(not_in_facts.reply).contains("เพชรชาออสมา 3"), "a reply naming a game item or a number the facts lack is not shown (%s)" % not_in_facts.reply)
+	ChatCloud.reset()
+	(on.web as FakeWeb).reply = ""
+	got = ask.call(on, body)
+	check(String(got.reply) != "" and not got.has("cloud"), "an error shows the game's own answer (%s)" % got.reply)
+	ChatCloud.reset()
+	var gap: ChatCloud = make.call()
+	(gap.web as FakeWeb).reply = "โอเค"
+	ask.call(gap, body)
+	ask.call(gap, body)
+	check((gap.web as FakeWeb).sent.size() == 1, "at most one line in %d seconds goes out" % int(ChatCloud.MIN_GAP))
+	ChatCloud.reset()
+	var facts: ChatCloud = make.call()
+	(facts.web as FakeWeb).reply = "โอเค"
+	var q := body.duplicate(true)
+	q["text"] = "ราชาเห็ดยักษ์อยู่ไหน"
+	var own: Dictionary = ask.call(facts, q)
+	check((facts.web as FakeWeb).sent.is_empty() and String(own.reply).contains("ทุ่งหญ้ามิสต์วูด"), "a question about the game never goes out: the game answers it")
+	ChatCloud.enabled = false
+	ChatCloud.reset()
+	WorldPresence.clock_offset = 0.0
