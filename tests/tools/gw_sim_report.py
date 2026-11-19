@@ -68,10 +68,12 @@ def main(paths):
         print("tier open (avg s): %s" % ", ".join("%.0f" % (sum(t) / len(t)) if t else "-" for t in tiers))
         stuck = max(r.get("stuck_max", 0) for r in wars)
         peak = max(r.get("doctrine_peak_ms", 0) for r in wars)
+        think_avg = max(r.get("doctrine_think_avg_us", 0) for r in wars)
+        apply_avg = max(r.get("doctrine_apply_avg_us", 0) for r in wars)
         frame = sum(r.get("frame_avg_ms", 0) for r in wars) / len(wars)
         orders = [o for r in wars for t, o in enumerate(r.get("orders", [])) if int(r["smart"][t])]
-        print("longest stuck fighter %.0f s | doctrine think peak %.2f ms | frame avg %.2f ms | orders per war per guild %.1f" % (
-            stuck, peak, frame, sum(orders) / max(1, len(orders))))
+        print("longest stuck fighter %.0f s | doctrine think peak %.2f ms, avg %d us, layout avg %d us | frame avg %.2f ms | orders per war per guild %.1f" % (
+            stuck, peak, think_avg, apply_avg, frame, sum(orders) / max(1, len(orders))))
         total = sum(phases.values())
         if total:
             print("new phases: " + ", ".join("%s %.0f%%" % (k, 100.0 * v / total) for k, v in phases.most_common()))

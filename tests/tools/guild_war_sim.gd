@@ -229,11 +229,17 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		rounded.append([o, p])
 	var peak_us := 0
 	var thinks := 0
+	var total_us := 0
+	var apply_us := 0
+	var applies := 0
 	var orders: Array = []
 	for d in m.doctrines:
 		if d != null:
 			peak_us = maxi(peak_us, d.peak_us)
 			thinks += d.thinks
+			total_us += d.total_us
+			apply_us += d.apply_us
+			applies += d.applies
 			orders.append(d.orders_said)
 		else:
 			orders.append(0)
@@ -245,7 +251,8 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
 		"switch_s": switch_time.map(func(x): return int(x)), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
 		"points": points, "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
-		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks, "orders": orders,
+		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks,
+		"doctrine_think_avg_us": int(float(total_us) / float(maxi(1, thinks))), "doctrine_apply_avg_us": int(float(apply_us) / float(maxi(1, applies))), "orders": orders,
 		"frame_avg_ms": snappedf(frame_sum / float(maxi(1, frames)), 0.01), "frame_peak_ms": snappedf(frame_peak, 0.1),
 		"wall_s": snappedf((Time.get_ticks_msec() - t0) / 1000.0, 0.1),
 	})

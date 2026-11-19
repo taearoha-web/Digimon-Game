@@ -17,6 +17,12 @@ extends Node
 ## Each guild's AI makes its own plan from how the war stands (plan_for): rush the gate,
 ## hold the bridge and strike back, pull back and regroup, storm the altar, split to block
 ## the way in while one takes the altar, or defend the castle; plans are told in the feed.
+## Over each guild's commander its leader's doctrine (GuildWarDoctrine) reads the field and
+## fights the plan in phases (form up, breach, exploit a respawn window, stage a wave, muster
+## at the last gate, take the switch, assault, guard the capture; hold, guard, stop a
+## capture, counter, recover; wait for two others to trade), splits the guild into squads by
+## class and calls its orders in the feed; the HUD and the watcher's board show each
+## guild's plan and phase (plans_line).
 ## One switch stands on the throne room's left side (SiegeArena.SWITCH): the first guild to
 ## stand in its circle while it is free takes it and keeps it while one living member of it
 ## is inside, however many others come in (the next guild must clear them all out of the

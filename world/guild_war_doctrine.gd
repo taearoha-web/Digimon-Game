@@ -151,7 +151,7 @@ const SQUAD_NAMES := {
 	"ranged": "หน่วยระยะไกล", "hunters": "หน่วยนักฆ่า", "switch": "หน่วยสวิตช์",
 	"guard": "หน่วยคุ้มกันหัวกิล", "leader": "หัวหน้ากิลด์",
 }
-const ACKS: Array[String] = ["รับทราบ!", "รับทราบครับหัวหน้า", "ได้เลย ลุย!", "ตามแผนเลย", "จัดไป!", "โอเค ไปพร้อมกัน", "รับทราบค่ะ"]
+const ACKS: Array[String] = ["รับทราบ!", "รับทราบ หัวหน้า", "ได้เลย ลุย!", "ตามแผนเลย", "จัดไป!", "โอเค ไปพร้อมกัน", "ไปกัน!"]
 
 var team := 0
 var war: GuildWarMatch
@@ -195,11 +195,16 @@ var _rng := RandomNumberGenerator.new()
 ## The measurement: thinks, and the slowest think in microseconds.
 var thinks := 0
 var peak_us := 0
+var total_us := 0
+## The squads' layout (apply, every 0.5 s): its total and count (the measurement).
+var apply_us := 0
+var applies := 0
 ## Events seen since the last think: tiers broken, our leader's falls, the castle.
 var _tiers_seen := 0
 var _leader_was_up := true
 var _owner_seen := -1
 var _peeled: Dictionary = {}
+var _last_acker: GuildFighter
 
 
 func _init(p_war: GuildWarMatch, p_team: int) -> void:
@@ -222,7 +227,9 @@ func tick(delta: float) -> void:
 		_think_left = THINK_EVERY
 		var t0 := Time.get_ticks_usec()
 		think()
-		peak_us = maxi(peak_us, int(Time.get_ticks_usec() - t0))
+		var spent := int(Time.get_ticks_usec() - t0)
+		peak_us = maxi(peak_us, spent)
+		total_us += spent
 		thinks += 1
 
 
@@ -625,6 +632,13 @@ func focus_extra(f: GuildFighter) -> float:
 ## point at the support squad, the called target's extra lean, the tanks peeling for a
 ## healer under attack.
 func apply() -> void:
+	var t0 := Time.get_ticks_usec()
+	_apply()
+	apply_us += int(Time.get_ticks_usec() - t0)
+	applies += 1
+
+
+func _apply() -> void:
 	var c := _cmd()
 	var side := war.side(team)
 	var lead := war.ai_leader(team)
@@ -729,6 +743,9 @@ func _ack() -> void:
 	if up.is_empty():
 		return
 	var who := up[_rng.randi() % up.size()]
+	if who == _last_acker and up.size() > 1:
+		who = up[(up.find(who) + 1) % up.size()]
+	_last_acker = who
 	acks += 1
 	war.feed.emit("%s: %s" % [who.shown_name(), ACKS[_rng.randi() % ACKS.size()]], team)
 
