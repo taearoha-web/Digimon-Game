@@ -217,7 +217,8 @@ static func settle(t := -1.0) -> void:
 			if c.is_empty():
 				continue
 			var ends := int(MazeWar.week_end(w + 1))
-			var held_before := int(d.get("last", -1)) == w - 1 and _alive(int(d.get("until", 0)), t)
+			# The hero won the week before (its crown ends just as this week's is handed out).
+			var held_before := int(d.get("last", -1)) == w - 1
 			if bool(c.get("hero", false)):
 				d["wins"] = mini(int(d.get("wins", 0)) + 1, MAX_WEEK)
 				d["last"] = w
