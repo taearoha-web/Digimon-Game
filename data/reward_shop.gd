@@ -874,7 +874,7 @@ static func repair(profile: Dictionary) -> void:
 			if id != "" and not COSTUMES.has(id):
 				d[key] = ""
 			# The crown in the costume slot keeps its end (cx) in range; nothing else has one.
-			if String(d[key]) == MazeCrown.COSTUME_ID:
+			if String(d.get(key, "")) == MazeCrown.COSTUME_ID:
 				if not Game._valid_integer(d.get("cx"), MazeCrown.EXPIRES_MIN, MazeCrown.EXPIRES_MAX):
 					d[key] = ""
 					d.erase("cx")

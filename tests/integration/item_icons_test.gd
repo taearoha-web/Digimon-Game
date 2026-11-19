@@ -57,7 +57,8 @@ func _ready() -> void:
 	for id in RewardShop.COSTUMES:
 		var item := RewardShop.costume_item(id)
 		_item("costume", item)
-		check(ItemData.tile_text(item) == "คอสตูม", "a costume tile names it, no level")
+		# หนึ่งในใต้หล้า's crown counts down on its tile instead (MazeCrown).
+		check(ItemData.tile_text(item) == (MazeCrown.tile_left(int(item.get("expires", 0))) if MazeCrown.is_crown_item(item) else "คอสตูม"), "a costume tile names it (the crown: its countdown), no level")
 		costume_icons[ItemLook.icon(item)] = true
 	check(costume_icons.size() == RewardShop.COSTUMES.size(), "every costume has an icon of its own")
 	for g in range(1, 5):

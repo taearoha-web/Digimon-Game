@@ -1293,7 +1293,7 @@ static func _sov_crown(b: Dictionary) -> void:
 	var at := func(p: Vector3) -> Vector3: return c + tilt * p
 	_prim(b, "solid", MeshKit.hemisphere(), IMP_BLACK_2, at.call(Vector3(0, 0.03, 0)), Vector3(0.236, 0.21, 0.226), Vector3.ZERO, Vector2.ZERO, tilt)
 	_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD, at.call(Vector3(0, 0.014, 0)), Vector3(0.268, 0.062, 0.256), Vector3.ZERO, Vector2.ZERO, tilt)
-	_prim(b, "solid", MeshKit.torus(), IMP_GOLD_DEEP, at.call(Vector3(0, -0.017, 0)), Vector3(0.284, 0.16, 0.272), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD_DEEP, at.call(Vector3(0, -0.017, 0)), Vector3(0.282, 0.016, 0.27), Vector3.ZERO, Vector2.ZERO, tilt)
 	# A gold ridge over the cap from the brow to the nape.
 	var ridge := []
 	for k in 7:
@@ -1342,8 +1342,8 @@ static func _sov_halo(b: Dictionary) -> void:
 	var hc := Vector3(0, 0.93, -0.235)
 	var tilt := Basis(Vector3.RIGHT, deg_to_rad(8.0))
 	var ring := []
-	for k in 29:
-		var a := TAU * float(k) / 28.0
+	for k in 25:
+		var a := TAU * float(k) / 24.0
 		ring.append(hc + tilt * Vector3(cos(a) * 0.235, sin(a) * 0.235, 0))
 	_sweep(b, "glow", ring, 4, func(_t: float) -> float: return 0.0075, func(_t: float) -> Color: return HALO_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
 	for k in 16:
