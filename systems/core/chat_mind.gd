@@ -765,7 +765,7 @@ static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator
 		if String(history[k].get("who", "")) != "player":
 			continue
 		recent.append(String(history[k].get("text", "")))
-		if recent.size() >= 3:
+		if recent.size() >= 8:
 			break
 	var said := String(out.get("reply", ""))
 	if not recent.has(said):
