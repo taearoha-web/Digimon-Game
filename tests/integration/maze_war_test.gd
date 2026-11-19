@@ -479,7 +479,8 @@ func _zone() -> void:
 	g._guard_until = 0
 	g.global_position = MazeLayout.center(MazeLayout.cell_at(hero.global_position)) + Vector3(1, 0.3, 0)
 	g._update_shrine(0.1)
-	# (one blow never takes a whole bar: BurstGuard; this one is the last)
+	# (one blow never takes a whole bar: BurstGuard; this one is the last; no dodging)
+	g._dodge = 0.0
 	g.hp = 1
 	g.take_hit(g.hp + 100, false, Color.WHITE, hero)
 	check(g.is_dead() and int(MazeWar.week_book(week).k) == k0 + 1, "the hero's kill of a fighter counts")
@@ -495,6 +496,9 @@ func _zone() -> void:
 	var live0 := int((MazeWar.week_book(week).live as Dictionary).get(killer.rival_name, [0, 0])[0])
 	hero._invulnerable_until = 0
 	m._guard_until = 0
+	m._leave_until = 0
+	m._update_hero_shrine(0.0)
+	hero.stats["dodge"] = 0.0
 	hero.take_damage(1.0e9, killer)
 	check(hero.is_dead() and m.hero_respawn_left > 0.0, "the hero falls and waits to come back")
 	check(int(MazeWar.week_book(week).live[killer.rival_name][0]) == live0 + 1, "the fighter that took the hero gets its kill (live)")
@@ -569,6 +573,7 @@ func _online() -> void:
 		f._guard_until = 0
 		f.global_position = MazeLayout.center(10) + Vector3(0, 0.3, 0)
 		f._update_shrine(0.1)
+		f._dodge = 0.0
 		f.hp = 1
 		f.take_hit(f.hp + 100, false, Color.WHITE, zone.hero)
 	var sent := fake.frames("maze_kill")
