@@ -2159,7 +2159,7 @@ func _japan_village() -> void:
 	for npc in town.npcs:
 		if npc.visual != null:
 			looks[str(Npc.LOOKS.get(npc.role, {}))] = true
-	check(looks.size() == 19, "every villager looks different (%d looks)" % looks.size())
+	check(looks.size() == 20, "every villager looks different (%d looks)" % looks.size())
 	var board: Npc = null
 	for npc in town.npcs:
 		if npc.role == "daily":
