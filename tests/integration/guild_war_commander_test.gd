@@ -56,6 +56,7 @@ func _ready() -> void:
 	_besiege()
 	_hinted_tactics()
 	_squad_rules()
+	_gate_paths()
 	await _in_war()
 	await _four_way()
 	print("GUILD WAR COMMANDER: %d checks, %d failures" % [checks, failures.size()])
@@ -273,6 +274,20 @@ func _squad_rules() -> void:
 	check(D.retreat_for(C.ROLE_HEALER) > D.retreat_for(C.ROLE_TANK) and D.retreat_for(C.ROLE_RANGED) == D.RETREAT_SQUISHY, "the squishy back line falls back earlier than the tanks")
 	for key in D.SQUAD_NAMES:
 		check(_thai(String(D.SQUAD_NAMES[key])), "squad %s has a Thai name" % key)
+
+
+## Along the wall between a tier's two gates the way runs square on to the open one first
+## (no fighter left pressed into the gatehouse's corner), farther off straight to it.
+func _gate_paths() -> void:
+	var was: Array = SiegeArena.lane_open.duplicate(true)
+	SiegeArena.lane_open = [[true, false], [false, false]]
+	var p := SiegeArena.route(Vector3(3, 0, -16), SiegeArena.ALTAR)
+	check(is_equal_approx(p.x, -SiegeArena.LANE_X) and p.z > SiegeArena.GATE_Z[0] + 4.0, "pressed to the middle wall: first to a point square in front of the open left gate (%s)" % p)
+	p = SiegeArena.route(Vector3(-SiegeArena.LANE_X, 0, -12), SiegeArena.ALTAR)
+	check(p.is_equal_approx(Vector3(-SiegeArena.LANE_X, 0, -18)), "square in front of it: through the gate (%s)" % p)
+	p = SiegeArena.route(Vector3(0, 0, 4), SiegeArena.ALTAR)
+	check((SiegeArena.CONNECTORS[0] as Array).has(p), "far off the wall: straight to the opening as before (%s)" % p)
+	SiegeArena.lane_open = was
 
 
 static func _thai(text: String) -> bool:

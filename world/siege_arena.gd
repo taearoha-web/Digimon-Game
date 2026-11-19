@@ -182,11 +182,25 @@ static func route(from: Vector3, to: Vector3) -> Vector3:
 		var c := opening(a, from, to)
 		if Vector2(from.x - c.x, from.z - c.z).length() < 2.4:
 			return c + Vector3(0, 0, -3.5)
-		return c
+		return _square_on(from, c)
 	var back := opening(a - 1, from, to)
 	if Vector2(from.x - back.x, from.z - back.z).length() < 2.4:
 		return back + Vector3(0, 0, 3.5)
-	return back
+	return _square_on(from, back)
+
+
+## Close along a wall from an opening `c` (within APPROACH_DEPTH of its line, more than
+## GATE_HALF - 1 to its side) the way runs first to a point in front of it, square on,
+## instead of along the wall's face into the gatehouse's corner (where a fighter could
+## stand pressed for minutes: guild_war_sim's stuck measure); otherwise to the opening.
+const APPROACH_DEPTH := 6.0
+
+
+static func _square_on(from: Vector3, c: Vector3) -> Vector3:
+	var dz := from.z - c.z
+	if absf(dz) < APPROACH_DEPTH and absf(from.x - c.x) > GATE_HALF - 1.0:
+		return Vector3(c.x, c.y, c.z + signf(dz if dz != 0.0 else 1.0) * APPROACH_DEPTH)
+	return c
 
 
 ## Front of gate `lane` of tier k (the side the guilds come from).
