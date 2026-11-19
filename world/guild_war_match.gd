@@ -63,6 +63,13 @@ const PLAN_NAMES := {
 	"forward": "ตั้งแนวรับหน้าห้องบัลลังก์ ไม่ให้ใครเข้าใกล้แท่น",
 	"gates": "ผู้ครองปราสาทออกมาตั้งรับหน้าประตูทั้งสองบาน",
 }
+## The plans in a word or two (the watcher's board, plans_line).
+const PLAN_SHORT := {
+	"rush": "บุกประตู", "hold": "ตั้งรับหัวสะพาน", "regroup": "รวมพลใหม่", "storm": "บุกบัลลังก์",
+	"split": "แบ่งทีมบุก", "defend": "ล้อมแท่น", "forward": "ตั้งแนวหน้าบัลลังก์", "gates": "เฝ้าประตู",
+}
+## A league mirror online: our guild's phase as the host's doctrine has it (EntitySync "pp").
+var mirror_phase := ""
 const NEUTRAL_COLOR := Color("fff1b8")
 ## Parties (ปาร์ตี้): everyone in the war fights in a party of at most PARTY_SIZE. The hero
 ## picks up to PARTY_SIZE - 1 teammates before the war (GuildWarScreen); everybody else on
@@ -164,6 +171,16 @@ var _plan_timer := 0.0
 ## Each guild's war chief (GuildWarCommander, the same brain for both): how the plan is
 ## fought (gather, push, escort, guard, defend, fall back), focus targets and callouts.
 var commanders: Array[GuildWarCommander] = []
+## Each guild's war doctrine (GuildWarDoctrine: the leader's plan of phases, squads and
+## orders over its commander), null for a guild played by the old commander alone
+## (smart[t] false: the old-vs-new measurement, tests/tools/guild_war_sim).
+var doctrines: Array = []
+var smart: Array[bool] = []
+## Tests and tools: which guilds the next war plays with the doctrine (taken once by
+## build; [] = every guild, the game's own wars).
+static var next_smart: Array[bool] = []
+## Tools: every war after this plays the old commander alone (the measurement's baseline).
+static var legacy_ai := false
 
 ## Our commander's called target, marked for the player too: a red ring on the ground.
 var _focus_mark: MeshInstance3D
@@ -315,6 +332,13 @@ func _ensure_teams(n: int) -> void:
 		party_plan.append([])
 	while commanders.size() < n:
 		commanders.append(GuildWarCommander.new(self, commanders.size()))
+	while smart.size() < n:
+		var t := smart.size()
+		smart.append(not legacy_ai and (next_smart.is_empty() or (t < next_smart.size() and next_smart[t])))
+	while doctrines.size() < n:
+		var t := doctrines.size()
+		doctrines.append(GuildWarDoctrine.new(self, t) if smart[t] else null)
+		commanders[t].doctrine = doctrines[t]
 
 
 ## Cuts every per-team list to `n` teams (a war of fewer guilds than the lists were made for).
@@ -329,8 +353,13 @@ func _set_teams(n: int) -> void:
 	plans.resize(n)
 	party_plan.resize(n)
 	commanders.resize(n)
+	smart.resize(n)
+	doctrines.resize(n)
 	for c in commanders:
 		c.spread(n)
+	for d in doctrines:
+		if d != null:
+			d.spread(n)
 
 
 # --- Who is whose enemy (the commanders' lists, worked out once a frame) ------------
@@ -1316,6 +1345,9 @@ func _tick_fight(delta: float) -> void:
 			_respawn_hero()
 	for c in commanders:
 		c.tick(delta)
+	for d in doctrines:
+		if d != null:
+			d.tick(delta)
 	_plan_timer -= delta
 	if _plan_timer <= 0.0:
 		_plan_timer = PLAN_EVERY
@@ -1889,6 +1921,13 @@ func _among_strongest(team: int, n: int) -> bool:
 	return above < n
 
 
+## Guild `t`'s doctrine phase key (GuildWarDoctrine.PHASES; the old brain: its tactic).
+func phase_key(t: int) -> String:
+	if t < doctrines.size() and doctrines[t] != null:
+		return String(doctrines[t].phase)
+	return "old:" + (commanders[t].tactic if t < commanders.size() else "")
+
+
 ## The siege's focus: the castle has a holder. Every other guild then goes for the holder's
 ## gates and fighters, not each other (GuildFighter.holder_team), until the rivalry opens:
 ## with every tier open the attackers fight each other too, in the throne room, over the
@@ -1900,6 +1939,11 @@ func siege_focus() -> bool:
 func _make_plans() -> void:
 	for team in team_count():
 		var plan := plan_for(team)
+		var d: GuildWarDoctrine = doctrines[team] if team < doctrines.size() else null
+		if d != null:
+			# The doctrine's last minutes (GuildWarDoctrine.adjust_plan), and a fresh look.
+			plan = GuildWarDoctrine.adjust_plan(plan, time_left, castle_owner == team, front_gate() != null)
+			d.nudge()
 		if plan != plans[team]:
 			plans[team] = plan
 			if state == "fight":
@@ -2173,6 +2217,9 @@ func _set_switch(holder: int, challenger := -1) -> void:
 			feed.emit("กิลด์ %s บุกวงสวิตช์! กิลด์ %s ยังถือสวิตช์อยู่ — มีคนในวงมากกว่า %d วิเพื่อยึด" % [team_name(switch_challenger), team_name(holder), int(SWITCH_TAKE_TIME)], -1)
 	for c in commanders:
 		c.on_switch_change()
+	for d in doctrines:
+		if d != null:
+			d.nudge()
 
 
 ## Who holds the switch, for the online status as a party member sees the war (ours or not:
@@ -2775,13 +2822,40 @@ func siege_status() -> String:
 	return " · ".join(parts)
 
 
-## The HUD's second line: who is standing on each side and our guild's plan.
+## The HUD's second line: who is standing on each side and our guild's plan, with the
+## doctrine's phase (ขั้น) when it plays one, else the commander's tactic.
 func sides_status() -> String:
 	var ours := _strength(GuildFighter.TEAM_ALLY)
 	var theirs := _rival_strength(GuildFighter.TEAM_ALLY)
 	var plan := String(PLAN_NAMES.get(plans[GuildFighter.TEAM_ALLY], ""))
 	var tactic := String(GuildWarCommander.TACTIC_NAMES.get(commanders[0].tactic, "")) if commanders.size() > 0 else ""
+	var phase := phase_name(GuildFighter.TEAM_ALLY)
+	if phase != "":
+		return "ยืนอยู่ %d/%d : %d/%d%s · ขั้น: %s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else "", phase]
 	return "ยืนอยู่ %d/%d : %d/%d%s%s" % [ours.x, ours.y, theirs.x, theirs.y, (" · แผนเรา: " + plan) if plan != "" else "", (" (%s)" % tactic) if tactic != "" else ""]
+
+
+## Guild `t`'s phase as told on the HUD ("" with none: the old brain, before the first
+## think; a mirror shows the host's, mirror_phase).
+func phase_name(t: int) -> String:
+	if mirror:
+		return String(GuildWarDoctrine.PHASES.get(mirror_phase, "")) if t == GuildFighter.TEAM_ALLY else ""
+	if t < doctrines.size() and doctrines[t] != null:
+		return doctrines[t].phase_name()
+	return ""
+
+
+## The watcher's board: every guild's plan and phase on one line
+## ("Alpha: รวมพลบุกตีประตู › ทลายประตู · Neverdie: ...").
+func plans_line() -> String:
+	var parts: PackedStringArray = []
+	for t in team_count():
+		var plan := String(PLAN_SHORT.get(plans[t], ""))
+		if plan == "":
+			continue
+		var ph := phase_name(t)
+		parts.append("%s: %s%s" % [team_name(t), plan, (" › " + ph) if ph != "" else ""])
+	return " · ".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -2964,6 +3038,12 @@ func mirror_sync(ev: String, d: Dictionary) -> void:
 	# The switch as the leader reads it (switch_code).
 	if d.has("sw"):
 		apply_switch_code(d.get("sw"))
+	# Our guild's plan and phase as the host's doctrine has them.
+	var pp: Variant = d.get("pp", [])
+	if pp is Array and (pp as Array).size() >= 2:
+		if PLAN_NAMES.has(String(pp[0])) and plans.size() > 0:
+			plans[0] = String(pp[0])
+		mirror_phase = String(pp[1]) if GuildWarDoctrine.PHASES.has(String(pp[1])) else ""
 
 
 ## A mirrored fighter fell on the leader's side; the hero's blow counts as its kill.

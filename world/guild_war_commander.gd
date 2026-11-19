@@ -283,6 +283,10 @@ var clash := {}
 ## The leader waits for its moment (tests): since when, and why.
 var waiting := false
 var _wait_since := -1.0e9
+## The guild's war doctrine over this commander (GuildWarDoctrine; null: the old brain alone)
+## and its hints for the tactic (merged into read(): engage_now, hold_back, all_in).
+var doctrine: GuildWarDoctrine
+var hints: Dictionary = {}
 
 
 func _init(p_war: GuildWarMatch, p_team: int) -> void:
@@ -347,15 +351,22 @@ static func pick_tactic(prev: String, held: float, s: Dictionary) -> String:
 		return FALLBACK
 	var share := float(s.alive_share)
 	var losing := float(s.loss_heat) >= LOSING_HEAT and float(s.loss_heat) >= float(s.kill_heat) + 2.0
-	if prev == FALLBACK and held < FALLBACK_MAX and (held < FALLBACK_MIN or share < REENGAGE_SHARE):
+	# The doctrine's hints (GuildWarDoctrine: none for the old brain): all in at the end
+	# (no falling back), push at once in the other guild's respawn window, pull back to
+	# the rally point while outweighed at the front.
+	var all_in := bool(s.get("all_in", false))
+	if prev == FALLBACK and held < FALLBACK_MAX and (held < FALLBACK_MIN or share < REENGAGE_SHARE) and not all_in:
 		return FALLBACK
-	if prev != FALLBACK and losing and share < RETREAT_SHARE and not bool(s.holding):
+	if prev != FALLBACK and losing and share < RETREAT_SHARE and not bool(s.holding) and not all_in:
 		return FALLBACK
 	if bool(s.leader_alive) and float(s.leader_hp) < LEADER_LOW and int(s.leader_threat) > 0:
 		return GUARD
 	if plan in ["defend", "forward", "hold", "gates"]:
 		return DEFEND
 	if not bool(s.gates_up):
+		# The doctrine's wave: the guild stages out of reach until most of it is there.
+		if bool(s.get("hold_back", false)) and not bool(s.get("leader_on_altar", false)):
+			return GATHER
 		if bool(s.leader_ai):
 			if not bool(s.leader_alive):
 				return GATHER
@@ -364,16 +375,20 @@ static func pick_tactic(prev: String, held: float, s: Dictionary) -> String:
 			# The switch first: the leader waits at the door until its guild holds it.
 			if not bool(s.get("switch", true)) and not bool(s.get("leader_on_altar", false)) and not (prev == SECURE and held >= SECURE_MAX):
 				return SECURE
-			if prev == SECURE or int(s.escort) >= int(s.escort_need) or (prev == GATHER and held >= GATHER_MAX):
+			if prev == SECURE or int(s.escort) >= int(s.escort_need) or (prev == GATHER and (held >= GATHER_MAX or bool(s.get("engage_now", false)))):
 				return ESCORT
 			return GATHER
 		return ESCORT if bool(s.leader_alive) and bool(s.leader_in_castle) else PUSH
 	if prev == PUSH:
+		if bool(s.get("hold_back", false)) and int(s.enemies_at_rally) == 0:
+			return GATHER
 		if held >= PUSH_MIN and float(s.at_front) < TRICKLE_SHARE and int(s.enemies_at_rally) == 0:
 			return GATHER
 		return PUSH
 	if prev == GATHER:
-		if float(s.gathered) >= GATHER_SHARE or held >= float(s.get("gather_max", GATHER_MAX)) or int(s.enemies_at_rally) >= 2:
+		if bool(s.get("hold_back", false)) and int(s.enemies_at_rally) < 2 and held < 30.0:
+			return GATHER
+		if bool(s.get("engage_now", false)) or float(s.gathered) >= GATHER_SHARE or held >= float(s.get("gather_max", GATHER_MAX)) or int(s.enemies_at_rally) >= 2:
 			return PUSH
 		return GATHER
 	return GATHER
@@ -397,6 +412,9 @@ static func leader_may_go(s: Dictionary, held: float) -> bool:
 	var van := int(s.get("vanguard", 0))
 	var foes := int(s.get("altar_foes", 0))
 	if van >= maxi(1, int(s.escort_need)) and (foes <= ALTAR_CLEAR_FOES or van >= foes * 2):
+		return true
+	# The doctrine's window: the other guild's front is spent (or the bell is near).
+	if (bool(s.get("engage_now", false)) or bool(s.get("all_in", false))) and van + int(s.get("escort", 0)) >= 2 and foes <= ALTAR_CLEAR_FOES + 2:
 		return true
 	# Its first member up there and nobody (or only the other guild's leader) left round
 	# the altar: the way is clear (a guild camping in the switch's circle has few to send
@@ -737,9 +755,24 @@ func _place() -> void:
 		var to := SiegeArena.ALTAR - rally
 		to.y = 0.0
 		forward = to.normalized()
+	# The doctrine stages a wave out of the throne room's reach (GuildWarDoctrine.stage_point).
+	if _staging():
+		rally = hints.stage
+		fallback_point = rally
+		var to: Vector3 = SiegeArena.ALTAR - rally
+		to.y = 0.0
+		forward = to.normalized()
+
+
+## Whether the doctrine has the guild wait for its wave at a staging point.
+func _staging() -> bool:
+	var stage: Variant = hints.get("stage", Vector3.INF)
+	return bool(hints.get("hold_back", false)) and stage is Vector3 and (stage as Vector3).is_finite()
 
 
 func place_name() -> String:
+	if _staging():
+		return "ลานชั้นใน"
 	var gate := target_gate()
 	if gate == null:
 		return "หน้าห้องบัลลังก์"
@@ -988,7 +1021,7 @@ func read() -> Dictionary:
 		"leader_on_altar": lead != null and SiegeArena.on_altar(lead.global_position),
 		"vanguard": vanguard,
 		"altar_foes": altar_foes,
-	}
+	}.merged(hints)
 
 
 ## The focus target: the best of the other guild (the hero too, for theirs) within
@@ -1008,6 +1041,8 @@ func _pick_focus() -> Node3D:
 		if d > FOCUS_RANGE or _in_camp(f):
 			continue
 		var score := focus_score(d, f.hp_ratio(), _kind(f), _escorts(f), f.under_guard(), f.capturing)
+		if doctrine != null:
+			score += doctrine.focus_extra(f)
 		# Holding the castle: the guild nearest to taking it first.
 		if counter_team >= 0 and f.team == counter_team:
 			score += 6.0
@@ -1314,6 +1349,8 @@ func post_of(f: GuildFighter) -> bool:
 func apply() -> void:
 	if tactic != "":
 		_apply_tactic()
+		if doctrine != null:
+			doctrine.apply()
 	_apply_order()
 
 

@@ -762,6 +762,11 @@ func _gw_tick(delta: float) -> void:
 	if war.team_count() > 2:
 		status["sa"] = Array(war.score)
 		status["oa"] = war.castle_owner
+	# Our guild's plan and its doctrine's phase (the members' HUD shows them; only this
+	# game runs the AI).
+	if war.plans.size() > 0:
+		var d: Variant = war.doctrines[0] if war.doctrines.size() > 0 else null
+		status["pp"] = [war.plans[0], d.phase if d != null else ""]
 	_event(0, "gw", status)
 
 

@@ -133,6 +133,14 @@ var role := -1
 var focus: Node3D
 var dive: Node3D
 var guard_node: Node3D
+## Its squad's rules (GuildWarDoctrine.apply; the old brain leaves them as they are):
+## falls back below this share of HP, leans this much more on the called target, and
+## aims its area skills where the other guild stands thick.
+var retreat_below := RETREAT_BELOW
+var focus_bonus := 0.0
+var clump_aware := false
+## Its strength as the line-ups rate it (GuildWarData.power_of), 1 when unknown.
+var power := 1.0
 
 ## The mount it rides (MountVisual under its turning model; null on foot) and the one it
 ## owns ("" for none, or where riding is not allowed: MountData.zone_allows).
@@ -178,6 +186,7 @@ func shown_name() -> String:
 func setup_fighter(info: Dictionary, p_team: int, p_hero: Node3D, p_spawn: Vector3, title: String) -> void:
 	team = p_team
 	grade = int(info.get("grade", 0))
+	power = maxf(1.0, float(info.get("power", 1.0)))
 	tag = String(info.get("tag", ""))
 	guild_name = title
 	spawn_point = p_spawn
@@ -655,7 +664,7 @@ func _nearest_victim() -> Node3D:
 		var score := -d + bias
 		# The guild's called target: everyone leans on it, ranged and assassins the most.
 		if t == called:
-			score += 12.0 if role == GuildWarCommander.ROLE_RANGED or role == GuildWarCommander.ROLE_ASSASSIN else 8.0
+			score += (12.0 if role == GuildWarCommander.ROLE_RANGED or role == GuildWarCommander.ROLE_ASSASSIN else 8.0) + focus_bonus
 		# A tank peels whoever is on its leader.
 		if guarding != null and role == GuildWarCommander.ROLE_TANK and not (t is CastleGate) and _flat_distance_from(t.global_position, guarding.global_position) < 7.0:
 			score += 9.0
@@ -900,7 +909,7 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if dodge_step != Vector3.ZERO:
 		return dodge_step
 	var ratio := hp_ratio()
-	if not _retreating and ratio < RETREAT_BELOW and (_potions <= 0 or _potion_cd > 0.0):
+	if not _retreating and ratio < retreat_below and (_potions <= 0 or _potion_cd > 0.0):
 		_retreating = true
 		_rear_wait = 0.0
 	elif _retreating and (ratio > RETURN_ABOVE or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
@@ -1134,7 +1143,23 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 		# Everyone bursts the called target together.
 		if _victim == focus and shape != "summon":
 			score += 2.5
+		# Its squad's rule: an area skill where the other guild stands thick.
+		if clump_aware and (shape == "burst" or shape == "blast"):
+			var at := _victim.global_position if shape == "blast" else global_position
+			score += 1.2 * float(mini(_foes_around(at, float(skill.get("radius", 3.0)) + 0.5), 5) - 1)
 	return score
+
+
+## How many of the other guilds stand within `radius` m of `at` (the frame's shared view).
+func _foes_around(at: Vector3, radius: float) -> int:
+	var n := 0
+	var r2 := radius * radius
+	for t in _foes():
+		if _up(t):
+			var p := (t as Node3D).global_position
+			if (p.x - at.x) * (p.x - at.x) + (p.z - at.z) * (p.z - at.z) <= r2:
+				n += 1
+	return n
 
 
 ## The lowest HP share among the fighter and its teammates within heal reach.
