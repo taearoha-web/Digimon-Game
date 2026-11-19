@@ -60,7 +60,7 @@ const CROWD := 8.0
 ## The weaker one's least chance to win a fight.
 const UPSET := 0.12
 ## How much power counts in a fight (the chance goes with power ^ EDGE).
-const EDGE := 2.0
+const EDGE := 3.0
 const NAME_MAX := 24
 const KILLS_MAX := 100000
 const LIVE_MAX := 64
@@ -768,7 +768,7 @@ static func receive(msg: Dictionary) -> String:
 	for e in list.slice(0, 256):
 		if not e is Dictionary:
 			continue
-		var name := String(e.get("name", "")).strip_edges().left(NAME_MAX)
+		var name := str(e.get("name", "")).strip_edges().left(NAME_MAX) if e.get("name") is String else ""
 		var kills: Variant = e.get("kills")
 		if name == "" or not (kills is int or kills is float) or bool(e.get("ai", false)):
 			continue
@@ -778,7 +778,7 @@ static func receive(msg: Dictionary) -> String:
 		if int(w) < week_of(t) - 1:
 			_real.erase(w)
 	revision += 1
-	return String(msg.get("by", "")) if String(msg.get("t", "")) == "maze_kill" else ""
+	return str(msg.get("by", "")) if String(msg.get("t", "")) == "maze_kill" else ""
 
 
 # --- What the world players say -----------------------------------------------------

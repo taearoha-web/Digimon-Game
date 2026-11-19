@@ -462,14 +462,14 @@ func send_hit(id: String, amount: int, crit: bool) -> int:
 func _on_message(type: String, data: Dictionary) -> void:
 	match type:
 		"maze_hit":
-			_take_real_hit(String(data.get("from", "")), data.get("dmg"))
+			_take_real_hit(str(data.get("from", "")), data.get("dmg"))
 		"maze_kill":
 			# The server's board moved. A kill it credits to the hero that another game saw
 			# (the victim's own, or the host's world player) is counted here too.
-			var by := String(data.get("by", ""))
-			if by != "" and by == Online.my_id() and String(data.get("victim", "")) != "":
+			var by := str(data.get("by", ""))
+			if by != "" and by == Online.my_id() and str(data.get("victim", "")) != "":
 				var kind := "ai" if bool(data.get("ai", false)) else "real"
-				count_kill({"kind": "hero", "name": MazeWar.hero_name(), "index": -1}, {"kind": kind, "name": String(data.victim), "index": -1}, false)
+				count_kill({"kind": "hero", "name": MazeWar.hero_name(), "index": -1}, {"kind": kind, "name": str(data.victim), "index": -1}, false)
 
 
 ## A real player's hit on the hero: its defence and dodge, as a duel's (Hero.take_damage).
