@@ -58,8 +58,6 @@ const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "s
 const GREET := ["สวัสดีจ้า!", "หวัดดี~ เล่นสนุกไหม", "ดีจ้า วันนี้มาเก็บเลเวลเหรอ", "สวัสดี! มีอะไรให้ช่วยไหม"]
 const GREET_AGAIN := "ทักอีกแล้ว 555 มีอะไรให้ช่วยไหม"
 const GREET_AGAIN_MORE := ["หวัดดีอีกรอบ 555", "ทักบ่อยจัง คิดถึงเหรอ 555", "ดีจ้า ๆ ว่าไงต่อ", "จ้า ยังอยู่ตรงนี้แหละ", "หวัดดีอีกที มีอะไรเล่าไหม"]
-## How often each world player was greeted this session (by name): the "again" lines take turns.
-static var _greeted := {}
 const HOWRU := ["สบายดีจ้า เล่นไปเรื่อย ๆ", "ก็เรื่อย ๆ นะ ลุ้นของดรอปอยู่ 555", "สบายดี สนุกดีนะ"]
 ## How it is, from its news of the last ChatThreads.NEWS_WORLD_HOURS world hours (only
 ## the lines it really has; %up: its new level).
@@ -227,7 +225,7 @@ static func reply(body: Dictionary) -> Dictionary:
 	if not mind.is_empty():
 		if channel == "guild":
 			mind.reply = _guild_flavor(String(mind.reply), p, rng)
-		return ChatMind.unrepeat(mind, history, rng)
+		return ChatMind.unrepeat(mind, history, rng, String(p.get("name", "")))
 	var intent := intent_of(text)
 	var out := _answer(intent, text, p, h, history, tone, rng, mine)
 	out["topic"] = intent
@@ -236,7 +234,7 @@ static func reply(body: Dictionary) -> Dictionary:
 		out.reply = _ask_back(String(out.reply), p, tone, rng)
 	if channel == "guild":
 		out.reply = _guild_flavor(String(out.reply), p, rng)
-	return ChatMind.unrepeat(out, history, rng)
+	return ChatMind.unrepeat(out, history, rng, String(p.get("name", "")))
 
 
 # --- The party and guild chats -----------------------------------------------------------
@@ -439,13 +437,9 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 		"greet":
 			if intent_of(_last(history, "hero")) == "greet":
 				return {"reply": GREET_AGAIN, "action": "none"}
-			# Greeted earlier (in the short history, or before it in this session): noticed,
-			# in the next of the "again" lines each time, so a long talk never parrots one.
-			var who := String(p.get("name", ""))
-			var greeted := int(_greeted.get(who, 0))
-			_greeted[who] = greeted + 1
-			if greeted > 0 or history.any(func(line): return String(line.get("who", "")) == "hero" and intent_of(String(line.get("text", ""))) == "greet"):
-				return {"reply": GREET_AGAIN_MORE[(greeted + abs(who.hash())) % GREET_AGAIN_MORE.size()], "action": "none"}
+			# Greeted earlier in the talk: noticed, in other words each time.
+			if history.any(func(line): return String(line.get("who", "")) == "hero" and intent_of(String(line.get("text", ""))) == "greet"):
+				return _say(GREET_AGAIN_MORE, rng)
 			if TONE_GREET.has(tone):
 				return _say(TONE_GREET[tone], rng)
 			return _say(GREET, rng)

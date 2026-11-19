@@ -769,9 +769,15 @@ static func _say(pool: Array, rng: RandomNumberGenerator, topic := "") -> Dictio
 	return {"reply": String(pool[rng.randi() % pool.size()]), "action": "none", "topic": topic}
 
 
-## A reply already given (the last answers): said once more with a word that it was,
-## so the same line is never spammed back word for word.
-static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator) -> Dictionary:
+## The answers each world player gave in this talk (by name), longer than the short
+## history the chat keeps: a talk that starts afresh (empty history) clears it.
+const SAID_KEEP := 24
+static var _said := {}
+
+
+## A reply already given in this talk (the short history and _said): said once more with a
+## word that it was, so the same line is never spammed back word for word.
+static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator, who := "") -> Dictionary:
 	var recent: Array = []
 	for k in range(history.size() - 1, -1, -1):
 		if String(history[k].get("who", "")) != "player":
@@ -779,14 +785,26 @@ static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator
 		recent.append(String(history[k].get("text", "")))
 		if recent.size() >= 8:
 			break
+	if who != "":
+		if history.is_empty():
+			_said[who] = []
+		recent.append_array(_said.get(who, []))
 	var said := String(out.get("reply", ""))
-	if not recent.has(said):
-		return out
-	var start := rng.randi() % REPEAT.size()
-	for k in REPEAT.size():
-		var again := cut("%s %s" % [String(REPEAT[(start + k) % REPEAT.size()]), said])
-		if not recent.has(again):
-			out["reply"] = again
-			return out
-	out["reply"] = "ตอบไปหลายรอบแล้วนะ 555 ถามเรื่องอื่นก็ได้"
+	if recent.has(said):
+		var start := rng.randi() % REPEAT.size()
+		var found := false
+		for k in REPEAT.size():
+			var again := cut("%s %s" % [String(REPEAT[(start + k) % REPEAT.size()]), said])
+			if not recent.has(again):
+				out["reply"] = again
+				found = true
+				break
+		if not found:
+			out["reply"] = "ตอบไปหลายรอบแล้วนะ 555 ถามเรื่องอื่นก็ได้"
+	if who != "":
+		var mine: Array = _said.get(who, [])
+		mine.append(String(out.reply))
+		while mine.size() > SAID_KEEP:
+			mine.remove_at(0)
+		_said[who] = mine
 	return out
