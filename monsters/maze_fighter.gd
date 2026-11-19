@@ -29,8 +29,7 @@ const SIGHT := 26.0
 var maze: MazeMatch
 ## The roster index of the world player (WorldPlayers), -1 none.
 var world_index := -1
-## Its fight power (GuildWarData.power_of), for sizing up a foe.
-var power := 1.0
+## Its fight power (GuildFighter.power, set from GuildWarData.power_of) sizes up a foe.
 var ambusher := false
 ## The HP share under which it runs for a shrine (its own nerve: 0.25-0.45).
 var flee_below := 0.35
