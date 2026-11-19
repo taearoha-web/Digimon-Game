@@ -34,7 +34,7 @@ const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ท�
 ## An act answered covers these (ChatBrain's own answer to them would say the same again).
 const COVERS := {"forge": ["enhance", "help"], "events": ["help"], "festival": ["help", "events"], "war": ["guild", "help"],
 	"dragonhunt": ["isle", "help", "events"], "guildinv": ["guild", "party"], "trade": ["come", "shop"], "doing": ["whereis"],
-	"strong": ["class", "praise"], "playtime": ["level"], "title": ["praise"], "pet": ["mount"], "joke": ["laugh"], "cute": ["praise"]}
+	"strong": ["class", "praise"], "playtime": ["level"], "tired": ["howru"], "sad": ["howru"], "morning": ["greet"], "game": ["happy"], "title": ["praise"], "pet": ["mount"], "joke": ["laugh"], "cute": ["praise"]}
 
 ## Acts beyond ChatBrain.INTENTS, all read (not the first only), in the order written.
 const ACTS := [
@@ -65,6 +65,8 @@ const ACTS := [
 	["strong", ["อาชีพไหนเก่ง", "สายไหนเก่ง", "อาชีพไหนดี", "สายไหนดี", "เล่นอะไรดี", "อาชีพไหนโหด", "คลาสไหนดี", "คลาสไหนเก่ง"]],
 	["online", ["กี่คน", "คนเยอะไหม", "ใครออน", "คนออน"]],
 	# Real life: a world player is one of the game's AI players and says so, never makes up a life.
+	["morning", ["อรุณสวัสดิ์", "ราตรีสวัสดิ์", "สวัสดิ์", "good morning"]],
+	["game", ["เกมนี้สนุก", "เกมนี้ดี", "ชอบเกมนี้", "เกมนี้เป็นไง", "สนุกไหม", "เล่นสนุกไหม"]],
 	["life", ["กินข้าว", "กินอะไร", "กินยัง", "กินหรือยัง", "ข้าวยัง", "นอนกี่โมง", "นอนยัง", "ชอบเพลง", "ฟังเพลง", "ชอบหนัง", "ดูหนัง", "ไปเที่ยว", "เที่ยวไหน",
 		"ทำงาน", "เรียนอยู่", "ไปโรงเรียน", "ชอบกิน", "อาหาร", "มีแฟน", "อากาศ", "ฝนตก", "ร้อนจัง", "หนาวจัง", "แมว", "หมา", "ฝันร้าย", "ฝันอะไร", "พรุ่งนี้มาไหม", "พรุ่งนี้เล่นไหม", "มาเล่นอีกไหม"]],
 ]
@@ -355,6 +357,13 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
 		"life":
 			return {"reply": life_text(String(r.n), p, rng), "topic": act}
+		"morning":
+			var hi := ChatBrain._answer("greet", "", p, h, history, tone, rng, mine)
+			hi["topic"] = "greet"
+			return hi
+		"game":
+			var fun := String(["สนุกสิ", "สนุกมาก", "ชอบนะ"][rng.randi() % 3])
+			return {"reply": "%s %s" % [fun, playtime_text(i, t)] if i >= 0 else fun + " เล่นได้เรื่อย ๆ เลย", "topic": act}
 		"skill":
 			if _has(String(r.n), WHERE + ["ยังไง", "วิธี", "ทำไง"]):
 				return {"reply": ChatBrain.help_text("skill"), "topic": act}
@@ -670,7 +679,9 @@ static func small_talk(text: String, p: Dictionary, tone: String, rng: RandomNum
 		if String(line.get("who", "")) == "player":
 			said.append(String(line.get("text", "")))
 	var pool: Array = []
-	if bool(r.question):
+	if String(r.n).strip_edges().replace("?", "").replace(".", "").replace("!", "") == "":
+		pool = ["มีอะไรเหรอ พิมพ์มาได้เลยนะ", "หืม? ว่ามาเลย", "ว่าไง มีอะไรให้ช่วยไหม"]
+	elif bool(r.question):
 		for u in UNSURE:
 			for a in ASKED:
 				pool.append("%s %s" % [u, a])
