@@ -30,7 +30,7 @@ const PRE_COVERS := {"weekly": ["events", "help"], "loyk": ["events", "help"], "
 const TOPICAL := ["skill", "guild", "shop", "help", "set", "wings", "mount", "gems", "isle", "events", "weekly", "loyk", "forge", "war", "pet",
 	"festival", "dragonhunt", "duel", "trade", "enhance", "class"]
 ## Words that hold another act's word ("กิล" of "สกิล"): masked out when reading that act.
-const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"]}
+const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"], "leave": ["สบาย"], "sad": ["ฝันดี"]}
 ## An act answered covers these (ChatBrain's own answer to them would say the same again).
 const COVERS := {"forge": ["enhance", "help"], "events": ["help"], "festival": ["help", "events"], "war": ["guild", "help"],
 	"dragonhunt": ["isle", "help", "events"], "guildinv": ["guild", "party"], "trade": ["come", "shop"], "doing": ["whereis"],
@@ -64,6 +64,9 @@ const ACTS := [
 	["guildinv", ["เข้ากิลด์เรา", "มากิลด์", "ชวนเข้ากิลด์", "ย้ายกิลด์", "รับเข้ากิลด์", "มาอยู่กิลด์"]],
 	["strong", ["อาชีพไหนเก่ง", "สายไหนเก่ง", "อาชีพไหนดี", "สายไหนดี", "เล่นอะไรดี", "อาชีพไหนโหด", "คลาสไหนดี", "คลาสไหนเก่ง"]],
 	["online", ["กี่คน", "คนเยอะไหม", "ใครออน", "คนออน"]],
+	# Real life: a world player is one of the game's AI players and says so, never makes up a life.
+	["life", ["กินข้าว", "กินอะไร", "กินยัง", "กินหรือยัง", "ข้าวยัง", "นอนกี่โมง", "นอนยัง", "ชอบเพลง", "ฟังเพลง", "ชอบหนัง", "ดูหนัง", "ไปเที่ยว", "เที่ยวไหน",
+		"ทำงาน", "เรียนอยู่", "ไปโรงเรียน", "ชอบกิน", "อาหาร", "มีแฟน", "อากาศ", "ฝนตก", "ร้อนจัง", "หนาวจัง", "แมว", "หมา", "ฝันร้าย", "ฝันอะไร", "พรุ่งนี้มาไหม", "พรุ่งนี้เล่นไหม", "มาเล่นอีกไหม"]],
 ]
 ## Words asking where, how often, how much and when.
 const WHERE := ["ที่ไหน", "อยู่ไหน", "แถวไหน", "ฟาร์มที่", "ฟาร์ม", "หาได้", "ได้จาก", "ได้ที่", "ดรอปที่", "ดรอปจาก", "เก็บที่", "ไปไหน", "หาที่", "จากไหน", "หาไง", "หายังไง"]
@@ -163,7 +166,10 @@ static func read(text: String) -> Dictionary:
 ## Whether a line asks about something the game names (a monster, a field, an item...).
 static func names_something(text: String) -> bool:
 	var r := read(text)
-	return not (r.found as Array).is_empty() and bool(r.question)
+	if not (r.found as Array).is_empty() and bool(r.question):
+		return true
+	# Several questions in one line ("สวัสดี เลเวลเท่าไหร่ อยู่ไหน").
+	return bool(r.question) and (r.acts as Array).size() >= 2
 
 
 static func _level_in(n: String) -> int:
@@ -347,6 +353,11 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 		"strong":
 			var cls := String(p.get("class", ""))
 			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
+		"life":
+			return {"reply": life_text(String(r.n), p, rng), "topic": act}
+		"skill":
+			if _has(String(r.n), WHERE + ["ยังไง", "วิธี", "ทำไง"]):
+				return {"reply": ChatBrain.help_text("skill"), "topic": act}
 		"online":
 			if not body.has("t"):
 				return {}
@@ -548,6 +559,38 @@ static func _why(topic: String, p: Dictionary, mine: Dictionary, t: float, rng: 
 		"item", "boss", "monster":
 			return "ก็ตามที่ช่างกับเกมบอกไว้แหละ ของหายากก็ดรอปยากหน่อย"
 	return ["ก็นั่นแหละ 555", "อธิบายยากเหมือนกันนะ", "ไม่รู้สิ รู้สึกงั้นแหละ"][rng.randi() % 3]
+
+
+## Real-life small talk, answered as the AI player it is (nothing made up about a life it
+## does not have); the weather is the field's own (its zone's weather) when it stands in one.
+static func life_text(n: String, p: Dictionary, rng: RandomNumberGenerator) -> String:
+	if _has(n, ["อากาศ", "ฝนตก", "ร้อน", "หนาว"]):
+		var here := String(p.get("place", ""))
+		var weather := ""
+		for z in ChatLexicon.zones:
+			if String(ChatLexicon.zones[z].name) == here:
+				weather = String(WEATHER.get(String(ZoneData.get_zone(z).get("weather", "")), ""))
+		if weather != "":
+			return "ที่%sตอนนี้%s สวยดีนะ" % [here, weather]
+		return ["ในเกมอากาศดีตลอดแหละ 555", "เราเป็นผู้เล่น AI ไม่รู้สึกร้อนหนาวหรอก แต่คุณดูแลตัวเองด้วยนะ"][rng.randi() % 2]
+	if _has(n, ["กิน", "ข้าว", "อาหาร"]):
+		return ["เราเป็นผู้เล่น AI ไม่ได้กินข้าวหรอก 555 คุณกินหรือยัง", "ผู้เล่น AI ไม่ต้องกินข้าว แต่คุณอย่าลืมกินนะ"][rng.randi() % 2]
+	if _has(n, ["นอน"]):
+		return "ผู้เล่น AI ไม่ต้องนอนหรอก แต่ก็ออนตามเวลาของเรานะ คุณพักผ่อนด้วยล่ะ"
+	if _has(n, ["เพลง", "หนัง"]):
+		return ["ชอบเพลงในเกมนี่แหละ ฟังตอนล่ามอนเพลินดี", "เป็นผู้เล่น AI เลยฟังแต่เพลงในเกม 555 เพลงหมู่บ้านเพราะนะ"][rng.randi() % 2]
+	if _has(n, ["พรุ่งนี้", "มาเล่นอีก"]):
+		return "ออนตามเวลาเล่นของเรานะ ถ้าเห็นชื่อในเกมก็ทักมาได้เลย"
+	if _has(n, ["แมว", "หมา"]):
+		return "น่ารักจัง ในเกมก็มีสัตว์เลี้ยงนะ ตามติดตลอดเลย"
+	if _has(n, ["ฝันร้าย"]):
+		return "ไม่เป็นไรนะ แค่ฝัน เข้าเกมมาล่ามอนให้ลืม ๆ ไปดีกว่า"
+	return ["เราเป็นผู้เล่น AI ของเกมนะ ชีวิตนอกเกมไม่มีหรอก 555 แต่ฟังคุณเล่าได้", "ผู้เล่น AI อยู่แต่ในเกมแหละ เล่าเรื่องของคุณให้ฟังหน่อยสิ"][rng.randi() % 2]
+
+
+## A field's weather (its zone's "weather") as the chat says it.
+const WEATHER := {"snow": "หิมะตก", "petals": "กลีบดอกไม้ปลิว", "sand": "พายุทรายพัด", "fireflies": "หิ่งห้อยบินเต็มเลย", "rain": "ฝนตก", "embers": "ประกายไฟลอยฟุ้ง",
+	"bubbles": "ฟองน้ำลอยเต็มเลย", "motes": "ละอองแสงลอยฟุ้ง", "wisps": "แสงวิญญาณลอยไปมา", "brimstone": "ควันกำมะถันฟุ้ง", "windstream": "ลมพัดแรง", "runes": "อักษรเวทลอยวนอยู่"}
 
 
 # --- The player's own sheet -------------------------------------------------------------

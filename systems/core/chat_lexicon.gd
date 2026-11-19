@@ -46,6 +46,8 @@ const TH := [["ปาตี้", "ปาร์ตี้"], ["ปาร์ตี�
 	["ทาไม", "ทำไม"], ["เท่าไร", "เท่าไหร่"], ["เท่าหร่าย", "เท่าไหร่"], ["เท่าไหร", "เท่าไหร่"], ["เลเวิล", "เลเวล"], ["เลเวว", "เลเวล"],
 	["สวัสดีค่ะ", "สวัสดี ค่ะ"], ["หวัดดีครับ", "หวัดดี ครับ"], ["ขอบคุน", "ขอบคุณ"], ["ขอบคุงฯ", "ขอบคุณ"], ["คับ", "ครับ"],
 	["งับ", "ครับ"], ["จ้าา", "จ้า"], ["อัพ", "อัป"], ["ตีบวกก", "ตีบวก"], ["ดรอบ", "ดรอป"], ["ฟาม", "ฟาร์ม"], ["บอด", "บอส"]]
+## The words a camp's name opens with ("ลานสไลม์", "คอกไก่ป่า").
+const CAMP_WORDS := ["ลาน", "คอก", "บึง", "สวน", "ทุ่ง", "รัง", "ค่าย", "ถ้ำ", "ซอก", "หุบ", "ดง", "หนอง", "ป่า", "เนิน", "ป้อม", "หอ", "บ่อ", "โพรง"]
 ## Thai tone marks and the like a hurried typist leaves out (the name's skeleton is read
 ## without them).
 const MARKS := ["่", "้", "๊", "๋", "์", "็", "ํ"]
@@ -95,6 +97,22 @@ static func ensure() -> void:
 			if String(camp.get("name", "")).length() >= 4:
 				_add(String(camp.name), "camp", String(zid), String(camp.name))
 	_add("หมู่บ้าน", "zone", "town", "หมู่บ้าน")
+	# A camp's name without its "ลาน", "คอก"... is what players call its monster ("ไก่ป่า" of
+	# คอกไก่ป่า for ไก่ป่าจอมเกรี้ยวกราด), when that monster's name holds it.
+	for zid in ZoneData.ZONES:
+		for camp in ZoneData.ZONES[zid].get("camps", []):
+			var short := String(camp.get("name", ""))
+			for pre in CAMP_WORDS:
+				if short.begins_with(String(pre)):
+					short = short.substr(String(pre).length())
+					break
+			if short.length() < 4:
+				continue
+			for mid in camp.get("monsters", []):
+				var mname := String(MonsterData.get_monster(StringName(mid)).get("name", ""))
+				if mname.contains(short) and mname != short:
+					_add(short, "monster", String(mid), mname)
+					break
 	_add("เมือง", "zone", "town", "หมู่บ้าน")
 	for mid in monsters:
 		var m: Dictionary = monsters[mid]
