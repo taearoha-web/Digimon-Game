@@ -1503,9 +1503,9 @@ func _make_boss_sign() -> void:
 	MeshKit.part(_boss_sign, MeshKit.box(), MeshKit.toon(Color("c23a2a")), Vector3(0, 2.95, 0), Vector3(2.7, 0.14, 0.18))
 	_boss_sign_label = Label3D.new()
 	_boss_sign_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_boss_sign_label.pixel_size = 0.0075
+	_boss_sign_label.pixel_size = 0.011
 	_boss_sign_label.font_size = 40
-	_boss_sign_label.outline_size = 10
+	_boss_sign_label.outline_size = 14
 	_boss_sign_label.modulate = Color("ffe3c4")
 	_boss_sign_label.position = Vector3(0, 4.0, 0)
 	_boss_sign_label.visibility_range_end = 60.0
