@@ -429,6 +429,9 @@ static func _about_name(f: Dictionary, r: Dictionary, p: Dictionary, mine: Dicti
 				if here == "":
 					return {"reply": "ตอนนี้ไม่ได้อยู่%sนะ" % String(f.name), "topic": "whereis"}
 				return {"reply": "ไม่ได้อยู่%sนะ ตอนนี้อยู่%s" % [String(f.name), here], "topic": "whereis"}
+			# The sky isle has its own full answer (gate, the owner's drop rates, the rare dragon).
+			if StringName(id) == SkyIsleData.ID:
+				return {"reply": ChatBrain.help_text("isle"), "topic": "zone"}
 			return {"reply": ChatFacts.zone_info(StringName(id)), "topic": "zone"}
 		"class":
 			var own := String(p.get("class", ""))
