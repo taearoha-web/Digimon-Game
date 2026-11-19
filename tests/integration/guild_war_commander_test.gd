@@ -112,6 +112,9 @@ func _windows() -> void:
 	check(not D.pick_window(false, true, D.WAIT_MAX + 1.0, 0.0, r)[1], "never waits more than %d s" % int(D.WAIT_MAX))
 	r.time_left = 60.0
 	check(not D.pick_window(false, false, 0.0, 100.0, r)[1], "in the last minutes nobody waits")
+	r.time_left = 900.0
+	r.teams = 4
+	check(not D.pick_window(false, false, 0.0, 100.0, r)[1], "a war of four: nobody stands back (every fall dealt is a point, the others take them)")
 	r = _calm()
 	r.balance = 0.3
 	r.coming = 0.5
@@ -211,6 +214,9 @@ func _besiege() -> void:
 	r.time_left = 600.0
 	r.gates_up = true
 	check(not D.pick_besiege(false, 0.0, r, bad, false), "only with the gates down")
+	r.gates_up = false
+	r.teams = 4
+	check(not D.pick_besiege(false, 0.0, r, bad, false), "only in a war of two")
 	check(D.phase_for({"besiege": true, "wait": true, "gates_up": false, "tactic": C.GATHER}) == "besiege", "its phase: ล้อมรอจังหวะ")
 
 

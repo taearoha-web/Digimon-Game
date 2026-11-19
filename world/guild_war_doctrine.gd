@@ -82,7 +82,7 @@ static func pick_muster(r: Dictionary, share: float) -> bool:
 ## with every gate down, never in the last minutes or the window.
 static func pick_besiege(was: bool, held: float, r: Dictionary, trades: Dictionary, engage: bool) -> bool:
 	var owner := int(r.get("owner", -1))
-	if owner < 0 or bool(r.get("holding", false)) or bool(r.get("gates_up", true)) or engage:
+	if owner < 0 or bool(r.get("holding", false)) or bool(r.get("gates_up", true)) or engage or int(r.get("teams", 2)) > 2:
 		return false
 	if float(r.get("time_left", 9999.0)) <= LAST_CALL or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
 		return false
@@ -107,7 +107,7 @@ const PHASE_MIN := 6.0
 const MUSTER_HP := 0.35
 ## Besieging: the waves lose the trades (falls taken at least BESIEGE_LOSSES, under
 ## BESIEGE_TRADE of them dealt back); it stays up to BESIEGE_MAX s (less in a window).
-const BESIEGE_LOSSES := 4.0
+const BESIEGE_LOSSES := 6.0
 const BESIEGE_TRADE := 0.5
 const BESIEGE_MAX := 90.0
 const SURGE_TIME := 20.0
@@ -413,7 +413,9 @@ static func pick_window(was_engage: bool, was_wait: bool, held: float, rested: f
 	# Wait: outweighed at the front with our own on the way (never in the last minutes,
 	# never while taking the altar or stopping a capture).
 	var wait := false
-	if attacking and not engage and not last and not bool(r.get("we_capturing", false)):
+	# (Only in a war of two: with three others on the field every falls dealt is a point
+	# and whoever stands back leaves the kills and the switch to the rest.)
+	if attacking and not engage and not last and not bool(r.get("we_capturing", false)) and int(r.get("teams", 2)) <= 2:
 		if was_wait:
 			# The wave goes when most of the guild stands at the rally point (or after WAIT_MAX).
 			wait = held < WAIT_MAX and not (float(r.get("gathered", 0.0)) >= WAVE_READY and float(r.get("alive_share", 0.0)) >= 0.6)
@@ -704,7 +706,13 @@ func order(key: String, text: String, urgent := false) -> bool:
 	war.tactical_call(team, line)
 	var c := _cmd()
 	if c != null:
+		# One voice for the guild: the commander's own callouts wait, and the order is
+		# among what the guild said (GuildWarCommander.said).
 		c._last_call = c.clock
+		c.calls += 1
+		c.said.append(line)
+		if c.said.size() > 12:
+			c.said.remove_at(0)
 	_ack()
 	return true
 
