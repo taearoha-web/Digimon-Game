@@ -54,6 +54,7 @@ const CORPUS := [
 	"กริฟฟินทำยังไง", "ชุดซากุระบานได้ยังไง", "where to farm purple", "chaos drop rate?",
 	"ตีบวกยังไง", "ตีบวก +10 ติดกี่%", "+13 โอกาสติดเท่าไหร่", "สุดสัปดาห์ตีบวกคืออะไร", "enhance rate +8?",
 	"อีเวนต์มีตอนไหน", "ตอนนี้มีอีเว้นอะไร", "บอสโลกกี่โมง", "มอนทองคืออะไร", "เทศกาลexpเมื่อไหร่", "ล่ามังกรเริ่มเมื่อไหร่",
+	"ราชาเห็ดยักษ์ตายยัง", "ใครล้มบอสล่าสุด", "มังกรเพลิงผู้พิทักษ์เกิดยัง", "บอสตายยัง",
 	"กิลด์วอรอบหน้ากี่โมง", "ใครชนะกิลด์วอ", "ปราสาทอยู่กับใคร", "ลีกสัปดาห์นี้ใครนำ",
 	"อาชีพไหนเก่งสุด", "นักบวชเป็นไง", "assassin เก่งไหม", "เล่นนักเวทย์ดีไหม", "Lv 35 ไปไหนดี", "เลเวล 60 เก็บที่ไหนดี", "เก็บเลเวลที่ไหนดี",
 	"กิลด์เข้ายังไง", "ปาร์ตี้ทำยังไง", "ดาวคืออะไร", "สกิลอัปที่ไหน", "ฝากขายทำไง", "เกาะลอยฟ้าเทพมังกรไปยังไง",
@@ -83,6 +84,8 @@ func check(ok: bool, message: String) -> void:
 func _ready() -> void:
 	WorldPlayers.persist = false
 	WorldPlayers.clear_bonus()
+	# The world players bring field bosses down too (headless it is off by default).
+	BossWorld.ai_mode = 1
 	Game.new_profile(&"mage", "คุยจริงQA", FaceKit.default_look())
 	Game.profile.level = 47
 	if Game.profile.equip.get("weapon") is Dictionary and not (Game.profile.equip.weapon as Dictionary).is_empty():
@@ -246,6 +249,12 @@ func _named(s: Dictionary, t: float, online: int) -> void:
 	check(String(r.call("ราชาเหดยักษอยู่ไหน")).contains("ทุ่งหญ้ามิสต์วูด"), "a boss typed wrong is still found")
 	check(String(r.call("where is mush king")).contains("ทุ่งหญ้ามิสต์วูด"), "a boss named in English is found")
 	check(String(r.call("สไลม์ชมพูอยู่ไหน")).contains("ลานสไลม์"), "a monster's camp")
+	var king := BossWorld.state(&"meadow", t)
+	var up: String = r.call("ราชาเห็ดยักษ์ตายยัง")
+	if bool(king.alive):
+		check(not up.contains("เกิดใหม่ใน"), "a standing boss is not said to be down (%s)" % up)
+	else:
+		check(up.contains(BossWorld.killer_text(king)), "a fallen boss names who brought it down (%s / %s)" % [up, king])
 	check(String(r.call("ฟาร์มไก่ป่าที่ไหน")).contains("คอกไก่ป่า"), "a monster by the short name players use")
 	var fine: String = r.call("สบายดีมั้ย")
 	check(not ChatBrain.BYE_STRANGER.any(func(x): return fine.contains(String(x))), "how are you is not a goodbye (%s)" % fine)

@@ -30,7 +30,7 @@ const PRE_COVERS := {"weekly": ["events", "help"], "loyk": ["events", "help"], "
 const TOPICAL := ["skill", "guild", "shop", "help", "set", "wings", "mount", "gems", "isle", "events", "weekly", "loyk", "forge", "war", "pet",
 	"festival", "dragonhunt", "duel", "trade", "enhance", "class"]
 ## Words that hold another act's word ("กิล" of "สกิล"): masked out when reading that act.
-const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"], "leave": ["สบาย"], "sad": ["ฝันดี"]}
+const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"], "leave": ["สบาย"], "sad": ["ฝันดี"], "greet": ["พิทักษ์"]}
 ## An act answered covers these (ChatBrain's own answer to them would say the same again).
 const COVERS := {"forge": ["enhance", "help"], "events": ["help"], "festival": ["help", "events"], "war": ["guild", "help"],
 	"dragonhunt": ["isle", "help", "events"], "guildinv": ["guild", "party"], "trade": ["come", "shop"], "doing": ["whereis"],
@@ -63,6 +63,7 @@ const ACTS := [
 	["trade", ["เทรด", "แลกของ", "แลกเปลี่ยน", "trade"]],
 	["guildinv", ["เข้ากิลด์เรา", "มากิลด์", "ชวนเข้ากิลด์", "ย้ายกิลด์", "รับเข้ากิลด์", "มาอยู่กิลด์"]],
 	["strong", ["อาชีพไหนเก่ง", "สายไหนเก่ง", "อาชีพไหนดี", "สายไหนดี", "เล่นอะไรดี", "อาชีพไหนโหด", "คลาสไหนดี", "คลาสไหนเก่ง"]],
+	["bosskill", ["ใครล้มบอส", "ใครฆ่าบอส", "ใครปราบบอส", "บอสใครล้ม", "บอสตายยัง", "บอสเกิดยัง", "ล้มบอสได้", "บอสโดนล้ม"]],
 	["online", ["กี่คน", "คนเยอะไหม", "ใครออน", "คนออน"]],
 	# Real life: a world player is one of the game's AI players and says so, never makes up a life.
 	["morning", ["อรุณสวัสดิ์", "ราตรีสวัสดิ์", "สวัสดิ์", "good morning"]],
@@ -73,6 +74,8 @@ const ACTS := [
 ## Words asking where, how often, how much and when.
 const WHERE := ["ที่ไหน", "อยู่ไหน", "แถวไหน", "ฟาร์มที่", "ฟาร์ม", "หาได้", "ได้จาก", "ได้ที่", "ดรอปที่", "ดรอปจาก", "เก็บที่", "ไปไหน", "หาที่", "จากไหน", "หาไง", "หายังไง"]
 const RATE := ["เรท", "กี่%", "กี่เปอร์", "โอกาส", "ดรอปเท่าไหร่", "ดรอปง่าย", "ดรอปยาก", "ดรอปไหม", "ออกง่าย", "%"]
+## Asking whether a field boss stands now, and who brought it down.
+const BOSS_UP := ["ใครฆ่า", "ใครล้ม", "ใครปราบ", "ใครตี", "ตายยัง", "ตายแล้ว", "ตายไหม", "เกิดยัง", "เกิดแล้ว", "เกิดไหม", "ยังอยู่", "อยู่ไหม", "เกิดตอนไหน", "เกิดเมื่อไหร่", "โดนล้ม", "ล้มยัง"]
 const PRICE := ["ราคา", "กี่ทอง", "ขายเท่าไหร่", "เท่าไหร่"]
 const LOOT := ["ดรอปอะไร", "ได้อะไร", "ให้อะไร", "ของอะไร", "ดรอป"]
 const HAVE := ["มีไหม", "มีหรือยัง", "มียัง", "มีป่ะ", "ได้หรือยัง", "ได้ยัง", "มี", "ขี่", "ใส่"]
@@ -123,7 +126,7 @@ const REPEAT := ["ก็บอกไปแล้วไง", "เหมือน�
 ## question, me (about the hero), level (a level number in it, 0 none)}.
 static func read(text: String) -> Dictionary:
 	var n := ChatLexicon.normalize(text)
-	var question := QUESTION.any(func(q): return n.contains(String(q)))
+	var question := QUESTION.any(func(q): return n.contains(String(q))) or _has(n, BOSS_UP)
 	# A name typed a little wrong is looked for only in a question about something.
 	var found := ChatLexicon.find(n, question or _has(n, WHERE + RATE + PRICE + LOOT))
 	var spans: Array = found.map(func(f): return Vector2i(int(f.at), int(f.at) + String(f.name).length()))
@@ -355,6 +358,8 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 		"strong":
 			var cls := String(p.get("class", ""))
 			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
+		"bosskill":
+			return {"reply": ChatFacts.boss_kills(t), "topic": act}
 		"life":
 			# A remark on the weather ("อากาศดีจัง") is small talk; a question gets the field's own.
 			if _has(String(r.n), ["อากาศ", "ฝนตก", "ร้อน", "หนาว"]) and not bool(r.question):
@@ -407,7 +412,11 @@ static func _about_name(f: Dictionary, r: Dictionary, p: Dictionary, mine: Dicti
 			return {"reply": ChatFacts.monster_where(StringName(id)), "topic": "monster"}
 		"boss":
 			var info := ChatFacts.boss_info(StringName(id))
-			if _has(n, LOOT + RATE):
+			if _has(n, BOSS_UP):
+				info = ChatFacts.boss_status(StringName(id), t)
+				if info == "":
+					info = ChatFacts.boss_info(StringName(id))
+			elif _has(n, LOOT + RATE):
 				var loot := ChatFacts.boss_loot(StringName(id))
 				if loot != "":
 					info = "%s %s" % [String(f.name), loot]

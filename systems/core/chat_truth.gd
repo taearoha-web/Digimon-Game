@@ -199,9 +199,28 @@ static func verify(text: String, ctx: Dictionary) -> Array[String]:
 			bad.append("%d ทอง is no price of now" % v)
 	# Times.
 	var ok_times := times(t)
-	for m in _re("hhmm", "(\\d\\d):(\\d\\d)").search_all(text):
+	# A boss's countdown ("เกิดใหม่ใน 02:15") is checked with the boss below.
+	var timed := _re("countdown", "เกิดใหม่ใน \\d\\d:\\d\\d").sub(text, "#", true)
+	for m in _re("hhmm", "(\\d\\d):(\\d\\d)").search_all(timed):
 		if not ok_times.has(m.get_string(0)):
 			bad.append("%s is no event's time" % m.get_string(0))
+	# A field boss said to be down, up or brought down by someone: BossWorld's own state.
+	for zid in BossWorld.zones():
+		var bname := BossWorld.boss_name(zid)
+		if bname == "" or not text.contains(bname):
+			continue
+		for m in _re("killed", bname + "ถูก (.+?) ปราบ").search_all(text):
+			var by := m.get_string(1)
+			var any := BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and BossWorld.killer_text(BossWorld.state(z, t)) == by)
+			if not any:
+				bad.append("%s was not brought down by %s" % [bname, by])
+		if text.contains(bname + "ยังอยู่ ยังไม่มีใครล้ม") and not BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and bool(BossWorld.state(z, t).alive) and float(BossWorld.state(z, t).killed_at) <= 0.0):
+			bad.append("%s is not untouched" % bname)
+		for m in _re("down", bname + "ถูก .+? ปราบไป.*?เกิดใหม่ใน (\\d\\d):(\\d\\d)").search_all(text):
+			var left := int(m.get_string(1)) * 60 + int(m.get_string(2))
+			var ok := BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and not bool(BossWorld.state(z, t).alive) and absf(float(BossWorld.state(z, t).respawn_at) - t - float(left)) <= 1.5)
+			if not ok:
+				bad.append("%s is not back in %s" % [bname, m.get_string(0)])
 	if me.is_empty():
 		return bad
 	# Its own things.

@@ -77,6 +77,37 @@ static func boss_info(id: StringName) -> String:
 	return out
 
 
+## Whether boss `id` stands now (BossWorld.state: the one truth of who brought a field
+## boss down and when it is back), in its first field (or `zid`): "" when it never fell.
+static func boss_status(id: StringName, t: float, zid := &"") -> String:
+	ChatLexicon.ensure()
+	var m: Dictionary = ChatLexicon.monsters.get(id, {})
+	if m.is_empty() or (m.boss_of as Array).is_empty():
+		return ""
+	if zid == &"" or not (m.boss_of as Array).has(zid):
+		zid = m.boss_of[0]
+	if not BossWorld.has_boss(zid):
+		return ""
+	var s := BossWorld.state(zid, t)
+	if not bool(s.alive):
+		return "ตอนนี้%sถูก %s ปราบไป%s เกิดใหม่ใน %s" % [String(s.name), BossWorld.killer_text(s), BossWorld.ago_text(t - float(s.killed_at)), BossWorld.clock_text(float(s.respawn_at) - t)]
+	if float(s.killed_at) > 0.0:
+		return "ตอนนี้%sเกิดใหม่แล้ว รอบก่อนถูก %s ปราบ%s" % [String(s.name), BossWorld.killer_text(s), BossWorld.ago_text(t - float(s.killed_at))]
+	return "ตอนนี้%sยังอยู่ ยังไม่มีใครล้ม" % String(s.name)
+
+
+## The field bosses brought down lately (BossWorld.recent), newest first, up to two.
+static func boss_kills(t: float) -> String:
+	var parts: PackedStringArray = []
+	for s in BossWorld.recent(t, 900.0):
+		if parts.size() >= 2:
+			break
+		parts.append("%sถูก %s ปราบ%s" % [String(s.name), BossWorld.killer_text(s), BossWorld.ago_text(t - float(s.killed_at))])
+	if parts.is_empty():
+		return "ช่วงนี้ยังไม่เห็นใครล้มบอสสนามเลย"
+	return "ล่าสุด " + " · ".join(parts)
+
+
 ## What a field boss drops: its slots, its favourite gem, its chase piece's odds.
 static func boss_loot(id: StringName) -> String:
 	if not BossLootData.has(id):
