@@ -37,6 +37,9 @@ const LOOKS := {
 		"npc_outfit": ["Mage", Color(0.5, 1.3, 0.75), "Mage_Cape"], "npc_hat": ["eboshi", Color("1e4a30")]},
 	"pet": {"gender": 1, "skin": 2, "hair": 2, "hair_color": 4, "eyes": 3, "eye_color": 2, "nose": 1, "mouth": 2,
 		"npc_outfit": ["Ranger", Color(0.75, 1.3, 0.7), ""], "npc_hat": ["kasa", Color("e6c65a")]},
+	# The keeper of เขาวงกตหนึ่งในใต้หล้า (MazeWar): a scarred old champion in dusk-gold.
+	"maze": {"gender": 0, "skin": 5, "hair": 6, "hair_color": 6, "eyes": 2, "eye_color": 5, "nose": 3, "mouth": 4,
+		"npc_outfit": ["Knight", Color(1.25, 1.05, 0.45), "Knight_Cape"], "npc_hat": ["eboshi", Color("3a2a5a")]},
 	"healer": {"gender": 1, "skin": 0, "hair": 6, "hair_color": 0, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0,
 		"npc_outfit": ["Mage", Color(1.15, 1.08, 1.05), ""], "npc_wash": 0.9, "npc_hat": ["ribbon", Color("e8463a")]},
 	"guide": {"gender": 1, "skin": 1, "hair": 3, "hair_color": 7, "eyes": 3, "eye_color": 1, "nose": 1, "mouth": 2,

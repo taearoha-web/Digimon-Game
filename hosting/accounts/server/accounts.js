@@ -285,6 +285,8 @@ function validateProfile(profile) {
   }
   // The field bosses the hero saw fall (BossWorld in the game): {zone: {at, by}}.
   if ('bossw' in profile && !validBossWorld(profile.bossw)) fail(400, 'invalid_save', 'The field boss record is invalid.');
+  // The maze war's record (MazeWar in the game): the hero's kills a week and the champions seen.
+  if ('mazew' in profile && !validMaze(profile.mazew)) fail(400, 'invalid_save', 'The maze war record is invalid.');
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;
@@ -349,6 +351,32 @@ function validBossWorld(book) {
   return Object.entries(book).every(([zone, entry]) => chars(zone) <= 48 && dictionary(entry)
     && typeof entry.at === 'number' && Number.isFinite(entry.at) && entry.at >= 0 && entry.at <= 1e11
     && (entry.by === undefined || (typeof entry.by === 'string' && chars(entry.by) <= 64)));
+}
+
+// MazeWar.valid in the game (keep these equal): {weeks: {"<week>": {k, at, d, live: {name:
+// [kills, at]}, held: {name: [slot, ...]}}} (at most 4 weeks), champs: {"<week>": {name,
+// kills, hero, index}} (at most 30)}.
+const MAZE_KILLS_MAX = 100000;
+const MAZE_LIVE_MAX = 64;
+function validMaze(book) {
+  if (!dictionary(book) || !Object.keys(book).every(key => key === 'weeks' || key === 'champs')) return false;
+  const weeks = book.weeks ?? {};
+  const champs = book.champs ?? {};
+  if (!dictionary(weeks) || Object.keys(weeks).length > 4 || !dictionary(champs) || Object.keys(champs).length > 30) return false;
+  const weekKey = key => /^-?[0-9]{1,9}$/.test(key);
+  const named = (map, check) => dictionary(map) && Object.keys(map).length <= MAZE_LIVE_MAX
+    && Object.entries(map).every(([name, value]) => chars(name) <= 24 && check(value));
+  for (const [key, week] of Object.entries(weeks)) {
+    if (!weekKey(key) || !dictionary(week) || !Object.keys(week).every(k => ['k', 'at', 'd', 'live', 'held'].includes(k))) return false;
+    if (('k' in week && !integer(week.k, 0, MAZE_KILLS_MAX)) || ('d' in week && !integer(week.d, 0, MAZE_KILLS_MAX)) || ('at' in week && !integer(week.at, 0, 1e11))) return false;
+    if ('live' in week && !named(week.live, v => Array.isArray(v) && v.length === 2 && integer(v[0], 0, MAZE_KILLS_MAX) && integer(v[1], 0, 1e11))) return false;
+    if ('held' in week && !named(week.held, v => Array.isArray(v) && v.length <= 1100 && v.every(k => integer(k, 0, 10000000)))) return false;
+  }
+  return Object.entries(champs).every(([key, c]) => weekKey(key) && dictionary(c)
+    && (c.name === undefined || (typeof c.name === 'string' && chars(c.name) <= 64))
+    && (c.kills === undefined || integer(c.kills, 0, MAZE_KILLS_MAX))
+    && (c.hero === undefined || typeof c.hero === 'boolean')
+    && (c.index === undefined || integer(c.index, -1, 1000000)));
 }
 
 function validLeague(league) {

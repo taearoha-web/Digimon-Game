@@ -28,6 +28,8 @@ var raid_screen: RaidScreen
 var dungeon_screen: DungeonScreen
 ## The pet keeper's screen (PetData): choose the pet once, then see it.
 var pet_screen: PetScreen
+## เขาวงกตหนึ่งในใต้หล้า's full board (MazeWar), from its keeper and the maze's HUD.
+var maze_board: MazeBoard
 ## Online play with real players: trading (its window) and duels; idle while offline.
 var trade: OnlineTrade
 var trade_screen: TradeScreen
@@ -177,6 +179,12 @@ func _ready() -> void:
 	dungeon_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	pet_screen = PetScreen.new()
 	add_child(pet_screen)
+	maze_board = MazeBoard.new()
+	add_child(maze_board)
+	maze_board.enter_requested.connect(func(): go(MazeWar.ID, false, true))
+	hud.maze_board_requested.connect(func():
+		if not _screen_open():
+			maze_board.open_board())
 	pet_screen.pet_chosen.connect(_on_pet_chosen)
 	dialog = DialogBox.new()
 	add_child(dialog)
@@ -489,7 +497,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or (maze_board != null and maze_board.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -605,6 +613,8 @@ func _on_npc(role: String) -> void:
 				{"label": "แลกเกล็ดมังกร", "action": func(): dungeon_screen.open_lobby("shop")}, {"label": "ไว้ก่อน"}])
 		"pet":
 			_talk_pet_keeper()
+		"maze":
+			_talk_maze_keeper()
 		"reward":
 			dialog.say(RewardShop.KEEPER, "ที่นี่รับแลก%sกับ%s! %sได้จากทุกรอบลีกกิลด์ที่เจ้าลงสนาม (อันดับ %s ต่อรอบ ยึดปราสาท +%d ครองปราสาทตอนจบ +%d) และโบนัสอันดับทุกสิ้นสัปดาห์ ส่วน%sได้จากการช่วยปราบบอสโลก (+%d) และการล่าช่วง EXP x2 หรือเทศกาล (วันละไม่เกิน %d) มีคอสตูม เอฟเฟกต์ท่าเดิน สีชื่อ และหินเสริมพลัง (จำกัดต่อสัปดาห์) ของทุกชิ้นผูกกับตัวละคร ขายหรือส่งต่อไม่ได้นะ ตอนนี้เจ้ามี%s %d และ%s %d" % [
 				RewardShop.COIN_NAME, RewardShop.POINT_NAME, RewardShop.COIN_NAME, "/".join(RewardShop.PLACE_COINS.map(func(v): return str(v))), RewardShop.CAPTURE_COINS, RewardShop.HOLD_COINS,
@@ -637,6 +647,22 @@ func _on_npc(role: String) -> void:
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
 			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+
+
+## The keeper of เขาวงกตหนึ่งในใต้หล้า: the rules, this week's board and the way in.
+func _talk_maze_keeper() -> void:
+	var t := MazeWar.now()
+	var crown := MazeCrown.holder(t)
+	var mine := MazeWar.hero_rank(MazeWar.week_of(t), t)
+	var text := "เขาวงกตหนึ่งในใต้หล้าเปิดตลอดเวลา ใครเข้าไปก็เป็นศัตรูกันหมด ทั้งผู้เล่นจริงและผู้เล่น AI นับเฉพาะจำนวนคนที่ล้มได้ ตายแล้วเกิดใหม่ที่จุดสุ่มทั่วเขาวงกต มีที่หลบภัย %d แห่ง เข้าไปแล้วไม่มีใครทำร้ายได้ (แต่ก็โจมตีใครไม่ได้) ตัดรอบทุกวันจันทร์ ที่ 1 ได้ยศ %s กับชุด เทพราชันหนึ่งในใต้หล้า ครองหนึ่งสัปดาห์ ต้อง Lv.%d ขึ้นไปนะ" % [MazeLayout.safe_count(), MazeCrown.TITLE_NAME, MazeWar.MIN_LEVEL]
+	if not crown.is_empty():
+		text += " ตอนนี้%sคือ %s" % [MazeCrown.TITLE_NAME, String(crown.name)]
+	if int(mine.rank) > 0:
+		text += " ส่วนเจ้าอยู่อันดับ %d ด้วย %d คิล" % [int(mine.rank), int(mine.kills)]
+	dialog.say("ผู้เฝ้าเขาวงกต", text, [
+		{"label": "เข้าเขาวงกต", "action": func(): go(MazeWar.ID, false, true)},
+		{"label": "ดูตารางอันดับ", "action": func(): maze_board.open_board()},
+		{"label": "ไว้ก่อน"}])
 
 
 ## The guild hall (GuildHallData): a member goes into its own guild's hall; anyone else is

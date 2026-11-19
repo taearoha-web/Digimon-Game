@@ -19,6 +19,8 @@ signal world_tapped(position: Vector2)
 signal interact_pressed()
 ## A real party member's card was tapped (Online): their id.
 signal online_member_tapped(id: String)
+## The maze's live board was tapped: the full board (MazeBoard).
+signal maze_board_requested()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.
 const SKILL_SPACING := 82.0
@@ -138,6 +140,8 @@ var _death_sub: Label
 var _combat_controls: Array[Control] = []
 var _badge_class: StringName = &""
 var _gw_hud: GuildWarHud
+## เขาวงกตหนึ่งในใต้หล้า's live board (MazeHud), while the hero is in the maze.
+var maze_hud: MazeHud
 var _party_cards: Array[Dictionary] = []
 ## The pet's chip above the party cards (PetData / Pet): element badge, name and level,
 ## its health, or the seconds until it comes back. Hidden without a pet in this zone.
@@ -282,6 +286,17 @@ func bind(p_zone: Zone) -> void:
 		_gw_hud.bind(zone.gw_match)
 		zone.gw_match.hero_down.connect(func(_s: float): show_death(true, "คุณล้มลง!", "รอเกิดใหม่ที่ฐาน"))
 		zone.gw_match.hero_back.connect(func(): show_death(false))
+	if maze_hud != null:
+		maze_hud.queue_free()
+		maze_hud = null
+	if zone.maze_match != null:
+		maze_hud = MazeHud.new()
+		maze_hud.name = "MazeHud"
+		_frame.add_child(maze_hud)
+		maze_hud.bind(zone.maze_match)
+		maze_hud.board_requested.connect(func(): maze_board_requested.emit())
+		zone.maze_match.hero_down.connect(func(_s: float): show_death(true, "คุณล้มลง!", "เกิดใหม่ที่จุดสุ่มในเขาวงกต"))
+		zone.maze_match.hero_back.connect(func(): show_death(false))
 
 
 func set_controls_visible(value: bool) -> void:
@@ -361,7 +376,7 @@ func _process(delta: float) -> void:
 				lines.append(line)
 		_event_label.text = "\n".join(lines)
 		pass_dot.visible = DailyPass.claimable() > 0
-		_event_chip.visible = _event_label.text != "" and _war() == null
+		_event_chip.visible = _event_label.text != "" and _war() == null and maze_hud == null
 		_place_event_chip()
 
 
@@ -482,7 +497,7 @@ func _update_timers(delta: float) -> void:
 ## Wide bar at the top while a boss that noticed the hero is alive nearby.
 func _update_boss_bar() -> void:
 	var boss: Mob = null
-	if hero and not zone.is_town and zone.gw_match == null:
+	if hero and not zone.is_town and zone.gw_match == null and zone.maze_match == null:
 		for node in get_tree().get_nodes_in_group("mobs"):
 			var mob := node as Mob
 			if mob and mob.is_boss and mob.hostile and not mob.is_dead() \
@@ -514,7 +529,7 @@ func _update_tracker(delta: float) -> void:
 		return
 	_tracker_timer = 0.5
 	# In a guild war its board and lanes own the top centre: no quest lines beside them.
-	if Game.profile.is_empty() or zone.is_town or _war() != null:
+	if Game.profile.is_empty() or zone.is_town or _war() != null or zone.maze_match != null:
 		_tracker.visible = false
 		_place_event_chip()
 		return

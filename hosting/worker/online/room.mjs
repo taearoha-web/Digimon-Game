@@ -54,6 +54,22 @@ export const BOSS_GAP_MS = 30_000;          // the shortest respawn is a minute
 export const BOSS_KEEP_MS = 60 * 60_000;    // older kills are forgotten (respawns are minutes)
 export const BOSS_ZONES_MAX = 64;
 
+// เขาวงกตหนึ่งในใต้หล้า (MazeWar in the game): the free-for-all zone and its weekly board of
+// the real players' kills (the world players' are worked out by every game alike).
+export const MAZE_ZONE = 'maze_war';
+export const MAZE_NAMES_MAX = 256;
+export const MAZE_CREDIT_GAP_MS = 1_500;   // one player's kills at most this often
+export const MAZE_REKILL_MS = 60_000;      // the same killer on the same victim (MazeWar.REKILL_GAP)
+export const MAZE_HITS_PER_SECOND = 15;
+export const MAZE_HIT_MAX = 1e9;
+export const MAZE_CHAMPS_MAX = 12;
+const DAY_MS = 86_400_000;
+const TZ_MS = 7 * 3_600_000;
+/** The week index of unix ms `ms`: weeks from Monday 00:00 Thai time (GuildLeague.week_of). */
+export function mazeWeek(ms) {
+  return Math.floor((Math.floor((ms + TZ_MS) / DAY_MS) + 3) / 7);
+}
+
 export const CLOSE_ELSEWHERE = 4000;
 export const CLOSE_IDLE = 4001;
 
@@ -132,6 +148,12 @@ export class Room {
     this.lastTick = 0;
     this.bosses = new Map();     // zone -> {at, name}: the last kill of its field boss (BossWorld)
     this.bossesChanged = false;  // the wrapper stores the bosses when set
+    // The maze's week: {week, board: Map name -> {kills, at}, champs: [{week, name, kills}]}.
+    this.maze = {week: mazeWeek(this.now()), board: new Map(), champs: []};
+    this.mazeChanged = false;    // the wrapper stores the maze's board when set
+    this.mazeCredit = new Map(); // credited id -> last credit (ms)
+    this.mazePairs = new Map();  // "killer|victim" -> last kill (ms)
+    this.mazeHits = new Map();   // sender id -> {sec, n}
   }
 
   /** Connected sockets (one per account). */
@@ -176,6 +198,8 @@ export class Room {
     this.dirty.add(key);
     this.send(session, {t: 'welcome', you: {id, user: session.user}, players: this.playerList(id), party: this.partyView(session.partyId)});
     if (this.bosses.size) this.send(session, {t: 'boss_state', bosses: this.bossList()});
+    this.mazeRoll();
+    if (this.maze.board.size) this.send(session, this.mazeBoard());
     this.syncWhost();
     if (rejoined) this.sendParty(rejoined);
     if (old || rejoined) this.syncHosts();
@@ -633,6 +657,74 @@ export class Room {
     }
   }
 
+  /** A new week (Monday 00:00 Thai time) starts the maze's board again; the old week's
+   * first is kept as a champion. */
+  mazeRoll() {
+    const week = mazeWeek(this.now());
+    if (week === this.maze.week) return;
+    let top = null;
+    for (const [name, e] of this.maze.board) {
+      if (!top || e.kills > top.kills || (e.kills === top.kills && e.at < top.at)) top = {name, kills: e.kills, at: e.at};
+    }
+    if (top) this.maze.champs = [{week: this.maze.week, name: top.name, kills: top.kills}, ...this.maze.champs].slice(0, MAZE_CHAMPS_MAX);
+    this.maze.week = week;
+    this.maze.board = new Map();
+    this.mazePairs.clear();
+    this.mazeChanged = true;
+  }
+
+  /** The week's board as the clients get it (`ago`: how long since each reached its count). */
+  mazeBoard() {
+    const now = this.now();
+    const rows = [...this.maze.board].map(([name, e]) => ({name, kills: e.kills, ago: Math.max(0, now - e.at)}));
+    return {t: 'maze_board', week: this.maze.week, rows, champs: this.maze.champs.slice()};
+  }
+
+  /** Credits player `credited` (a session) with a kill of `victim` (a name) in the maze,
+   * once per MAZE_CREDIT_GAP_MS and once a MAZE_REKILL_MS per victim; tells everyone but
+   * `except` (the sender, whose game counted it already). */
+  mazeCredit_(credited, victim, ai, except) {
+    const now = this.now();
+    this.mazeRoll();
+    const last = this.mazeCredit.get(credited.id) ?? -Infinity;
+    if (now - last < MAZE_CREDIT_GAP_MS) return;
+    const name = str(credited.player?.name || credited.user, AI_SPEAKER_MAX);
+    if (!name) return;
+    const pair = `${name}|${victim}`;
+    if (now - (this.mazePairs.get(pair) ?? -Infinity) < MAZE_REKILL_MS) return;
+    const board = this.maze.board;
+    if (!board.has(name) && board.size >= MAZE_NAMES_MAX) return;
+    this.mazeCredit.set(credited.id, now);
+    if (this.mazePairs.size > 512) this.mazePairs.clear();
+    this.mazePairs.set(pair, now);
+    const e = board.get(name) ?? {kills: 0, at: now};
+    e.kills += 1;
+    e.at = now;
+    board.set(name, e);
+    this.mazeChanged = true;
+    this.broadcast({t: 'maze_kill', week: this.maze.week, name, kills: e.kills, ago: 0, by: credited.id, victim, ai}, except);
+  }
+
+  /** The maze's board, for storage (it outlives the room restarting). */
+  exportMaze() {
+    return {week: this.maze.week, board: [...this.maze.board].map(([name, e]) => ({name, kills: e.kills, at: e.at})), champs: this.maze.champs.slice()};
+  }
+
+  importMaze(saved) {
+    if (!dict(saved) || !Number.isSafeInteger(saved.week)) return;
+    const board = new Map();
+    if (Array.isArray(saved.board)) {
+      for (const e of saved.board.slice(0, MAZE_NAMES_MAX)) {
+        const name = dict(e) ? str(e.name, AI_SPEAKER_MAX) : '';
+        if (name && Number.isSafeInteger(e.kills) && e.kills > 0 && finite(e.at)) board.set(name, {kills: Math.min(e.kills, 1e6), at: e.at});
+      }
+    }
+    const champs = Array.isArray(saved.champs) ? saved.champs.filter(c => dict(c) && Number.isSafeInteger(c.week) && str(c.name, AI_SPEAKER_MAX) && Number.isSafeInteger(c.kills))
+      .slice(0, MAZE_CHAMPS_MAX).map(c => ({week: c.week, name: str(c.name, AI_SPEAKER_MAX), kills: c.kills})) : [];
+    this.maze = {week: saved.week, board, champs};
+    this.mazeRoll();
+  }
+
   /** Copies the state fields of a hello / state frame; true when the zone changed. */
   applyState(s, msg) {
     const p = s.player;
@@ -920,6 +1012,52 @@ const HANDLERS = {
     this.bosses.set(zone, {at: now, name});
     this.bossesChanged = true;
     this.broadcast({t: 'boss_kill', zone, name, ago: 0}, s.id);
+  },
+
+  /** A hit of the sender on another real player in the maze, relayed while both stand in
+   * it (at most MAZE_HITS_PER_SECOND a second); the victim's game applies its defence. */
+  maze_hit(s, msg) {
+    if (s.player.zone !== MAZE_ZONE || !finite(msg.dmg) || msg.dmg <= 0) return;
+    const to = idOf(msg.to);
+    const other = to && to !== s.id ? this.byId.get(to) : null;
+    if (!other?.player || other.player.zone !== MAZE_ZONE) return;
+    const sec = Math.floor(this.now() / 1000);
+    const rate = this.mazeHits.get(s.id);
+    if (rate && rate.sec === sec) {
+      if (rate.n >= MAZE_HITS_PER_SECOND) return;
+      rate.n += 1;
+    } else {
+      if (this.mazeHits.size > 512) this.mazeHits.clear();
+      this.mazeHits.set(s.id, {sec, n: 1});
+    }
+    this.sendTo(to, {t: 'maze_hit', from: s.id, dmg: Math.min(msg.dmg, MAZE_HIT_MAX), crit: msg.crit === true});
+  },
+
+  /** A kill the sender's game saw in the maze: its own (no `by`), or, from the game that
+   * runs the maze's world players (its host, or one alone there), a real player `by` of the
+   * maze taking one of them. `victim` is the fallen one's name. */
+  maze_kill(s, msg) {
+    if (s.player.zone !== MAZE_ZONE) return;
+    const victim = str(msg.victim, AI_SPEAKER_MAX);
+    if (!victim) return;
+    const by = idOf(msg.by);
+    let credited = s;
+    if (by && by !== s.id) {
+      const host = this.hostFor(s);
+      if (host !== null && host !== s.id) return;
+      credited = this.byId.get(by);
+      if (!credited?.player || credited.player.zone !== MAZE_ZONE) return;
+    }
+    this.mazeCredit_(credited, victim, msg.ai === true, s.id);
+  },
+
+  /** The sender fell in the maze to real player `by` (its own game decides its falls). */
+  maze_down(s, msg) {
+    if (s.player.zone !== MAZE_ZONE) return;
+    const by = idOf(msg.by);
+    const killer = by && by !== s.id ? this.byId.get(by) : null;
+    if (!killer?.player || killer.player.zone !== MAZE_ZONE) return;
+    this.mazeCredit_(killer, str(s.player.name || s.user, AI_SPEAKER_MAX), false, s.id);
   },
 
   ai_chat(s, msg) {

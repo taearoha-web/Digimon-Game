@@ -95,6 +95,8 @@ func _rebuild() -> void:
 	UIUtil.clear(_list)
 	for id in destinations():
 		_list.add_child(_row(id, level))
+	# เขาวงกตหนึ่งในใต้หล้า: no field of the chain, open from Lv.100 at any hour.
+	_list.add_child(_row(MazeWar.ID, level))
 
 
 func _row(id: StringName, level: int) -> Control:
@@ -122,6 +124,8 @@ func _row(id: StringName, level: int) -> Control:
 		detail = "ดาว %d+ · เก็บเลเวลดาว 200–300 · %s (ชิ้น +10 ใช้ผสมชุดเซต 250 ดาว)" % [EndgameFields.ENTRY_STAR, EndgameFields.drop_text()]
 	if id == SkyIsleData.ID:
 		detail = "ดาว %d+ · มอนสเตอร์มังกร Lv.%d–%d · ดรอป %s" % [SkyIsleData.ENTRY_STAR, SkyIsleData.CAMP_MIN, SkyIsleData.CAMP_MAX, SkyIsleData.drop_text()]
+	if id == MazeWar.ID:
+		detail = "ทุกคนเป็นศัตรู · ตารางฆ่ารายสัปดาห์ · ที่หลบภัย %d แห่ง" % MazeLayout.safe_count()
 	if not open:
 		detail = "ล็อก · " + ZoneData.access_reason(id, level, int(Game.paragon().level))
 	info.add_child(UIUtil.label(detail, &"SmallLabel"))

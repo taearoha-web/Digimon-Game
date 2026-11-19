@@ -109,7 +109,7 @@ static func supports(p_zone: Node) -> bool:
 	var d: Dictionary = p_zone.data
 	if bool(d.get("safe", false)) or bool(d.get("tower", false)) or bool(d.get("arena", false)):
 		return false
-	return not bool(d.get("pvp", false)) or bool(d.get("guildwar", false))
+	return not bool(d.get("pvp", false)) or bool(d.get("guildwar", false)) or bool(d.get("maze", false))
 
 
 ## True while this game hosts the shared monsters of its zone.

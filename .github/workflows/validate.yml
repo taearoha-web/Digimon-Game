@@ -404,6 +404,11 @@ jobs:
           sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0
       - name: Import assets
         run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
+      - name: "เขาวงกตหนึ่งในใต้หล้า (MazeWar: the maze the same on every device and one piece, ten shrines spread and protective then wearing off, random respawn away from everyone, kills between players only and once a minute a pair, board sorted with ties, weekly champion kept, world players' fights alike everywhere and plausible, live fighters with real gear holding their slots so nothing counts twice, the race drives their forging, save checked, HUD and full board, chat tells the board's numbers, online kills and hits)"
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-maze-war
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/maze_war_test.tscn
       - name: "Field bosses live in the world (BossWorld: up at its spot on entry, down with the killer's name and a countdown at its spot and on the HUD, back at kill + respawn with an announcement; the hero's kill saved and validated, no farming by walking out; world players' kills the same on every device, by somebody hunting there, never overlapping, held while the hero fights or watches; real players' kills from the server)"
         timeout-minutes: 10
         env:
