@@ -52,6 +52,8 @@ func _ready() -> void:
 	_phases()
 	_hysteresis()
 	_last_minutes()
+	_muster()
+	_besiege()
 	_hinted_tactics()
 	_squad_rules()
 	await _in_war()
@@ -182,6 +184,34 @@ func _last_minutes() -> void:
 	check(D.adjust_plan("regroup", 90.0, false, false) == "storm", "the others never pull back to regroup at the end")
 	check(D.adjust_plan("hold", 90.0, false, true) == "rush", "nor hold back at the bridge foot")
 	check(D.adjust_plan("split", 90.0, false, false) == "split", "an attacking plan stays")
+
+
+## The race for the castle: muster at the last gate as it is about to fall.
+func _muster() -> void:
+	var r := {"owner": -1, "enemy_capturing": false}
+	check(D.pick_muster(r, 0.2), "nobody holds the castle, the last gate at 20%%: the whole guild musters there")
+	check(not D.pick_muster(r, 0.8), "not while it still holds out")
+	check(not D.pick_muster(r, -1.0), "not before the last tier is the front")
+	r.owner = 1
+	check(not D.pick_muster(r, 0.2), "a holder behind it: the siege goes on as before")
+	check(D.phase_for({"muster": true, "gates_up": true, "tactic": C.PUSH, "plan": "rush"}) == "muster", "its phase: รวมพลหน้าประตูสุดท้าย")
+
+
+## Besieging a holder whose defence keeps winning the trades.
+func _besiege() -> void:
+	var r := {"owner": 1, "holding": false, "gates_up": false, "time_left": 600.0}
+	var bad := {"loss": 6.0, "kill": 1.0}
+	check(D.pick_besiege(false, 0.0, r, bad, false), "the waves keep losing to the holder (6 falls for 1): stop feeding it, besiege")
+	check(not D.pick_besiege(false, 0.0, r, {"loss": 6.0, "kill": 4.0}, false), "an even trade is no reason to")
+	check(not D.pick_besiege(false, 0.0, r, bad, true), "the holder's front spent: strike instead")
+	check(D.pick_besiege(true, 10.0, r, {"loss": 0.0, "kill": 0.0}, false), "once besieging it holds at least a while (hysteresis)")
+	check(not D.pick_besiege(true, D.BESIEGE_MAX + 1.0, r, bad, false), "and tries a wave again after %d s" % int(D.BESIEGE_MAX))
+	r.time_left = 60.0
+	check(not D.pick_besiege(false, 0.0, r, bad, false), "never in the last minutes (all in)")
+	r.time_left = 600.0
+	r.gates_up = true
+	check(not D.pick_besiege(false, 0.0, r, bad, false), "only with the gates down")
+	check(D.phase_for({"besiege": true, "wait": true, "gates_up": false, "tactic": C.GATHER}) == "besiege", "its phase: ล้อมรอจังหวะ")
 
 
 ## The commander's tactic with the doctrine's hints (none: the old brain, unchanged).
@@ -505,7 +535,7 @@ func _hero_leads() -> void:
 	m.feed.connect(func(text: String, _team: int): feed.append(text))
 	d0._last_order = -1.0e9
 	check(d0.order("advice", "แผน: บุกประตูซ้าย"), "an order for the hero's guild")
-	check(feed.any(func(t): return t.contains("ที่ปรึกษาแนะนำ")), "told as a ที่ปรึกษา's advice (the player leads)")
+	check(feed.any(func(t): return t.contains("⚑ แนะนำ:")), "told as a ที่ปรึกษา's advice (the player leads)")
 	for f in m.all_fighters():
 		f.set_physics_process(false)
 	m.set_process(false)

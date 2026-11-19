@@ -68,8 +68,49 @@ const WAVE_READY := 0.7
 const GATHER_RADIUS := 12.0
 ## With the gates down the wave stages in the last yard this far inside the second tier.
 const STAGE_DEPTH := 10.0
+## Whether to muster at the last gate for a reading `r` with that gate at `share` of its
+## health (-1: it is not the front): nobody holds the castle, the guild is not taking or
+## stopping a capture.
+static func pick_muster(r: Dictionary, share: float) -> bool:
+	if share < 0.0 or share > MUSTER_HP or int(r.get("owner", -1)) >= 0:
+		return false
+	return not bool(r.get("enemy_capturing", false))
+
+
+## Whether to besiege (was `was`, `held` s) for a reading `r`, the commander's fading
+## trade counts `trades` {loss, kill} and the window (`engage`): only against a holder
+## with every gate down, never in the last minutes or the window.
+static func pick_besiege(was: bool, held: float, r: Dictionary, trades: Dictionary, engage: bool) -> bool:
+	var owner := int(r.get("owner", -1))
+	if owner < 0 or bool(r.get("holding", false)) or bool(r.get("gates_up", true)) or engage:
+		return false
+	if float(r.get("time_left", 9999.0)) <= LAST_CALL or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
+		return false
+	if was:
+		return held < BESIEGE_MAX
+	var loss := float(trades.get("loss", 0.0))
+	return loss >= BESIEGE_LOSSES and float(trades.get("kill", 0.0)) < loss * BESIEGE_TRADE
+
+
+## The last tier's gate's health share while it is the front (-1 otherwise).
+func _last_gate_share() -> float:
+	var g := war.front_gate()
+	if g == null or g.tier < SiegeArena.GATE_Z.size() - 1:
+		return -1.0
+	return float(g.hp) / float(maxi(1, g.max_hp))
+
+
 ## Phase hysteresis: a calm phase is changed after two thinks or this long.
 const PHASE_MIN := 6.0
+## The race: muster at the last gate under MUSTER_HP of its health (nobody holds the
+## castle), surge to the switch for SURGE_TIME s once it falls.
+const MUSTER_HP := 0.35
+## Besieging: the waves lose the trades (falls taken at least BESIEGE_LOSSES, under
+## BESIEGE_TRADE of them dealt back); it stays up to BESIEGE_MAX s (less in a window).
+const BESIEGE_LOSSES := 4.0
+const BESIEGE_TRADE := 0.5
+const BESIEGE_MAX := 90.0
+const SURGE_TIME := 20.0
 ## The last minutes of the war.
 const LAST_CALL := 120.0
 ## Orders: at most one every ORDER_GAP s, the same key not within ORDER_REPEAT s (urgent
@@ -92,7 +133,7 @@ const PHASES := {
 	"form": "จัดทัพ", "breach": "ทลายประตู", "exploit": "ฉวยจังหวะบุก", "wait": "ถอยรอกำลังเสริม",
 	"switch": "ชิงสวิตช์", "assault": "บุกแท่น", "capture": "คุ้มกันการยึดแท่น",
 	"hold": "ตั้งรับจุดคอขวด", "guard": "เฝ้าปราสาท", "stop": "สกัดการยึด", "counter": "สวนกลับ",
-	"recover": "ถอยฟื้นพล", "vulture": "รอซ้ำเติม",
+	"recover": "ถอยฟื้นพล", "vulture": "รอซ้ำเติม", "muster": "รวมพลหน้าประตูสุดท้าย", "besiege": "ล้อมรอจังหวะ",
 }
 ## Phases that change at once (no hysteresis).
 const URGENT: Array[String] = ["stop", "capture", "recover"]
@@ -126,6 +167,13 @@ var wait := false
 var _window_since := 0.0
 var _wait_ended := -1.0e9
 var last_call := false
+## The race for the castle: mustering at the last gate, surging through it (until when).
+var muster := false
+## Besieging a holder that keeps beating the waves (see think), and since when.
+var besiege := false
+var _besiege_since := 0.0
+var surge_until := -1.0e9
+var _last_gate_seen := true
 ## The last reading (tests, the HUD): see read_field.
 var field: Dictionary = {}
 ## Squads: instance id -> squad key; squad key -> its leader; squad key -> count.
@@ -391,8 +439,12 @@ static func phase_for(r: Dictionary) -> String:
 		return "hold" if bool(r.get("gates_up", false)) else "guard"
 	if plan == "hold":
 		return "hold"
+	if bool(r.get("besiege", false)):
+		return "besiege"
 	if bool(r.get("wait", false)):
 		return "wait"
+	if bool(r.get("muster", false)) and bool(r.get("gates_up", true)):
+		return "muster"
 	if bool(r.get("engage", false)):
 		return "exploit"
 	if bool(r.get("gates_up", true)):
@@ -484,11 +536,35 @@ func think() -> void:
 	engage = bool(win[0])
 	wait = bool(win[1])
 	last_call = war.time_left <= LAST_CALL
+	# The race for the castle (nobody holds it): the whole guild musters at the last gate
+	# as it is about to fall, and surges through to the switch the moment it does.
+	muster = pick_muster(r, _last_gate_share())
+	if muster:
+		wait = false
+	if war.front_gate() == null and _last_gate_seen and war.castle_owner < 0:
+		surge_until = clock + SURGE_TIME
+	_last_gate_seen = war.front_gate() != null
+	var surging := clock < surge_until and war.castle_owner < 0 and not bool(r.holding)
+	if surging:
+		wait = false
+	r["muster"] = muster
+	# Besieging a holder: its waves keep failing (it loses the trades badly), so it stops
+	# feeding the holder falls: it stays massed in the last yard (catching the holder's
+	# fighters as they come out of the keep) until the holder's front is spent (the
+	# window), the last minutes, or BESIEGE_MAX s, then tries a wave again.
+	var trades := {"loss": commander.loss_heat, "kill": commander.kill_heat}
+	var next_besiege := pick_besiege(besiege, clock - _besiege_since, r, trades, engage)
+	if next_besiege != besiege:
+		besiege = next_besiege
+		_besiege_since = clock
+	if besiege:
+		wait = true
+	r["besiege"] = besiege
 	r["engage"] = engage
 	r["wait"] = wait
 	r["counter"] = bool(r.holding) and commander.counter_team >= 0 and float(r.foe_spent) >= EXPLOIT_SPENT
 	field = r
-	commander.hints = {"engage_now": engage, "hold_back": wait, "all_in": last_call and not bool(r.holding), "stage": stage_point() if wait else Vector3.INF}
+	commander.hints = {"engage_now": engage or muster or surging, "hold_back": wait, "all_in": last_call and not bool(r.holding), "stage": stage_point() if wait else Vector3.INF}
 	var next := phase_for(r)
 	var settled := settle_phase(phase, clock - phase_since, _candidate, next)
 	_candidate = next
@@ -620,7 +696,7 @@ func order(key: String, text: String, urgent := false) -> bool:
 		return false
 	_last_order = clock
 	_order_at[key] = clock
-	var line := ("⚑ ที่ปรึกษาแนะนำ: " if _advisor() else "⚑ ") + text
+	var line := ("⚑ แนะนำ: " if _advisor() else "⚑ ") + text
 	orders_said += 1
 	orders.append(line)
 	if orders.size() > 16:
@@ -666,37 +742,41 @@ func _announce_phase(_was: String, r: Dictionary) -> void:
 	var foe_name := war.team_name(foe) if foe >= 0 else "ศัตรู"
 	match phase:
 		"form":
-			order("form", "แผน: จัดทัพที่%s — แนวหน้ายืนหน้า ระยะไกลกระจายปีก ฮีลอยู่หลัง ครบแล้วบุกพร้อมกัน" % _place())
+			order("form", "แผน: จัดทัพที่%s แทงค์หน้า ฮีลหลัง ครบแล้วบุก" % _place())
 		"breach":
 			if commander.split:
-				order("breach", "แผน: แบ่งสองทาง ตีประตูซ้ายและขวาพร้อมกัน — แนวหน้าคุมหน้า หน่วยทำลายตีประตู ฮีลตามหลัง")
+				order("breach", "แผน: แบ่งตีประตูซ้าย-ขวาพร้อมกัน ฮีลตามหลัง")
 			else:
-				order("breach", "แผน: ทลาย%s — แทงค์นำหน้า หน่วยทำลายตีประตู ฮีลตามหลัง นักฆ่าเก็บฮีลศัตรู" % _gate_text())
+				order("breach", "แผน: ทลาย%s แทงค์นำ หน่วยทำลายตาม ฮีลอยู่หลัง" % _gate_text())
 		"exploit":
-			order("exploit", "เปลี่ยนแผน! กิลด์ %s ล้มไป %d%% กำลังเดินกลับ — บุกเดี๋ยวนี้ ไม่ต้องรอ" % [foe_name, int(float(r.get("foe_spent", 0.0)) * 100.0)])
+			order("exploit", "เปลี่ยนแผน! %s ล้มไป %d%% บุกเดี๋ยวนี้!" % [foe_name, int(float(r.get("foe_spent", 0.0)) * 100.0)])
 		"wait":
-			order("wait", "ถอยรอกำลังเสริม! หน้าแนวเราน้อยกว่า (%d:%d) — รวมพลที่%s อย่าบุกทีละคน" % [int(r.get("near", 0)), int(r.get("foe_near", 0)), _place()])
+			order("wait", "ถอยรอพล! หน้าแนว %d:%d รวมที่%s อย่าบุกทีละคน" % [int(r.get("near", 0)), int(r.get("foe_near", 0)), _place()])
 		"switch":
-			order("switch", "แผน: ชิงสวิตช์ — หน่วยสวิตช์ %d คนยึดวง ที่เหลือไล่ศัตรูออกจากวง หัวกิลรอหลังแนว" % commander.squad.size())
+			order("switch", "แผน: ชิงสวิตช์ หน่วยสวิตช์ %d คนยึดวง หัวกิลรอหลังแนว" % commander.squad.size())
 		"assault":
-			order("assault", "แผน: บุกแท่น — แนวหน้าเคลียร์แท่น ฮีลประกบหัวกิล นักฆ่าล่าฮีลศัตรู หน่วยสวิตช์ห้ามออกจากวง")
+			order("assault", "แผน: บุกแท่น แนวหน้าเคลียร์ ฮีลประกบหัวกิล")
 		"capture":
-			order("capture", "หัวกิลกำลังยึดแท่น! ทุกหน่วยล้อมแท่น แนวหน้าขวางประตูห้องบัลลังก์ หน่วยสวิตช์ห้ามออกจากวง", true)
+			order("capture", "หัวกิลยึดแท่น! ล้อมแท่น ขวางประตู ห้ามออกจากวงสวิตช์", true)
 		"stop":
 			var who := int(war.capture.get("team", -1))
-			order("stop", "ด่วน! กิลด์ %s กำลังยึดแท่น — ทุกคนเข้าแท่น สตันหัวกิลมัน แย่งวงสวิตช์ให้บาเรียกลับมา" % (war.team_name(who) if who >= 0 else "ศัตรู"), true)
+			order("stop", "ด่วน! %s ยึดแท่น สตันหัวกิลมัน แย่งวงสวิตช์" % (war.team_name(who) if who >= 0 else "ศัตรู"), true)
 		"hold":
-			order("hold", "แผน: ตั้งรับที่%s — แนวหน้าขวางคอขวด ระยะไกลยิงจากหลัง คนเจ็บถอยไปหาฮีล" % _place())
+			order("hold", "แผน: ตั้งรับที่%s แทงค์ขวางคอขวด คนเจ็บถอยหาฮีล" % _place())
 		"guard":
-			order("guard", "แผน: เฝ้าปราสาท — หน่วยสวิตช์เฝ้าวง ที่เหลือคุมหน้าห้องบัลลังก์ ผลัดคนเจ็บออกมาฮีล")
+			order("guard", "แผน: เฝ้าปราสาท หน่วยสวิตช์เฝ้าวง ผลัดคนเจ็บ")
 		"counter":
-			order("counter", "สวนกลับ! กิลด์ %s หมดแรงแล้ว — ออกไปไล่ตี แล้วกลับมาเฝ้าแท่น" % war.team_name(commander.counter_team if commander.counter_team >= 0 else foe))
+			order("counter", "สวนกลับ! %s หมดแรงแล้ว ไล่ตีแล้วกลับมา" % war.team_name(commander.counter_team if commander.counter_team >= 0 else foe))
 		"recover":
-			order("recover", "ถอย รวมพลที่%s! รอเพื่อนเกิดแล้วค่อยไปใหม่" % _place(), true)
+			order("recover", "ถอย! รวมพลที่%s รอเพื่อนเกิดก่อน" % _place(), true)
+		"besiege":
+			order("besiege", "ล้อมรอจังหวะ! อย่าบุกทีละคน รวมที่ลานชั้นใน ดักคนของ %s ที่ออกมา" % foe_name)
+		"muster":
+			order("muster", "ประตูสุดท้ายใกล้พัง! รวมที่%s พังแล้ววิ่งเข้าสวิตช์" % _gate_text())
 		"vulture":
 			var pair := commander.busy_pair()
 			if pair.size() == 2:
-				order("vulture", "รอจังหวะ! ปล่อยกิลด์ %s กับ %s ซัดกันก่อน แล้วเราค่อยซ้ำ" % [war.team_name(pair[0]), war.team_name(pair[1])])
+				order("vulture", "รอจังหวะ! ให้ %s กับ %s ซัดกันก่อน" % [war.team_name(pair[0]), war.team_name(pair[1])])
 
 
 ## The war's turns: a tier broken, our leader down or back, the castle changing hands, the
@@ -710,29 +790,29 @@ func _events(r: Dictionary) -> void:
 		_tiers_seen = open
 		if not bool(r.holding):
 			if open >= SiegeArena.GATE_Z.size():
-				order("tier", "ประตูชั้นสุดท้ายพังแล้ว! เข้าห้องบัลลังก์ ชิงสวิตช์ก่อน แล้วค่อยบุกแท่น", true)
+				order("tier", "ประตูสุดท้ายพัง! ชิงสวิตช์ก่อนแล้วบุกแท่น", true)
 			else:
-				order("tier", "ประตูชั้น %d พังแล้ว! เดินหน้า รวมพลที่%s" % [open, _place()], true)
+				order("tier", "ประตูชั้น %d พัง! เดินหน้ารวมที่%s" % [open, _place()], true)
 		else:
-			order("tier", "ประตูชั้น %d ของเราพัง! ถอยไปตั้งรับชั้นถัดไป" % open, true)
+			order("tier", "ประตูชั้น %d ของเราพัง! ถอยตั้งรับชั้นถัดไป" % open, true)
 	var lead := war.ai_leader(team)
 	var up := lead != null and not lead.is_dead()
 	if lead != null and _leader_was_up and not up and war.front_gate() == null and not bool(r.holding):
-		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิลกลับมา หน่วยสวิตช์เฝ้าวงไว้", true)
+		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล หน่วยสวิตช์เฝ้าวง", true)
 	_leader_was_up = up
 	if war.castle_owner != _owner_seen:
 		_owner_seen = war.castle_owner
 		if war.castle_owner == team:
-			order("owner", "ยึดปราสาทได้แล้ว! ตั้งรับ — หน่วยสวิตช์เฝ้าวง แนวหน้าคุมประตู ฮีลอยู่กลาง", true)
+			order("owner", "ยึดปราสาทได้! สวิตช์เฝ้าวง แทงค์คุมประตู", true)
 		elif war.castle_owner >= 0:
-			order("owner", "กิลด์ %s ยึดปราสาทไป! รวมพลแล้วบุกชิงคืน" % war.team_name(war.castle_owner), true)
+			order("owner", "%s ยึดปราสาทไป! รวมพลแล้วชิงคืน" % war.team_name(war.castle_owner), true)
 	if last_call and not _order_at.has("last"):
 		if bool(r.holding):
-			order("last", "เหลือ 2 นาที! ทุกคนเฝ้าแท่นกับสวิตช์จนหมดเวลา ห้ามไล่ออกไปไกล", true)
+			order("last", "เหลือ 2 นาที! เฝ้าแท่นกับสวิตช์จนหมดเวลา", true)
 		elif war.castle_owner >= 0:
-			order("last", "เหลือ 2 นาที! ทุ่มสุดตัว ห้ามถอย บุกแท่นชิงปราสาทให้ได้", true)
+			order("last", "เหลือ 2 นาที! ห้ามถอย บุกชิงปราสาท", true)
 		else:
-			order("last", "เหลือ 2 นาที! ห้ามถอย บุกยึดแท่นให้ได้ก่อนหมดเวลา", true)
+			order("last", "เหลือ 2 นาที! ห้ามถอย บุกยึดแท่น", true)
 
 
 ## Ours on the HUD: the phase's name ("" before the first think).

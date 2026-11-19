@@ -653,8 +653,8 @@ func _build_board() -> void:
 	_feed.anchor_right = 0.5
 	_feed.anchor_top = 1.0
 	_feed.anchor_bottom = 1.0
-	_feed.offset_left = -290
-	_feed.offset_right = 290
+	_feed.offset_left = -370
+	_feed.offset_right = 370
 	_feed.offset_top = -88
 	_feed.offset_bottom = -4
 	_feed.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
