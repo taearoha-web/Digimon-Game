@@ -254,10 +254,27 @@ func _level_text() -> String:
 	if god != "":
 		line = "✦ %s ✦\n%s" % [god, line]
 	if doing == "errand" and not party_mode and ERRAND_TAGS.has(errand):
-		return line + "\n«%s»" % ERRAND_TAGS[errand]
-	if ai_party_id != "" and not party_mode and ai_leader >= 0 and ai_leader < WorldPlayers.size():
-		return line + "\n«ปาร์ตี้ของ %s · %d คน»" % [WorldPlayers.entry(ai_leader).name, ai_members.size()]
-	return line + ("\n«ร้านค้า»" if doing == "stall" and not party_mode else "")
+		line += "\n«%s»" % ERRAND_TAGS[errand]
+	elif ai_party_id != "" and not party_mode and ai_leader >= 0 and ai_leader < WorldPlayers.size():
+		line += "\n«ปาร์ตี้ของ %s · %d คน»" % [WorldPlayers.entry(ai_leader).name, ai_members.size()]
+	else:
+		line += "\n«ร้านค้า»" if doing == "stall" and not party_mode else ""
+	# The week's หนึ่งในใต้หล้า (MazeCrown) wears the crown's grand plate above it all.
+	_crown_plate(line)
+	return line
+
+
+## The crown title's plate over the name label, placed for `text` (the label's next text).
+func _crown_plate(text: String) -> void:
+	if not is_instance_valid(_label):
+		return
+	var held := world_index >= 0 and MazeCrown.ai_holds(world_index)
+	if not held and _label.get_node_or_null("CrownPlate") == null:
+		return
+	var was := _label.text
+	_label.text = text
+	MazeCrown.attach_plate(_label, held)
+	_label.text = was
 
 
 ## New level, stars or finds from the schedule (WorldPresence): the field sees the

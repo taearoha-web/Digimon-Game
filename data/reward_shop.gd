@@ -47,7 +47,8 @@ const MAX_PAID := 32
 const MAX_OWN := 64
 const MAX_NUMBER := 1000000000000
 const ID_MAX := 32
-const INT_KEYS: Array[String] = ["lc", "ep", "week", "ev_day", "ev_pts", "boss_day", "bonus_week"]
+## cx: the end (unix) of the costume in the costume slot when it is a timed one (MazeCrown).
+const INT_KEYS: Array[String] = ["lc", "ep", "week", "ev_day", "ev_pts", "boss_day", "bonus_week", "cx"]
 const TEXT_KEYS: Array[String] = ["cos", "trail", "ncol"]
 const TABS := [["costume", "คอสตูม"], ["trail", "เอฟเฟกต์ท่าเดิน"], ["ncol", "สีชื่อ"], ["stone", "หินเสริมพลัง"]]
 
@@ -68,6 +69,9 @@ const COSTUMES := {
 	# exchange takes (else SkyIsleLoot.FRAGMENT); `festival` keeps it to the festival's days.
 	"loykrathong": {"name": "ชุดลอยกระทง", "cloth": Color("d6365a"), "sheen": 0.6, "glow": Color(0.3, 0.16, 0.02), "desc": "สไบทองปักลายกนกพาดไหล่ · มงกุฎดอกบัวทองยอดชฎา · เข็มขัดทองหัวพลอยกับชายผ้าห้อยหน้า · กำไลต้นแขนทอง · ดวงไฟกระทงน้อยลอยวนรอบตัว · แลกด้วยชิ้นส่วนหรือแต้มลอยกระทงช่วงเทศกาลเท่านั้น", "lc": 0, "ep": 0, "fragments": 30, "frag_id": "lk_piece", "festival": "loyk"},
 	"dragon_god": {"name": "ชุดเทพมังกร", "cloth": Color("1f9c86"), "sheen": 0.65, "glow": Color(0.05, 0.3, 0.22), "desc": "เขามังกรทองและหงอนหยก · หางมังกรเกล็ดหยกยาวส่ายไปมา · ผ้าคลุมไหล่เกล็ดมังกรเข็มกลัดทอง · มังกรวิญญาณตัวน้อยบินวนรอบตัว · แลกด้วยชิ้นส่วนจากเกาะลอยฟ้าเทพมังกรเท่านั้น", "lc": 0, "ep": 0, "fragments": 50},
+	# หนึ่งในใต้หล้า's crown (MazeCrown.COSTUME_ID): never sold nor exchanged (`crown`), won by
+	# the week's champion of เขาวงกตหนึ่งในใต้หล้า, an item that ends (`expires`) with the crown.
+	"maze_sovereign": {"name": "เทพราชันหนึ่งในใต้หล้า", "cloth": Color("2a2133"), "sheen": 0.8, "glow": Color(0.36, 0.22, 0.03), "desc": "มงกุฎจักรพรรดิทองยอดเปลวสุริยะประดับหยกจักรพรรดิ · รัศมีสุริยะเรืองรองหลังศีรษะ · ผ้าคลุมยาวสีนิลปักลายมังกรทองพลิ้วไหว คอตั้งทอง · เกราะไหล่หัวมังกรทอง · เข็มขัดหยกกับชายผ้าหน้าและพู่หยกห้อยข้าง · มังกรทองบินวนรอบตัว · รางวัลผู้ครองหนึ่งในใต้หล้าประจำสัปดาห์ (มีอายุถึงสิ้นสัปดาห์ถัดไป)", "lc": 0, "ep": 0, "crown": true},
 }
 ## Walk trails (WalkTrail): what follows the hero's steps.
 const TRAILS := {
@@ -328,6 +332,8 @@ static func name_of(tab: String, id: String) -> String:
 ## "300 เหรียญลีก + 60 แต้มกิจกรรม" of an entry.
 static func price_text(e: Dictionary) -> String:
 	var parts: PackedStringArray = []
+	if bool(e.get("crown", false)):
+		return "รางวัลผู้ครอง%s (อันดับ 1 ยอดสังหาร%sประจำสัปดาห์) · ไม่มีขาย" % [MazeCrown.TITLE_NAME, MazeWar.TITLE]
 	if fragments_of(e) > 0:
 		var where := LoyKrathong.TITLE if String(e.get("festival", "")) == "loyk" else "ดรอปที่%s" % SkyIsleData.TITLE
 		return "แลกด้วยชิ้นส่วน %d ชิ้น (มี %d) · %s" % [fragments_of(e), Game.jewel_count(fragment_id(e)) if Game.has_profile else 0, where]
@@ -372,7 +378,7 @@ static func active(tab: String) -> String:
 ## A costume's grade by its price in coins (the bag tile's colour).
 static func costume_rarity(id: String) -> int:
 	var lc := int(COSTUMES.get(id, {}).get("lc", 0))
-	if lc >= 800 or fragments_of(COSTUMES.get(id, {})) > 0:
+	if lc >= 800 or fragments_of(COSTUMES.get(id, {})) > 0 or bool(COSTUMES.get(id, {}).get("crown", false)):
 		return 4
 	if lc >= 600:
 		return 3
@@ -381,19 +387,24 @@ static func costume_rarity(id: String) -> int:
 	return 1
 
 
-## The item of costume `id` ({} for an unknown id). Every copy of a costume is the same.
-static func costume_item(id: String) -> Dictionary:
+## The item of costume `id` ({} for an unknown id). Every copy of a costume is the same,
+## but the crown's (MazeCrown) carries its end: `expires` (unix).
+static func costume_item(id: String, expires := 0) -> Dictionary:
 	if not COSTUMES.has(id):
 		return {}
-	return {"kind": "costume", "id": id, "rarity": costume_rarity(id)}
+	var item := {"kind": "costume", "id": id, "rarity": costume_rarity(id)}
+	if id == MazeCrown.COSTUME_ID:
+		item["expires"] = expires
+	return item
 
 
-## A saved costume item is well formed (Game._valid_item): a known id, its grade, nothing else.
+## A saved costume item is well formed (Game._valid_item): a known id, its grade, and the
+## crown's end (MazeCrown.valid_expires: the crown always has one, no other costume does).
 static func valid_costume_item(item: Dictionary) -> bool:
 	for key in item:
-		if not String(key) in ["kind", "id", "rarity"]:
+		if not String(key) in ["kind", "id", "rarity", "expires"]:
 			return false
-	return item.get("id") is String and COSTUMES.has(String(item.id)) and Game._valid_integer(item.get("rarity", 1), 0, 4)
+	return item.get("id") is String and COSTUMES.has(String(item.id)) and Game._valid_integer(item.get("rarity", 1), 0, 4) and MazeCrown.valid_expires(item)
 
 
 ## The costume in the hero's costume slot ("" for none).
@@ -412,10 +423,10 @@ static func worn_of(p: Dictionary) -> String:
 	return id if COSTUMES.has(id) else ""
 
 
-## The item in the costume slot, or null when it is empty.
+## The item in the costume slot, or null when it is empty (the crown with its end, cx).
 static func worn_costume_item() -> Variant:
 	var id := worn_costume()
-	return costume_item(id) if id != "" else null
+	return costume_item(id, int(data().get("cx", 0))) if id != "" else null
 
 
 ## Bag slot of the first costume item `id` ("" = any costume), -1 when there is none.
@@ -445,13 +456,42 @@ static func wear_from_bag(index: int) -> String:
 	var id := String(inv[index].get("id", ""))
 	if not COSTUMES.has(id):
 		return "ไม่มีของชิ้นนี้"
-	var old := worn_costume()
+	var old_item: Variant = worn_costume_item()
+	var expires := int(inv[index].get("expires", 0))
 	inv.remove_at(index)
-	if old != "":
-		inv.insert(index, costume_item(old))
-	data()["cos"] = id
+	if old_item is Dictionary:
+		inv.insert(index, old_item)
+	_put_on(id, expires)
 	_costume_changed()
 	return "ok"
+
+
+## The costume slot now holds `id` (its end in cx for the crown, none for the rest).
+static func _put_on(id: String, expires := 0) -> void:
+	var d := data()
+	d["cos"] = id
+	if id == MazeCrown.COSTUME_ID:
+		d["cx"] = expires
+	else:
+		d.erase("cx")
+
+
+## Puts costume `item` on at once (MazeCrown's award): the one worn before goes to the bag,
+## else the shared storage, else the bag past its size (a costume never goes missing).
+static func give_worn(item: Dictionary) -> void:
+	if not Game.has_profile or not valid_costume_item(item):
+		return
+	var old_item: Variant = worn_costume_item()
+	_put_on(String(item.id), int(item.get("expires", 0)))
+	if old_item is Dictionary:
+		if Game.inventory_free() > 0:
+			Game.profile.inv.append(old_item)
+		elif SharedStorage.put(old_item):
+			SharedStorage.store()
+		else:
+			Game.profile.inv.append(old_item)
+		Game.say("%s ถูกถอดเก็บไว้ในกระเป๋าหรือคลังรวม" % ItemData.name_of(old_item), &"info")
+	_costume_changed()
 
 
 ## Takes the worn costume off into the bag. "ok" (also when nothing is worn) or a reason.
@@ -466,8 +506,8 @@ static func take_off_costume() -> String:
 		return "ok"
 	if Game.inventory_free() <= 0:
 		return "กระเป๋าเต็ม"
-	Game.profile.inv.append(costume_item(old))
-	data()["cos"] = ""
+	Game.profile.inv.append(worn_costume_item())
+	_put_on("")
 	_costume_changed()
 	return "ok"
 
@@ -563,6 +603,8 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 	var e := entry(tab, id)
 	if e.is_empty():
 		return "ไม่มีสินค้านี้"
+	if bool(e.get("crown", false)):
+		return "ได้จากการครอง%sเท่านั้น" % MazeCrown.TITLE_NAME
 	if tab != "stone" and owns(id):
 		return "มีแล้ว"
 	if tab == "stone" and bought(id, t) >= int(e.limit):
@@ -634,6 +676,15 @@ static func world_cosmetics(i: int, t := -1.0) -> Dictionary:
 		return out
 	if t < 0.0:
 		t = now()
+	out = _world_bought(i, t)
+	# The week's หนึ่งในใต้หล้า (MazeCrown) wears its crown's costume over what it bought.
+	if MazeCrown.ai_holds(i, t):
+		out["cos"] = MazeCrown.COSTUME_ID
+	return out
+
+
+static func _world_bought(i: int, t: float) -> Dictionary:
+	var out := {"cos": "", "trail": "", "ncol": ""}
 	var day := WorldEvents.day_of(t)
 	var key := "%d|%d" % [i, day]
 	if _world_cache.has(key):
@@ -653,8 +704,9 @@ static func world_cosmetics(i: int, t := -1.0) -> Dictionary:
 		var wishes: Array = []
 		for tab in ["costume", "trail", "ncol"]:
 			for id in catalog(tab):
-				# Never the isle's costume: it is not sold for coins (fragments only).
-				if fragments_of(catalog(tab)[id]) <= 0:
+				# Never the isle's costume: it is not sold for coins (fragments only), nor the
+				# crown's (MazeCrown: won, never bought).
+				if fragments_of(catalog(tab)[id]) <= 0 and not bool(catalog(tab)[id].get("crown", false)):
 					wishes.append([tab, id])
 		for k in range(wishes.size() - 1, 0, -1):
 			var j := rng.randi() % (k + 1)
@@ -821,5 +873,12 @@ static func repair(profile: Dictionary) -> void:
 		if key == "cos":
 			if id != "" and not COSTUMES.has(id):
 				d[key] = ""
+			# The crown in the costume slot keeps its end (cx) in range; nothing else has one.
+			if String(d[key]) == MazeCrown.COSTUME_ID:
+				if not Game._valid_integer(d.get("cx"), MazeCrown.EXPIRES_MIN, MazeCrown.EXPIRES_MAX):
+					d[key] = ""
+					d.erase("cx")
+			else:
+				d.erase("cx")
 		elif id != "" and not own.has(id):
 			d[key] = ""

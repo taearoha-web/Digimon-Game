@@ -106,6 +106,16 @@ func _build() -> void:
 		god_line.name = "GodTitle"
 		god_line.add_theme_color_override("font_color", Color("ffe27a"))
 		_body.add_child(god_line)
+	# The week's หนึ่งในใต้หล้า (MazeCrown): its crown title and costume, and until when.
+	if MazeCrown.ai_holds(i):
+		var crown := MazeCrown.holder()
+		var crown_line := UIUtil.label("%s %s %s · %d ศพ · ชุด%s · %s" % [MazeCrown.CROWN, MazeCrown.TITLE_NAME, MazeCrown.CROWN, int(crown.get("kills", 0)), MazeCrown.COSTUME_NAME, MazeCrown.left_text(int(crown.get("until", 0)))], &"BoldLabel")
+		crown_line.name = "CrownTitle"
+		crown_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		crown_line.add_theme_color_override("font_color", MazeCrown.COLOR)
+		crown_line.add_theme_color_override("font_outline_color", MazeCrown.EDGE)
+		crown_line.add_theme_constant_override("outline_size", 6)
+		_body.add_child(crown_line)
 	# What it really wears (WorldGear: the same pieces its fighter and its body use).
 	var gear_text := gear_lines(i, WorldPresence.clock())
 	if gear_text != "":

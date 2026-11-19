@@ -220,7 +220,10 @@ func refresh_name_plate() -> void:
 		hero_name = "「%s」 %s" % [LegendWings.TAG, hero_name]
 		if not champion:
 			_name_plate.modulate = LegendWings.COLOR
-	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
+	# หนึ่งในใต้หล้า (MazeCrown) has its own grand plate above the name instead of the line.
+	var crowned := MazeCrown.wears_title(Game.profile)
+	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" and not crowned else hero_name
+	MazeCrown.attach_plate(_name_plate, crowned)
 
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.

@@ -168,6 +168,8 @@ func _process(delta: float) -> void:
 		GuildLeague.tick()
 		# The season's Legendary Guild Wings, minted once the season is over.
 		LegendWings.tick()
+		# หนึ่งในใต้หล้า's weekly crown: awarded once, and gone at its end (MazeCrown).
+		MazeCrown.settle()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -814,6 +816,8 @@ func load_game(from_slot := -1) -> bool:
 		if _write_profile(clean, slot):
 			_queue_cloud_save()
 	_migrate_costume_items()
+	# หนึ่งในใต้หล้า's crown: the weeks ended while away, and every crown past its end.
+	MazeCrown.settle()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
@@ -1168,6 +1172,9 @@ func _valid_profile(data: Dictionary) -> bool:
 		return false
 	# The reward exchange's currencies and unlocks (RewardShop).
 	if data.has(RewardShop.KEY) and not RewardShop.valid(data[RewardShop.KEY]):
+		return false
+	# หนึ่งในใต้หล้า's crown record (MazeCrown).
+	if data.has(MazeCrown.KEY) and not MazeCrown.valid_record(data[MazeCrown.KEY]):
 		return false
 	# The week's rare collection record (WeeklyCollect).
 	if data.has(WeeklyCollect.KEY) and not WeeklyCollect.valid(data[WeeklyCollect.KEY]):
@@ -1532,6 +1539,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["guild_leaders"] = leaders
 	GuildLeague.repair(data)
 	RewardShop.repair(data)
+	MazeCrown.repair(data)
 	WeeklyCollect.repair(data)
 	LoyKrathong.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
@@ -1633,8 +1641,11 @@ func _repair_item(item: Dictionary) -> void:
 		item["stats"] = item.get("stats", {})
 		item["gems"] = item.get("gems", [])
 	elif item.get("kind") == "costume":
-		# One piece, no count: its grade follows the costume's price.
+		# One piece, no count: its grade follows the costume's price; the crown's end
+		# (MazeCrown) back to an int.
 		item["rarity"] = RewardShop.costume_rarity(String(item.get("id", "")))
+		if item.has("expires"):
+			item["expires"] = int(item.expires)
 		return
 	else:
 		item["count"] = int(item.get("count", 1))
@@ -2472,6 +2483,11 @@ func deposit_item(index: int) -> bool:
 	if index < 0 or index >= profile["inv"].size():
 		return false
 	var item: Dictionary = profile["inv"][index]
+	# หนึ่งในใต้หล้า's costume stays with its champion (MazeCrown.deposit_lock).
+	var lock := MazeCrown.deposit_lock(item)
+	if lock != "":
+		say(lock, &"warning")
+		return false
 	if not SharedStorage.put(item):
 		say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), STORAGE_SIZE], &"warning")
 		return false
