@@ -20,9 +20,12 @@ extends Node
 ## (Game.party_invite).
 ##
 ## The transport is anything with send(json) -> id and poll(id) -> answer JSON. The
-## default is ChatBrain.LocalTransport. WebTransport would ask the account server's
-## Claude chat instead (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
-## per message and needs the owner's API key, so it is not used. Tests use a stand-in.
+## default is ChatBrain.LocalTransport: free, offline, every claim true (ChatMind,
+## ChatFacts; chat_coverage_test checks it with ChatTruth). WebTransport asks the account
+## server's Claude chat (hosting/worker/chat.mjs, tools/web/accounts.js), which costs money
+## per message: it is only ever used through ChatCloud, an optional helper for open small
+## talk that is off unless the project setting CLOUD_SETTING is true, and whose replies are
+## shown only when every claim holds (ChatTruth.grounded). Tests use a stand-in.
 ##
 ## Online (real players signed in, Online): a world line also goes to the real players, a
 ## party line to the real party as well as the AI members, and a whisper ("/w name text",
@@ -33,6 +36,8 @@ signal replied(index: int, text: String, action: String)
 signal failed(index: int, message: String)
 
 const HISTORY := 8
+## The project setting that switches the optional cloud small-talk helper on (ChatCloud).
+const CLOUD_SETTING := "toon_tale/cloud_chat"
 const HERO_COLOR := Color("ffe27a")
 const PLAYER_COLOR := Color("8ff0ff")
 const WAIT_LIMIT := 40.0
@@ -86,6 +91,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if transport == null:
 		transport = ChatBrain.LocalTransport.new()
+		# The optional cloud helper for small talk (off by default; it costs money).
+		ChatCloud.enabled = bool(ProjectSettings.get_setting(CLOUD_SETTING, false))
+		if ChatCloud.enabled and OS.has_feature("web"):
+			var cloud := ChatCloud.new()
+			cloud.web = WebTransport.new()
+			transport = cloud
 	rng.randomize()
 	if not Game.channel_chat.is_connected(_on_channel_chat):
 		Game.channel_chat.connect(_on_channel_chat)
@@ -485,6 +496,7 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 			"gender": int(s.get("gender", 0)),
 			"inParty": Game.in_party(i),
 			"divine": bool(s.get("divine", false)),
+			"online": bool(s.get("online", false)),
 		},
 		"hero": {
 			"name": String(Game.profile.get("name", "")),
@@ -492,6 +504,9 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 			"level": int(Game.profile.get("level", 1)),
 			"stars": int(Game.paragon().get("level", 0)),
 			"guild": WorldPlayers.guild_name(Game.guild()),
+			# What anyone sees on the hero's card (ChatMind answers "ชุดฉันสวยไหม" from it).
+			"gear": ChatFacts.hero_sheet().get("gear", {}),
+			"costume": String(ChatFacts.hero_sheet().get("costume", "")),
 		},
 		"history": (history.get(i, []) as Array).duplicate(true),
 	}
@@ -544,8 +559,13 @@ func receive(i: int, answer: Dictionary, channel := "direct", thread := -1) -> v
 	if reply == "":
 		reply = "..."
 	var action := String(answer.get("action", "none"))
+	# What the answer was about (ChatMind), kept with it so a follow-up ("แล้วล่ะ") reads it.
+	var about := {}
+	for key in ["topic", "slot"]:
+		if answer.has(key):
+			about[key] = answer[key]
 	if channel == "party" or channel == "guild":
-		_remember_in("%s|%d" % [channel, i], "player", reply)
+		_remember_in("%s|%d" % [channel, i], "player", reply, about)
 		var g := WorldPlayers.guild_at(i, int(s.level))
 		_post(channel, String(s.name), reply, WorldPlayers.GUILD_COLORS.get(g, PLAYER_COLOR))
 		var mate := _field_player(i)
@@ -556,7 +576,7 @@ func receive(i: int, answer: Dictionary, channel := "direct", thread := -1) -> v
 		if channel == "party" and Game.in_party(i):
 			_follow(i, reply, thread)
 		return
-	_remember(i, "player", reply)
+	_remember(i, "player", reply, about)
 	var name_text := String(s.name)
 	Game.world_chat.emit(name_text if channel == "world" else "%s (ถึงคุณ)" % name_text, reply, PLAYER_COLOR)
 	var p := _field_player(i)
@@ -585,17 +605,21 @@ func _act(i: int, action: String) -> void:
 				main.shop.open_stall(i)
 
 
-func _remember_in(key: String, who: String, text: String) -> void:
+func _remember_in(key: String, who: String, text: String, about := {}) -> void:
 	var talk: Array = channel_history.get(key, [])
-	talk.append({"who": who, "text": text})
+	var line := {"who": who, "text": text}
+	line.merge(about)
+	talk.append(line)
 	while talk.size() > HISTORY:
 		talk.remove_at(0)
 	channel_history[key] = talk
 
 
-func _remember(i: int, who: String, text: String) -> void:
+func _remember(i: int, who: String, text: String, about := {}) -> void:
 	var talk: Array = history.get(i, [])
-	talk.append({"who": who, "text": text})
+	var line := {"who": who, "text": text}
+	line.merge(about)
+	talk.append(line)
 	while talk.size() > HISTORY:
 		talk.remove_at(0)
 	history[i] = talk

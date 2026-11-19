@@ -408,7 +408,11 @@ func _luck() -> void:
 	WorldPresence.chat_clock_override = -1.0
 	# News only: the winner's gear is what it was.
 	var gear := WorldGear.gear(int(e.index), float(e.at) + 60.0)
-	check(not String((gear.get("weapon", {}) as Dictionary).get("name", "")).contains("มังกร") and int((gear.get("wings", {}) as Dictionary).get("tier", 0)) <= 4, "the winner's gear model is untouched")
+	# The forge simulation never wears an isle jackpot: the weapon is one of its own finds
+	# (level / star / divine / set kinds, whose names may happen to contain "มังกร"), and
+	# the wings stay at most the legend pair's tier.
+	var weapon_kind := String((gear.get("weapon", {}) as Dictionary).get("kind", ""))
+	check(weapon_kind in ["", "level", "star", "divine", "set"] and not String((gear.get("weapon", {}) as Dictionary).get("name", "")).contains("เทพมังกร") and int((gear.get("wings", {}) as Dictionary).get("tier", 0)) <= 4, "the winner's gear model is untouched (%s)" % String((gear.get("weapon", {}) as Dictionary).get("name", "")))
 
 
 ## What the chat says about the isle is the game's own numbers.
