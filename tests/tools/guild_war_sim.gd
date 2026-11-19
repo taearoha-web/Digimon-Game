@@ -147,6 +147,10 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 			if killer is GuildFighter and (killer as GuildFighter).team != victim.team:
 				kills[(killer as GuildFighter).team] += 1)
 	var sample := 0.0
+	var stuck_who := ""
+	var trace := _env("SIM_TRACE", "") != ""
+	if trace:
+		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [clock, team, text]))
 	var frame_peak := 0.0
 	var frame_sum := 0.0
 	var frames := 0
@@ -181,6 +185,21 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 			phase_time[t][ph] = float(phase_time[t].get(ph, 0.0)) + dt
 			var pl := String(m.plans[t])
 			plan_time[t][pl] = float(plan_time[t].get(pl, 0.0)) + dt
+		if trace and int(clock / 20.0) != int((clock - dt) / 20.0):
+			var rows: PackedStringArray = []
+			for t in teams:
+				var up := m.side(t).filter(func(f): return not f.is_dead())
+				var mid := Vector3.ZERO
+				for f in up:
+					mid += f.global_position
+				mid = mid / float(maxi(1, up.size()))
+				var dd: Variant = m.doctrines[t]
+				var extra := ""
+				if dd != null:
+					var fl: Dictionary = dd.field
+					extra = " bal %.2f spent %.2f gath %.2f" % [float(fl.get("balance", 0)), float(fl.get("foe_spent", 0)), float(fl.get("gathered", 0))]
+				rows.append("t%d %s/%s/%s up %d mid (%.0f,%.0f)%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), mid.x, mid.z, extra])
+			print("[%.0f] %s | sw %d own %d cap %s" % [clock, " | ".join(rows), m.switch_owner, m.castle_owner, str(m.capture.get("team", "-"))])
 		sample += dt
 		if sample >= 5.0:
 			sample = 0.0
@@ -191,7 +210,9 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 				var idle := not f.is_dead() and not f.is_retreating() and (f._victim == null or not is_instance_valid(f._victim)) and Vector2(p.x - f.goal_point.x, p.z - f.goal_point.z).length() > 6.0
 				if idle and last_pos.has(id) and (last_pos[id] as Vector3).distance_to(p) < 0.8:
 					stuck[id] = float(stuck.get(id, 0.0)) + 5.0
-					stuck_max = maxf(stuck_max, float(stuck[id]))
+					if float(stuck[id]) > stuck_max:
+						stuck_max = float(stuck[id])
+						stuck_who = "t%d %s at %s goal %s plan %s phase %s" % [f.team, f.fighter_class(), str(p.round()), str(f.goal_point.round()), m.plans[f.team], m.phase_key(f.team)]
 				else:
 					stuck[id] = 0.0
 				last_pos[id] = p
@@ -223,7 +244,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		"clock": snappedf(clock, 1.0), "winner": int(r.get("winner", -2)), "score": Array(m.score), "captures_n": Array(m.captures),
 		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
 		"switch_s": switch_time.map(func(x): return int(x)), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
-		"points": points, "places": r.get("places", []), "stuck_max": stuck_max,
+		"points": points, "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
 		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks, "orders": orders,
 		"frame_avg_ms": snappedf(frame_sum / float(maxi(1, frames)), 0.01), "frame_peak_ms": snappedf(frame_peak, 0.1),
 		"wall_s": snappedf((Time.get_ticks_msec() - t0) / 1000.0, 0.1),
