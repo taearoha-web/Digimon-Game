@@ -283,6 +283,8 @@ function validateProfile(profile) {
         || ('got' in hunt && !integer(hunt.got, 0, 2 ** 7 - 1))
         || ['pts', 'kills', 'golden'].some(key => key in hunt && !integer(hunt[key], 0, 10000000))) fail(400, 'invalid_save', 'The dragon hunt record is invalid.');
   }
+  // The field bosses the hero saw fall (BossWorld in the game): {zone: {at, by}}.
+  if ('bossw' in profile && !validBossWorld(profile.bossw)) fail(400, 'invalid_save', 'The field boss record is invalid.');
   // The hero's stall (PlayerStall in the game): at most 10 lots of items with a price.
   if ('stall' in profile) {
     const stall = profile.stall;
@@ -338,6 +340,15 @@ function leagueRecord(war) {
     return ['g1', 'g2', 'g3', 'g4', 'held', 'own'].every(key => integer(war[key], 0, GUILD_COUNT));
   }
   return integer(war.a, 1, GUILD_COUNT) && integer(war.b, 1, GUILD_COUNT) && integer(war.win, 0, GUILD_COUNT) && integer(war.held, 0, GUILD_COUNT);
+}
+
+// BossWorld.valid in the game (keep these equal): at most 256 zones (ids up to 48
+// characters), each {at: unix seconds, by: a name up to 64 characters}.
+function validBossWorld(book) {
+  if (!dictionary(book) || Object.keys(book).length > 256) return false;
+  return Object.entries(book).every(([zone, entry]) => chars(zone) <= 48 && dictionary(entry)
+    && typeof entry.at === 'number' && Number.isFinite(entry.at) && entry.at >= 0 && entry.at <= 1e11
+    && (entry.by === undefined || (typeof entry.by === 'string' && chars(entry.by) <= 64)));
 }
 
 function validLeague(league) {

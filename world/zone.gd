@@ -149,8 +149,17 @@ var _arena_timer := 4.0
 var _arena_mobs: Array[Mob] = []
 var _camps: Array[Dictionary] = []
 var _boss: Mob
-var _boss_timer := 8.0
+## Seconds to the next look at the field boss's world state (BossWorld); 0 looks now.
+var _boss_timer := 0.0
 var _boss_spot := Vector3.ZERO
+## When the field boss standing here came (world clock), and whether this zone has seen
+## it down (its coming back is then told).
+var _boss_since := 0.0
+var _boss_seen_down := false
+## The sign at the boss spot while the boss is down (who, when, when it is back).
+var _boss_sign: Node3D
+var _boss_sign_label: Label3D
+var _boss_sign_in := 0.0
 ## The world boss of the day (WorldEvents), while its window is on in this field.
 var _wboss: Mob
 ## The golden monster (WorldEvents.golden_now) of the running window, and that window.
@@ -413,6 +422,7 @@ func _process(delta: float) -> void:
 		return
 	if is_hall:
 		return
+	_tick_boss_sign(delta)
 	# Another member hosts the monsters (EntitySync mirror): none of our own.
 	if sync != null and sync.is_mirror():
 		return
@@ -1374,22 +1384,184 @@ func _make_camp_marker(camp: Dictionary) -> void:
 	holder.add_child(label)
 
 
+## How close the hero may stand to the field boss and still see the world players'
+## kill of it happen elsewhere: closer, their try of this slot does not happen here.
+const BOSS_WATCH := 45.0
+## How often the field boss's world state is looked at (seconds).
+const BOSS_LOOK := 0.5
+
+
+## The field boss (BossWorld): up in the world, it stands at its spot (full HP) from the
+## moment the hero comes; down, its sign shows who took it and when it is back, and it
+## comes back at that moment, told to the field. A world players' kill (BossWorld.ai_kill)
+## that comes while it stands here takes it away when nobody fights or watches it,
+## otherwise it does not happen on this screen (BossWorld.hold).
 func _tick_boss(delta: float) -> void:
 	if not data.has("boss") or int(Game.paragon().level) < int(data.boss.get("star",0)):
 		return
+	if not BossWorld.has_boss(zone_id):
+		_tick_boss_local(delta)
+		return
+	_boss_timer -= delta
+	if _boss_timer > 0.0:
+		return
+	_boss_timer = BOSS_LOOK
+	var t := WorldPresence.clock()
+	var s := BossWorld.state(zone_id, t)
+	if _boss != null and is_instance_valid(_boss) and not _boss.is_dead():
+		if bool(s.alive) or float(s.killed_at) < _boss_since:
+			return
+		# The world says somebody brought it down after it came here.
+		if _boss.hp < _boss.max_hp or _boss.hostile or _hero_near_boss():
+			BossWorld.hold(zone_id, t)
+			return
+		var gone := _boss
+		_boss = null
+		gone.queue_free()
+		_boss_seen_down = true
+		_boss_sign_in = 0.0
+		Game.say("%s ถูก %s ปราบแล้ว" % [s.name, BossWorld.killer_text(s)], &"info")
+		return
+	if _boss != null and (not is_instance_valid(_boss) or _boss.is_dead()):
+		_boss = null
+	if not bool(s.alive):
+		_boss_seen_down = true
+		return
+	_spawn_field_boss(_boss_seen_down)
+	_boss_seen_down = false
+
+
+## The zone boss of a field BossWorld does not keep (none today): its own timer.
+func _tick_boss_local(delta: float) -> void:
 	if _boss != null and is_instance_valid(_boss) and not _boss.is_dead():
 		return
 	_boss_timer -= delta
 	if _boss_timer > 0.0:
 		return
+	_boss_timer = float(data.boss.respawn)
+	_spawn_field_boss(true)
+
+
+func _spawn_field_boss(tell: bool) -> void:
 	var info: Dictionary = data.boss
-	_boss_timer = float(info.respawn)
 	var mob := Mob.new()
 	mob.setup(info.monster, int(info.level), _boss_spot, hero)
 	mob.position = _boss_spot + Vector3(0, 0.3, 0)
 	add_child(mob)
 	_boss = mob
-	Game.say("บอส %s ปรากฏตัวแล้ว!" % MonsterData.get_monster(info.monster).name, &"warning")
+	_boss_since = WorldPresence.clock()
+	_boss_sign_in = 0.0
+	if tell:
+		var title := String(MonsterData.get_monster(info.monster).name)
+		Game.say("บอส %s ปรากฏตัวแล้ว!" % title, &"warning")
+		if BossWorld.has_boss(zone_id):
+			Announcer.show("บอส %s เกิดใหม่ที่%sแล้ว!" % [title, data.name], "rare")
+
+
+func _hero_near_boss() -> bool:
+	if not is_instance_valid(hero) or not is_instance_valid(_boss):
+		return false
+	var d := hero.global_position - _boss.global_position
+	return Vector2(d.x, d.z).length() <= BOSS_WATCH
+
+
+## The sign at the boss spot and nothing else: once a second, only while the boss is
+## down in the world and not standing here (a mirror's boss included).
+func _tick_boss_sign(delta: float) -> void:
+	_boss_sign_in -= delta
+	if _boss_sign_in > 0.0:
+		return
+	_boss_sign_in = 1.0
+	if not data.has("boss") or not BossWorld.has_boss(zone_id):
+		return
+	var t := WorldPresence.clock()
+	var s := BossWorld.state(zone_id, t)
+	var here := _boss != null and is_instance_valid(_boss) and not _boss.is_dead()
+	if not here and sync != null and sync.is_mirror():
+		for m in sync.mirrors.values():
+			if is_instance_valid(m) and m is MirrorMob and bool((m as Node).get_meta("field_boss", false)) and not (m as Mob).is_dead():
+				here = true
+				break
+	if bool(s.alive) or here:
+		if _boss_sign != null:
+			_boss_sign.visible = false
+		return
+	if _boss_sign == null:
+		_make_boss_sign()
+	_boss_sign.visible = true
+	_boss_sign_label.text = "%s\nถูก %s ปราบ%s\nเกิดใหม่ใน %s" % [s.name, BossWorld.killer_text(s),
+		BossWorld.ago_text(t - float(s.killed_at)), BossWorld.clock_text(float(s.respawn_at) - t)]
+
+
+func _make_boss_sign() -> void:
+	_boss_sign = Node3D.new()
+	_boss_sign.name = "BossSign"
+	_boss_sign.position = _boss_spot
+	add_child(_boss_sign)
+	MeshKit.part(_boss_sign, MeshKit.cylinder(), MeshKit.toon(Color("6b4426")), Vector3(0, 1.2, 0), Vector3(0.18, 2.4, 0.18))
+	MeshKit.part(_boss_sign, MeshKit.box(), MeshKit.toon(Color("9a6a36")), Vector3(0, 2.3, 0), Vector3(2.6, 1.1, 0.16))
+	MeshKit.part(_boss_sign, MeshKit.box(), MeshKit.toon(Color("c23a2a")), Vector3(0, 2.95, 0), Vector3(2.7, 0.14, 0.18))
+	_boss_sign_label = Label3D.new()
+	_boss_sign_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_boss_sign_label.pixel_size = 0.0075
+	_boss_sign_label.font_size = 40
+	_boss_sign_label.outline_size = 10
+	_boss_sign_label.modulate = Color("ffe3c4")
+	_boss_sign_label.position = Vector3(0, 4.0, 0)
+	_boss_sign_label.visibility_range_end = 60.0
+	_boss_sign.add_child(_boss_sign_label)
+
+
+## The field boss fell here: who took it (the most damage: the hero's side, a real
+## player of this zone, a world player), kept by BossWorld (and the save); the zone's
+## host tells the server so every real player sees the same.
+func _field_boss_fell(mob: Mob) -> void:
+	if not BossWorld.has_boss(zone_id):
+		return
+	var who := _field_boss_killer(mob)
+	BossWorld.record_kill(zone_id, String(who.name))
+	_boss_seen_down = true
+	_boss_sign_in = 0.0
+	if Online.is_online() and not (mob is MirrorMob) and (sync == null or not sync.is_mirror()):
+		Online.send("boss_kill", {"zone": String(zone_id), "by": String(who.id), "ai": String(who.ai)})
+
+
+## {name, id (a real player's online id, "" for this game's hero), ai (a world player's
+## name when one took it)}.
+func _field_boss_killer(mob: Mob) -> Dictionary:
+	var hero_name := String(Game.profile.get("name", "")) if Game.has_profile else ""
+	var mine := Online.my_id() if Online.is_online() else ""
+	var share: Dictionary = {}
+	if mob is MirrorMob:
+		var d: Variant = mob.get_meta("dead_data", {})
+		if d is Dictionary and (d as Dictionary).get("share") is Dictionary:
+			share = (d.share as Dictionary).duplicate()
+		if share.is_empty() and d is Dictionary and String((d as Dictionary).get("killer", "")) != "":
+			share[String(d.killer)] = 1
+	else:
+		share[mine] = mob.party_damage
+		if sync != null and sync.is_host():
+			var eid := int(mob.get_meta("eid", 0))
+			for id in sync._share.get(eid, {}):
+				share[String(id)] = int(sync._share[eid][id])
+	var best_id := ""
+	var best := -1
+	for id in share:
+		if int(share[id]) > best:
+			best = int(share[id])
+			best_id = String(id)
+	var top_ai := ""
+	var top_ai_dealt := 0
+	for n in mob.world_dealt:
+		if int(mob.world_dealt[n]) > top_ai_dealt:
+			top_ai_dealt = int(mob.world_dealt[n])
+			top_ai = String(n)
+	if top_ai != "" and top_ai_dealt > best:
+		return {"name": top_ai, "id": "", "ai": top_ai}
+	if best_id == "" or best_id == mine:
+		return {"name": hero_name, "id": "", "ai": ""}
+	var p := Online.player(best_id)
+	return {"name": Online.display_name(p) if not p.is_empty() else hero_name, "id": best_id, "ai": ""}
 
 
 ## The world boss (WorldEvents.boss_now): in its window, in the field of the day, the
@@ -1666,7 +1838,7 @@ func leave_shared_mirror() -> void:
 		_refill_camp(camp)
 		while (camp.mobs as Array).size() < int(camp.count):
 			_spawn_in_camp(camp, true)
-	_boss_timer = minf(_boss_timer, 3.0)
+	_boss_timer = minf(_boss_timer, 1.0 if BossWorld.has_boss(zone_id) else 3.0)
 	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
 		hero.set_target(null)
 
@@ -1710,7 +1882,8 @@ func adopt_shared(mob: Mob, kind: String) -> void:
 func resume_shared_takeover() -> void:
 	if is_town or not is_inside_tree():
 		return
-	if (_boss == null or not is_instance_valid(_boss)) and data.has("boss"):
+	# A boss the world keeps (BossWorld) comes back on the world's clock; the rest on a timer.
+	if (_boss == null or not is_instance_valid(_boss)) and data.has("boss") and not BossWorld.has_boss(zone_id):
 		_boss_timer = maxf(_boss_timer, float(data.boss.get("respawn", 60.0)) * 0.5)
 	_spawn_timer = minf(_spawn_timer, SPAWN_INTERVAL)
 	if is_instance_valid(hero) and hero.target != null and (not is_instance_valid(hero.target) or hero.target.is_queued_for_deletion()):
@@ -1744,6 +1917,8 @@ func _on_mob_died(mob: Mob) -> void:
 		hero.set_target(null)
 	if mob == _wboss or (mob is MirrorMob and mob.has_meta("world_boss")):
 		_on_world_boss_died(mob)
+	if _is_field_boss(mob):
+		_field_boss_fell(mob)
 	if mob.has_meta("golden"):
 		_on_golden_died(mob)
 	if mob.has_meta("naga"):
