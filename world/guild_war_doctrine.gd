@@ -13,18 +13,23 @@ extends RefCounted
 ## front, their health and strength, how many are down or still walking back from camp
 ## (the enemy's respawn window), the gates, the switch, the altar, the points and the
 ## clock, and decides:
-##   the PHASE (ขั้นของแผน: PHASES, pick_phase): what the guild does now, attack
-##     (form, breach, exploit, switch, assault, capture), defence (hold, guard, stop,
-##     counter, recover) or a war of four (vulture: let two others trade first). A phase
-##     changes only after it is seen on two thinks running (or PHASE_MIN s held), but at
-##     once for the urgent ones (an enemy capture, our own, a lost fight);
-##   the WINDOW (respawn timing): `engage` while the guild it fights has lost most of its
-##     front (EXPLOIT_SPENT down or walking back) and ours outweighs what is left (it
-##     pushes at once instead of waiting at the rally point, and its leader may go up to
-##     the altar sooner); `wait` while ours is outweighed at the front (WAIT_BALANCE) with
-##     its own fallen on the way back: it pulls back to the rally point instead of feeding
-##     the fight one by one, until the balance comes back (or WAIT_MAX s). Both with
-##     hysteresis (entry and exit thresholds, a least hold);
+##   the PHASE (ขั้นของแผน: PHASES, phase_for): what the guild does now, attack
+##     (form, breach, exploit, wait, muster, switch, assault, capture, besiege), defence
+##     (hold, guard, stop, counter, recover) or a war of four (vulture: let two others
+##     trade first). A phase changes only after it is seen on two thinks running (or
+##     PHASE_MIN s held), but at once for the urgent ones (settle_phase);
+##   the WINDOW (respawn timing, pick_window), read at its objective (the gate it
+##     batters, else the switch, else the altar): `engage` while the guild it fights has
+##     lost most of its front (EXPLOIT_SPENT down or walking back) and ours outweighs what
+##     is left (it pushes at once instead of waiting at the rally point, and its leader
+##     may go up to the altar sooner); `wait` (a war of two) while ours is outweighed there
+##     (WAIT_BALANCE) with its own fallen on the way back: it pulls back to the rally point
+##     (with the gates down a staging point in the last yard) and goes again as one wave
+##     once WAVE_READY of it stands there (or WAIT_MAX s). Both with hysteresis;
+##   the RACE (nobody holds the castle): the whole guild musters at the last gate as it is
+##     about to fall (pick_muster) and surges to the switch the moment it does;
+##   the SIEGE (a war of two): waves that keep losing the trades to a holder stop
+##     feeding it and besiege from the last yard (pick_besiege) until its front is spent;
 ##   the LAST MINUTES (LAST_CALL s before the bell): the holder keeps everyone round the
 ##     altar and the switch, every other guild goes all in (no falling back);
 ##   the TARGETS (focus_extra): the guild leading on points or holding the castle, a
@@ -42,7 +47,8 @@ extends RefCounted
 ## order not again within ORDER_REPEAT s; members acknowledge some of them. With the hero
 ## leading ours its words are a ที่ปรึกษา's advice and the player's own orders
 ## (GuildWarCommander.set_order) come first; the AI fills in the rest.
-## Deterministic: no wall clock, its own dice seeded from the war's seed and the team.
+## Deterministic: its decisions read only the war (the wall clock only times its own cost
+## for the measurement), its own dice seeded from the war's seed and the team.
 ## Cheap: one pass over the fighters a think (a few hundred distance checks for 80), and
 ## a pass over its own guild with the formation (every 0.5 s).
 
