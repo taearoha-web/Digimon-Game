@@ -356,6 +356,9 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 			var cls := String(p.get("class", ""))
 			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
 		"life":
+			# A remark on the weather ("อากาศดีจัง") is small talk; a question gets the field's own.
+			if _has(String(r.n), ["อากาศ", "ฝนตก", "ร้อน", "หนาว"]) and not bool(r.question):
+				return {}
 			return {"reply": life_text(String(r.n), p, rng), "topic": act}
 		"morning":
 			var hi := ChatBrain._answer("greet", "", p, h, history, tone, rng, mine)
