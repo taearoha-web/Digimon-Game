@@ -81,7 +81,7 @@ const SHARE_MAX := 0.4
 ## The maze race makes the interested ones keener at the forge (WorldGear): more jewels
 ## bought and traded for, and more of the gems they find kept, fused and socketed.
 const JEWEL_DRIVE := 1.3
-const GEM_DRIVE := 1.6
+const GEM_DRIVE := 1.2
 
 ## -1: the world players' fights follow WorldPresence.enabled (off headless: tests turn
 ## them on); 0 off; 1 on.
