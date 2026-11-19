@@ -285,7 +285,8 @@ static func tile_text(item: Dictionary) -> String:
 	if is_stackable(item):
 		return "×%d" % int(item.get("count", 1))
 	if is_costume(item):
-		return "คอสตูม"
+		# The crown's costume (MazeCrown) counts down on its tile.
+		return MazeCrown.tile_left(int(item.get("expires", 0))) if MazeCrown.is_crown_item(item) else "คอสตูม"
 	if item.get("kind", "") == "equip" and int(item.get("level", 0)) > 0:
 		return level_text(int(item.level)).replace("Lv.100 ", "")
 	return ""
@@ -611,10 +612,13 @@ static func stat_lines(item: Dictionary) -> Array[String]:
 		return lines
 	if is_costume(item):
 		var e: Dictionary = RewardShop.COSTUMES.get(String(item.get("id", "")), {})
+		if MazeCrown.is_crown_item(item):
+			# The crown's costume ends with the crown: the countdown first.
+			lines.append("จำกัดเวลา · %s" % MazeCrown.left_text(int(item.get("expires", 0))))
 		if e.has("desc"):
 			lines.append(String(e.desc))
 		lines.append(COSTUME_NOTE)
-		lines.append(COSTUME_MOVE_NOTE)
+		lines.append(MazeCrown.NOTE if MazeCrown.is_crown_item(item) else COSTUME_MOVE_NOTE)
 		return lines
 	if item.get("kind", "") == "gem":
 		var info := gem_info(item)

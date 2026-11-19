@@ -92,6 +92,14 @@ func _rules() -> void:
 	check(Achievements.progress("nope", p) == "", "unknown id has no progress")
 	check(Achievements.entry("t_boss1").title == "ผู้ล้มยักษ์", "entry by id")
 	check(Achievements.index_of("missing") == -1, "missing index")
+	# หนึ่งในใต้หล้า (MazeCrown): appended last, a timed title worn only while its crown lasts.
+	var crown := Achievements.index_of(MazeCrown.ACH_ID)
+	check(crown > Achievements.index_of("t_lk_king") and bool(Achievements.TABLE[crown].get("timed", false)), "the crown title is appended and timed")
+	var q := {"ach": {MazeCrown.ACH_ID: true}, "flags": {}, MazeCrown.KEY: {"done": 1, "until": int(MazeCrown.now()) + 3600, "wins": 1, "last": 1}}
+	check(Achievements.value_of("maze_crown", q) == 1 and Achievements.set_title(q, crown) and Achievements.title_of(q) == MazeCrown.TITLE_NAME, "worn while it lasts")
+	q[MazeCrown.KEY]["until"] = int(MazeCrown.now()) - 1
+	check(Achievements.title_of(q) == "" and not Achievements.set_title(q, crown), "past its end: shown nowhere, not wearable")
+	check(Achievements.is_earned(MazeCrown.ACH_ID, q), "still earned")
 
 
 func _earn_once() -> void:

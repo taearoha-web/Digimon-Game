@@ -251,6 +251,8 @@ function validateProfile(profile) {
   // The reward exchange (RewardShop in the game): league coins, event points, the unlocked
   // cosmetics and what is worn, the stones bought this week and the rounds already paid.
   if ('rshop' in profile && !validRewardShop(profile.rshop)) fail(400, 'invalid_save', 'The reward shop record is invalid.');
+  // หนึ่งในใต้หล้า's weekly crown (MazeCrown in the game): the weeks worked out and the title's end.
+  if ('mcrown' in profile && !validMazeCrown(profile.mcrown)) fail(400, 'invalid_save', 'The maze crown record is invalid.');
   // The weekly rare collection (WeeklyCollect in the game): the week's record and its pieces
   // (stackable jewels "wk<theme>_<rank>") in the bag, an old storage and on the stall.
   if ('wcol' in profile && !validWeeklyCollect(profile.wcol)) fail(400, 'invalid_save', 'The weekly collection record is invalid.');
@@ -436,21 +438,45 @@ function validLegendRecord(record) {
 // the hero bought (a costume is an item too, see costumeItem); cos: the costume in the
 // costume slot (its id: the item carries nothing else); buy: {stone id: count this week};
 // paid: {round start: coins paid}.
-const RSHOP_INTS = new Set(['lc', 'ep', 'week', 'ev_day', 'ev_pts', 'boss_day', 'bonus_week']);
+// cx: the end (unix seconds) of the timed costume in the costume slot (MazeCrown's crown).
+const RSHOP_INTS = new Set(['lc', 'ep', 'week', 'ev_day', 'ev_pts', 'boss_day', 'bonus_week', 'cx']);
 const RSHOP_TEXTS = new Set(['cos', 'trail', 'ncol']);
 const RSHOP_ID_MAX = 32;
 const rshopId = value => typeof value === 'string' && chars(value) <= RSHOP_ID_MAX;
 // A costume item (RewardShop.costume_item / valid_costume_item in the game): exactly its
-// kind, its id and its grade 0-4.
-const COSTUME_KEYS = new Set(['kind', 'id', 'rarity']);
+// kind, its id and its grade 0-4, and for หนึ่งในใต้หล้า's crown costume (MazeCrown in the game:
+// keep these equal) its end `expires` (unix seconds), never further ahead than one crown can
+// last; no other costume carries an end.
+const COSTUME_KEYS = new Set(['kind', 'id', 'rarity', 'expires']);
+const MAZE_COSTUME = 'maze_sovereign';
+const MAZE_EXPIRES_MIN = 1_700_000_000;
+const MAZE_EXPIRES_MAX = 4_102_444_800;
+const MAZE_MAX_LIFE = 15 * 86_400;
+const MAZE_MAX_WEEK = 100_000;
+const mazeEnd = value => integer(value, MAZE_EXPIRES_MIN, MAZE_EXPIRES_MAX) && value <= Date.now() / 1000 + MAZE_MAX_LIFE;
 const costumeItem = item => dictionary(item) && item.kind === 'costume';
 function validCostumeItem(item) {
   return Object.keys(item).every(key => COSTUME_KEYS.has(key)) && rshopId(item.id) && chars(item.id) > 0
-    && integer(item.rarity ?? 1, 0, 4);
+    && integer(item.rarity ?? 1, 0, 4)
+    && (item.id === MAZE_COSTUME ? mazeEnd(item.expires) : !('expires' in item));
+}
+
+// หนึ่งในใต้หล้า's crown record (MazeCrown.valid_record in the game): {done, last: week -1..,
+// wins: weeks won, until: the title's end, 0 or a unix time no further ahead than a crown lasts}.
+function validMazeCrown(record) {
+  if (!dictionary(record) || Object.keys(record).length > 4) return false;
+  return Object.entries(record).every(([key, value]) => {
+    if (key === 'done' || key === 'last') return integer(value, -1, MAZE_MAX_WEEK);
+    if (key === 'wins') return integer(value, 0, MAZE_MAX_WEEK);
+    if (key === 'until') return value === 0 || mazeEnd(value);
+    return false;
+  });
 }
 
 function validRewardShop(shop) {
   if (!dictionary(shop) || Object.keys(shop).length > 16) return false;
+  // The crown costume worn keeps its end in cx (RewardShop._put_on in the game).
+  if (shop.cos === MAZE_COSTUME && !mazeEnd(shop.cx)) return false;
   return Object.entries(shop).every(([key, value]) => {
     if (RSHOP_INTS.has(key)) return integer(value, -1);
     if (RSHOP_TEXTS.has(key)) return rshopId(value);

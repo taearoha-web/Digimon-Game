@@ -21,6 +21,13 @@ extends RefCounted
 ##              a gold sabai across the chest with a jewelled collar and a hanging end, a
 ##              gold belt with a ruby buckle and a silk front panel, gold armlets, little
 ##              krathong candle lights drifting round
+##   maze_sovereign เทพราชันหนึ่งในใต้หล้า, หนึ่งในใต้หล้า's crown (MazeCrown, a week's reward): an
+##              imperial crown of gold sun-flames over black velvet with the imperial jade,
+##              a pearl finial, crown wings and jade ear tassels; a breathing sun halo
+##              behind the head; a gold scale mantle with a high collar over a long black
+##              brocade cape of gold dragon roundels; dragon-head gold pauldrons; a jade
+##              belt with a sun buckle, a front panel and jade disc pendants; glints that
+##              sweep up the gold; two golden dragons circling
 ##   dragon_god the isle-only costume (SkyIsleLoot, exchanged for fragments): gold dragon
 ##              antlers, a jade crest and ear fins, the dragon pearl on the brow, a long
 ##              scaled tail with gold dorsal spikes and a fin fan that sways, a scale
@@ -58,6 +65,7 @@ const PARTS := {
 	"midnight": [["Head", "head"], ["Chest", "back"]],
 	"dragon_god": [["Head", "head"], ["Chest", "back"], ["Hips", "tail"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 	"loykrathong": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
+	"maze_sovereign": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 }
 ## Each layer's look: sway (tip offset in model units), speed and lag down the piece,
 ## glow share, and for the cloth sheets the pattern, trim and lining (costume.gdshaderinc).
@@ -82,6 +90,10 @@ const STYLE := {
 	"loykrathong": {"solid": {"sway": Vector3(0.006, 0.0, -0.012), "speed": 1.4, "lag": 1.6, "glow": 0.06},
 		"sheet": {"pattern": 0.0, "trim": Color("e8264a"), "trim_width": 0.07, "lining": Color("c98a18"), "sway": Vector3(0.008, 0.0, -0.022), "speed": 1.3, "lag": 2.2, "glow": 0.08},
 		"sheet2": {"pattern": 0.0, "trim": Color("ffcf3a"), "trim_width": 0.16, "lining": Color("8a1428"), "sway": Vector3(0.01, 0.0, 0.016), "speed": 1.5, "lag": 1.8}},
+	# The sovereign: glints sweep up its gold (shimmer) and its halo and gems breathe (pulse).
+	"maze_sovereign": {"solid": {"sway": Vector3(0.012, 0.0, 0.016), "speed": 1.3, "lag": 1.6, "glow": 0.07, "shimmer": 0.9, "pulse": 0.35},
+		"sheet": {"pattern": 5.0, "trim": Color("e0a32a"), "trim_width": 0.055, "lining": Color("8a1022"), "speck": Color("d9a030"), "sway": Vector3(0.012, 0.0, -0.034), "speed": 1.1, "lag": 2.6, "glow": 0.05, "shimmer": 0.6},
+		"sheet2": {"pattern": 4.0, "trim": Color("fff0a0"), "trim_width": 0.1, "lining": Color("5a1a10"), "speck": Color("fff3b0"), "glow": 0.06, "shimmer": 0.8}},
 }
 ## The drifting motes: how many, the quad shape (costume_mote.gdshader), colour, size in
 ## metres, the ring they keep (model units) and how they move.
@@ -96,10 +108,20 @@ const MOTES := {
 	# Little krathong candle lights drifting round the wearer.
 	"loykrathong": {"n": 5, "shape": 0.0, "color": Color("ffc46a"), "size": 0.16, "r": [0.4, 0.5], "y": [0.25, 0.95], "orbit": 0.35, "bob": 0.05, "additive": 1.0},
 	"dragon_god": {"n": 3, "shape": 5.0, "align": 1.0, "color": Color("7dffd0"), "size": 0.62, "r": [0.4, 0.5], "y": [0.3, 1.0], "orbit": 1.25, "bob": 0.07, "additive": 1.0},
+	# Two golden imperial dragons circling the sovereign.
+	"maze_sovereign": {"n": 2, "shape": 5.0, "align": 1.0, "color": Color("ffd24a"), "size": 0.74, "r": [0.46, 0.52], "y": [0.35, 1.0], "orbit": 1.0, "bob": 0.08, "additive": 1.0},
 }
+
+## How far a costume's headpiece lifts the name plates above it (the sovereign's crown and
+## finial stand past where the plates sit).
+const PLATE_LIFT := {"maze_sovereign": 0.5}
 
 static var _meshes := {}
 static var _materials := {}
+
+
+static func plate_lift(id: String) -> float:
+	return float(PLATE_LIFT.get(id, 0.0))
 
 
 static func release_cache() -> void:
@@ -149,6 +171,7 @@ static func mesh_of(id: String, part: String, winged: bool) -> ArrayMesh:
 		"midnight": _midnight(b, part, winged)
 		"dragon_god": _dragon(b, part, winged)
 		"loykrathong": _loykrathong(b, part)
+		"maze_sovereign": _sovereign(b, part, winged)
 	var mesh := _commit(b)
 	if _meshes.size() >= CACHE_LIMIT:
 		_meshes.erase(_meshes.keys()[0])
@@ -222,6 +245,8 @@ static func _material(id: String, layer: String, outlined: bool) -> ShaderMateri
 	mat.shader = SOLID if layer == "solid" or layer == "glow" else SHEET
 	_sway_params(mat, style)
 	mat.set_shader_parameter("glow", 1.1 if layer == "glow" else float(style.get("glow", 0.0)))
+	mat.set_shader_parameter("shimmer", float(style.get("shimmer", 0.0)))
+	mat.set_shader_parameter("pulse", float(style.get("pulse", 0.0)))
 	if layer == "sheet" or layer == "sheet2":
 		mat.set_shader_parameter("pattern", float(style.get("pattern", 0.0)))
 		mat.set_shader_parameter("trim_color", style.get("trim", Color.WHITE))
@@ -1229,3 +1254,214 @@ static func _lk_belt(b: Dictionary) -> void:
 		func(_u: float, v: float) -> Color: return THAI_RUBY.lerp(Color("b81a3a"), v),
 		func(_u: float, v: float) -> Vector2: return Vector2(v, 0.0),
 		func(_p: Vector3) -> Vector3: return Vector3(0, 0, 1))
+
+
+# --- Sovereign of all under heaven (เทพราชันหนึ่งในใต้หล้า, MazeCrown) -------------------------
+
+const IMP_GOLD := Color("ffcf3a")
+const IMP_GOLD_DEEP := Color("b8740e")
+const IMP_GOLD_LIGHT := Color("fff0a0")
+const IMP_BLACK := Color("1c1622")
+const IMP_BLACK_2 := Color("2f2438")
+const IMP_JADE := Color("46f0b0")
+const IMP_JADE_DEEP := Color("118a64")
+const IMP_RED := Color("e0233c")
+const IMP_PEARL := Color("fff8e6")
+## The halo's gold: deeper than the crown's so its glow reads as light, not a yellow plate.
+const HALO_GOLD := Color("e09a22")
+
+
+static func _sovereign(b: Dictionary, part: String, winged: bool) -> void:
+	match part:
+		"head":
+			_sov_crown(b)
+			_sov_halo(b)
+		"back":
+			_sov_back(b, winged)
+		"belt":
+			_sov_belt(b)
+		"arm_l", "arm_r":
+			_sov_arm(b, 1.0 if part == "arm_l" else -1.0)
+
+
+## A flame / sun-ray point `h` tall and `w` wide at its foot, curling to its tip.
+static func _flame(h: float, w: float) -> Array:
+	return [Vector2(0, 0), Vector2(w * 0.5, h * 0.08), Vector2(w * 0.56, h * 0.32), Vector2(w * 0.36, h * 0.56),
+		Vector2(w * 0.2, h * 0.78), Vector2(0, h), Vector2(-w * 0.2, h * 0.78), Vector2(-w * 0.36, h * 0.56),
+		Vector2(-w * 0.56, h * 0.32), Vector2(-w * 0.5, h * 0.08)]
+
+
+## The imperial crown: a black velvet cap in a gold band, seven gold sun-flames round the
+## front (jade and ruby at their feet), the great imperial jade in a sun setting on the
+## brow, a finial with a glowing pearl, two gold crown wings at the back and jade bead
+## tassels over the ears.
+static func _sov_crown(b: Dictionary) -> void:
+	var c := Vector3(0, 0.965, -0.012)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(-9.0))
+	var at := func(p: Vector3) -> Vector3: return c + tilt * p
+	_prim(b, "solid", MeshKit.hemisphere(), IMP_BLACK_2, at.call(Vector3(0, 0.03, 0)), Vector3(0.236, 0.21, 0.226), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD, at.call(Vector3(0, 0.014, 0)), Vector3(0.268, 0.062, 0.256), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD_DEEP, at.call(Vector3(0, -0.017, 0)), Vector3(0.282, 0.016, 0.27), Vector3.ZERO, Vector2.ZERO, tilt)
+	# A gold ridge over the cap from the brow to the nape.
+	var ridge := []
+	for k in 7:
+		var th := deg_to_rad(lerpf(-70.0, 70.0, float(k) / 6.0))
+		ridge.append(at.call(Vector3(0, 0.03 + cos(th) * 0.108, sin(th) * 0.118)))
+	_sweep(b, "solid", ridge, 5, func(_t: float) -> float: return 0.011, func(_t: float) -> Color: return IMP_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
+	# Seven sun-flames round the front half, the middle one tallest.
+	for k in 7:
+		var s := (float(k) - 3.0) / 3.0
+		var a := s * deg_to_rad(96.0)
+		var dir := Vector3(sin(a), 0, cos(a))
+		var base: Vector3 = at.call(dir * 0.129 + Vector3(0, 0.03, 0))
+		var h := lerpf(0.16, 0.075, absf(s))
+		var up := (tilt * (Vector3.UP + dir * 0.28)).normalized()
+		var xf := _plane(base, tilt * Vector3(cos(a), 0, -sin(a)), up, 1.0)
+		_flat(b, "solid", _flame(h, 0.07 - 0.012 * absf(s)), xf, 0.008, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+		_prim(b, "glow", _dot(), IMP_JADE if k % 2 == 1 else IMP_RED, at.call(dir * 0.138 + Vector3(0, 0.016, 0)), Vector3(0.024, 0.026, 0.014), Vector3.ZERO, Vector2.ZERO, Basis(Vector3.UP, a))
+	# The imperial jade on the brow, in a gold sun.
+	var brow: Vector3 = at.call(Vector3(0, 0.078, 0.142))
+	var face := _plane(brow, Vector3.RIGHT, tilt * Vector3(0, 1, -0.25), 1.0)
+	_flat(b, "solid", _star(0.052, 0.034, 12), face, 0.01, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+	_prim(b, "glow", _dot(), IMP_JADE, brow + tilt * Vector3(0, 0.0, 0.014), Vector3(0.042, 0.048, 0.022), Vector3.ZERO, Vector2.ZERO, tilt)
+	# A gold sun with a ruby at the back of the band, for the view from behind.
+	var nape: Vector3 = at.call(Vector3(0, 0.05, -0.136))
+	var back := _plane(nape, Vector3.LEFT, tilt * Vector3(0, 1, 0.25), 1.0)
+	_flat(b, "solid", _star(0.046, 0.03, 10), back, 0.01, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+	_prim(b, "glow", _dot(), IMP_RED, nape + tilt * Vector3(0, 0.0, -0.014), Vector3(0.034, 0.036, 0.018), Vector3.ZERO, Vector2.ZERO, tilt)
+	# The finial: a gold bead, a spike and the glowing pearl.
+	_prim(b, "solid", _dot(), IMP_GOLD, at.call(Vector3(0, 0.15, 0)), Vector3(0.06, 0.05, 0.06))
+	_prim(b, "solid", MeshKit.cone(), IMP_GOLD, at.call(Vector3(0, 0.205, 0)), Vector3(0.032, 0.1, 0.032), Vector3.ZERO, Vector2.ZERO, tilt)
+	_prim(b, "glow", _dot(), IMP_PEARL, at.call(Vector3(0, 0.262, 0)), Vector3.ONE * 0.034)
+	# Crown wings at the back, gold rimmed in black, rising out to the sides.
+	for side in [-1.0, 1.0]:
+		var root: Vector3 = at.call(Vector3(side * 0.09, 0.07, -0.1))
+		var out := (tilt * Vector3(side * 0.85, 0.55, -0.3)).normalized()
+		var xf := _plane(root, out, tilt * Vector3(0, 0.3, -1.0), 1.0)
+		var wing := [Vector2(0, -0.03), Vector2(0.06, -0.04), Vector2(0.13, -0.036), Vector2(0.19, -0.01), Vector2(0.205, 0.04), Vector2(0.17, 0.075), Vector2(0.09, 0.07), Vector2(0, 0.04)]
+		_flat(b, "solid", wing, xf, 0.008, IMP_GOLD, [IMP_GOLD_DEEP, IMP_GOLD_DEEP, IMP_GOLD, IMP_GOLD_LIGHT, IMP_GOLD_LIGHT, IMP_GOLD, IMP_GOLD_DEEP, IMP_GOLD_DEEP], _hang(root, 0.22, side))
+		# A jade bead tassel over each ear: a gold cord, two jade beads, a red tassel.
+		var top: Vector3 = at.call(Vector3(side * 0.136, -0.012, 0.035))
+		var cord := _bezier(top, top + Vector3(side * 0.012, -0.03, 0.006), top + Vector3(side * 0.016, -0.08, 0.0), top + Vector3(side * 0.014, -0.13, -0.006), 6)
+		_sweep(b, "solid", cord, 4, func(_t: float) -> float: return 0.0055, func(t: float) -> Color: return IMP_GOLD.lerp(IMP_GOLD_DEEP, t), func(t: float) -> Vector2: return Vector2(t, side))
+		_prim(b, "glow", _dot(), IMP_JADE, cord[4], Vector3.ONE * 0.03, Vector3.ZERO, Vector2(0.8, side))
+		_prim(b, "solid", MeshKit.cone(), IMP_RED, cord[5] + Vector3(0, -0.014, 0), Vector3(0.026, 0.04, 0.026), Vector3(180, 0, 0), Vector2(1.0, side))
+
+
+## The sun halo behind the head: a ring with sixteen rays (long and short), glowing and
+## breathing (the glow layer's pulse).
+static func _sov_halo(b: Dictionary) -> void:
+	var hc := Vector3(0, 0.93, -0.235)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(8.0))
+	var ring := []
+	for k in 25:
+		var a := TAU * float(k) / 24.0
+		ring.append(hc + tilt * Vector3(cos(a) * 0.235, sin(a) * 0.235, 0))
+	_sweep(b, "glow", ring, 4, func(_t: float) -> float: return 0.0075, func(_t: float) -> Color: return HALO_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
+	for k in 16:
+		var a := TAU * float(k) / 16.0
+		var long := k % 2 == 0
+		var dir := Vector3(cos(a), sin(a), 0)
+		var root := hc + tilt * (dir * 0.245)
+		var xf := Transform3D(tilt * Basis(Vector3.BACK, a - PI * 0.5), root)
+		var h := 0.1 if long else 0.05
+		var w := 0.022 if long else 0.018
+		_flat(b, "glow", [Vector2(0, 0), Vector2(w * 0.5, h * 0.2), Vector2(0, h), Vector2(-w * 0.5, h * 0.2)], xf, 0.003, HALO_GOLD.lightened(0.3) if long else HALO_GOLD, HALO_GOLD)
+
+
+## The back: a gold scale mantle with a high flared collar, a long black brocade cape
+## worked with gold dragon roundels (a short mantle only under gear wings), gold
+## dragon-eye clasps and double chains, and the sun medallion with a jade pearl on the chest.
+static func _sov_back(b: Dictionary, winged: bool) -> void:
+	_capelet(b, "sheet2", 0.64, 0.15, 1.78, 0.11, 0.228, IMP_GOLD_LIGHT, IMP_GOLD, 9.0, 0.14)
+	if not winged:
+		_long_cape(b, "sheet", 0.61, 0.56, 0.32, 0.66, IMP_BLACK_2, IMP_BLACK, 0.0)
+	# The standing collar, flaring out behind the neck.
+	_surface(b, "sheet2", 4, 15,
+		func(u: float, v: float) -> Vector3:
+			var phi := (u * 2.0 - 1.0) * 1.3
+			var rad := lerpf(0.1, 0.16, v * v)
+			var lift := 0.15 - 0.05 * absf(u * 2.0 - 1.0)
+			return Vector3(sin(phi) * rad * 1.08, 0.62 + v * lift, 0.03 - cos(phi) * rad),
+		func(_u: float, v: float) -> Color: return IMP_GOLD_DEEP.lerp(IMP_GOLD, v),
+		func(_u: float, _v: float) -> Vector2: return Vector2.ZERO,
+		func(p: Vector3) -> Vector3: return Vector3(p.x, 0.0, p.z - 0.03))
+	for side in [-1.0, 1.0]:
+		var at := Vector3(side * 0.094, 0.563, 0.112)
+		_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD, at, Vector3(0.06, 0.014, 0.06), Vector3(78, 0, 0))
+		_prim(b, "glow", _dot(), IMP_RED, at + Vector3(0, 0.002, 0.011), Vector3(0.032, 0.03, 0.016))
+	for drop in [0.0, 0.032]:
+		var d: float = drop
+		var chain := _bezier(Vector3(-0.09, 0.556 - d * 0.3, 0.118), Vector3(-0.04, 0.53 - d, 0.143), Vector3(0.04, 0.53 - d, 0.143), Vector3(0.09, 0.556 - d * 0.3, 0.118), 8)
+		_sweep(b, "solid", chain, 4, func(_t: float) -> float: return 0.0055, func(_t: float) -> Color: return IMP_GOLD, func(_t: float) -> Vector2: return Vector2.ZERO)
+	# The sun medallion on the chest: gold rays, a dark ring and the glowing jade pearl.
+	var med := Vector3(0, 0.49, 0.152)
+	var mxf := _plane(med, Vector3.RIGHT, Vector3(0, 1, 0.12), 1.0)
+	_flat(b, "solid", _star(0.056, 0.036, 12), mxf, 0.01, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+	_flat(b, "solid", _ellipse(0.03, 0.03, 10), Transform3D(mxf.basis, med + mxf.basis.z * 0.008), 0.004, IMP_BLACK_2, IMP_GOLD_DEEP)
+	_prim(b, "glow", _dot(), IMP_JADE, med + mxf.basis.z * 0.016, Vector3(0.036, 0.036, 0.02), Vector3.ZERO, Vector2.ZERO, mxf.basis)
+
+
+## The belt: black lacquer in gold rims set with jade plaques, a gold sun buckle with a
+## jade eye, a black brocade front panel hanging to the knees, and a jade disc pendant
+## with a red tassel swinging at each hip.
+static func _sov_belt(b: Dictionary) -> void:
+	_prim(b, "solid", MeshKit.cylinder(), IMP_BLACK_2, Vector3(0, 0.392, 0.035), Vector3(0.292, 0.058, 0.268))
+	for y in [0.42, 0.364]:
+		_prim(b, "solid", MeshKit.cylinder(), IMP_GOLD, Vector3(0, y, 0.035), Vector3(0.3, 0.012, 0.276))
+	for k in 8:
+		var a := deg_to_rad(lerpf(-150.0, 150.0, (float(k) + 0.5) / 8.0))
+		if absf(a) < 0.3:
+			continue
+		var p := Vector3(sin(a) * 0.148, 0.392, 0.035 + cos(a) * 0.136)
+		_prim(b, "solid", MeshKit.box(), IMP_JADE.lerp(IMP_JADE_DEEP, 0.35), p, Vector3(0.03, 0.034, 0.012), Vector3.ZERO, Vector2.ZERO, Basis(Vector3.UP, a))
+	var buckle := Vector3(0, 0.392, 0.174)
+	var bxf := _plane(buckle, Vector3.RIGHT, Vector3.UP, 1.0)
+	_flat(b, "solid", _star(0.05, 0.036, 10), bxf, 0.012, IMP_GOLD_LIGHT, IMP_GOLD_DEEP)
+	_prim(b, "glow", _dot(), IMP_JADE, buckle + Vector3(0, 0, 0.014), Vector3(0.034, 0.03, 0.016))
+	_surface(b, "sheet", 9, 4,
+		func(u: float, v: float) -> Vector3:
+			var w := lerpf(0.1, 0.085, v)
+			var point := (1.0 - absf(u * 2.0 - 1.0)) * 0.035 * smoothstep(0.8, 1.0, v)
+			return buckle + Vector3((u - 0.5) * w, -0.036 - v * 0.19 - point, -0.004 - v * 0.014),
+		func(_u: float, v: float) -> Color: return IMP_BLACK_2.lerp(IMP_BLACK, v),
+		func(_u: float, v: float) -> Vector2: return Vector2(v, 0.0),
+		func(_p: Vector3) -> Vector3: return Vector3(0, 0, 1))
+	for side in [-1.0, 1.0]:
+		var top := Vector3(side * 0.14, 0.372, 0.075)
+		var cord := _bezier(top, top + Vector3(side * 0.012, -0.03, 0.006), top + Vector3(side * 0.018, -0.06, 0.004), top + Vector3(side * 0.02, -0.085, 0.0), 5)
+		var phase := 0.7 if side > 0.0 else 1.9
+		_sweep(b, "solid", cord, 4, func(_t: float) -> float: return 0.0055, func(_t: float) -> Color: return IMP_GOLD, func(t: float) -> Vector2: return Vector2(t * 0.6, phase))
+		var disc: Vector3 = cord[4] + Vector3(0, -0.032, 0)
+		var dxf := _plane(disc, Vector3(0, 0, 1), Vector3.UP, 1.0)
+		_flat(b, "solid", _ellipse(0.032, 0.032, 10), dxf, 0.008, IMP_JADE, IMP_JADE_DEEP, Vector2(0.75, phase))
+		_prim(b, "solid", MeshKit.cone(), IMP_RED, disc + Vector3(0, -0.062, 0), Vector3(0.03, 0.06, 0.03), Vector3(180, 0, 0), Vector2(1.0, phase))
+
+
+## A gold dragon-head pauldron: three layered plates (black lacquer under gold), a dragon
+## head looking out from the shoulder with jade eyes and horns swept back.
+static func _sov_arm(b: Dictionary, side: float) -> void:
+	var at := Vector3(side * 0.16, 0.602, 0.02)
+	var turn := Basis(Vector3.FORWARD, side * deg_to_rad(26.0))
+	for k in 3:
+		var drop := float(k)
+		var plate := at + turn * Vector3(side * 0.024 * drop, -0.017 * drop, 0)
+		_prim(b, "solid", _dot(), IMP_BLACK_2 if k == 1 else IMP_GOLD, plate + turn * Vector3(0, 0.004, 0), Vector3(0.128 + 0.012 * drop, 0.072 - 0.01 * drop, 0.118 + 0.01 * drop), Vector3.ZERO, Vector2.ZERO, turn)
+		_prim(b, "solid", _dot(), IMP_GOLD_DEEP if k != 0 else IMP_GOLD_LIGHT, plate, Vector3(0.145 + 0.012 * drop, 0.034, 0.134 + 0.01 * drop), Vector3.ZERO, Vector2.ZERO, turn)
+	var head := at + turn * Vector3(side * 0.02, 0.045, 0.018)
+	var look := (turn * Vector3(side * 0.9, 0.05, 0.6)).normalized()
+	var up := (turn * Vector3.UP).normalized()
+	_prim(b, "solid", _dot(), IMP_GOLD, head, Vector3(0.06, 0.05, 0.062), Vector3.ZERO, Vector2.ZERO, _along(look))
+	_prim(b, "solid", MeshKit.cone(), IMP_GOLD_LIGHT, head + look * 0.05, Vector3(0.042, 0.07, 0.034), Vector3.ZERO, Vector2.ZERO, _along(look))
+	var across := look.cross(up).normalized()
+	for s in [-1.0, 1.0]:
+		_prim(b, "glow", _dot(), IMP_JADE, head + look * 0.02 + up * 0.018 + across * s * 0.02, Vector3.ONE * 0.016)
+		var root: Vector3 = head + up * 0.02 + across * s * 0.016
+		_dragon_horn_gold(b, [root, root - look * 0.03 + up * 0.035, root - look * 0.075 + up * 0.05 + across * s * 0.01, root - look * 0.11 + up * 0.045 + across * s * 0.02], 0.011)
+
+
+static func _dragon_horn_gold(b: Dictionary, ctrl: Array, fat: float) -> void:
+	_sweep(b, "solid", _spline(ctrl, 2), 5,
+		func(t: float) -> float: return fat * pow(1.0 - t, 0.8) + 0.002,
+		func(t: float) -> Color: return IMP_GOLD_DEEP.lerp(IMP_GOLD_LIGHT, t),
+		func(_t: float) -> Vector2: return Vector2.ZERO)

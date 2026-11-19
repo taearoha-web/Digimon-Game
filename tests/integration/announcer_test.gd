@@ -101,7 +101,7 @@ func _broadcast() -> void:
 	Announcer.unlisten(sink)
 	Announcer.broadcast("หลังเลิกฟัง")
 	check(heard.size() == 3 + Announcer.LOG_MAX + 5, "a listener that left hears no more")
-	check(Announcer.KINDS == ["jackpot", "rare"], "the two kinds")
+	check(Announcer.KINDS == ["jackpot", "rare", "crown"], "the three kinds (หนึ่งในใต้หล้า's crown: MazeCrown)")
 
 
 func _banner() -> void:

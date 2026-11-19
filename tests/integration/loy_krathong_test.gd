@@ -268,7 +268,7 @@ func _pageant() -> void:
 	check(int(Game.profile.flags.get(LoyKrathong.QUEEN_FLAG, 0)) == 1 and Achievements.is_earned("t_lk_queen", Game.profile) and not Achievements.is_earned("t_lk_king", Game.profile), "the title นางนพมาศ ๒๕๖๙ (a girl's)")
 	check(Achievements.set_title(Game.profile, Achievements.index_of("t_lk_queen")) and Achievements.title_of(Game.profile) == "นางนพมาศ ๒๕๖๙", "worn")
 	check(Game.jewel_count("chaos") == chaos + 10 and LoyKrathong.settle(thai(2026, 11, 25, 21)) == "" and Game.jewel_count("chaos") == chaos + 10, "the prize once")
-	check(Achievements.TABLE[Achievements.TABLE.size() - 2].id == "t_lk_queen" and Achievements.TABLE[Achievements.TABLE.size() - 1].id == "t_lk_king", "the titles appended to the table")
+	check(Achievements.index_of("t_lk_queen") == Achievements.index_of("t_wcol_all") + 1 and Achievements.index_of("t_lk_king") == Achievements.index_of("t_lk_queen") + 1, "the titles appended to the table (after the rare collection's, before later ones)")
 	Announcer.history.clear()
 	LoyKrathong.reset()
 	LoyKrathong.tick(thai(2026, 11, 25, 20, 2))

@@ -251,6 +251,7 @@ const COSTUME_ICON_VIEW := {
 	"midnight": [-145.0, 1.7, 2.2], "sakura": [-140.0, 1.64, 2.05], "seafoam": [-30.0, 1.7, 2.0],
 	"dragon_god": [-128.0, 1.95, 2.95],
 	"loykrathong": [-25.0, 1.72, 2.35],
+	"maze_sovereign": [-28.0, 1.82, 2.75],
 }
 
 
@@ -282,7 +283,8 @@ static func costume_icon_node(costume_id: String) -> Node3D:
 	var paint := StandardMaterial3D.new()
 	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	paint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var cloth: Color = RewardShop.COSTUMES[costume_id].cloth
+	# A costume may name its own disc colour (the sovereign's gold behind its black).
+	var cloth: Color = RewardShop.COSTUMES[costume_id].get("disc", RewardShop.COSTUMES[costume_id].cloth)
 	paint.albedo_color = Color(cloth.lerp(Color.WHITE, 0.25), 0.8)
 	disc.material_override = paint
 	disc.rotation_degrees.x = 90.0

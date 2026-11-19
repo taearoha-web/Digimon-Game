@@ -72,6 +72,9 @@ const TABLE := [
 	# The Loy Krathong festival's pageant winners (LoyKrathong.settle: flags lk_queen / lk_king).
 	{"id": "t_lk_queen", "name": "นางนพมาศ ๒๕๖๙", "desc": "ชนะการประกวดนางนพมาศ เทศกาลลอยกระทง ๒๕๖๙", "title": "นางนพมาศ ๒๕๖๙", "kind": "lk_queen", "goal": 1},
 	{"id": "t_lk_king", "name": "หนุ่มลอยกระทง ๒๕๖๙", "desc": "ชนะการประกวดหนุ่มลอยกระทง เทศกาลลอยกระทง ๒๕๖๙", "title": "หนุ่มลอยกระทง ๒๕๖๙", "kind": "lk_king", "goal": 1},
+	# หนึ่งในใต้หล้า: the week's most kills in เขาวงกตหนึ่งในใต้หล้า (MazeCrown). `timed`: worn
+	# only while the crown lasts (MazeCrown.title_valid), until the end of the next week.
+	{"id": "t_maze_crown", "name": "หนึ่งในใต้หล้า", "desc": "ครองอันดับ 1 ยอดสังหารประจำสัปดาห์ที่เขาวงกตหนึ่งในใต้หล้า (ตำแหน่งใช้ได้ถึงสิ้นสัปดาห์ถัดไป ชนะอีกได้อีก)", "title": "หนึ่งในใต้หล้า", "kind": "maze_crown", "goal": 1, "timed": true},
 ]
 ## The God promotion's achievement: its title is the hero's own "เทพเจ้าแห่ง<อาชีพ>".
 const GOD_ID := "t_god"
@@ -130,6 +133,9 @@ static func value_of(kind: String, profile: Dictionary) -> int:
 		"wcol_sets": return int(flags.get(WeeklyCollect.SETS_FLAG, 0))
 		"lk_queen": return int(flags.get(LoyKrathong.QUEEN_FLAG, 0))
 		"lk_king": return int(flags.get(LoyKrathong.KING_FLAG, 0))
+		"maze_crown":
+			var crown: Variant = profile.get(MazeCrown.KEY)
+			return mini(1, int((crown as Dictionary).get("wins", 0))) if crown is Dictionary else 0
 		"wcol_themes":
 			var bits := int(flags.get(WeeklyCollect.THEMES_FLAG, 0))
 			var n := 0
@@ -212,9 +218,14 @@ static func title_index(profile: Dictionary) -> int:
 ## grants no title (a wiped profile).
 static func title_of(profile: Dictionary) -> String:
 	var k := title_index(profile)
-	if k < 0 or not is_earned(TABLE[k].id, profile):
+	if k < 0 or not is_earned(TABLE[k].id, profile) or not wearable(TABLE[k], profile):
 		return ""
 	return title_text(TABLE[k], profile)
+
+
+## A timed title (หนึ่งในใต้หล้า) is worn only while its crown lasts; every other one always.
+static func wearable(row: Dictionary, profile: Dictionary) -> bool:
+	return not bool(row.get("timed", false)) or MazeCrown.title_valid(profile)
 
 
 ## The title an achievement grants this hero: the God one names the hero's class
@@ -233,7 +244,7 @@ static func set_title(profile: Dictionary, index: int) -> bool:
 	if index < 0:
 		profile["flags"].erase(TITLE_FLAG)
 		return true
-	if index >= TABLE.size() or not is_earned(TABLE[index].id, profile) or String(TABLE[index].title) == "":
+	if index >= TABLE.size() or not is_earned(TABLE[index].id, profile) or String(TABLE[index].title) == "" or not wearable(TABLE[index], profile):
 		return false
 	profile["flags"][TITLE_FLAG] = index
 	return true

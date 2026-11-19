@@ -21,10 +21,11 @@ extends RefCounted
 ##   and every real player sees the same ones) and it is announced the same way; the
 ##   others cheer in the world chat (WorldPresence takes the events with take_luck).
 
-const KINDS := ["jackpot", "rare"]
+## "crown": the week's หนึ่งในใต้หล้า (MazeCrown), read off the clock by every game like the rare dragon.
+const KINDS := ["jackpot", "rare", "crown"]
 ## What an `announce` frame may name, by kind (the server keeps the same lists).
 const WHATS := {"jackpot": ["", "weapon", "wings", "fragment", "egg", "chest"], "rare": ["slain"]}
-const COLORS := {"jackpot": Color("ffd23a"), "rare": Color("7dffd8")}
+const COLORS := {"jackpot": Color("ffd23a"), "rare": Color("7dffd8"), "crown": Color("ffc23a")}
 ## The world chat's speaker of a system line (as WorldPresence's server messages).
 const SPEAKER := "ประกาศ"
 const TEXT_MAX := 120

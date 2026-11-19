@@ -1593,7 +1593,14 @@ func _build_titles() -> void:
 		col.add_child(detail)
 		if has_title:
 			col.add_child(UIUtil.label("ตำแหน่ง: %s" % Achievements.title_text(row, Game.profile), &"DimLabel"))
-		if done and has_title:
+		# A timed title (หนึ่งในใต้หล้า, MazeCrown): how long it still lasts, or that it ended.
+		var lasts := Achievements.wearable(row, Game.profile)
+		if done and bool(row.get("timed", false)):
+			var left := UIUtil.label(MazeCrown.left_text(MazeCrown.until_of(Game.profile)) if lasts else "หมดอายุแล้ว — ใส่ได้อีกเมื่อครอง%sอีกครั้ง" % MazeCrown.TITLE_NAME, &"SmallLabel")
+			left.name = "TitleLeft_%s" % row.id
+			left.add_theme_color_override("font_color", MazeCrown.COLOR if lasts else UIPalette.TEXT_MUTED)
+			col.add_child(left)
+		if done and has_title and (lasts or Achievements.title_index(Game.profile) == k):
 			var wearing := Achievements.title_index(Game.profile) == k
 			var b := UIUtil.button("ถอดตำแหน่ง" if wearing else "ใช้ตำแหน่ง", &"" if wearing else &"PrimaryButton", Vector2(150, 56))
 			b.pressed.connect(func():
