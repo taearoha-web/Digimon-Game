@@ -252,6 +252,24 @@ static func events(t: float) -> String:
 	return out
 
 
+## The golden monster (มอนทองคำ): how often, how long, what it pays (WorldEvents).
+static func golden(t: float) -> String:
+	var out := "%sโผล่ทุก %d นาทีในสนามเก็บเลเวล อยู่ %d นาที เลือด x%d ให้ทอง %s ต่อขั้นสนาม เพชรม่วงกับเพชรชมพู ลุ้นเพชรชาออส %s%% อัญมณี %s%%" % [
+		WorldEvents.NAME_GOLDEN, WorldEvents.GOLDEN_PERIOD / 60, WorldEvents.GOLDEN_LENGTH / 60, int(WorldEvents.GOLDEN_HP),
+		thousands(WorldEvents.GOLDEN_GOLD), pct(WorldEvents.GOLDEN_CHAOS), pct(WorldEvents.GOLDEN_GEM)]
+	if not WorldEvents.golden_now(t).is_empty() and out.length() < MAX - 12:
+		out += " ตอนนี้โผล่อยู่"
+	return out
+
+
+## The forge weekend (สุดสัปดาห์ตีบวก): on now or not, and what it gives.
+static func forge_weekend(t: float) -> String:
+	if not WorldEvents.forge_weekend_enabled or t < float(WorldEvents.FORGE_START):
+		return "ตอนนี้ยังไม่มี%sนะ" % WorldEvents.NAME_FORGE
+	var what := "%sมีทุกเสาร์อาทิตย์ ตีบวกขั้นที่ลุ้นได้โอกาสเพิ่ม %d%% สูงสุด %d%%" % [WorldEvents.NAME_FORGE, int(round(WorldEvents.FORGE_BONUS * 100.0)), int(round(WorldEvents.FORGE_CAP * 100.0))]
+	return what + (" ตอนนี้กำลังมีอยู่เลย" if WorldEvents.forge_weekend_on(t) else " ตอนนี้ยังไม่ถึงเสาร์อาทิตย์")
+
+
 ## The dragon hunt (ล่ามังกรแก้วเจ็ดสี): on now, or when the next one starts.
 static func dragon_hunt(t: float) -> String:
 	if DragonHunt.is_on(t):
@@ -273,34 +291,75 @@ static func festival(t: float) -> String:
 # --- The guild war -------------------------------------------------------------------------
 
 ## The next round (and who guild g meets), this week's leader and the castle holder.
-static func guild_war(t: float, g: int) -> String:
+static func guild_war(t: float, g: int, results := false) -> String:
 	var next := GuildLeague.next_slot(t)
 	var out := "กิลด์วอรอบหน้า %s" % GuildLeague.clock_text(next)
 	if g > 0:
 		var rivals := GuildLeague.next_rivals(g, t)
 		if not rivals.is_empty():
-			out += " %s เจอ%s" % [GuildLeague.name_of(g), " ".join(PackedStringArray(rivals.map(func(r): return GuildLeague.name_of(int(r)))))]
+			out += " %s ชนกับ %s" % [GuildLeague.name_of(g), ", ".join(PackedStringArray(rivals.map(func(r): return GuildLeague.name_of(int(r)))))]
+	if not results:
+		return out
+	var lg := league(t)
+	if int(lg.leader) > 0:
+		out += " สัปดาห์นี้%sนำ %d แต้ม" % [GuildLeague.name_of(int(lg.leader)), int(lg.points)]
+	elif int(lg.rounds) == 0:
+		out += " สัปดาห์นี้ยังไม่มีผลวอ"
+	if int(lg.holder) > 0 and (out + " ปราสาทตอนนี้อยู่กับ " + GuildLeague.name_of(int(lg.holder))).length() <= MAX:
+		out += " ปราสาทตอนนี้อยู่กับ " + GuildLeague.name_of(int(lg.holder))
+	return out
+
+
+static var _league := {}
+static var _king := {}
+static var _offers := {}
+
+
+## Last season's Castle King (GuildLeague.champion_now), worked out once a week.
+static func castle_king(t: float) -> int:
 	var w := GuildLeague.week_of(t)
+	if int(_king.get("week", -1)) != w:
+		_king = {"week": w, "g": GuildLeague.champion_now(t)}
+	return int(_king.g)
+
+
+## The stalls selling item `id` of `kind` now (ChatTrade.offers), kept for a minute of
+## world time per item (every stall's stock is read for it); a bought lot is gone at once.
+static func offers(kind: String, id: String, t: float) -> Array:
+	var key := "%s|%s|%d|%d" % [kind, id, int(t / 60.0), (Game.profile.get("flags", {}) as Dictionary).size() if Game.has_profile else 0]
+	if not _offers.has(key):
+		if _offers.size() > 64:
+			_offers.clear()
+		_offers[key] = ChatTrade.offers({"kind": kind, "ids": [id]}, t)
+	return _offers[key]
+
+
+## This week's league as its screen shows it at t: {leader, points, holder, rounds, table};
+## worked out once a round (the table sums the week's rounds, which takes a while).
+static func league(t: float) -> Dictionary:
+	var w := GuildLeague.week_of(t)
+	var key := "%d|%d" % [w, GuildLeague.last_ended(t)]
+	if String(_league.get("key", "")) == key:
+		return _league
 	var real := GuildLeague.real_wars(w) if Game.has_profile else []
 	var tab := GuildLeague.table(w, real, t)
-	if not tab.is_empty() and int(tab[0].points) > 0:
-		out += " สัปดาห์นี้%sนำ %d แต้ม" % [String(tab[0].name), int(tab[0].points)]
-	var holder := GuildLeague.holder(w, real, t)
-	if holder > 0 and (out + " ปราสาทอยู่กับ" + GuildLeague.name_of(holder)).length() <= MAX:
-		out += " ปราสาทอยู่กับ" + GuildLeague.name_of(holder)
-	return out
+	var rounds := 0
+	for r in tab:
+		rounds = maxi(rounds, int(r.wins) + int(r.losses))
+	var lead := tab[0] if not tab.is_empty() and int(tab[0].points) > 0 else {}
+	_league = {"key": key, "leader": int(lead.get("g", 0)), "points": int(lead.get("points", 0)), "holder": GuildLeague.holder(w, real, t), "rounds": rounds, "table": tab}
+	return _league
 
 
 ## How guild g did this week (its row of the table), "" before it scored.
 static func guild_standing(t: float, g: int) -> String:
 	if g <= 0:
 		return ""
-	var w := GuildLeague.week_of(t)
-	var tab := GuildLeague.table(w, GuildLeague.real_wars(w) if Game.has_profile else [], t)
+	var tab: Array = league(t).table
 	for r in tab:
 		if int(r.g) == g:
 			if int(r.points) <= 0 and int(r.wins) + int(r.losses) == 0:
-				return "%s สัปดาห์นี้ยังไม่ได้ลงวอเลย" % String(r.name)
+				return ""
 			return "%s สัปดาห์นี้อันดับ %d %d แต้ม ชนะ %d แพ้ %d" % [String(r.name), int(r.rank), int(r.points), int(r.wins), int(r.losses)]
 	return ""
 

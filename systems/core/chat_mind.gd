@@ -23,6 +23,14 @@ extends RefCounted
 
 const MAX := 150
 const MAX_ACTS := 3
+## A line with one of these is about it, not the general one.
+const PRE_COVERS := {"weekly": ["events", "help"], "loyk": ["events", "help"], "isle": ["events", "help"], "festival": ["events", "help"],
+	"dragonhunt": ["events", "help", "isle"], "forge": ["enhance", "help"], "war": ["guild", "help", "events"], "playtime": ["level"]}
+## Acts with a topic of their own: a "ที่ไหน" beside one asks about it.
+const TOPICAL := ["skill", "guild", "shop", "help", "set", "wings", "mount", "gems", "isle", "events", "weekly", "loyk", "forge", "war", "pet",
+	"festival", "dragonhunt", "duel", "trade", "enhance", "class"]
+## Words that hold another act's word ("กิล" of "สกิล"): masked out when reading that act.
+const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"]}
 ## An act answered covers these (ChatBrain's own answer to them would say the same again).
 const COVERS := {"forge": ["enhance", "help"], "events": ["help"], "festival": ["help", "events"], "war": ["guild", "help"],
 	"dragonhunt": ["isle", "help", "events"], "guildinv": ["guild", "party"], "trade": ["come", "shop"], "doing": ["whereis"],
@@ -65,7 +73,7 @@ const LOOT := ["ดรอปอะไร", "ได้อะไร", "ให้�
 const HAVE := ["มีไหม", "มีหรือยัง", "มียัง", "มีป่ะ", "ได้หรือยัง", "ได้ยัง", "มี", "ขี่", "ใส่"]
 ## The hero speaking of itself, and words of its public sheet.
 const ME := ["ฉัน", "ผม", "หนู", "กู", "ข้า", "ของเรา", "เค้า", "ตัวเรา", "เราเก่ง", "เราเลเวล", "ชุดเรา", "อาวุธเรา"]
-const SHEET := ["เลเวล", "ชุด", "อาวุธ", "เกราะ", "เก่ง", "กิลด์", "ใส่", "อาชีพ", "ปีก", "บวก", "คอสตูม", "หน้าตา", "ดาว", "หล่อ", "สวย", "เท่"]
+const SHEET := ["เลเวล", "ชุด", "อาวุธ", "เกราะ", "เก่ง", "กิลด์", "ใส่", "อาชีพ", "ปีก", "บวก", "คอสตูม", "หน้าตา", "ดาว", "หล่อ", "สวย", "เท่จัง", "เท่ไหม", "ดูเท่", "เท่ดี", "เท่มาก"]
 ## A short line that follows up the player's own last answer.
 const FOLLOW := ["แล้วล่ะ", "ล่ะ", "ละ", "แล้วไง", "อีก", "ทำไม", "จริงเหรอ", "จริงดิ", "จริงหรอ", "จริงป่ะ", "แน่ใจ", "เหรอ", "หรอ", "อันนั้น", "ตัวนั้น", "มันล่ะ", "ต่อสิ", "แล้วยังไง"]
 const QUESTION := ["?", "ไหม", "อะไร", "ยังไง", "ทำไม", "ใคร", "ที่ไหน", "เมื่อไหร่", "กี่", "หรือ", "เหรอ", "หรอ", "มั้ง", "ป่ะ", "เปล่า", "รึ"]
@@ -85,6 +93,8 @@ const JOKES := ["ทำไมสไลม์ไม่เคยแพ้ เพ�
 	"ยาเลือดเล็กบอกยาเลือดใหญ่ว่า โตแล้วอย่าลืมกันนะ 555", "ราชาเห็ดยักษ์ขี้เหงา เพราะไม่มีใครอยากเห็ด… เอ้ย เห็นหน้า 555"]
 const SAD := ["ไม่เป็นไรนะ เดี๋ยวก็ดีขึ้น ไปล่ามอนด้วยกันไหม", "สู้ ๆ นะ มีอะไรเล่าให้ฟังได้", "พักก่อนก็ได้นะ เกมไม่หนีไปไหน", "ใจเย็น ๆ นะ เป็นกำลังใจให้"]
 const TIRED := ["พักบ้างนะ สุขภาพสำคัญกว่าเลเวล", "ไปพักก่อนก็ได้ เดี๋ยวค่อยมาลุยกัน", "หิวก็ไปกินข้าวก่อนสิ มอนรอได้ 555"]
+const SAD_ME := ["ไม่เศร้าหรอก สนุกดีออก", "นิดหน่อยตอนตีบวกแตก 555 แต่ไม่เป็นไร", "ไม่หรอก เล่นเกมก็มีความสุขดี"]
+const TIRED_ME := ["นิดหน่อย แต่ยังไหว", "ไม่เหนื่อยหรอก สนุกอยู่", "เหนื่อยนิด ๆ เดี๋ยวพักแป๊บ"]
 const HAPPY := ["ดีใจด้วยนะ!", "เย้ ดีใจด้วยเลย", "เห็นแล้วพลอยดีใจไปด้วย"]
 const LOVE := ["555 เขินเลย เป็นเพื่อนเล่นเกมกันดีกว่านะ", "ขอบคุณนะ แต่ขอเป็นเพื่อนร่วมล่าก็พอ 555", "ใจดีจัง เป็นเพื่อนกันไปนาน ๆ นะ"]
 const CUTE := ["ขอบคุณ เขินเลย", "จริงเหรอ ขอบคุณนะ", "ขอบคุณ ๆ วันนี้แต่งเต็มเลย 555"]
@@ -122,12 +132,17 @@ static func read(text: String) -> Dictionary:
 			if seen.has(act):
 				continue
 			var best := -1
+			var pad := padded
+			var tig := tight
+			for mask in MASKS.get(act, []):
+				pad = pad.replace(String(mask), "#".repeat(String(mask).length()))
+				tig = tig.replace(String(mask), "#".repeat(String(mask).length()))
 			for word in entry[1]:
 				var w := String(word)
-				var at := padded.find(w)
+				var at := pad.find(w)
 				var from_tight := false
 				if at < 0:
-					at = tight.find(w.strip_edges())
+					at = tig.find(w.strip_edges())
 					from_tight = at >= 0
 				if at < 0:
 					continue
@@ -145,11 +160,23 @@ static func read(text: String) -> Dictionary:
 	return {"n": n, "found": found, "acts": acts, "question": question, "me": me, "level": _level_in(n)}
 
 
+## Whether a line asks about something the game names (a monster, a field, an item...).
+static func names_something(text: String) -> bool:
+	var r := read(text)
+	return not (r.found as Array).is_empty() and bool(r.question)
+
+
 static func _level_in(n: String) -> int:
 	var rx := RegEx.new()
 	rx.compile("(?:เลเวล|เวล|lv\\.?)\\s*(\\d{1,3})")
 	var m := rx.search(n)
 	return clampi(int(m.get_string(1)), 1, Game.MAX_LEVEL) if m != null else 0
+
+
+## A feeling asked of the player ("เหนื่อยไหม", "เศร้าป่ะ"), not told by the hero.
+static func _asks_me(r: Dictionary) -> bool:
+	var n := String(r.n)
+	return _has(n, ["ไหม", "หรือเปล่า", "?", "ป่ะ", "รึยัง", "เหรอ", "หรอ"]) and not _has(n, ["ฉัน", "ผม", "หนู", "เรา", "กู"])
 
 
 static func _has(n: String, words: Array) -> bool:
@@ -187,7 +214,10 @@ static func reply(body: Dictionary, mine: Dictionary, tone: String, rng: RandomN
 			return _finish(_say(PRIVACY if alone == "privacy" else MONEY, rng, alone), p, rng)
 	# A single intent ChatBrain answers itself.
 	var legacy := ChatBrain.INTENTS.map(func(e): return String(e[0]))
-	if found.is_empty() and acts.size() == 1 and legacy.has(acts[0]) and r.level == 0:
+	# (ChatBrain reads the line as typed: one in English or slang is answered here.)
+	var same := acts.size() == 1 and ChatBrain.intent_of(text) == String(acts[0])
+	var keeper := String(p.get("doing", "")) == "stall" and int(p.get("index", -1)) >= 0
+	if found.is_empty() and same and legacy.has(acts[0]) and r.level == 0 and not (keeper and acts[0] == "shop"):
 		return {}
 	var parts: Array = []
 	var action := "none"
@@ -203,6 +233,16 @@ static func reply(body: Dictionary, mine: Dictionary, tone: String, rng: RandomN
 			if String(a.get("action", "none")) != "none":
 				action = String(a.action)
 	var covered := {}
+	# A line about a particular event is not about the events in general; "ที่ไหน" of
+	# another topic ("สกิลอัปที่ไหน") is not where to level.
+	for act in acts:
+		for c in PRE_COVERS.get(act, []):
+			covered[c] = true
+		if TOPICAL.has(act):
+			covered["where"] = true
+			covered["whereis"] = true
+		if act == "whereis":
+			covered["where"] = true
 	for act in acts:
 		if parts.size() >= MAX_ACTS:
 			break
@@ -241,8 +281,13 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 		"joke":
 			return _say(JOKES, rng, act)
 		"sad":
-			return _say(SAD, rng, act)
+			return _say(SAD_ME if _asks_me(r) else SAD, rng, act)
 		"tired":
+			if _asks_me(r):
+				var asked := _say(TIRED_ME, rng, act)
+				if int(p.get("index", -1)) >= 0 and rng.randf() < 0.5:
+					asked.reply = "%s %s" % [asked.reply, playtime_text(int(p.index), t)]
+				return asked
 			return _say(TIRED, rng, act)
 		"happy":
 			return _say(HAPPY, rng, act)
@@ -270,14 +315,20 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 			return {"reply": ChatFacts.festival(t), "topic": act}
 		"forge":
 			var plus := _plus_in(String(r.n))
-			if plus < 0 and not _has(String(r.n), RATE + ["ยังไง", "วิธี", "เรท", "ติด"]):
+			if _has(String(r.n), ["ได้เท่าไหร่", "ได้กี่", "บวกเท่าไหร่", "บวกกี่", "+กี่", "+เท่าไหร่", "ของคุณ", "ตัวเอง"]):
+				return {"reply": ChatBrain.gear_answer("gear", p, mine, rng), "topic": "gear"}
+			if _has(String(r.n), ["สุดสัปดาห์", "เสาร์อาทิตย์", "วีคเอนด์"]):
+				return {"reply": ChatFacts.forge_weekend(t), "topic": act}
+			if plus < 0 and not _has(String(r.n), RATE + ["ยังไง", "วิธี", "เรท", "ติด", "คือ", "สอน"]):
 				return {}
 			return {"reply": ChatFacts.forge(t, plus), "topic": act}
 		"events":
+			if _has(String(r.n), ["มอนทอง"]):
+				return {"reply": ChatFacts.golden(t), "topic": act}
 			return {"reply": ChatFacts.events(t), "topic": act}
 		"war":
 			var g := WorldPlayers.guild_at(i, int(p.get("level", 1))) if i >= 0 else 0
-			var out := ChatFacts.guild_war(t, g)
+			var out := ChatFacts.guild_war(t, g, _has(String(r.n), ["ใครชนะ", "แชมป์", "ปราสาท", "ลีก", "นำ", "อันดับ", "ผล", "แต้ม"]))
 			var mine_row := ChatFacts.guild_standing(t, g)
 			if mine_row != "" and (out + " " + mine_row).length() <= MAX:
 				out += " " + mine_row
@@ -394,7 +445,7 @@ static func price_text(key: String, name: String, t: float) -> String:
 	var it: Dictionary = ChatLexicon.items.get(key, {})
 	var kind := String(it.get("kind", ""))
 	if kind in ["jewel", "potion", "gem"]:
-		var offers := ChatTrade.offers({"kind": kind, "ids": [String(it.id)]}, t)
+		var offers := ChatFacts.offers(kind, String(it.id), t)
 		if not offers.is_empty():
 			var o: Dictionary = offers[0]
 			var lot: Dictionary = o.lots[0]
@@ -414,7 +465,7 @@ static func _about_hero(r: Dictionary, p: Dictionary, h: Dictionary, rng: Random
 	var st := int(h.get("stars", 0))
 	var mine_lv := int(p.get("level", 1))
 	var sheet := "Lv.%d%s" % [lv, " ★%d" % st if st > 0 and lv >= Game.MAX_LEVEL else ""]
-	if _has(n, ["ชุด", "อาวุธ", "เกราะ", "ใส่", "บวก", "ปีก", "คอสตูม", "หล่อ", "สวย", "เท่", "หน้าตา"]):
+	if _has(n, ["ชุด", "อาวุธ", "เกราะ", "ใส่", "บวก", "ปีก", "คอสตูม", "หล่อ", "สวย", "เท่จัง", "เท่ไหม", "ดูเท่", "เท่ดี", "เท่มาก", "หน้าตา"]) and not (_has(n, ["เลเวล", "กี่ดาว"]) and not _has(n, ["ชุด", "อาวุธ", "ใส่"])):
 		var gear: Dictionary = h.get("gear", {})
 		var bits: PackedStringArray = []
 		for slot in ["weapon", "armor", "helm", "boots"]:
@@ -548,7 +599,7 @@ static func title_text(p: Dictionary) -> String:
 	var i := int(p.get("index", -1))
 	var god := WorldPlayers.god_title({"level": lv, "stars": st, "class": WorldPlayers.entry(i)["class"]}) if i >= 0 else ""
 	var g := WorldPlayers.guild_at(i, lv) if i >= 0 else 0
-	var crown := " กิลด์%sเป็น%sสัปดาห์นี้ด้วย" % [WorldPlayers.guild_name(g), GuildLeague.CASTLE_TITLE] if g > 0 and GuildLeague.crowned(g) else ""
+	var crown := " กิลด์%sเป็น%sสัปดาห์นี้ด้วย" % [WorldPlayers.guild_name(g), GuildLeague.CASTLE_TITLE] if g > 0 and ChatFacts.castle_king(WorldPresence.clock()) == g else ""
 	if god != "":
 		return "เป็น%sแล้ว%s" % [god, crown]
 	return ("ยังไม่ได้เป็นเทพเจ้า ต้อง Lv.%d ★%d ก่อน" % [Game.MAX_LEVEL, JobData.GOD_STARS]) + crown
@@ -604,8 +655,9 @@ static func _finish(out: Dictionary, p: Dictionary, rng: RandomNumberGenerator) 
 		return out
 	var v := voice_of(p)
 	var text := String(out.get("reply", "")).replace("%laugh", String(v.laugh))
-	if text.contains("555") and String(v.laugh) != "555" and not text.contains("5555"):
-		text = text.replace("555", String(v.laugh))
+	# Its own laugh for a "555" that stands alone (never one inside a price: "16,555").
+	if String(v.laugh) != "555":
+		text = _laugh_rx().sub(text, String(v.laugh), true)
 	var end := String(v.end[clampi(int(p.get("gender", 0)), 0, 1)])
 	if end != "" and rng.randf() < float(v.rate) and not text.ends_with("?") and not text.ends_with("ไหม") and text.length() < MAX - 6:
 		text = "%s %s" % [text, end]
@@ -613,6 +665,16 @@ static func _finish(out: Dictionary, p: Dictionary, rng: RandomNumberGenerator) 
 	if not out.has("action"):
 		out["action"] = "none"
 	return out
+
+
+static var _laugh: RegEx
+
+
+static func _laugh_rx() -> RegEx:
+	if _laugh == null:
+		_laugh = RegEx.new()
+		_laugh.compile("(?<![\\d,.])555(?![\\d+,])")
+	return _laugh
 
 
 ## `text` at most MAX letters, cut at a space.
@@ -641,17 +703,21 @@ static func _say(pool: Array, rng: RandomNumberGenerator, topic := "") -> Dictio
 ## A reply already given (the last answers): said once more with a word that it was,
 ## so the same line is never spammed back word for word.
 static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator) -> Dictionary:
-	var said := ""
-	var count := 0
+	var recent: Array = []
 	for k in range(history.size() - 1, -1, -1):
 		if String(history[k].get("who", "")) != "player":
 			continue
-		count += 1
-		if String(history[k].get("text", "")) == String(out.get("reply", "")):
-			said = String(out.reply)
-		if count >= 3:
+		recent.append(String(history[k].get("text", "")))
+		if recent.size() >= 3:
 			break
-	if said == "":
+	var said := String(out.get("reply", ""))
+	if not recent.has(said):
 		return out
-	out["reply"] = cut("%s %s" % [String(REPEAT[rng.randi() % REPEAT.size()]), said])
+	var start := rng.randi() % REPEAT.size()
+	for k in REPEAT.size():
+		var again := cut("%s %s" % [String(REPEAT[(start + k) % REPEAT.size()]), said])
+		if not recent.has(again):
+			out["reply"] = again
+			return out
+	out["reply"] = "ตอบไปหลายรอบแล้วนะ 555 ถามเรื่องอื่นก็ได้"
 	return out

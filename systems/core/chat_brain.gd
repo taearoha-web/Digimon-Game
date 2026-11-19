@@ -204,7 +204,9 @@ static func reply(body: Dictionary) -> Dictionary:
 	var channel := String(body.get("channel", ""))
 	var mate := String(body.get("from", ""))
 	var mine := news_of(body)
-	if channel == "party" or channel == "guild":
+	# The party's / guild's own talk ("บอสมาแล้ว", "ฮีลหน่อย"), unless the line asks about
+	# something by name ("บอสภูเขาน้ำแข็งคือใคร": ChatMind answers it).
+	if (channel == "party" or channel == "guild") and (mate != "" or not ChatMind.names_something(text)):
 		var said := _channel_answer(channel, text, mate, p, rng)
 		if not said.is_empty():
 			return said

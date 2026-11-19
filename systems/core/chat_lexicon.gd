@@ -33,6 +33,13 @@ const EN := {
 	"now": "ตอนนี้", "doing": "ทำอะไรอยู่", "wyd": "ทำอะไรอยู่", "hru": "สบายดีไหม", "trade": "เทรด", "duel": "ดวล", "pvp": "ดวล",
 	"name": "ชื่อ", "time": "เวลา", "today": "วันนี้", "tomorrow": "พรุ่งนี้", "weekend": "เสาร์อาทิตย์",
 }
+## Whole English questions, read before the words.
+const EN_PHRASES := [["where are you", "อยู่ไหน"], ["where r u", "อยู่ไหน"], ["where are u", "อยู่ไหน"], ["what level are you", "เลเวลเท่าไหร่"],
+	["what lvl are you", "เลเวลเท่าไหร่"], ["how are you", "สบายดีไหม"], ["how r u", "สบายดีไหม"], ["what are you doing", "ทำอะไรอยู่"],
+	["are you a bot", "เป็นบอทเหรอ"], ["are u a bot", "เป็นบอทเหรอ"], ["are you real", "เป็นคนจริงไหม"], ["what's your name", "ชื่ออะไร"],
+	["whats your name", "ชื่ออะไร"], ["drop rate", "เรทดรอป"], ["what class", "อาชีพอะไร"], ["your guild", "อยู่กิลด์ไหน"],
+	["what do you sell", "ขายอะไร"], ["what are you selling", "ขายอะไร"], ["want to party", "ไปปาร์ตี้ไหม"], ["good morning", "อรุณสวัสดิ์"],
+	["good night", "ฝันดี"], ["thank you", "ขอบคุณ"]]
 ## Thai chat short forms and slips, read as the word they mean (a plain replace).
 const TH := [["ปาตี้", "ปาร์ตี้"], ["ปาร์ตี้้", "ปาร์ตี้"], ["กิลล์", "กิลด์"], ["มั้ย", "ไหม"], ["มั๊ย", "ไหม"], ["มัย", "ไหม"],
 	["รึเปล่า", "ไหม"], ["หรือเปล่า", "ไหม"], ["ป่าว", "ไหม"], ["ยังงัย", "ยังไง"], ["ยังงี้", "อย่างนี้"], ["ทามไม", "ทำไม"],
@@ -191,6 +198,8 @@ static func normalize(text: String) -> String:
 		if run >= (2 if thai_mark else 3):
 			continue
 		out += ch
+	for pair in EN_PHRASES:
+		out = out.replace(String(pair[0]), String(pair[1]))
 	for pair in TH:
 		out = out.replace(String(pair[0]), String(pair[1]))
 	# English words as the Thai they mean (whole words only; the word stays beside it).
@@ -294,14 +303,14 @@ static func _fuzzy(n: String) -> Dictionary:
 	var cands: Array = []
 	for k in hits:
 		var skel := String(_keys[k].skel)
-		if skel.length() >= 5 and not _is_ascii(skel) and float(hits[k]) >= float(skel.length() - 1) * 0.5:
+		if skel.length() >= 6 and String(_keys[k].kind) in ["monster", "boss", "item", "zone"] and not _is_ascii(skel) and float(hits[k]) >= float(skel.length() - 1) * 0.5:
 			cands.append(k)
 	cands.sort_custom(func(a, b): return int(hits[a]) > int(hits[b]))
 	var best := {}
 	var best_d := 99
 	for k in cands.slice(0, 10):
 		var skel := String(_keys[k].skel)
-		var limit := 1 if skel.length() < 7 else 2
+		var limit := 1 if skel.length() < 9 else 2
 		for start in range(0, maxi(1, sk.length() - skel.length() + 2)):
 			for size in [skel.length() - 1, skel.length(), skel.length() + 1]:
 				if start + size > sk.length() or size < 3:
