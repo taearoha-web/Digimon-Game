@@ -9,7 +9,9 @@ extends Node
 ##   $G --headless --audio-driver Dummy --fixed-fps 15 --path . res://tests/tools/guild_war_sim.tscn
 ## env: SIM_TEAMS=2|4, SIM_SEEDS=1,2,3, SIM_SMART=1,0[,0,0], SIM_MULT=1,1[,..],
 ##      SIM_SECONDS (default the whole war), SIM_SIZE (fighters a guild, 20), SIM_SWAP=0|1,
-##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4).
+##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4),
+##      SIM_OFF=muster,besiege,wait,exploit,squads (the doctrine's rules switched off),
+##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase).
 ## The physics step is 1/15 s of war time (time_scale 4 at 60 ticks, as the capture
 ## measurements in guild_war_capture_test / guild_war_4way_test); with --fixed-fps 15 the
 ## wars run as fast as the machine can (tools/gw_sim_report.py sums the JSON lines up).
@@ -57,6 +59,8 @@ func _ready() -> void:
 	var out_path := _env("SIM_OUT", "")
 	var hook := Hook.new()
 	GuildWarSpectate.league_hook = hook
+	for key in _env("SIM_OFF", "").split(",", false):
+		GuildWarDoctrine.off[key] = true
 	for s in seeds:
 		var setups: Array = [[smart, mults]]
 		if swap:
@@ -112,7 +116,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	zone.layout_seed = 77
 	add_child(zone)
 	var m: GuildWarMatch = zone.gw_match
-	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults}
+	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults, "off": GuildWarDoctrine.off.keys()}
 	if m == null:
 		out["error"] = "no match"
 		return out

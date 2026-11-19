@@ -52,6 +52,10 @@ extends RefCounted
 ## Cheap: one pass over the fighters a think (a few hundred distance checks for 80), and
 ## a pass over its own guild with the formation (every 0.5 s).
 
+## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
+## off by name ("muster", "besiege", "wait", "exploit", "squads"); empty in the game.
+static var off: Dictionary = {}
+
 const THINK_EVERY := 2.0
 ## What a leader at the front sees: fighters within this many metres of it.
 const FRONT_RADIUS := 24.0
@@ -548,16 +552,16 @@ func think() -> void:
 		if wait and not bool(win[1]):
 			_wait_ended = clock
 		_window_since = clock
-	engage = bool(win[0])
-	wait = bool(win[1])
+	engage = bool(win[0]) and not off.has("exploit")
+	wait = bool(win[1]) and not off.has("wait")
 	last_call = war.time_left <= LAST_CALL
 	# The race for the castle (nobody holds it): the whole guild musters at the last gate
 	# as it is about to fall, and surges through to the switch the moment it does.
-	muster = pick_muster(r, _last_gate_share())
+	muster = pick_muster(r, _last_gate_share()) and not off.has("muster")
 	if muster:
 		wait = false
 	if war.front_gate() == null and _last_gate_seen and war.castle_owner < 0:
-		surge_until = clock + SURGE_TIME
+		surge_until = clock + SURGE_TIME if not off.has("muster") else surge_until
 	_last_gate_seen = war.front_gate() != null
 	var surging := clock < surge_until and war.castle_owner < 0 and not bool(r.holding)
 	if surging:
@@ -568,7 +572,7 @@ func think() -> void:
 	# fighters as they come out of the keep) until the holder's front is spent (the
 	# window), the last minutes, or BESIEGE_MAX s, then tries a wave again.
 	var trades := {"loss": commander.loss_heat, "kill": commander.kill_heat}
-	var next_besiege := pick_besiege(besiege, clock - _besiege_since, r, trades, engage)
+	var next_besiege := pick_besiege(besiege, clock - _besiege_since, r, trades, engage) and not off.has("besiege")
 	if next_besiege != besiege:
 		besiege = next_besiege
 		_besiege_since = clock
@@ -638,6 +642,8 @@ func focus_extra(f: GuildFighter) -> float:
 ## point at the support squad, the called target's extra lean, the tanks peeling for a
 ## healer under attack.
 func apply() -> void:
+	if off.has("squads"):
+		return
 	var t0 := Time.get_ticks_usec()
 	_apply()
 	apply_us += int(Time.get_ticks_usec() - t0)
