@@ -1,0 +1,657 @@
+class_name ChatMind
+extends RefCounted
+## The world players reading what the hero writes, beyond ChatBrain's single intents:
+## free conversation, every claim true. ChatBrain.reply asks here first (reply) and falls
+## back to its own answers for a plain single intent; its small talk comes from here too
+## (small_talk), so nothing ends in a canned loop.
+##
+## A line is cleaned up (ChatLexicon.normalize: typos, slang, English), the game's names
+## in it are found (ChatLexicon.find: monsters, bosses, fields, items, classes, typed a
+## little wrong too), and every act it asks for is read, in the order written (ACTS and
+## ChatBrain.INTENTS): a greeting, a feeling, a joke, a question about the player itself
+## (its level, gear, mount, pet, what it is doing, how long it has played, its guild's
+## war...), about the hero's own sheet ("ชุดฉันสวยไหม"), about the game (where a monster
+## lives, what a boss drops, where an item comes from and its drop rate, the forge's odds,
+## the events, the festival, the dragon hunt), a trade, a duel, a guild invitation.
+## Up to MAX_ACTS of them are answered in one reply (a multi-question line), each from
+## ChatFacts (the game's tables at that moment) or the player's own sheet (WorldPlayers /
+## WorldGear through ChatBrain.news_of). A short follow-up ("แล้วล่ะ", "ทำไม", "จริงดิ",
+## "ที่ไหน", "เท่าไหร่") reads the topic and the name of the player's own last answer
+## (its history entry keeps them: AiChat._remember). What the game cannot answer is said
+## plainly ("ไม่แน่ใจ"), never guessed. A player's voice (VOICES, by its name) shapes the
+## endings and the laugh, so two players never sound alike.
+
+const MAX := 150
+const MAX_ACTS := 3
+## An act answered covers these (ChatBrain's own answer to them would say the same again).
+const COVERS := {"forge": ["enhance", "help"], "events": ["help"], "festival": ["help", "events"], "war": ["guild", "help"],
+	"dragonhunt": ["isle", "help", "events"], "guildinv": ["guild", "party"], "trade": ["come", "shop"], "doing": ["whereis"],
+	"strong": ["class", "praise"], "playtime": ["level"], "title": ["praise"], "pet": ["mount"], "joke": ["laugh"], "cute": ["praise"]}
+
+## Acts beyond ChatBrain.INTENTS, all read (not the first only), in the order written.
+const ACTS := [
+	["privacy", ["อายุเท่าไหร่", "อายุกี่", "กี่ขวบ", "บ้านอยู่", "อยู่จังหวัด", "จังหวัดไหน", "ชื่อจริง", "เบอร์โทร", "ขอเบอร์", "ไอดีไลน์", "ขอไลน์", "แอดไลน์",
+		"เฟสบุ๊ค", "facebook", "อินสตา", "instagram", "ที่อยู่จริง", "รหัสผ่าน", "password", "เรียนที่ไหน", "ทำงานที่ไหน", "หน้าตาจริง", "เพศอะไร"]],
+	["money", ["เงินจริง", "โอนเงิน", "กี่บาท", "ขายไอดี", "ซื้อไอดี", "พร้อมเพย์", "เติมเงิน", "truemoney"]],
+	["joke", ["มุก", "เรื่องตลก", "เล่าเรื่อง", "ตลกหน่อย", "ขำหน่อย"]],
+	["sad", ["เศร้า", "เสียใจ", "ท้อ", "เบื่อ", "เซ็ง", "เหงา", "ร้องไห้", "แย่จัง", "หงุดหงิด", "โมโห", "เครียด", "ไม่ไหวแล้ว"]],
+	["tired", ["เหนื่อย", "ง่วง", "จะนอน", "ไปนอน", "ฝันดี", "หิว", "กินข้าว", "ข้าวยัง"]],
+	["happy", ["ดีใจ", "เย้", "สนุกจัง", "สนุกมาก", "มีความสุข", "ปลื้ม", "ฟินมาก"]],
+	["love", ["รักนะ", "รักเธอ", "รักคุณ", "ชอบเธอ", "ชอบคุณ", "เป็นแฟน", "แต่งงาน", "มีแฟน", "จีบ"]],
+	["cute", ["น่ารัก", "สวยจัง", "สวยมาก", "หล่อจัง", "หล่อมาก", "ชุดสวย", "ชุดเท่", "เท่จัง", "เท่มาก", "หน้าตาดี"]],
+	["sorry", ["ขอโทษ", "โทษที", "ขอโทด", "ซอรี่"]],
+	["laugh", ["555", "ฮ่า", "ขำ", "ตลก", "อิอิ"]],
+	["name", ["ชื่ออะไร", "ชื่อไร", "เรียกว่าอะไร", "ชื่อเล่น"]],
+	["pet", ["สัตว์เลี้ยง", "เพ็ท", "เพท"]],
+	["playtime", ["เล่นมานาน", "เล่นมากี่", "เล่นนาน", "เล่นกี่ชั่วโมง", "เล่นมากี่วัน", "เริ่มเล่นเมื่อไหร่", "เล่นมาตั้งแต่"]],
+	["doing", ["ทำอะไรอยู่", "ทำไรอยู่", "ทำอะไรอ่ะ", "ทำอะไรกัน", "ว่างไหม", "ยุ่งไหม", "กำลังทำอะไร", "ทำอะไรอยู่หรอ", "afk"]],
+	["title", ["ฉายา", "ตำแหน่ง", "ไตเติ้ล", "title", "เทพเจ้าแห่ง", "เป็นเทพเจ้า"]],
+	["dragonhunt", ["ล่ามังกร", "แต้มล่า"]],
+	["festival", ["เทศกาล", "exp x3", "exp x5", "festival"]],
+	["forge", ["ตีบวก", "เรทตี", "โอกาสติด", "ติดกี่", "บวกติด", "สุดสัปดาห์ตีบวก", "ตีบวกเรท"]],
+	["events", ["อีเวนต์", "อีเว้น", "อีเว้นท์", "บอสโลก", "มอนทอง", "exp x2", "กิจกรรม", "โบนัส"]],
+	["war", ["กิลด์วอ", "วอกิลด์", "รบกิลด์", "ลีก", "ปราสาท", "ใครชนะ", "แชมป์", "วอรอบ"]],
+	["duel", ["ดวล", "ประลอง", "ตีกัน", "สู้กันไหม", "1v1"]],
+	["trade", ["เทรด", "แลกของ", "แลกเปลี่ยน", "trade"]],
+	["guildinv", ["เข้ากิลด์เรา", "มากิลด์", "ชวนเข้ากิลด์", "ย้ายกิลด์", "รับเข้ากิลด์", "มาอยู่กิลด์"]],
+	["strong", ["อาชีพไหนเก่ง", "สายไหนเก่ง", "อาชีพไหนดี", "สายไหนดี", "เล่นอะไรดี", "อาชีพไหนโหด", "คลาสไหนดี", "คลาสไหนเก่ง"]],
+	["online", ["กี่คน", "คนเยอะไหม", "ใครออน", "คนออน"]],
+]
+## Words asking where, how often, how much and when.
+const WHERE := ["ที่ไหน", "อยู่ไหน", "แถวไหน", "ฟาร์มที่", "ฟาร์ม", "หาได้", "ได้จาก", "ได้ที่", "ดรอปที่", "ดรอปจาก", "เก็บที่", "ไปไหน", "หาที่", "จากไหน", "หาไง", "หายังไง"]
+const RATE := ["เรท", "กี่%", "กี่เปอร์", "โอกาส", "ดรอปเท่าไหร่", "ดรอปง่าย", "ดรอปยาก", "ดรอปไหม", "ออกง่าย", "%"]
+const PRICE := ["ราคา", "กี่ทอง", "ขายเท่าไหร่", "เท่าไหร่"]
+const LOOT := ["ดรอปอะไร", "ได้อะไร", "ให้อะไร", "ของอะไร", "ดรอป"]
+const HAVE := ["มีไหม", "มีหรือยัง", "มียัง", "มีป่ะ", "ได้หรือยัง", "ได้ยัง", "มี", "ขี่", "ใส่"]
+## The hero speaking of itself, and words of its public sheet.
+const ME := ["ฉัน", "ผม", "หนู", "กู", "ข้า", "ของเรา", "เค้า", "ตัวเรา", "เราเก่ง", "เราเลเวล", "ชุดเรา", "อาวุธเรา"]
+const SHEET := ["เลเวล", "ชุด", "อาวุธ", "เกราะ", "เก่ง", "กิลด์", "ใส่", "อาชีพ", "ปีก", "บวก", "คอสตูม", "หน้าตา", "ดาว", "หล่อ", "สวย", "เท่"]
+## A short line that follows up the player's own last answer.
+const FOLLOW := ["แล้วล่ะ", "ล่ะ", "ละ", "แล้วไง", "อีก", "ทำไม", "จริงเหรอ", "จริงดิ", "จริงหรอ", "จริงป่ะ", "แน่ใจ", "เหรอ", "หรอ", "อันนั้น", "ตัวนั้น", "มันล่ะ", "ต่อสิ", "แล้วยังไง"]
+const QUESTION := ["?", "ไหม", "อะไร", "ยังไง", "ทำไม", "ใคร", "ที่ไหน", "เมื่อไหร่", "กี่", "หรือ", "เหรอ", "หรอ", "มั้ง", "ป่ะ", "เปล่า", "รึ"]
+
+## Voices by a hash of the player's name: its laugh, its polite ending (by gender: 0 boy,
+## 1 girl; "" none) and how often it uses it.
+const VOICES := [
+	{"laugh": "555", "end": ["", ""], "rate": 0.0},
+	{"laugh": "5555", "end": ["ครับ", "ค่ะ"], "rate": 0.5},
+	{"laugh": "ฮ่า ๆ", "end": ["นะ", "นะ"], "rate": 0.35},
+	{"laugh": "555+", "end": ["จ้า", "จ้า"], "rate": 0.3},
+	{"laugh": "อิอิ", "end": ["ฮะ", "คะ"], "rate": 0.25},
+	{"laugh": "55555", "end": ["วะ", "เนอะ"], "rate": 0.2},
+]
+
+const JOKES := ["ทำไมสไลม์ไม่เคยแพ้ เพราะมันยืดหยุ่นไง 555", "มอนถามว่าทำไมตีแรง ก็บวกมาไง 555", "ตีบวกไม่ติดไม่เป็นไร ใจเราติดคุณแล้ว 555",
+	"ยาเลือดเล็กบอกยาเลือดใหญ่ว่า โตแล้วอย่าลืมกันนะ 555", "ราชาเห็ดยักษ์ขี้เหงา เพราะไม่มีใครอยากเห็ด… เอ้ย เห็นหน้า 555"]
+const SAD := ["ไม่เป็นไรนะ เดี๋ยวก็ดีขึ้น ไปล่ามอนด้วยกันไหม", "สู้ ๆ นะ มีอะไรเล่าให้ฟังได้", "พักก่อนก็ได้นะ เกมไม่หนีไปไหน", "ใจเย็น ๆ นะ เป็นกำลังใจให้"]
+const TIRED := ["พักบ้างนะ สุขภาพสำคัญกว่าเลเวล", "ไปพักก่อนก็ได้ เดี๋ยวค่อยมาลุยกัน", "หิวก็ไปกินข้าวก่อนสิ มอนรอได้ 555"]
+const HAPPY := ["ดีใจด้วยนะ!", "เย้ ดีใจด้วยเลย", "เห็นแล้วพลอยดีใจไปด้วย"]
+const LOVE := ["555 เขินเลย เป็นเพื่อนเล่นเกมกันดีกว่านะ", "ขอบคุณนะ แต่ขอเป็นเพื่อนร่วมล่าก็พอ 555", "ใจดีจัง เป็นเพื่อนกันไปนาน ๆ นะ"]
+const CUTE := ["ขอบคุณ เขินเลย", "จริงเหรอ ขอบคุณนะ", "ขอบคุณ ๆ วันนี้แต่งเต็มเลย 555"]
+const SORRY := ["ไม่เป็นไรเลย", "ไม่ถือ ๆ", "ไม่เป็นไร เรื่องเล็ก"]
+const LAUGH := ["%laugh", "%laugh ขำด้วย", "%laugh ใช่ ๆ", "ฮา ๆ"]
+const PRIVACY := ["เรื่องส่วนตัวขอไม่บอกนะ คุยเรื่องในเกมกันดีกว่า", "อันนี้ขอเก็บไว้นะ ข้อมูลส่วนตัวไม่บอกใครเลย", "ขอไม่ให้ข้อมูลส่วนตัวนะ ในเกมคุยได้ทุกเรื่อง"]
+const MONEY := ["ไม่ซื้อขายด้วยเงินจริงนะ ผิดกฎแล้วอันตรายด้วย", "เงินจริงไม่เอาด้วยนะ ซื้อขายในเกมด้วยทองดีกว่า"]
+const DUEL := "ดวลกันตรง ๆ ไม่ได้นะ ไปลานประลองสิ จับคู่ให้เอง"
+const TRADE_STALL := "แลกของตรง ๆ ไม่ได้นะ แต่ซื้อของในร้านเราได้ แวะดูเลย"
+const TRADE_NONE := "แลกของกับเราตรง ๆ ไม่ได้นะ ถ้าอยากได้ของไปดูร้านในหมู่บ้าน หรือฝากขายที่ร้านก็ได้"
+const UNSURE := ["อันนี้ไม่แน่ใจเลยนะ ไม่อยากตอบมั่ว", "ไม่รู้จริง ๆ ขอไม่เดาดีกว่า", "อันนี้ตอบไม่ได้ ไม่อยากบอกผิด ๆ"]
+const UNKNOWN_NAME := ["ไม่รู้จักชื่อนั้นเลย พิมพ์ชื่อมอนหรือของอีกทีได้ไหม", "ไม่แน่ใจว่าหมายถึงอันไหน ลองพิมพ์ชื่อเต็มอีกทีสิ"]
+const ASKED := ["ถามเรื่องมอน ของดรอป ตีบวก หรืออีเวนต์ได้นะ", "ถ้าเป็นเรื่องในเกมถามมาได้เลย", "อยากรู้เรื่องไหนในเกมบอกได้นะ"]
+const SMALL := ["จริงเหรอ เล่าต่อสิ", "อ๋อ เข้าใจ ๆ", "เหมือนกันเลย", "ใช่ ๆ", "อืม น่าสนใจ", "โอเค ๆ", "งั้นเหรอ", "ฟังอยู่นะ ว่าต่อเลย"]
+const REPEAT := ["ก็บอกไปแล้วไง", "เหมือนเดิมเลยนะ", "ตอบเหมือนเมื่อกี้แหละ"]
+
+
+# --- Reading a line -----------------------------------------------------------------------
+
+## What line `text` says: {n (normalized), found (ChatLexicon.find), acts [{act, at}],
+## question, me (about the hero), level (a level number in it, 0 none)}.
+static func read(text: String) -> Dictionary:
+	var n := ChatLexicon.normalize(text)
+	var question := QUESTION.any(func(q): return n.contains(String(q)))
+	# A name typed a little wrong is looked for only in a question about something.
+	var found := ChatLexicon.find(n, question or _has(n, WHERE + RATE + PRICE + LOOT))
+	var spans: Array = found.map(func(f): return Vector2i(int(f.at), int(f.at) + String(f.name).length()))
+	var padded := " %s " % n
+	var tight := n.replace(" ", "")
+	var acts: Array = []
+	var seen := {}
+	for table in [ACTS, ChatBrain.INTENTS]:
+		for entry in table:
+			var act := String(entry[0])
+			if seen.has(act):
+				continue
+			var best := -1
+			for word in entry[1]:
+				var w := String(word)
+				var at := padded.find(w)
+				var from_tight := false
+				if at < 0:
+					at = tight.find(w.strip_edges())
+					from_tight = at >= 0
+				if at < 0:
+					continue
+				at = maxi(0, at - (0 if from_tight else 1))
+				# A word inside a name ("เทพ" of เกาะลอยฟ้าเทพมังกร) is not an act.
+				if spans.any(func(s): return at >= s.x and at < s.y):
+					continue
+				if best < 0 or at < best:
+					best = at
+			if best >= 0:
+				seen[act] = true
+				acts.append({"act": act, "at": best})
+	acts.sort_custom(func(a, b): return int(a.at) < int(b.at))
+	var me := ME.any(func(w): return n.contains(String(w))) and SHEET.any(func(w): return n.contains(String(w)))
+	return {"n": n, "found": found, "acts": acts, "question": question, "me": me, "level": _level_in(n)}
+
+
+static func _level_in(n: String) -> int:
+	var rx := RegEx.new()
+	rx.compile("(?:เลเวล|เวล|lv\\.?)\\s*(\\d{1,3})")
+	var m := rx.search(n)
+	return clampi(int(m.get_string(1)), 1, Game.MAX_LEVEL) if m != null else 0
+
+
+static func _has(n: String, words: Array) -> bool:
+	return words.any(func(w): return n.contains(String(w)))
+
+
+static func _acts(r: Dictionary) -> Array:
+	return (r.acts as Array).map(func(a): return String(a.act))
+
+
+# --- Answering ------------------------------------------------------------------------------
+
+## The answer to the line in `body` ({reply, action, topic, slot}), {} when ChatBrain's own
+## single-intent answer is the right one (a plain greeting, a party invitation...).
+static func reply(body: Dictionary, mine: Dictionary, tone: String, rng: RandomNumberGenerator) -> Dictionary:
+	var text := String(body.get("text", ""))
+	var p: Dictionary = body.get("player", {})
+	var h: Dictionary = body.get("hero", {})
+	var history: Array = body.get("history", [])
+	var t := float(mine.get("t", body.get("t", WorldPresence.clock())))
+	var r := read(text)
+	var acts := _acts(r)
+	var found: Array = r.found
+	# Lines about the hero's own sheet.
+	if bool(r.me):
+		return _finish(_about_hero(r, p, h, rng), p, rng)
+	if acts.is_empty() and found.is_empty():
+		var follow := _follow_up(r, body, mine, tone, rng)
+		return _finish(follow, p, rng) if not follow.is_empty() else {}
+	# A deflection stands alone.
+	for alone in ["privacy", "money", "rude"]:
+		if acts.has(alone):
+			if alone == "rude":
+				return {}
+			return _finish(_say(PRIVACY if alone == "privacy" else MONEY, rng, alone), p, rng)
+	# A single intent ChatBrain answers itself.
+	var legacy := ChatBrain.INTENTS.map(func(e): return String(e[0]))
+	if found.is_empty() and acts.size() == 1 and legacy.has(acts[0]) and r.level == 0:
+		return {}
+	var parts: Array = []
+	var action := "none"
+	var topic := ""
+	var slot := {}
+	# The names first: a question about a monster, a field, an item or a class.
+	if not found.is_empty():
+		var a := _about_name(found[0], r, p, mine, t, rng)
+		if not a.is_empty():
+			parts.append(String(a.reply))
+			topic = String(a.topic)
+			slot = found[0]
+			if String(a.get("action", "none")) != "none":
+				action = String(a.action)
+	var covered := {}
+	for act in acts:
+		if parts.size() >= MAX_ACTS:
+			break
+		if covered.has(act):
+			continue
+		if not slot.is_empty() and act in ["where", "whereis", "help", "shop", "praise", "wings", "mount", "gems", "set", "gear", "class", "level", "enhance"]:
+			# The name's answer already covers it.
+			continue
+		var a := _act(String(act), r, body, mine, tone, rng, t)
+		if a.is_empty() or String(a.reply) == "":
+			continue
+		if parts.has(String(a.reply)):
+			continue
+		parts.append(String(a.reply))
+		for c in COVERS.get(act, []):
+			covered[c] = true
+		if topic == "":
+			topic = String(a.get("topic", act))
+		if action == "none" and String(a.get("action", "none")) != "none":
+			action = String(a.action)
+	if parts.is_empty():
+		return {}
+	var out := {"reply": _join(parts), "action": action, "topic": topic}
+	if not slot.is_empty():
+		out["slot"] = {"kind": String(slot.kind), "id": String(slot.id), "name": String(slot.name)}
+	return _finish(out, p, rng)
+
+
+## One act of a line.
+static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary, tone: String, rng: RandomNumberGenerator, t: float) -> Dictionary:
+	var p: Dictionary = body.get("player", {})
+	var h: Dictionary = body.get("hero", {})
+	var history: Array = body.get("history", [])
+	var i := int(p.get("index", -1))
+	match act:
+		"joke":
+			return _say(JOKES, rng, act)
+		"sad":
+			return _say(SAD, rng, act)
+		"tired":
+			return _say(TIRED, rng, act)
+		"happy":
+			return _say(HAPPY, rng, act)
+		"love":
+			return _say(LOVE, rng, act)
+		"cute":
+			return _say(CUTE, rng, act)
+		"sorry":
+			return _say(SORRY, rng, act)
+		"laugh":
+			return _say(LAUGH, rng, act)
+		"name":
+			return {"reply": ["ชื่อ %s จ้า", "เรียก %s ก็ได้", "%s นี่แหละ"][rng.randi() % 3] % String(p.get("name", "")), "topic": act}
+		"pet":
+			return {"reply": pet_text(i, p), "topic": act}
+		"playtime":
+			return {"reply": playtime_text(i, t), "topic": act}
+		"doing":
+			return {"reply": doing_text(p, rng), "topic": act}
+		"title":
+			return {"reply": title_text(p), "topic": act}
+		"dragonhunt":
+			return {"reply": ChatFacts.dragon_hunt(t), "topic": act}
+		"festival":
+			return {"reply": ChatFacts.festival(t), "topic": act}
+		"forge":
+			var plus := _plus_in(String(r.n))
+			if plus < 0 and not _has(String(r.n), RATE + ["ยังไง", "วิธี", "เรท", "ติด"]):
+				return {}
+			return {"reply": ChatFacts.forge(t, plus), "topic": act}
+		"events":
+			return {"reply": ChatFacts.events(t), "topic": act}
+		"war":
+			var g := WorldPlayers.guild_at(i, int(p.get("level", 1))) if i >= 0 else 0
+			var out := ChatFacts.guild_war(t, g)
+			var mine_row := ChatFacts.guild_standing(t, g)
+			if mine_row != "" and (out + " " + mine_row).length() <= MAX:
+				out += " " + mine_row
+			return {"reply": out, "topic": act}
+		"duel":
+			return {"reply": DUEL, "topic": act}
+		"trade":
+			if String(p.get("doing", "")) == "stall" and i >= 0:
+				return {"reply": TRADE_STALL, "action": "open_stall", "topic": act}
+			return {"reply": TRADE_NONE, "topic": act}
+		"guildinv":
+			var guild := String(p.get("guild", ""))
+			if guild != "":
+				return {"reply": "ขอบคุณที่ชวนนะ แต่อยู่กิลด์ %s แล้ว ไม่ย้ายหรอก" % guild, "topic": act}
+			return {"reply": "ยังเข้ากิลด์ไม่ได้เลย ต้อง Lv.%d ก่อน" % Game.GUILD_LEVEL, "topic": act}
+		"strong":
+			var cls := String(p.get("class", ""))
+			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
+		"online":
+			if not body.has("t"):
+				return {}
+			var n := 0
+			for k in WorldPlayers.size():
+				if not WorldPlayers.session_at(k, t).is_empty():
+					n += 1
+			return {"reply": "ตอนนี้ออนไลน์อยู่ %d คน" % n, "topic": act}
+		"where":
+			var lv := int(r.level)
+			if lv > 0:
+				return {"reply": "Lv.%d ไป%sเลย" % [lv, ChatFacts.field_for(lv, 0)], "topic": act}
+		"shop":
+			if String(p.get("doing", "")) == "stall" and i >= 0:
+				var goods := ChatFacts.stall(i, t)
+				if goods != "":
+					return {"reply": goods, "action": "open_stall", "topic": "stall"}
+		"party":
+			# A party invitation in a longer line: ChatBrain's own rules decide.
+			pass
+	if ChatBrain.INTENTS.any(func(e): return String(e[0]) == act):
+		var out := ChatBrain._answer(act, String(body.get("text", "")).to_lower(), p, h, history, tone, rng, mine)
+		out["topic"] = act
+		return out
+	return {}
+
+
+## A line naming a monster, a boss, a field, an item or a class.
+static func _about_name(f: Dictionary, r: Dictionary, p: Dictionary, mine: Dictionary, t: float, rng: RandomNumberGenerator) -> Dictionary:
+	var n := String(r.n)
+	var id := String(f.id)
+	var i := int(p.get("index", -1))
+	match String(f.kind):
+		"monster":
+			return {"reply": ChatFacts.monster_where(StringName(id)), "topic": "monster"}
+		"boss":
+			var info := ChatFacts.boss_info(StringName(id))
+			if _has(n, LOOT + RATE):
+				var loot := ChatFacts.boss_loot(StringName(id))
+				if loot != "":
+					info = "%s %s" % [String(f.name), loot]
+			return {"reply": info, "topic": "boss"}
+		"zone", "camp":
+			var here := String(p.get("place", ""))
+			if String(f.kind) == "zone" and _has(n, ["อยู่", "ที่นี่", "แถวนี้"]) and r.question and not _has(n, ["มอน", "บอส", "มีอะไร", "เลเวลไหน"]):
+				if here == String(f.name) or (id == "town" and here == "หมู่บ้าน"):
+					return {"reply": ["ใช่ อยู่%sนี่แหละ", "อยู่%sจ้า"][rng.randi() % 2] % String(f.name), "topic": "whereis"}
+				if here == "":
+					return {"reply": "ตอนนี้ไม่ได้อยู่%sนะ" % String(f.name), "topic": "whereis"}
+				return {"reply": "ไม่ได้อยู่%sนะ ตอนนี้อยู่%s" % [String(f.name), here], "topic": "whereis"}
+			return {"reply": ChatFacts.zone_info(StringName(id)), "topic": "zone"}
+		"class":
+			var own := String(p.get("class", ""))
+			if own == String(f.name) and _has(n, ["เล่น", "เป็น", "สาย"]):
+				return {"reply": "ใช่ เล่น%sอยู่ %s" % [own, ChatFacts.class_info(StringName(id)).trim_prefix(own).strip_edges()], "topic": "class"}
+			return {"reply": ChatFacts.class_info(StringName(id)), "topic": "class"}
+		"item":
+			return _about_item(id, String(f.name), r, p, mine, t, rng)
+	return {}
+
+
+## An item named: does it have one (its own mount, wings, set), its price (its stall or the
+## cheapest stall now), or where it comes from.
+static func _about_item(key: String, name: String, r: Dictionary, p: Dictionary, mine: Dictionary, t: float, rng: RandomNumberGenerator) -> Dictionary:
+	var n := String(r.n)
+	var i := int(p.get("index", -1))
+	var g: Dictionary = mine.get("gear", {})
+	var kind := key.split(":")[0]
+	var id := key.substr(key.find(":") + 1)
+	var asks_have := _has(n, HAVE) and not _has(n, WHERE + RATE)
+	if asks_have and kind == "mount" and not g.is_empty():
+		var m: Dictionary = g.get("mount", {})
+		if String(m.get("name", "")) == name:
+			return {"reply": "มีสิ ขี่%s เลเวล %d อยู่" % [name, int(m.get("level", 1))], "topic": "mount"}
+		var own := "ตอนนี้ขี่%s" % String(m.name) if not m.is_empty() else "ยังไม่มีสัตว์ขี่เลย"
+		return {"reply": "ไม่มี%sนะ %s" % [name, own], "topic": "mount"}
+	if asks_have and kind == "isle" and not g.is_empty():
+		var w: Dictionary = g.get("wings", {})
+		if id == "wings" and String(w.get("name", "")).begins_with(name):
+			return {"reply": "มีสิ ใส่%sอยู่" % String(w.name), "topic": "wings"}
+		return {"reply": "ยังไม่มี%sเลย %s" % [name, ChatFacts.item_source(key, t)], "topic": "item"}
+	if _has(n, PRICE) and not _has(n, WHERE + RATE):
+		if String(p.get("doing", "")) == "stall" and i >= 0:
+			var own_price := ChatFacts.stall_price(i, key, t)
+			if own_price != "":
+				return {"reply": own_price, "action": "open_stall", "topic": "price"}
+		return {"reply": price_text(key, name, t), "topic": "price"}
+	var src := ChatFacts.item_source(key, t)
+	if src == "":
+		return {"reply": "%s ไม่แน่ใจว่าได้จากไหนนะ ไม่อยากบอกผิด" % name, "topic": "item"}
+	return {"reply": src, "topic": "item"}
+
+
+## The cheapest stall selling item `key` right now (ChatTrade.offers), or that none does.
+static func price_text(key: String, name: String, t: float) -> String:
+	var it: Dictionary = ChatLexicon.items.get(key, {})
+	var kind := String(it.get("kind", ""))
+	if kind in ["jewel", "potion", "gem"]:
+		var offers := ChatTrade.offers({"kind": kind, "ids": [String(it.id)]}, t)
+		if not offers.is_empty():
+			var o: Dictionary = offers[0]
+			var lot: Dictionary = o.lots[0]
+			var what := ItemData.name_of(lot.item)
+			if int(lot.item.get("count", 1)) > 1:
+				what += " ×%d" % int(lot.item.count)
+			return "ตอนนี้ร้าน%s ขาย%s ถูกสุด %s ทอง" % [String(o.name), what, ChatFacts.thousands(int(lot.price))]
+		if kind == "potion" and ItemData.POTIONS.has(String(it.id)) and String(it.id) not in ["halloween", "hp_god"]:
+			return "%s ร้านค้าในหมู่บ้านขาย %s ทอง ร้านผู้เล่นตอนนี้ไม่มี" % [name, ChatFacts.thousands(int(ItemData.POTIONS[String(it.id)].price))]
+	return "ตอนนี้ไม่เห็นร้านไหนขาย%sเลย ลองถามในแชทโลกดู" % name
+
+
+## The hero's own public sheet, asked about ("ชุดฉันสวยไหม", "ฉันเลเวลเท่าไหร่").
+static func _about_hero(r: Dictionary, p: Dictionary, h: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var n := String(r.n)
+	var lv := int(h.get("level", 1))
+	var st := int(h.get("stars", 0))
+	var mine_lv := int(p.get("level", 1))
+	var sheet := "Lv.%d%s" % [lv, " ★%d" % st if st > 0 and lv >= Game.MAX_LEVEL else ""]
+	if _has(n, ["ชุด", "อาวุธ", "เกราะ", "ใส่", "บวก", "ปีก", "คอสตูม", "หล่อ", "สวย", "เท่", "หน้าตา"]):
+		var gear: Dictionary = h.get("gear", {})
+		var bits: PackedStringArray = []
+		for slot in ["weapon", "armor", "helm", "boots"]:
+			var it: Dictionary = gear.get(slot, {})
+			if not it.is_empty() and int(it.get("plus", 0)) > 0:
+				bits.append("%s +%d" % [ChatThreads.slot_word(slot), int(it.plus)])
+		var w: Dictionary = gear.get("wings", {})
+		var out := ""
+		if String(h.get("costume", "")) != "":
+			out = "ใส่%sอยู่ %s" % [String(h.costume), ["สวยดีนะ", "เข้ากับคุณเลย", "เท่ดี"][rng.randi() % 3]]
+		elif not w.is_empty() and String(w.get("name", "")) != "":
+			out = "มี%sด้วย เท่ดีนะ" % String(w.name)
+		else:
+			out = ["ชุดดูดีนะ", "ใส่แล้วดูเท่ดี", "ดูเข้ากันดีนะ"][rng.randi() % 3]
+		if not bits.is_empty():
+			out += " " + " ".join(bits)
+		elif gear.is_empty() and not h.has("gear"):
+			out = "ดูไม่ค่อยชัดว่าใส่อะไรอยู่ แต่ดูดีนะ"
+		return {"reply": out.strip_edges(), "topic": "hero_gear"}
+	if _has(n, ["เก่ง", "เทพ", "โหด"]):
+		if lv > mine_lv:
+			return {"reply": "%s เก่งกว่าเราอีก!" % sheet, "topic": "hero"}
+		if lv < mine_lv:
+			return {"reply": "%s ก็เก่งแล้ว อีกหน่อยก็ตามทันเรา" % sheet, "topic": "hero"}
+		return {"reply": "%s เท่ากันเลย สูสี" % sheet, "topic": "hero"}
+	if _has(n, ["กิลด์"]):
+		var guild := String(h.get("guild", ""))
+		return {"reply": "คุณอยู่กิลด์ %s นี่" % guild if guild != "" else "คุณยังไม่มีกิลด์นะ ถึง Lv.%d ไปสมัครได้" % Game.GUILD_LEVEL, "topic": "hero"}
+	if _has(n, ["อาชีพ"]):
+		var cls := String(h.get("class", ""))
+		return {"reply": "คุณเล่น%sนี่" % cls if cls != "" else "ยังไม่ได้เลือกอาชีพเลยนี่ ถึง Lv.%d ไปเลือกได้" % ClassData.LINE_LEVEL, "topic": "hero"}
+	return {"reply": "คุณ %s แล้ว %s" % [sheet, "ไวดีนะ" if lv >= mine_lv else "สู้ ๆ"], "topic": "hero"}
+
+
+## A short line after the player's own answer: why, really, more, where, how much.
+static func _follow_up(r: Dictionary, body: Dictionary, mine: Dictionary, tone: String, rng: RandomNumberGenerator) -> Dictionary:
+	var n := String(r.n)
+	if n.length() > 30 or not _has(n, FOLLOW + ["ที่ไหน", "เท่าไหร่", "ดรอปอะไร", "คุณล่ะ"]):
+		return {}
+	var history: Array = body.get("history", [])
+	var last := {}
+	for k in range(history.size() - 1, -1, -1):
+		if String(history[k].get("who", "")) == "player":
+			last = history[k]
+			break
+	var topic := String(last.get("topic", ""))
+	var slot: Dictionary = last.get("slot", {})
+	if topic == "":
+		return {}
+	var p: Dictionary = body.get("player", {})
+	var t := float(mine.get("t", body.get("t", WorldPresence.clock())))
+	# A name carried over: "ดรอปอะไร", "ที่ไหน", "เท่าไหร่" about the same thing.
+	if not slot.is_empty():
+		var again := read("%s %s" % [String(slot.name), n])
+		if not (again.found as Array).is_empty():
+			var a := _about_name(again.found[0], again, p, mine, t, rng)
+			if not a.is_empty() and String(a.reply) != String(last.get("text", "")):
+				a["slot"] = slot
+				return a
+	if _has(n, ["ทำไม"]):
+		return {"reply": _why(topic, p, mine, t, rng), "topic": topic}
+	if _has(n, ["จริง", "แน่ใจ", "เหรอ", "หรอ"]):
+		return {"reply": cut("%s %s" % [["จริงสิ", "จริง ๆ", "ไม่ได้โม้นะ"][rng.randi() % 3], String(last.get("text", ""))]), "topic": topic}
+	if _has(n, ["คุณล่ะ", "แล้วคุณ"]) and topic.begins_with("hero"):
+		var lv := ChatBrain._answer("level", "", p, body.get("hero", {}), history, tone, rng, mine)
+		return {"reply": String(lv.reply), "topic": "level"}
+	return {}
+
+
+static func _why(topic: String, p: Dictionary, mine: Dictionary, t: float, rng: RandomNumberGenerator) -> String:
+	var i := int(p.get("index", -1))
+	match topic:
+		"level", "stars", "playtime":
+			if i >= 0:
+				return "ก็เก็บมาเรื่อย ๆ นั่นแหละ %s" % playtime_text(i, t)
+		"doing", "whereis":
+			return "ก็สนามนี้ตรงเลเวลเราไง EXP ดี"
+		"forge", "enhance":
+			return "เพราะเกินกว่านั้นโอกาสติดลดลงเรื่อย ๆ ไง ตามกฎช่างตีเลย"
+		"item", "boss", "monster":
+			return "ก็ตามที่ช่างกับเกมบอกไว้แหละ ของหายากก็ดรอปยากหน่อย"
+	return ["ก็นั่นแหละ 555", "อธิบายยากเหมือนกันนะ", "ไม่รู้สิ รู้สึกงั้นแหละ"][rng.randi() % 3]
+
+
+# --- The player's own sheet -------------------------------------------------------------
+
+static func pet_text(i: int, p: Dictionary) -> String:
+	if i < 0:
+		return "มีสัตว์เลี้ยงตัวนึงตามอยู่ ไว้ดูที่การ์ดนะ"
+	var pet := PetData.get_pet(WorldPlayers.pet_of(i))
+	if pet.is_empty():
+		return "ยังไม่มีสัตว์เลี้ยงเลย"
+	return "สัตว์เลี้ยงเป็น%s %s ตามติดตลอด" % [String(pet.name), String(pet.get("element_name", ""))]
+
+
+static func playtime_text(i: int, t: float) -> String:
+	if i < 0:
+		return "เล่นมาสักพักแล้วล่ะ"
+	var hours := int(WorldPlayers.played_minutes(i, t) / 60.0)
+	var days := int((t - WorldPlayers.joined_at(i)) / 86400.0)
+	if days <= 0:
+		return "เพิ่งเริ่มเล่นวันนี้เอง เล่นไป %d ชั่วโมง" % hours if hours > 0 else "เพิ่งเริ่มเล่นวันนี้เอง"
+	return "เริ่มเล่นมา %d วัน เล่นไปราว %d ชั่วโมง" % [days, hours]
+
+
+static func doing_text(p: Dictionary, rng: RandomNumberGenerator) -> String:
+	var here := String(p.get("place", ""))
+	var star := int(p.get("level", 1)) >= Game.MAX_LEVEL
+	match String(p.get("doing", "")):
+		"party":
+			return "ล่าอยู่กับคุณนี่ไง 555"
+		"stall":
+			return "ตั้งร้านขายของอยู่ในหมู่บ้าน แวะมาได้นะ"
+		"boss":
+			return "ล่าบอสอยู่ที่%s" % here if here != "" else "ล่าบอสอยู่"
+		"help":
+			return "พาเพื่อนเก็บดาวอยู่ที่%s" % here if here != "" else "พาเพื่อนเก็บดาวอยู่"
+		"errand":
+			return "แวะหมู่บ้านทำธุระแป๊บ เดี๋ยวกลับไปล่าต่อ"
+		"hunt":
+			if here != "":
+				return ["เก็บ%sอยู่ที่%s", "ฟาร์ม%sที่%sอยู่"][rng.randi() % 2] % ["ดาว" if star else "เลเวล", here]
+	if here == "":
+		return "ตอนนี้ไม่ได้ทำอะไร ออฟไลน์อยู่"
+	return "อยู่ที่%s" % here
+
+
+static func title_text(p: Dictionary) -> String:
+	var lv := int(p.get("level", 1))
+	var st := int(p.get("stars", 0))
+	var i := int(p.get("index", -1))
+	var god := WorldPlayers.god_title({"level": lv, "stars": st, "class": WorldPlayers.entry(i)["class"]}) if i >= 0 else ""
+	var g := WorldPlayers.guild_at(i, lv) if i >= 0 else 0
+	var crown := " กิลด์%sเป็น%sสัปดาห์นี้ด้วย" % [WorldPlayers.guild_name(g), GuildLeague.CASTLE_TITLE] if g > 0 and GuildLeague.crowned(g) else ""
+	if god != "":
+		return "เป็น%sแล้ว%s" % [god, crown]
+	return ("ยังไม่ได้เป็นเทพเจ้า ต้อง Lv.%d ★%d ก่อน" % [Game.MAX_LEVEL, JobData.GOD_STARS]) + crown
+
+
+static func _plus_in(n: String) -> int:
+	var rx := RegEx.new()
+	rx.compile("\\+\\s*(\\d{1,2})")
+	var m := rx.search(n)
+	if m == null:
+		return -1
+	# "+10 ติดกี่%" asks about the try to +10 (from +9).
+	return clampi(int(m.get_string(1)) - 1, 0, ItemData.MAX_PLUS - 1)
+
+
+# --- Small talk -------------------------------------------------------------------------
+
+## Small talk for a line nothing else answers: a question it cannot answer is said so
+## (and what it can talk about), a statement gets a reaction, now and then from what the
+## player is really doing; never the same as its last answers.
+static func small_talk(text: String, p: Dictionary, tone: String, rng: RandomNumberGenerator, history: Array) -> String:
+	var r := read(text)
+	var said: Array = []
+	for line in history:
+		if String(line.get("who", "")) == "player":
+			said.append(String(line.get("text", "")))
+	var pool: Array = []
+	if bool(r.question):
+		for u in UNSURE:
+			for a in ASKED:
+				pool.append("%s %s" % [u, a])
+	else:
+		pool = SMALL.duplicate()
+		var idle := ChatBrain._idle(p, tone, rng)
+		pool.append(idle)
+		pool.append(idle)
+	pool = pool.filter(func(x): return not said.any(func(s): return String(s).begins_with(String(x))))
+	if pool.is_empty():
+		pool = SMALL.duplicate()
+	return String(pool[rng.randi() % pool.size()])
+
+
+# --- Voice -------------------------------------------------------------------------------
+
+static func voice_of(p: Dictionary) -> Dictionary:
+	return VOICES[absi(hash("voice|" + String(p.get("name", "")))) % VOICES.size()]
+
+
+## The reply in the player's own voice: its laugh, now and then its ending; cut to MAX at a
+## space so no number is cut in half.
+static func _finish(out: Dictionary, p: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	if out.is_empty():
+		return out
+	var v := voice_of(p)
+	var text := String(out.get("reply", "")).replace("%laugh", String(v.laugh))
+	if text.contains("555") and String(v.laugh) != "555" and not text.contains("5555"):
+		text = text.replace("555", String(v.laugh))
+	var end := String(v.end[clampi(int(p.get("gender", 0)), 0, 1)])
+	if end != "" and rng.randf() < float(v.rate) and not text.ends_with("?") and not text.ends_with("ไหม") and text.length() < MAX - 6:
+		text = "%s %s" % [text, end]
+	out["reply"] = cut(text)
+	if not out.has("action"):
+		out["action"] = "none"
+	return out
+
+
+## `text` at most MAX letters, cut at a space.
+static func cut(text: String) -> String:
+	if text.length() <= MAX:
+		return text
+	var at := text.left(MAX).rfind(" ")
+	return text.left(at if at > 40 else MAX).strip_edges()
+
+
+static func _join(parts: Array) -> String:
+	var out := ""
+	for part in parts:
+		var s := String(part)
+		if out == "":
+			out = s
+		elif (out + " " + s).length() <= MAX:
+			out += " " + s
+	return out
+
+
+static func _say(pool: Array, rng: RandomNumberGenerator, topic := "") -> Dictionary:
+	return {"reply": String(pool[rng.randi() % pool.size()]), "action": "none", "topic": topic}
+
+
+## A reply already given (the last answers): said once more with a word that it was,
+## so the same line is never spammed back word for word.
+static func unrepeat(out: Dictionary, history: Array, rng: RandomNumberGenerator) -> Dictionary:
+	var said := ""
+	var count := 0
+	for k in range(history.size() - 1, -1, -1):
+		if String(history[k].get("who", "")) != "player":
+			continue
+		count += 1
+		if String(history[k].get("text", "")) == String(out.get("reply", "")):
+			said = String(out.reply)
+		if count >= 3:
+			break
+	if said == "":
+		return out
+	out["reply"] = cut("%s %s" % [String(REPEAT[rng.randi() % REPEAT.size()]), said])
+	return out

@@ -485,6 +485,7 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 			"gender": int(s.get("gender", 0)),
 			"inParty": Game.in_party(i),
 			"divine": bool(s.get("divine", false)),
+			"online": bool(s.get("online", false)),
 		},
 		"hero": {
 			"name": String(Game.profile.get("name", "")),
@@ -492,6 +493,9 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 			"level": int(Game.profile.get("level", 1)),
 			"stars": int(Game.paragon().get("level", 0)),
 			"guild": WorldPlayers.guild_name(Game.guild()),
+			# What anyone sees on the hero's card (ChatMind answers "ชุดฉันสวยไหม" from it).
+			"gear": ChatFacts.hero_sheet().get("gear", {}),
+			"costume": String(ChatFacts.hero_sheet().get("costume", "")),
 		},
 		"history": (history.get(i, []) as Array).duplicate(true),
 	}
@@ -544,8 +548,13 @@ func receive(i: int, answer: Dictionary, channel := "direct", thread := -1) -> v
 	if reply == "":
 		reply = "..."
 	var action := String(answer.get("action", "none"))
+	# What the answer was about (ChatMind), kept with it so a follow-up ("แล้วล่ะ") reads it.
+	var about := {}
+	for key in ["topic", "slot"]:
+		if answer.has(key):
+			about[key] = answer[key]
 	if channel == "party" or channel == "guild":
-		_remember_in("%s|%d" % [channel, i], "player", reply)
+		_remember_in("%s|%d" % [channel, i], "player", reply, about)
 		var g := WorldPlayers.guild_at(i, int(s.level))
 		_post(channel, String(s.name), reply, WorldPlayers.GUILD_COLORS.get(g, PLAYER_COLOR))
 		var mate := _field_player(i)
@@ -556,7 +565,7 @@ func receive(i: int, answer: Dictionary, channel := "direct", thread := -1) -> v
 		if channel == "party" and Game.in_party(i):
 			_follow(i, reply, thread)
 		return
-	_remember(i, "player", reply)
+	_remember(i, "player", reply, about)
 	var name_text := String(s.name)
 	Game.world_chat.emit(name_text if channel == "world" else "%s (ถึงคุณ)" % name_text, reply, PLAYER_COLOR)
 	var p := _field_player(i)
@@ -585,17 +594,21 @@ func _act(i: int, action: String) -> void:
 				main.shop.open_stall(i)
 
 
-func _remember_in(key: String, who: String, text: String) -> void:
+func _remember_in(key: String, who: String, text: String, about := {}) -> void:
 	var talk: Array = channel_history.get(key, [])
-	talk.append({"who": who, "text": text})
+	var line := {"who": who, "text": text}
+	line.merge(about)
+	talk.append(line)
 	while talk.size() > HISTORY:
 		talk.remove_at(0)
 	channel_history[key] = talk
 
 
-func _remember(i: int, who: String, text: String) -> void:
+func _remember(i: int, who: String, text: String, about := {}) -> void:
 	var talk: Array = history.get(i, [])
-	talk.append({"who": who, "text": text})
+	var line := {"who": who, "text": text}
+	line.merge(about)
+	talk.append(line)
 	while talk.size() > HISTORY:
 		talk.remove_at(0)
 	history[i] = talk

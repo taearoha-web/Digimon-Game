@@ -216,14 +216,22 @@ static func reply(body: Dictionary) -> Dictionary:
 		var done := _follow_up(asked, text, p, rng)
 		if not done.is_empty():
 			return done
+	# Free conversation (ChatMind): several questions in one line, the game's names, the
+	# hero's own sheet, feelings, follow-ups; {} for a plain single intent answered below.
+	var mind := ChatMind.reply(body, mine, tone, rng)
+	if not mind.is_empty():
+		if channel == "guild":
+			mind.reply = _guild_flavor(String(mind.reply), p, rng)
+		return ChatMind.unrepeat(mind, history, rng)
 	var intent := intent_of(text)
 	var out := _answer(intent, text, p, h, history, tone, rng, mine)
+	out["topic"] = intent
 	if String(out.action) == "none" and intent in PLAIN:
 		out.reply = _flavor(String(out.reply), tone, int(body.get("hour", -1)), rng)
 		out.reply = _ask_back(String(out.reply), p, tone, rng)
 	if channel == "guild":
 		out.reply = _guild_flavor(String(out.reply), p, rng)
-	return out
+	return ChatMind.unrepeat(out, history, rng)
 
 
 # --- The party and guild chats -----------------------------------------------------------
@@ -429,7 +437,8 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			if TONE_GREET.has(tone):
 				return _say(TONE_GREET[tone], rng)
 			return _say(GREET, rng)
-	return {"reply": _idle(p, tone, rng), "action": "none"}
+	# Anything else: ChatMind's small talk (a question it cannot answer is said so).
+	return {"reply": ChatMind.small_talk(text, p, tone, rng, history), "action": "none"}
 
 
 ## What a line is about ("" when nothing matches).
