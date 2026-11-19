@@ -38,7 +38,8 @@ void fragment() {
 // The share of the colour that glows (1 = a lit gem or a halo).
 uniform float glow = 0.0;
 // Sheets: 0 plain, 1 night sky (twinkling star specks), 2 starlit (gold stars),
-// 3 royal velvet, 4 dragon scales (rims in speck_color); trim_width > 0 draws a border down the sides and along the hem.
+// 3 royal velvet, 4 dragon scales (rims in speck_color), 5 imperial brocade (gold dragon
+// roundels in speck_color on the silk); trim_width > 0 draws a border down the sides and along the hem.
 uniform float pattern = 0.0;
 uniform vec4 trim_color : source_color = vec4(1.0, 0.85, 0.4, 1.0);
 uniform float trim_width = 0.0;
@@ -46,9 +47,13 @@ uniform float trim_width = 0.0;
 uniform float ermine = 0.0;
 uniform vec4 lining_color : source_color = vec4(0.2, 0.1, 0.15, 1.0);
 uniform vec4 speck_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+// Glints sweeping up the warm (gold) colours of the piece, and a slow breathing of its glow.
+uniform float shimmer = 0.0;
+uniform float pulse = 0.0;
 
 varying vec3 tint;
 varying vec2 cloth;
+varying vec3 mpos;
 
 float costume_hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -57,13 +62,28 @@ float costume_hash(vec2 p) {
 void vertex() {
 	tint = pow(COLOR.rgb, vec3(2.2));
 	cloth = UV;
+	mpos = VERTEX;
 	VERTEX = costume_sway(VERTEX, UV2, TIME);
 }
 
 void fragment() {
 	vec3 c = tint;
 	float lit = glow;
-	if (pattern > 3.5) {
+	if (pattern > 4.5) {
+		// Imperial brocade: offset rows of gold roundels, each a ring round a coiled
+		// cloud-dragon spiral, with a faint glint running down the cloth.
+		vec2 g = cloth * vec2(5.0, 8.0);
+		g.x += 0.5 * mod(floor(g.y), 2.0);
+		vec2 f = fract(g) - 0.5;
+		float d = length(f * vec2(1.0, 1.15));
+		float ring = smoothstep(0.045, 0.0, abs(d - 0.34));
+		float a = atan(f.y, f.x) / 6.2832;
+		float coil = smoothstep(0.12, 0.0, abs(fract(d * 4.2 - a) - 0.5) - 0.36) * (1.0 - smoothstep(0.24, 0.29, d)) * smoothstep(0.03, 0.07, d);
+		float dots = smoothstep(0.05, 0.0, length(f - vec2(0.5, 0.5) * sign(f)) - 0.02);
+		float gold = clamp(ring + coil * 0.85 + dots, 0.0, 1.0);
+		c = mix(c, speck_color.rgb, gold * 0.75);
+		lit += gold * (0.18 + 0.14 * sin(TIME * 1.5 - cloth.y * 7.0 + cloth.x * 2.0));
+	} else if (pattern > 3.5) {
 		// Dragon scales: offset rows of scallops, dark at each root, bright towards its
 		// rim, the rim itself picked out in speck_color with a faint shimmer.
 		vec2 g = cloth * vec2(11.0, 8.0);
@@ -114,6 +134,14 @@ void fragment() {
 	if (!FRONT_FACING && pattern > 0.0) {
 		c = mix(lining_color.rgb, c, 0.15);
 		lit *= 0.3;
+	}
+	if (shimmer > 0.0) {
+		float warm = smoothstep(0.25, 0.55, c.r - c.b) * smoothstep(0.3, 0.6, c.r);
+		float band = pow(max(0.0, sin(mpos.y * 6.5 + mpos.x * 3.0 + mpos.z * 2.0 - TIME * 1.7)), 30.0);
+		lit += band * shimmer * warm * 1.6;
+	}
+	if (pulse > 0.0) {
+		lit *= 1.0 + pulse * sin(TIME * 2.0 + mpos.y * 2.5);
 	}
 	// A velvet sheen towards the edges of the view.
 	float fres = pow(1.0 - clamp(abs(dot(NORMAL, VIEW)), 0.0, 1.0), 2.0);

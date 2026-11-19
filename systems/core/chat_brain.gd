@@ -57,6 +57,7 @@ const PLAIN := ["", "greet", "thanks", "praise", "level", "class", "enhance", "s
 
 const GREET := ["สวัสดีจ้า!", "หวัดดี~ เล่นสนุกไหม", "ดีจ้า วันนี้มาเก็บเลเวลเหรอ", "สวัสดี! มีอะไรให้ช่วยไหม"]
 const GREET_AGAIN := "ทักอีกแล้ว 555 มีอะไรให้ช่วยไหม"
+const GREET_AGAIN_MORE := ["หวัดดีอีกรอบ 555", "ทักบ่อยจัง คิดถึงเหรอ 555", "ดีจ้า ๆ ว่าไงต่อ", "จ้า ยังอยู่ตรงนี้แหละ", "หวัดดีอีกที มีอะไรเล่าไหม"]
 const HOWRU := ["สบายดีจ้า เล่นไปเรื่อย ๆ", "ก็เรื่อย ๆ นะ ลุ้นของดรอปอยู่ 555", "สบายดี สนุกดีนะ"]
 ## How it is, from its news of the last ChatThreads.NEWS_WORLD_HOURS world hours (only
 ## the lines it really has; %up: its new level).
@@ -204,7 +205,9 @@ static func reply(body: Dictionary) -> Dictionary:
 	var channel := String(body.get("channel", ""))
 	var mate := String(body.get("from", ""))
 	var mine := news_of(body)
-	if channel == "party" or channel == "guild":
+	# The party's / guild's own talk ("บอสมาแล้ว", "ฮีลหน่อย"), unless the line asks about
+	# something by name ("บอสภูเขาน้ำแข็งคือใคร": ChatMind answers it).
+	if (channel == "party" or channel == "guild") and (mate != "" or not ChatMind.names_something(text)):
 		var said := _channel_answer(channel, text, mate, p, rng)
 		if not said.is_empty():
 			return said
@@ -216,14 +219,22 @@ static func reply(body: Dictionary) -> Dictionary:
 		var done := _follow_up(asked, text, p, rng)
 		if not done.is_empty():
 			return done
+	# Free conversation (ChatMind): several questions in one line, the game's names, the
+	# hero's own sheet, feelings, follow-ups; {} for a plain single intent answered below.
+	var mind := ChatMind.reply(body, mine, tone, rng)
+	if not mind.is_empty():
+		if channel == "guild":
+			mind.reply = _guild_flavor(String(mind.reply), p, rng)
+		return ChatMind.unrepeat(mind, history, rng, String(p.get("name", "")))
 	var intent := intent_of(text)
 	var out := _answer(intent, text, p, h, history, tone, rng, mine)
+	out["topic"] = intent
 	if String(out.action) == "none" and intent in PLAIN:
 		out.reply = _flavor(String(out.reply), tone, int(body.get("hour", -1)), rng)
 		out.reply = _ask_back(String(out.reply), p, tone, rng)
 	if channel == "guild":
 		out.reply = _guild_flavor(String(out.reply), p, rng)
-	return out
+	return ChatMind.unrepeat(out, history, rng, String(p.get("name", "")))
 
 
 # --- The party and guild chats -----------------------------------------------------------
@@ -426,10 +437,14 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 		"greet":
 			if intent_of(_last(history, "hero")) == "greet":
 				return {"reply": GREET_AGAIN, "action": "none"}
+			# Greeted earlier in the talk: noticed, in other words each time.
+			if history.any(func(line): return String(line.get("who", "")) == "hero" and intent_of(String(line.get("text", ""))) == "greet"):
+				return _say(GREET_AGAIN_MORE, rng)
 			if TONE_GREET.has(tone):
 				return _say(TONE_GREET[tone], rng)
 			return _say(GREET, rng)
-	return {"reply": _idle(p, tone, rng), "action": "none"}
+	# Anything else: ChatMind's small talk (a question it cannot answer is said so).
+	return {"reply": ChatMind.small_talk(text, p, tone, rng, history), "action": "none"}
 
 
 ## What a line is about ("" when nothing matches).

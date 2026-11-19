@@ -104,7 +104,8 @@ func open_stall(world_index: int) -> void:
 		return
 	stall = world_index
 	StallStock.open(world_index)
-	_title.text = "ร้านของ %s" % WorldPlayers.entry(world_index).name
+	# The week's หนึ่งในใต้หล้า (MazeCrown) keeps its crown on its stall's sign too.
+	_title.text = ("ร้านของ %s %s %s" % [MazeCrown.CROWN, MazeCrown.TITLE_NAME, WorldPlayers.entry(world_index).name]) if MazeCrown.ai_holds(world_index) else "ร้านของ %s" % WorldPlayers.entry(world_index).name
 	_buy_title.text = "ของดีที่เก็บมาขาย (%s)" % StallStock.KIND_NAMES[StallStock.specialty(world_index)]
 	_sell_title.text = "ขายให้ร้านนี้ (ให้ราคาดีกว่าพ่อค้า)"
 	_open()

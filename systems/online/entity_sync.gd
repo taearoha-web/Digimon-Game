@@ -109,7 +109,7 @@ static func supports(p_zone: Node) -> bool:
 	var d: Dictionary = p_zone.data
 	if bool(d.get("safe", false)) or bool(d.get("tower", false)) or bool(d.get("arena", false)):
 		return false
-	return not bool(d.get("pvp", false)) or bool(d.get("guildwar", false))
+	return not bool(d.get("pvp", false)) or bool(d.get("guildwar", false)) or bool(d.get("maze", false))
 
 
 ## True while this game hosts the shared monsters of its zone.
@@ -762,6 +762,11 @@ func _gw_tick(delta: float) -> void:
 	if war.team_count() > 2:
 		status["sa"] = Array(war.score)
 		status["oa"] = war.castle_owner
+	# Our guild's plan and its doctrine's phase (the members' HUD shows them; only this
+	# game runs the AI).
+	if war.plans.size() > 0:
+		var d: Variant = war.doctrines[0] if war.doctrines.size() > 0 else null
+		status["pp"] = [war.plans[0], d.phase if d != null else ""]
 	_event(0, "gw", status)
 
 
@@ -1015,6 +1020,8 @@ func _on_event(data: Dictionary) -> void:
 			if not (m is MirrorFighter):
 				mirrors.erase(eid)
 			_pending.erase(eid)
+			# Who took it (a field boss's kill is kept by BossWorld, Zone._field_boss_killer).
+			(m as Node).set_meta("dead_data", d)
 			m.mirror_dead(d)
 		"gone":
 			var m: Variant = mirrors.get(eid)

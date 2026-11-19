@@ -263,6 +263,9 @@ static func get_zone(id: StringName) -> Dictionary:
 	# So is the mechanics dungeon (DungeonData).
 	if id == DungeonData.ID:
 		return DungeonData.zone()
+	# เขาวงกตหนึ่งในใต้หล้า: entered from its keeper in the village or the warp crystal.
+	if id == MazeWar.ID:
+		return MazeWar.zone()
 	return ZONES.get(id, ZONES[&"meadow"])
 
 static func access_reason(id: StringName, level: int, stars: int) -> String:

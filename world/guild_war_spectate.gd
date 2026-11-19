@@ -87,6 +87,7 @@ var _swatches: Array[ColorRect] = []
 var _clock: Label
 var _owner: Label
 var _status: Label
+var _plans: Label
 ## The castle switch's chip (สวิตช์: <guild> · บาเรียเปิดให้ <guild>) in the holder's colour,
 ## shown once the gates are down.
 var _switch_chip: PanelContainer
@@ -611,6 +612,12 @@ func _build_board() -> void:
 	_status = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lines.add_child(_status)
+	# Every guild's plan and its leader's phase (GuildWarMatch.plans_line).
+	_plans = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	_plans.name = "PlansLine"
+	_plans.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_plans.add_theme_color_override("font_color", Color("ffe7a8"))
+	lines.add_child(_plans)
 	# Top left: the "live" badge.
 	var live := UIUtil.chip("● ถ่ายทอดสด · กำลังชม", Color("ff5a5a"), 18)
 	live.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -646,8 +653,8 @@ func _build_board() -> void:
 	_feed.anchor_right = 0.5
 	_feed.anchor_top = 1.0
 	_feed.anchor_bottom = 1.0
-	_feed.offset_left = -290
-	_feed.offset_right = 290
+	_feed.offset_left = -370
+	_feed.offset_right = 370
 	_feed.offset_top = -88
 	_feed.offset_bottom = -4
 	_feed.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
@@ -761,6 +768,9 @@ func _update_board() -> void:
 	_owner.add_theme_color_override("font_color", m.owner_color().lerp(Color.WHITE, 0.2) if m.castle_owner >= 0 else Color("fff1b8"))
 	var capture := m.capture_line()
 	_status.text = capture if capture != "" and not m.capture.is_empty() else m.siege_status()
+	if _plans != null:
+		_plans.text = m.plans_line()
+		_plans.visible = _plans.text != ""
 	_update_switch_chip(m)
 
 

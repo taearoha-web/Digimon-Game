@@ -160,6 +160,8 @@ func _process(delta: float) -> void:
 	if _ach_timer >= ACH_INTERVAL:
 		_check_achievements()
 	DailyPass.tick(delta)
+	# เขาวงกตหนึ่งในใต้หล้า: the world players' week worked out ahead, a little a frame.
+	MazeWar.warm(1500)
 	_gq_timer += delta
 	if _gq_timer >= GQ_CHECK_INTERVAL:
 		_gq_timer = 0.0
@@ -168,6 +170,8 @@ func _process(delta: float) -> void:
 		GuildLeague.tick()
 		# The season's Legendary Guild Wings, minted once the season is over.
 		LegendWings.tick()
+		# หนึ่งในใต้หล้า's weekly crown: awarded once, and gone at its end (MazeCrown).
+		MazeCrown.settle()
 	# The hero's stall sells to AI players anywhere, also after the game was closed.
 	_stall_timer += delta
 	if _stall_timer >= PlayerStall.TICK_EVERY:
@@ -814,6 +818,8 @@ func load_game(from_slot := -1) -> bool:
 		if _write_profile(clean, slot):
 			_queue_cloud_save()
 	_migrate_costume_items()
+	# หนึ่งในใต้หล้า's crown: the weeks ended while away, and every crown past its end.
+	MazeCrown.settle()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
@@ -1143,6 +1149,12 @@ func _valid_profile(data: Dictionary) -> bool:
 	# Daily / weekly quests and the reward pass (DailyPass).
 	if data.has(DailyPass.KEY) and not DailyPass.valid(data[DailyPass.KEY]):
 		return false
+	# The field bosses this hero saw fall (BossWorld): {zone: {at, by}}.
+	if data.has(BossWorld.KEY) and not BossWorld.valid(data[BossWorld.KEY]):
+		return false
+	# เขาวงกตหนึ่งในใต้หล้า: the hero's kills a week and the champions seen (MazeWar).
+	if data.has(MazeWar.KEY) and not MazeWar.valid(data[MazeWar.KEY]):
+		return false
 	# The dragon hunt week's record (DragonHunt).
 	if data.has(DragonHunt.KEY) and not DragonHunt.valid(data[DragonHunt.KEY]):
 		return false
@@ -1165,6 +1177,9 @@ func _valid_profile(data: Dictionary) -> bool:
 		return false
 	# The reward exchange's currencies and unlocks (RewardShop).
 	if data.has(RewardShop.KEY) and not RewardShop.valid(data[RewardShop.KEY]):
+		return false
+	# หนึ่งในใต้หล้า's crown record (MazeCrown).
+	if data.has(MazeCrown.KEY) and not MazeCrown.valid_record(data[MazeCrown.KEY]):
 		return false
 	# The week's rare collection record (WeeklyCollect).
 	if data.has(WeeklyCollect.KEY) and not WeeklyCollect.valid(data[WeeklyCollect.KEY]):
@@ -1476,6 +1491,15 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["pvp"][key] = int(data["pvp"][key])
 	for key in data["boss_pity"]:
 		data["boss_pity"][key] = maxi(0, int(data["boss_pity"][key]))
+	if data.get(BossWorld.KEY) is Dictionary:
+		var book: Dictionary = data[BossWorld.KEY]
+		for key in book.keys():
+			var e: Variant = book[key]
+			if e is Dictionary:
+				book[key] = {"at": int(e.get("at", 0)), "by": String(e.get("by", "")).left(BossWorld.NAME_MAX)}
+		BossWorld.prune(book, WorldPresence.clock())
+	else:
+		data.erase(BossWorld.KEY)
 	if not data.get("tower") is Dictionary:
 		data["tower"] = {}
 	for key in data["tower"]:
@@ -1505,6 +1529,7 @@ func _repair(data: Dictionary) -> Dictionary:
 	PlayerStall.repair(data)
 	DailyPass.repair(data)
 	DragonHunt.repair(data)
+	MazeWar.repair(data)
 	# The four guilds: every hero from before them leaves its guild once and picks again
 	# at the guild registrar (everything else stays).
 	migrate_guild4(data)
@@ -1520,6 +1545,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		data["guild_leaders"] = leaders
 	GuildLeague.repair(data)
 	RewardShop.repair(data)
+	MazeCrown.repair(data)
 	WeeklyCollect.repair(data)
 	LoyKrathong.repair(data)
 	# Recover overflow stranded by saves from before the Lv.100 handoff fix.
@@ -1621,8 +1647,11 @@ func _repair_item(item: Dictionary) -> void:
 		item["stats"] = item.get("stats", {})
 		item["gems"] = item.get("gems", [])
 	elif item.get("kind") == "costume":
-		# One piece, no count: its grade follows the costume's price.
+		# One piece, no count: its grade follows the costume's price; the crown's end
+		# (MazeCrown) back to an int.
 		item["rarity"] = RewardShop.costume_rarity(String(item.get("id", "")))
+		if item.has("expires"):
+			item["expires"] = int(item.expires)
 		return
 	else:
 		item["count"] = int(item.get("count", 1))
@@ -2460,6 +2489,11 @@ func deposit_item(index: int) -> bool:
 	if index < 0 or index >= profile["inv"].size():
 		return false
 	var item: Dictionary = profile["inv"][index]
+	# หนึ่งในใต้หล้า's costume stays with its champion (MazeCrown.deposit_lock).
+	var lock := MazeCrown.deposit_lock(item)
+	if lock != "":
+		say(lock, &"warning")
+		return false
 	if not SharedStorage.put(item):
 		say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), STORAGE_SIZE], &"warning")
 		return false

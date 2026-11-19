@@ -177,7 +177,8 @@ func _catalogue() -> void:
 			check(not ids.has(id), "cosmetic ids are unique (%s)" % id)
 			ids[id] = true
 			# The isle's costume is paid in fragments (SkyIsleLoot), everything else in coins / points.
-			check(int(e.get("lc", 0)) + int(e.get("ep", 0)) + RewardShop.fragments_of(e) > 0 and String(e.name) != "", "%s %s has a price and a Thai name" % [tab, id])
+			# หนึ่งในใต้หล้า's crown (MazeCrown) is won, never bought.
+			check((int(e.get("lc", 0)) + int(e.get("ep", 0)) + RewardShop.fragments_of(e) > 0 or bool(e.get("crown", false))) and String(e.name) != "", "%s %s has a price (or is the crown) and a Thai name" % [tab, id])
 			check(RewardShop.tab_of(String(id)) == tab, "tab_of(%s) = %s" % [id, tab])
 			if int(e.get("lc", 0)) > 0 and int(e.get("ep", 0)) > 0:
 				both += 1

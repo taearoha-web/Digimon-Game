@@ -13,7 +13,9 @@
  * - an alarm every 10 s while anyone is connected drops sockets silent for 30 s;
  * - the parties are also kept in storage (key PARTIES_KEY), so a party outlives the
  *   object restarting (a deploy, an eviction): its members are "away" until they
- *   reconnect (Room PARTY_GRACE_MS).
+ *   reconnect (Room PARTY_GRACE_MS);
+ * - so are the field bosses' last kills (key BOSSES_KEY, Room boss_kill) and the maze's
+ *   weekly board of the real players' kills (key MAZE_KEY, Room maze_kill / maze_down).
  *
  * A plain class (no `cloudflare:workers` import) so node can load worker.mjs and test it.
  * The Worker (worker.mjs) checks the session cookie and forwards the upgrade request with
@@ -22,6 +24,8 @@ import {Room} from './room.mjs';
 
 export const ALARM_MS = 10_000;
 export const PARTIES_KEY = 'parties';
+export const BOSSES_KEY = 'bosses';
+export const MAZE_KEY = 'maze';
 // serializeAttachment holds at most 2,048 bytes.
 const ATTACHMENT_BYTES = 2000;
 const ENCODER = new TextEncoder();
@@ -60,6 +64,12 @@ export class WorldRoom {
         let saved = null;
         try {saved = await ctx.storage.get(PARTIES_KEY);} catch {}
         this.room.importParties(saved);
+        let bosses = null;
+        try {bosses = await ctx.storage.get(BOSSES_KEY);} catch {}
+        this.room.importBosses(bosses);
+        let maze = null;
+        try {maze = await ctx.storage.get(MAZE_KEY);} catch {}
+        this.room.importMaze(maze);
         this.wake();
       });
     } else {
@@ -170,6 +180,14 @@ export class WorldRoom {
     if (this.room.partiesChanged) {
       this.room.partiesChanged = false;
       try {this.ctx.storage?.put?.(PARTIES_KEY, this.room.exportParties())?.catch?.(() => {});} catch {}
+    }
+    if (this.room.bossesChanged) {
+      this.room.bossesChanged = false;
+      try {this.ctx.storage?.put?.(BOSSES_KEY, this.room.exportBosses())?.catch?.(() => {});} catch {}
+    }
+    if (this.room.mazeChanged) {
+      this.room.mazeChanged = false;
+      try {this.ctx.storage?.put?.(MAZE_KEY, this.room.exportMaze())?.catch?.(() => {});} catch {}
     }
   }
 }

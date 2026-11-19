@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS,
-  ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS} from '../online/room.mjs';
+  ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS,
+  BOSS_GAP_MS, BOSS_KEEP_MS, MAZE_CREDIT_GAP_MS, MAZE_REKILL_MS, MAZE_HITS_PER_SECOND, mazeWeek} from '../online/room.mjs';
 import {readFileSync} from 'node:fs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
@@ -1195,4 +1196,197 @@ test('guild league round rooms: party-scoped, first arrival hosts (the leader do
   // The host leaves: the one left plays alone.
   b.zone('town');
   assert.deepEqual(a.last('host'), {t: 'host', zone: room, id: null});
+});
+
+// ------------------------------------------------------------------ field bosses (BossWorld)
+
+test('boss_kill: only the game running the zone (its host, or alone there), the server\'s name, everyone hears it, once a gap', () => {
+  const {connect, clock, room} = world();
+  const a = connect('1').hello({name: 'Alice'});
+  const b = connect('2').hello({name: 'Bob'});
+  const c = connect('3').hello({name: 'Carol', zone: 'desert'});
+  clearAll(a, b, c);
+  // b is not the meadow's host (a came first): refused.
+  b.send({t: 'boss_kill', zone: 'meadow', by: '', ai: ''});
+  assert.equal(c.frames('boss_kill').length, 0, 'only the zone host may tell it');
+  // Not its own zone, a bad zone: refused.
+  a.send({t: 'boss_kill', zone: 'desert'});
+  a.send({t: 'boss_kill', zone: 'Bad Zone!'});
+  assert.equal(c.frames('boss_kill').length, 0, 'only for the sender\'s own open zone');
+  a.send({t: 'boss_kill', zone: 'meadow', by: '2', ai: 'x'});
+  assert.deepEqual(c.last('boss_kill'), {t: 'boss_kill', zone: 'meadow', name: 'Bob', ago: 0}, 'the real player who took it, named by the server, to everyone');
+  assert.deepEqual(b.last('boss_kill'), c.last('boss_kill'));
+  assert.equal(a.frames('boss_kill').length, 0, 'not back to the sender');
+  a.send({t: 'boss_kill', zone: 'meadow', by: '', ai: 'Spam'});
+  assert.equal(c.frames('boss_kill').length, 1, 'once in BOSS_GAP_MS a zone');
+  pass(clock, BOSS_GAP_MS, a, b, c);
+  a.send({t: 'boss_kill', zone: 'meadow', by: '9', ai: 'NightHawk_with_a_very_long_name'});
+  assert.equal(c.last('boss_kill').name, 'NightHawk_with_a_very_lo', 'a world player of the host\'s game, cut to 24');
+  // Alone in a zone: its own game runs it.
+  c.send({t: 'boss_kill', zone: 'desert', by: '1'});
+  assert.equal(a.last('boss_kill').name, 'Carol', 'alone there, and `by` not in that zone: the sender');
+  // A newcomer gets the book.
+  clock.t += 5_000;
+  const d = connect('4');
+  const book = d.last('boss_state');
+  assert.deepEqual(book.bosses.map(x => [x.zone, x.name]).sort(), [['desert', 'Carol'], ['meadow', 'NightHawk_with_a_very_lo']]);
+  assert.ok(book.bosses.every(x => x.ago >= 5_000 && x.ago < 70_000), 'ago, in ms by the server\'s clock');
+  // An hour later they are forgotten.
+  clock.t += BOSS_KEEP_MS + 1;
+  room.tick();
+  const e = connect('5');
+  assert.equal(e.frames('boss_state').length, 0, 'old kills are dropped');
+});
+
+test('boss_kill in an instanced zone is refused; nothing is sent while the book is empty', () => {
+  const {connect} = world();
+  const a = connect('1').hello({zone: 'raid'});
+  const b = connect('2').hello({zone: 'meadow'});
+  clearAll(a, b);
+  a.send({t: 'boss_kill', zone: 'raid'});
+  assert.equal(b.frames('boss_kill').length, 0);
+  assert.equal(connect('3').frames('boss_state').length, 0);
+});
+
+// ------------------------------------------------------------------ the maze (MazeWar)
+
+test('maze_hit: relayed only between two players standing in the maze, rate-limited', () => {
+  const {connect, clock} = world();
+  const a = connect('1').hello({name: 'Alice', zone: 'maze_war'});
+  const b = connect('2').hello({name: 'Bob', zone: 'maze_war'});
+  const c = connect('3').hello({name: 'Carol', zone: 'meadow'});
+  clearAll(a, b, c);
+  a.send({t: 'maze_hit', to: '2', dmg: 500, crit: true});
+  assert.deepEqual(b.last('maze_hit'), {t: 'maze_hit', from: '1', dmg: 500, crit: true});
+  a.send({t: 'maze_hit', to: '3', dmg: 500});
+  assert.equal(c.frames('maze_hit').length, 0, 'not to one outside the maze');
+  c.send({t: 'maze_hit', to: '2', dmg: 500});
+  a.send({t: 'maze_hit', to: '1', dmg: 500});
+  a.send({t: 'maze_hit', to: '2', dmg: 'lots'});
+  a.send({t: 'maze_hit', to: '2', dmg: -5});
+  assert.equal(b.frames('maze_hit').length, 1, 'not from outside, not to oneself, a number above 0');
+  clock.t = Math.ceil(clock.t / 1000) * 1000 + 1;
+  b.clear();
+  for (let k = 0; k < MAZE_HITS_PER_SECOND + 10; k++) a.send({t: 'maze_hit', to: '2', dmg: 1});
+  assert.ok(b.frames('maze_hit').length <= MAZE_HITS_PER_SECOND + 1, 'at most MAZE_HITS_PER_SECOND a second');
+});
+
+test('maze_kill / maze_down: the week\'s board of real players, credited by the server, the same pair once a minute', () => {
+  const {connect, clock, room} = world();
+  const a = connect('1').hello({name: 'Alice', zone: 'maze_war'});
+  const b = connect('2').hello({name: 'Bob', zone: 'maze_war'});
+  const c = connect('3').hello({name: 'Carol', zone: 'meadow'});
+  clearAll(a, b, c);
+  // Alice's own kill of a world player (her game saw it): everyone else hears it.
+  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  const heard = c.last('maze_kill');
+  assert.equal(heard.name, 'Alice');
+  assert.equal(heard.kills, 1);
+  assert.equal(heard.by, '1');
+  assert.equal(heard.week, mazeWeek(clock.t));
+  assert.equal(a.frames('maze_kill').length, 0, 'not back to the sender (its game counted it)');
+  // Too soon after: refused; the same victim within a minute: refused.
+  a.send({t: 'maze_kill', victim: 'Shadow_Fang', ai: true});
+  assert.equal(c.frames('maze_kill').length, 1, 'one credit per MAZE_CREDIT_GAP_MS');
+  clock.t += MAZE_CREDIT_GAP_MS;
+  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  assert.equal(c.frames('maze_kill').length, 1, 'the same victim once a minute');
+  pass(clock, MAZE_REKILL_MS, a, b, c);
+  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  assert.equal(c.last('maze_kill').kills, 2);
+  // Outside the maze: refused.
+  c.send({t: 'maze_kill', victim: 'Kaito'});
+  assert.equal(a.frames('maze_kill').filter(f => f.name === 'Carol').length, 0, 'only from inside the maze');
+  // Bob fell to Alice: his game says so; Alice is told (her game counts it).
+  clock.t += MAZE_CREDIT_GAP_MS;
+  b.send({t: 'maze_down', by: '1'});
+  assert.equal(a.last('maze_kill').by, '1');
+  assert.equal(a.last('maze_kill').victim, 'Bob');
+  assert.equal(a.last('maze_kill').kills, 3);
+  b.send({t: 'maze_down', by: '2'});
+  b.send({t: 'maze_down', by: '3'});
+  assert.equal(a.frames('maze_kill').length, 1, 'never oneself, never one outside the maze');
+  // A `by` from one that is not the maze's host: refused (only the host runs the world players).
+  clock.t += MAZE_CREDIT_GAP_MS;
+  b.send({t: 'maze_kill', victim: 'Mintty', ai: true, by: '1'});
+  assert.equal(a.frames('maze_kill').length, 1, 'only the host credits another player');
+  a.send({t: 'maze_kill', victim: 'Mintty', ai: true, by: '2'});
+  assert.equal(b.last('maze_kill').name, 'Bob', 'the host credits a real player who took its world player');
+  // A newcomer gets the board.
+  const d = connect('4');
+  const board = d.last('maze_board');
+  assert.deepEqual(board.rows.map(r => [r.name, r.kills]).sort(), [['Alice', 3], ['Bob', 1]]);
+  // A new week starts again and keeps the champion.
+  clock.t += 8 * 86_400_000;
+  const e = connect('5');
+  assert.equal(e.frames('maze_board').length, 0, 'the new week\'s board is empty');
+  assert.deepEqual(room.exportMaze().champs[0], {week: mazeWeek(clock.t) - 1, name: 'Alice', kills: 3});
+});
+
+test('WorldRoom: the maze\'s board outlives a restart (storage)', async () => {
+  const store = new Map();
+  const pending = [];
+  const ctxWith = () => ({
+    ...fakeCtx(),
+    storage: {
+      alarm: null,
+      async getAlarm() {return this.alarm;},
+      async setAlarm(at) {this.alarm = at;},
+      async get(k) {return store.get(k);},
+      async put(k, v) {store.set(k, JSON.parse(JSON.stringify(v)));},
+    },
+    blockConcurrencyWhile(fn) {const p = fn(); pending.push(p); return p;},
+  });
+  const ctx = ctxWith();
+  const dobj = new WorldRoom(ctx, {});
+  await Promise.all(pending);
+  const wa = fakeWs();
+  ctx.acceptWebSocket(wa);
+  dobj.accept(wa, '1', 'alice');
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'hello', name: 'Alice', cls: 'mage', level: 100, stars: 0, look: {}, zone: 'maze_war', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''}));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'maze_kill', victim: 'Kaito', ai: true}));
+  await Promise.resolve();
+  assert.equal(store.get('maze').board[0].name, 'Alice', 'stored');
+  const ctx2 = ctxWith();
+  const again = new WorldRoom(ctx2, {});
+  await Promise.all(pending);
+  const wb = fakeWs();
+  ctx2.acceptWebSocket(wb);
+  again.accept(wb, '2', 'bob');
+  const board = wb.sent.find(f => f.t === 'maze_board');
+  assert.equal(board?.rows?.[0]?.name, 'Alice', 'the board is still known after the restart');
+});
+
+test('WorldRoom: the field bosses\' last kills outlive a restart (storage)', async () => {
+  const store = new Map();
+  const pending = [];
+  const ctxWith = () => ({
+    ...fakeCtx(),
+    storage: {
+      alarm: null,
+      async getAlarm() {return this.alarm;},
+      async setAlarm(at) {this.alarm = at;},
+      async get(k) {return store.get(k);},
+      async put(k, v) {store.set(k, JSON.parse(JSON.stringify(v)));},
+    },
+    blockConcurrencyWhile(fn) {const p = fn(); pending.push(p); return p;},
+  });
+  const ctx = ctxWith();
+  const dobj = new WorldRoom(ctx, {});
+  await Promise.all(pending);
+  const wa = fakeWs();
+  ctx.acceptWebSocket(wa);
+  dobj.accept(wa, '1', 'alice');
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'hello', name: 'Alice', cls: 'mage', level: 5, stars: 0, look: {}, zone: 'abyss', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''}));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'boss_kill', zone: 'abyss', by: '', ai: ''}));
+  await Promise.resolve();
+  assert.equal(store.get('bosses')[0].zone, 'abyss', 'stored');
+  const ctx2 = ctxWith();
+  const again = new WorldRoom(ctx2, {});
+  await Promise.all(pending);
+  const wb = fakeWs();
+  ctx2.acceptWebSocket(wb);
+  again.accept(wb, '2', 'bob');
+  const book = wb.sent.find(f => f.t === 'boss_state');
+  assert.equal(book?.bosses?.[0]?.name, 'Alice', 'the kill is still known after the restart');
 });

@@ -90,7 +90,7 @@ func _ready() -> void:
 	_label.font_size = 44
 	_label.outline_size = 12
 	_label.modulate = Color("8ff0ff")
-	_label.position = Vector3(0, LABEL_Y, 0)
+	_label.position = Vector3(0, LABEL_Y + CostumeArt.plate_lift(_costume_id()), 0)
 	_label.visibility_range_end = 30.0
 	_label.no_depth_test = true
 	_label.render_priority = 2
@@ -459,7 +459,7 @@ func dismount() -> void:
 ## The name label and HP bar ride up with the seat.
 func _raise_labels(lift: float) -> void:
 	if is_instance_valid(_label):
-		_label.position.y = LABEL_Y + lift
+		_label.position.y = LABEL_Y + lift + CostumeArt.plate_lift(_costume_id())
 	if is_instance_valid(_bar):
 		_bar.position.y = BAR_Y + lift
 

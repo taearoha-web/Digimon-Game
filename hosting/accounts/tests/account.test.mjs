@@ -662,6 +662,46 @@ test('reward-shop costumes are items: in the bag, the shared storage and the cos
   assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 50, item: {kind: 'costume', id: 'royal', rarity: 4}}], log: []}})), /stall is invalid/);
 });
 
+test('หนึ่งในใต้หล้า: the timed crown costume (expires), the worn end (rshop.cx) and the crown record (mcrown) are accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const now = Math.floor(Date.now() / 1000);
+  const ends = now + 5 * 86_400;
+  const crown = {kind: 'costume', id: 'maze_sovereign', rarity: 4, expires: ends};
+  const mcrown = {done: 3010, until: ends, wins: 2, last: 3010};
+  // Hero 1 wears the crown; hero 2 has one in the bag (an old one, past its end: the game takes it on load).
+  const one = {...sample(), mcrown, flags: {title: 39}, ach: {t_maze_crown: true}, rshop: {lc: 0, ep: 0, own: [], cos: 'maze_sovereign', cx: ends}};
+  const two = {...sample(20, 'น้องหมา'), inv: [{...crown, expires: now - 86_400}], mcrown: {done: -1, until: 0, wins: 0, last: -1}};
+  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storage: [crown], storageMigrated: {}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: full}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), mcrown: {}})));
+  // Absurd ends, a crown without its end, an end on another costume.
+  for (const bad of [{...crown, expires: now + 400 * 86_400}, {...crown, expires: 12}, {...crown, expires: ends + 0.5}, {...crown, expires: String(ends)},
+    {kind: 'costume', id: 'maze_sovereign', rarity: 4}, {kind: 'costume', id: 'royal', rarity: 4, expires: ends}, {...crown, expires: 9e15}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), inv: [bad]})), /costume item is invalid/, JSON.stringify(bad));
+    assert.throws(() => validateBundle({...bundle(), storage: [bad]}), /costume item in the shared storage/, JSON.stringify(bad));
+  }
+  // The crown never goes on a stall.
+  assert.throws(() => validateBundle(bundle({...sample(), stall: {lots: [{lot: 1, price: 50, item: crown}], log: []}})), /stall is invalid/);
+  // Worn: its end in cx, in range.
+  for (const cx of [undefined, 0, now + 60 * 86_400, -1, 1.5]) {
+    const rshop = {lc: 0, ep: 0, own: [], cos: 'maze_sovereign'};
+    if (cx !== undefined) rshop.cx = cx;
+    assert.throws(() => validateBundle(bundle({...sample(), rshop})), /reward shop record/, JSON.stringify(rshop));
+  }
+  for (const bad of [{done: -2}, {done: 1.5}, {wins: -1}, {until: 5}, {until: now + 90 * 86_400}, {last: 'x'}, {extra: 1}, [], {done: 1, until: 0, wins: 0, last: 1, more: 2}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), mcrown: bad})), /maze crown record/, JSON.stringify(bad));
+  }
+  // The game's limits are the server's.
+  const game = readFileSync(new URL('../../../data/maze_crown.gd', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../server/accounts.js', import.meta.url), 'utf8');
+  assert.equal(game.match(/const COSTUME_ID := "([a-z_]+)"/)[1], server.match(/const MAZE_COSTUME = '([a-z_]+)'/)[1]);
+  assert.equal(Number(game.match(/const EXPIRES_MIN := (\d+)/)[1]), Number(server.match(/const MAZE_EXPIRES_MIN = ([\d_]+)/)[1].replace(/_/g, '')));
+  assert.equal(Number(game.match(/const EXPIRES_MAX := (\d+)/)[1]), Number(server.match(/const MAZE_EXPIRES_MAX = ([\d_]+)/)[1].replace(/_/g, '')));
+  assert.equal(Number(game.match(/const MAX_LIFE := (\d+) \* 86400/)[1]), Number(server.match(/const MAZE_MAX_LIFE = (\d+) \* 86_400/)[1]));
+});
+
 test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();
@@ -793,5 +833,38 @@ test('real game-generated saves of every class pass validation and round-trip un
     revision = saved.body.revision;
     const stored = await call('save', {cookie: account.cookie});
     assert.deepEqual(stored.body.bundle, full, `${group.map(([key]) => key).join(', ')} changed on the way through the server`);
+  }
+});
+
+test('the maze war record (mazew, MazeWar in the game) is accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const mazew = {weeks: {'2967': {k: 12, at: 1795100000, d: 3, live: {Kaito: [2, 1795100100], 'น้องแพรวา': [1, 1795100200]}, held: {Kaito: [40, 41, 42]}}},
+    champs: {'2966': {name: 'Kaito', kills: 140, hero: false, index: 0}, '2965': {name: 'ลูน่า', kills: 90, hero: true, index: -1}}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), mazew})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const read = await call('save', {cookie: account.cookie});
+  assert.deepEqual(read.body.bundle.slots['1'].mazew, mazew);
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), mazew: {}})));
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), mazew: {weeks: {}, champs: {}}})));
+  for (const bad of [[], 5, {other: {}}, {weeks: []}, {weeks: {x: {}}}, {weeks: {'1': {k: -1}}}, {weeks: {'1': {k: 1.5}}}, {weeks: {'1': {zap: 1}}},
+    {weeks: {'1': {live: {Kaito: [1]}}}}, {weeks: {'1': {held: {Kaito: ['a']}}}}, {weeks: {'1': {live: {['N'.repeat(30)]: [1, 1]}}}},
+    {weeks: {'1': {}, '2': {}, '3': {}, '4': {}, '5': {}}}, {champs: {'1': {name: 5}}}, {champs: {'1': {hero: 'yes'}}}, {champs: {'1': {index: -2}}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), mazew: bad})), /maze war record/, JSON.stringify(bad));
+  }
+});
+
+test('the field boss record (bossw, BossWorld in the game) is accepted and checked', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const bossw = {meadow: {at: 1795000000, by: 'ลูน่า'}, sky_dragon_isle: {at: 1795000100, by: 'ปาร์ตี้ของ NightHawk'}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), bossw})}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  const read = await call('save', {cookie: account.cookie});
+  assert.deepEqual(read.body.bundle.slots['1'].bossw, bossw);
+  assert.doesNotThrow(() => validateBundle(bundle({...sample(), bossw: {}})));
+  for (const bad of [[], 5, {meadow: 5}, {meadow: {at: 'x'}}, {meadow: {at: -1}}, {meadow: {at: 1, by: 7}}, {meadow: {by: 'x'}},
+    {['m'.repeat(60)]: {at: 1}}, {meadow: {at: 1, by: 'x'.repeat(65)}}]) {
+    assert.throws(() => validateBundle(bundle({...sample(), bossw: bad})), /field boss record/, JSON.stringify(bad));
   }
 });

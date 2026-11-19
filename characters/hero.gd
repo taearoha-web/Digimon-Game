@@ -220,7 +220,12 @@ func refresh_name_plate() -> void:
 		hero_name = "「%s」 %s" % [LegendWings.TAG, hero_name]
 		if not champion:
 			_name_plate.modulate = LegendWings.COLOR
-	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" else hero_name
+	# หนึ่งในใต้หล้า (MazeCrown) has its own grand plate above the name instead of the line.
+	var crowned := MazeCrown.wears_title(Game.profile)
+	_name_plate.text = "✦ %s ✦\n%s" % [title, hero_name] if title != "" and not crowned else hero_name
+	MazeCrown.attach_plate(_name_plate, crowned)
+	# A tall headpiece (the sovereign's crown) lifts the plate above it.
+	_name_plate.position.y = NAME_PLATE_Y + CostumeArt.plate_lift(RewardShop.active("costume")) + (visual.position.y if mount != null and is_instance_valid(visual) else 0.0)
 
 
 ## Changes the hero's weapon / hat / outfit when the worn items change.
@@ -929,7 +934,7 @@ func dismount() -> void:
 		shadow.visible = true
 	visual.position = Vector3(0, visual.position.y, 0)
 	if is_instance_valid(_name_plate):
-		_name_plate.position.y = NAME_PLATE_Y
+		_name_plate.position.y = NAME_PLATE_Y + CostumeArt.plate_lift(RewardShop.active("costume"))
 	LeaderMark.raise(self, 0.0)
 
 
@@ -956,7 +961,7 @@ func _on_mount_changed() -> void:
 func _ride_step(speed: float) -> void:
 	MountVisual.carry(mount, visual, _facing, speed, move_speed(), RIDE_UPPER)
 	if is_instance_valid(_name_plate):
-		_name_plate.position.y = NAME_PLATE_Y + visual.position.y
+		_name_plate.position.y = NAME_PLATE_Y + visual.position.y + CostumeArt.plate_lift(RewardShop.active("costume"))
 	# The guild leader's crown (guild war) rides up with the seat.
 	LeaderMark.raise(self, visual.position.y)
 
@@ -1754,11 +1759,17 @@ func apply_slow(seconds: float) -> void:
 	_slow_until = maxi(_slow_until, Time.get_ticks_msec() + int(seconds * 1000.0))
 
 
+## Who struck the hero last (MazeMatch: who took it when it falls).
+var last_hit_by: Node
+
+
 func take_damage(raw: float, _attacker: Node = null) -> void:
 	if _dead or safe_zone or spectating:
 		return
 	if Time.get_ticks_msec() < _invulnerable_until:
 		return
+	if _attacker != null:
+		last_hit_by = _attacker
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return

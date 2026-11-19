@@ -1076,7 +1076,11 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 			var plan := endgame_plan(i, float(s[0]), int(p.level), int(p.stars), bool(p.divine))
 			place = String(plan.place)
 			doing = String(plan.doing)
-			if doing != "stall":
+			# เขาวงกตหนึ่งในใต้หล้า: an interested player's maze blocks of the session (MazeWar).
+			if MazeWar.ai_on() and MazeWar.in_maze(i, t):
+				place = String(MazeWar.ID)
+				doing = "maze"
+			if doing != "stall" and doing != "maze":
 				errand = errand_at(i, float(s[0]), float(s[1]), t)
 				if not errand.is_empty():
 					place = "town"
@@ -1696,6 +1700,8 @@ static func where_text(s: Dictionary, t: float = -1.0) -> String:
 				return "ออนไลน์ · ล่าบอสที่ %s" % where
 			"help":
 				return "ออนไลน์ · พาเพื่อนเก็บดาวที่ %s" % where
+			"maze":
+				return "ออนไลน์ · ล่าหัวใน%s" % where
 		return "ออนไลน์ · %s" % where
 	var seen := float(s.get("last_seen", 0.0))
 	if seen <= 0.0:

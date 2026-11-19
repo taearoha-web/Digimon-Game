@@ -43,6 +43,16 @@ const NEWS_WORLD_HOURS := 2.0
 ## %godfee %wbtime %wartime %regmin %setstars %setmax %setbonus %craft %coreodds
 ## %jewelx %pbonus %wingdrop %starwing %drake. Also %online and %name2.
 const TOPICS := {
+	# เขาวงกตหนึ่งในใต้หล้า (MazeWar): who leads the week and the speaker's own place, read
+	# off MazeWar.standings (%mzlead %mzleadk, %mzrank %mzkills: only a speaker in the race).
+	"maze": {
+		"open": ["{maze}ใครเข้า%mazeบ้าง ตอนนี้ %mzlead นำอยู่ %mzleadk คิล", "{inmaze}อยู่ใน%mazeนะ ตอนนี้อันดับ %mzrank แล้ว %mzkills คิล",
+			"{maze}สัปดาห์นี้ %mzlead โหดมาก %mzleadk คิลแล้ว ใครจะล้มได้", "{maze}ไปตีบวกเพิ่มก่อน แล้วจะกลับไปแย่งหนึ่งในใต้หล้า ตอนนี้อันดับ %mzrank",
+			"{maze}อยากได้ยศหนึ่งในใต้หล้าจัง ใส่อัญมณีใหม่เสร็จจะเข้าเขาวงกตอีกรอบ"],
+		"reply": ["{maze}%mzlead เก่งจริง ตอนนี้ %mzleadk คิล", "{maze}ผมอันดับ %mzrank อยู่ %mzkills คิล ยังห่างอีกเยอะ", "{maze}เจอกันในเขาวงกตนะ %to",
+			"{maze}เข้าไปทีไรโดนดักหัวมุมทุกที", "{maze}เจ็บก็วิ่งเข้าที่หลบภัยไว้ก่อน แต่อยู่นานไม่ได้นะ"],
+		"back": ["{maze}สู้ ๆ เดี๋ยวเจอกันข้างใน", "ขอบใจ %to ไว้ไปล่าหัวด้วยกัน"],
+	},
 	"greet": {
 		"open": ["สวัสดีทุกคน~", "หวัดดีชาว%zone", "มาแล้วจ้า วันนี้ออนกันเยอะเลย %online คน", "ดีครับ มาแล้ว", "หวัดดี ใครออนบ้าง", "หวัดดีทุกคน จะเช้าหรือดึกก็ลุย 555"],
 		"reply": ["หวัดดี %to!", "ดีจ้า %to", "ยินดีต้อนรับ %to", "หวัดดี มาล่าด้วยกันไหม %to", "ดีจ้า %to วันนี้ไปไหน", "เย้ %to มาแล้ว"],
@@ -213,6 +223,8 @@ static func news(i: int, t: float) -> Dictionary:
 			out[kind] = e
 		if kind == "enhance_fail":
 			out.fails = int(out.fails) + 1
+	# Its place in the maze race (MazeWar.chat_vars: {} when it is not in it).
+	out["maze"] = MazeWar.chat_vars(i, t) if MazeWar.ai_on() else {}
 	return out
 
 
@@ -294,6 +306,8 @@ static func my_vars(n: Dictionary) -> Dictionary:
 	var drop: Dictionary = n.get("drop", {})
 	if not drop.is_empty() and String(drop.get("item", "")) != "":
 		out["%mydrop"] = String(drop.item)
+	# The maze race: the week's leader and the speaker's own place (MazeWar.standings).
+	out.merge(n.get("maze", {}), true)
 	return out
 
 
@@ -414,6 +428,8 @@ static func topic_for(channel: String, s: Dictionary, rng: RandomNumberGenerator
 		weights["set"] = 0.8 + (0.4 if not (n.get("set_piece", {}) as Dictionary).is_empty() else 0.0)
 	if guild > 0:
 		weights["war"] = 0.9
+	if not (n.get("maze", {}) as Dictionary).is_empty():
+		weights["maze"] = 1.0 + (0.6 if String(s.get("place", "")) == String(MazeWar.ID) else 0.0)
 	if channel == "guild":
 		weights["help"] = 1.0
 		if guild > 0:
@@ -656,6 +672,10 @@ static func cond_ok(cond: String, me: Dictionary, mine: Dictionary) -> bool:
 			return not g.is_empty() and (g.get("mount", {}) as Dictionary).is_empty()
 		"boss":
 			return String(me.get("doing", "")) == "boss"
+		"maze":
+			return not (mine.get("maze", {}) as Dictionary).is_empty()
+		"inmaze":
+			return place == String(MazeWar.ID) and (mine.get("maze", {}) as Dictionary).has("%mzrank")
 	return false
 
 

@@ -404,6 +404,16 @@ jobs:
           sudo apt-get install -y -q xvfb libgl1-mesa-dri libglx-mesa0
       - name: Import assets
         run: Godot_v4.3-stable_linux.x86_64 --headless --editor --import --path .
+      - name: "เขาวงกตหนึ่งในใต้หล้า (MazeWar: the maze the same on every device and one piece, ten shrines spread and protective then wearing off, random respawn away from everyone, kills between players only and once a minute a pair, board sorted with ties, weekly champion kept, world players' fights alike everywhere and plausible, live fighters with real gear holding their slots so nothing counts twice, the race drives their forging, save checked, HUD and full board, chat tells the board's numbers, online kills and hits)"
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-maze-war
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/maze_war_test.tscn
+      - name: "Field bosses live in the world (BossWorld: up at its spot on entry, down with the killer's name and a countdown at its spot and on the HUD, back at kill + respawn with an announcement; the hero's kill saved and validated, no farming by walking out; world players' kills the same on every device, by somebody hunting there, never overlapping, held while the hero fights or watches; real players' kills from the server)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-boss-world
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/boss_world_test.tscn
       - name: "Stall goods worth buying (+ by the keeper's progress: a veteran's +7..+12 and a rare +13..+15 ของเด่น; star, divine, 200★ jewellery, 100★ wings, a very rare 250★ set piece; sky isle goods only from ★300; socketed with the class's gems; no Dragon God gear or costumes; prices carry the jewels of the +; best first; full bag goes to storage; saves valid)"
         timeout-minutes: 10
         env:
@@ -419,6 +429,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-star-moves
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/star_moves_test.tscn
+      - name: "Guild war commander doctrine (the leader's phases for attack, defence and a war of four with hysteresis; the respawn window: exploit a spent front, stage the wave when outweighed; muster and surge at the last gate; the last minutes; squads by class with squad leaders; retreat to the healers at the front, a tank peeling for a healer, focus fire; orders in Thai rate-limited and acknowledged; deterministic decisions; the hero's own orders first; host-only, mirrors show the host's phase)"
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-gw-commander
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/guild_war_commander_test.tscn
       - name: boss_attack_test
         timeout-minutes: 10
         env:
@@ -699,6 +714,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-chat-truth
         run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_truth_test.tscn
+      - name: "chat_coverage_test (the world players answer anything, truthfully: hundreds of Thai, slang, typo and English lines as conversations to many players at many times; every claim checked by ChatTruth: levels, gear +, rides, fields, monster homes, drop rates, forge odds, prices, event and war times; no answer spammed; the optional cloud helper off by default and grounded; a reply inside a phone's frame budget)"
+        timeout-minutes: 15
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-chat-coverage
+        run: Godot_v4.3-stable_linux.x86_64 --headless --path . res://tests/integration/chat_coverage_test.tscn
       - name: phone_budget_test (every effect shader warmed while loading, buff auras rebuilt only on change, party roles built once a frame, other players' pets cheap below quality 2)
         timeout-minutes: 10
         env:
@@ -799,6 +819,11 @@ jobs:
         env:
           XDG_DATA_HOME: /tmp/toon-ci-loy-krathong
         run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/loy_krathong_test.tscn
+      - name: "maze_crown_test (หนึ่งในใต้หล้า: the week's maze champion gets the title and the timed costume once, renewed on a repeat win, gone at its end from the bag, storages, the costume slot and a stall lot with notices, the title auto-unworn, a world player holder wears both, untradable, no shared storage, never bought, the grand plate, the announcement, save validation in the game and on the server)"
+        timeout-minutes: 10
+        env:
+          XDG_DATA_HOME: /tmp/toon-ci-maze-crown
+        run: Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path . res://tests/integration/maze_crown_test.tscn
 
   star-art:
     # The 50-200 star signature art tests (combat/star_art), beside the other jobs so none
