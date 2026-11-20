@@ -11,7 +11,11 @@ extends Node
 ##      SIM_SECONDS (default the whole war), SIM_SIZE (fighters a guild, 20), SIM_SWAP=0|1,
 ##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4),
 ##      SIM_OFF=muster,besiege,wait,exploit,squads (the doctrine's rules switched off),
-##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase).
+##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase),
+##      SIM_RULE=both|either (the two switches' rule, GuildWarMatch.switch_rule).
+## Each line also has switch_s (s each guild held BOTH switches), switch1_s (s it held
+## exactly one), retakes (captures of a castle another guild held) and barrier_s (s some
+## guild had the barrier open).
 ## The physics step is 1/15 s of war time (time_scale 4 at 60 ticks, as the capture
 ## measurements in guild_war_capture_test / guild_war_4way_test); with --fixed-fps 15 the
 ## wars run as fast as the machine can (tools/gw_sim_report.py sums the JSON lines up).
@@ -59,6 +63,7 @@ func _ready() -> void:
 	var out_path := _env("SIM_OUT", "")
 	var hook := Hook.new()
 	GuildWarSpectate.league_hook = hook
+	GuildWarMatch.switch_rule = _env("SIM_RULE", GuildWarMatch.RULE_BOTH)
 	for key in _env("SIM_OFF", "").split(",", false):
 		GuildWarDoctrine.off[key] = true
 	for s in seeds:
@@ -116,7 +121,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	zone.layout_seed = 77
 	add_child(zone)
 	var m: GuildWarMatch = zone.gw_match
-	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults, "off": GuildWarDoctrine.off.keys()}
+	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults, "off": GuildWarDoctrine.off.keys(), "rule": GuildWarMatch.switch_rule}
 	if m == null:
 		out["error"] = "no match"
 		return out
@@ -142,6 +147,11 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	var switch_time := []
 	switch_time.resize(teams)
 	switch_time.fill(0.0)
+	var switch1_time := []
+	switch1_time.resize(teams)
+	switch1_time.fill(0.0)
+	var barrier_time := 0.0
+	var first_both := -1.0
 	var stuck_max := 0.0
 	var stuck := {}
 	var last_pos := {}
@@ -179,12 +189,20 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		for k in 3:
 			if float(tier_open[k]) < 0.0 and m.tier_open(k):
 				tier_open[k] = snappedf(clock, 1.0)
+		for t in teams:
+			if not m.barrier_up(t):
+				barrier_time += dt
+				break
 		if m.castle_owner != owner_now:
 			owner_now = m.castle_owner
 			captures.append([snappedf(clock, 1.0), owner_now])
 		for t in teams:
 			if m.holds_switch(t):
 				switch_time[t] += dt
+				if first_both < 0.0:
+					first_both = snappedf(clock, 1.0)
+			elif m.switches_held(t) == 1:
+				switch1_time[t] += dt
 			var ph := m.phase_key(t)
 			phase_time[t][ph] = float(phase_time[t].get(ph, 0.0)) + dt
 			var pl := String(m.plans[t])
@@ -203,7 +221,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 					var fl: Dictionary = dd.field
 					extra = " bal %.2f spent %.2f gath %.2f" % [float(fl.get("balance", 0)), float(fl.get("foe_spent", 0)), float(fl.get("gathered", 0))]
 				rows.append("t%d %s/%s/%s up %d mid (%.0f,%.0f)%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), mid.x, mid.z, extra])
-			print("[%.0f] %s | sw %d own %d cap %s" % [clock, " | ".join(rows), m.switch_owner, m.castle_owner, str(m.capture.get("team", "-"))])
+			print("[%.0f] %s | sw %s own %d cap %s" % [clock, " | ".join(rows), str(m.switch_owners), m.castle_owner, str(m.capture.get("team", "-"))])
 		sample += dt
 		if sample >= 5.0:
 			sample = 0.0
@@ -253,7 +271,8 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	out.merge({
 		"clock": snappedf(clock, 1.0), "winner": int(r.get("winner", -2)), "score": Array(m.score), "captures_n": Array(m.captures),
 		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
-		"switch_s": switch_time.map(func(x): return int(x)), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
+		"switch_s": switch_time.map(func(x): return int(x)), "switch1_s": switch1_time.map(func(x): return int(x)), "barrier_s": int(barrier_time), "first_both": first_both,
+		"retakes": captures.filter(func(c): return captures.find(c) > 0).size(), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
 		"points": points, "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
 		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks,
 		"doctrine_think_avg_us": int(float(total_us) / float(maxi(1, thinks))), "doctrine_apply_avg_us": int(float(apply_us) / float(maxi(1, applies))), "orders": orders,

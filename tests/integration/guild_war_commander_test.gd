@@ -287,6 +287,14 @@ func _gate_paths() -> void:
 	check(p.is_equal_approx(Vector3(-SiegeArena.LANE_X, 0, -18)), "square in front of it: through the gate (%s)" % p)
 	p = SiegeArena.route(Vector3(0, 0, 4), SiegeArena.ALTAR)
 	check((SiegeArena.CONNECTORS[0] as Array).has(p), "far off the wall: straight to the opening as before (%s)" % p)
+	# By the gatehouse's posts (3-5 m to the opening's side, close to the wall): square on first.
+	SiegeArena.lane_open = [[true, true], [false, false]]
+	p = SiegeArena.route(Vector3(-SiegeArena.LANE_X + 4.0, 0, -16), SiegeArena.ALTAR)
+	check(is_equal_approx(p.x, -SiegeArena.LANE_X) and p.z > SiegeArena.GATE_Z[0] + 4.0, "by a gatehouse's post: first square in front of the gate (%s)" % p)
+	# Pushed into the moat's bank: back out onto the nearer bank (the bridge is not the moat).
+	check(SiegeArena.in_moat(Vector3(-43, -1, -7)) and not SiegeArena.in_moat(Vector3(0, 0, -10)) and not SiegeArena.in_moat(Vector3(-43, 0, -3)), "the moat's bank off the bridge")
+	var out := SiegeArena.out_of_moat(Vector3(-43, -1, -7))
+	check(not SiegeArena.in_moat(out) and out.z > SiegeArena.MOAT_SOUTH and is_equal_approx(out.x, -43.0), "out of the moat onto the field's bank (%s)" % out)
 	SiegeArena.lane_open = was
 
 

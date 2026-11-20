@@ -27,7 +27,8 @@ extends RefCounted
 ##     (with the gates down a staging point in the last yard) and goes again as one wave
 ##     once WAVE_READY of it stands there (or WAIT_MAX s). Both with hysteresis;
 ##   the RACE (nobody holds the castle): the whole guild musters at the last gate as it is
-##     about to fall (pick_muster) and surges to the switch the moment it does;
+##     about to fall (pick_muster) and surges to the switches (left and right: the barrier
+##     opens only for a guild holding both) the moment it does;
 ##   the SIEGE (a war of two): waves that keep losing the trades to a holder stop
 ##     feeding it and besiege from the last yard (pick_besiege) until its front is spent;
 ##   the LAST MINUTES (LAST_CALL s before the bell): the holder keeps everyone round the
@@ -344,7 +345,8 @@ func read_field() -> Dictionary:
 		"gates_up": war.front_gate() != null,
 		"enemy_capturing": not war.capture.is_empty() and int(war.capture.team) != team,
 		"we_capturing": not war.capture.is_empty() and int(war.capture.team) == team,
-		"switch": war.holds_switch(team),
+		"switch": not war.barrier_up(team),
+		"switches_held": war.switches_held(team),
 		"tactic": c.tactic if c != null else "",
 		"plan": String(war.plans[team]) if team < war.plans.size() else "",
 		"waiting": c != null and c.waiting,
@@ -353,8 +355,8 @@ func read_field() -> Dictionary:
 	}
 
 
-## Where the guild's fight is: the gate it batters (its front), else the switch while it
-## does not hold it, else the altar.
+## Where the guild's fight is: the gate it batters (its front), else the switch it lacks
+## (its commander's secure_side) while the barrier is up for it, else the altar.
 func objective_point() -> Vector3:
 	var c := _cmd()
 	var g: CastleGate = c.target_gate() if c != null else null
@@ -365,9 +367,24 @@ func objective_point() -> Vector3:
 		return SiegeArena.ALTAR
 	if g != null:
 		return SiegeArena.gate_front(g.tier, g.lane)
-	if not war.holds_switch(team):
-		return SiegeArena.SWITCH
+	if war.barrier_up(team):
+		var k := c.secure_side if c != null else maxi(0, war.switch_wanted(team))
+		if war.holds_switch(team, k):
+			k = 1 - k
+		return SiegeArena.SWITCHES[k]
 	return SiegeArena.ALTAR
+
+
+## How many of the guild's switch squad are posted to switch `k`.
+func _posted(k: int) -> int:
+	var c := _cmd()
+	if c == null:
+		return 0
+	var n := 0
+	for f in c.squad:
+		if c.side_of(f) == k:
+			n += 1
+	return n
 
 
 ## Where the guild stages a wave while waiting (with the gates down: the last yard, out of
@@ -790,18 +807,18 @@ func _announce_phase(_was: String, r: Dictionary) -> void:
 		"wait":
 			order("wait", "ถอยรอพล! หน้าแนว %d:%d รวมที่%s อย่าบุกทีละคน" % [int(r.get("near", 0)), int(r.get("foe_near", 0)), _place()])
 		"switch":
-			order("switch", "แผน: ชิงสวิตช์ หน่วยสวิตช์ %d คนยึดวง หัวกิลรอหลังแนว" % commander.squad.size())
+			order("switch", "แผน: ชิงสวิตช์ซ้าย-ขวา หน่วยสวิตช์ %d คน (ซ้าย %d ขวา %d) ทัพหลักบุก%s หัวกิลรอหลังแนว" % [commander.squad.size(), _posted(0), _posted(1), SiegeArena.SWITCH_NAMES[commander.secure_side]])
 		"assault":
 			order("assault", "แผน: บุกแท่น แนวหน้าเคลียร์ ฮีลประกบหัวกิล")
 		"capture":
-			order("capture", "หัวกิลยึดแท่น! ล้อมแท่น ขวางประตู ห้ามออกจากวงสวิตช์", true)
+			order("capture", "หัวกิลยึดแท่น! ล้อมแท่น ขวางประตู ห้ามออกจากวงสวิตช์ทั้งซ้ายและขวา", true)
 		"stop":
 			var who := int(war.capture.get("team", -1))
-			order("stop", "ด่วน! %s ยึดแท่น สตันหัวกิลมัน แย่งวงสวิตช์" % (war.team_name(who) if who >= 0 else "ศัตรู"), true)
+			order("stop", "ด่วน! %s ยึดแท่น สตันหัวกิลมัน ชิง%sคืน" % [war.team_name(who) if who >= 0 else "ศัตรู", SiegeArena.SWITCH_NAMES[commander.deny_side]], true)
 		"hold":
 			order("hold", "แผน: ตั้งรับที่%s แทงค์ขวางคอขวด คนเจ็บถอยหาฮีล" % _place())
 		"guard":
-			order("guard", "แผน: เฝ้าปราสาท หน่วยสวิตช์เฝ้าวง ผลัดคนเจ็บ")
+			order("guard", "แผน: เฝ้าปราสาท หน่วยสวิตช์เฝ้าทั้งซ้าย %d ขวา %d ผลัดคนเจ็บ" % [_posted(0), _posted(1)])
 		"counter":
 			order("counter", "สวนกลับ! %s หมดแรงแล้ว ไล่ตีแล้วกลับมา" % war.team_name(commander.counter_team if commander.counter_team >= 0 else foe))
 		"recover":
@@ -809,7 +826,7 @@ func _announce_phase(_was: String, r: Dictionary) -> void:
 		"besiege":
 			order("besiege", "ล้อมรอจังหวะ! อย่าบุกทีละคน รวมที่ลานชั้นใน ดักคนของ %s ที่ออกมา" % foe_name)
 		"muster":
-			order("muster", "ประตูสุดท้ายใกล้พัง! รวมที่%s พังแล้ววิ่งเข้าสวิตช์" % _gate_text())
+			order("muster", "ประตูสุดท้ายใกล้พัง! รวมที่%s พังแล้วแยกเข้าสวิตช์ซ้ายและขวา" % _gate_text())
 		"vulture":
 			var pair := commander.busy_pair()
 			if pair.size() == 2:
@@ -827,7 +844,7 @@ func _events(r: Dictionary) -> void:
 		_tiers_seen = open
 		if not bool(r.holding):
 			if open >= SiegeArena.GATE_Z.size():
-				order("tier", "ประตูสุดท้ายพัง! ชิงสวิตช์ก่อนแล้วบุกแท่น", true)
+				order("tier", "ประตูสุดท้ายพัง! ชิงสวิตช์ซ้ายและขวาให้ครบก่อนแล้วบุกแท่นท้ายห้อง", true)
 			else:
 				order("tier", "ประตูชั้น %d พัง! เดินหน้ารวมที่%s" % [open, _place()], true)
 		else:
@@ -835,17 +852,17 @@ func _events(r: Dictionary) -> void:
 	var lead := war.ai_leader(team)
 	var up := lead != null and not lead.is_dead()
 	if lead != null and _leader_was_up and not up and war.front_gate() == null and not bool(r.holding):
-		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล หน่วยสวิตช์เฝ้าวง", true)
+		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล หน่วยสวิตช์เฝ้าวงทั้งสองฝั่ง", true)
 	_leader_was_up = up
 	if war.castle_owner != _owner_seen:
 		_owner_seen = war.castle_owner
 		if war.castle_owner == team:
-			order("owner", "ยึดปราสาทได้! สวิตช์เฝ้าวง แทงค์คุมประตู", true)
+			order("owner", "ยึดปราสาทได้! แบ่งคนเฝ้าสวิตช์ซ้ายและขวา แทงค์คุมประตู", true)
 		elif war.castle_owner >= 0:
 			order("owner", "%s ยึดปราสาทไป! รวมพลแล้วชิงคืน" % war.team_name(war.castle_owner), true)
 	if last_call and not _order_at.has("last"):
 		if bool(r.holding):
-			order("last", "เหลือ 2 นาที! เฝ้าแท่นกับสวิตช์จนหมดเวลา", true)
+			order("last", "เหลือ 2 นาที! เฝ้าแท่นกับสวิตช์ทั้งสองฝั่งจนหมดเวลา", true)
 		elif war.castle_owner >= 0:
 			order("last", "เหลือ 2 นาที! ห้ามถอย บุกชิงปราสาท", true)
 		else:

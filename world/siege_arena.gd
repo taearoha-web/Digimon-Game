@@ -11,7 +11,8 @@ extends RefCounted
 ## Three tiers of gates stand one behind the other in the castle's long hall (GATE_Z): the
 ## first two tiers have TWO gates each, a left and a right one (LANE_X), and either of them
 ## broken lets everyone through to the next tier; the third tier is one gate, the throne
-## room's. Behind it is the altar a guild must hold to take the castle. The ground is flat:
+## room's. In the throne room stand the two switches (left and right) and, against its
+## back wall, the altar a guild must hold to take the castle. The ground is flat:
 ## the moat and the walls are colliders, and fighters find their way along the sections
 ## (route): the field, the bridge, the two yards and the throne room, joined at the bridge
 ## foot and the gates (lane_open says which of a doubled tier's gates are already broken,
@@ -35,7 +36,8 @@ const CAMP_RADIUS := 16.0
 ## The castle holder's camp inside the castle, in the second yard before the throne room's
 ## gate: a guild that holds the castle lines up and comes back there (facing the way in,
 ## rows of KEEP_ROW), and its own gates let it through (GuildWarMatch._gate_pass); from
-## there it is some thirty metres to the altar, so its fallen are not back on it at once.
+## there it is some forty-five metres to the altar at the back of the throne room (past both
+## switches), so its fallen are not back on it at once.
 ## Safe from being chased only this close.
 const KEEP_CAMP := Vector3(0, 0, -82.0)
 const KEEP_ROW := 10
@@ -65,17 +67,27 @@ const BACK_Z := -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH
 const STONE_H := 7.0
 const PARAPET_H := 2.4
 const WALL_H := STONE_H + PARAPET_H
-## The altar in the throne room and how close one must stand to take it.
-const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH * 0.5)
+## The altar against the throne room's back wall (in the middle, ALTAR_BACK m off the
+## wall: room to stand all round it) and how close one must stand to take it. From the
+## holder's camp (KEEP_CAMP) it is some forty-five metres, past both switches.
+const ALTAR_BACK := 9.0
+const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH + ALTAR_BACK)
 const ALTAR_RADIUS := 2.8
-## The castle's one switch (สวิตช์) on the throne room's left side, halfway between the
-## door and the altar (off the carpet, inside the pillars). The first guild to stand in its
-## circle while it is free takes it and keeps it while one living member of it is inside,
-## however many others come in; the altar's barrier falls only for the guild holding it
-## (GuildWarMatch.barrier_up), so only that guild's leader can take the altar.
-const SWITCH := Vector3(-14.0, 0, -102.0)
+## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา), mirrored left (-x) and right (+x)
+## of the carpet halfway down the throne room (inside the pillars), as far from the door
+## and from the altar as each other, so no camp's way in is nearer to one. Each is held on
+## its own: the first guild to stand in its circle while it is free takes it and keeps it
+## while one living member of it is inside, however many others come in (the next guild
+## must clear it out of the circle). The altar's barrier falls only for a guild holding
+## BOTH (GuildWarMatch.barrier_up): with the switches split between guilds it stays up for
+## everyone and a count in progress waits, so an attacker must take both sides and a
+## defender need only win one back.
+const SWITCH_X := 17.0
+const SWITCH_Z := -18.0 - GATE_GAP * 2.0 - 16.0
+const SWITCHES: Array[Vector3] = [Vector3(-SWITCH_X, 0, SWITCH_Z), Vector3(SWITCH_X, 0, SWITCH_Z)]
 const SWITCH_RADIUS := 4.2
 const SWITCH_NAME := "สวิตช์"
+const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
 const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
 ## Where the sections join, each a list of openings: the bridge foot (one per lane), the
 ## first two tiers' two gates, the third tier's one.
@@ -189,16 +201,28 @@ static func route(from: Vector3, to: Vector3) -> Vector3:
 	return _square_on(from, back)
 
 
+## Whether `p` is inside the moat (off the bridge, between its banks: the moat's collider).
+static func in_moat(p: Vector3) -> bool:
+	return p.z < MOAT_SOUTH - 0.2 and p.z > MOAT_NORTH + 0.2 and absf(p.x) > BRIDGE_HALF + 0.3
+
+
+## The nearer bank to `p` in the moat (just off its edge, on the ground).
+static func out_of_moat(p: Vector3) -> Vector3:
+	var mid := (MOAT_SOUTH + MOAT_NORTH) * 0.5
+	return Vector3(p.x, 0.3, MOAT_SOUTH + 1.0 if p.z >= mid else MOAT_NORTH - 1.0)
+
+
 ## Close along a wall from an opening `c` (within APPROACH_DEPTH of its line, more than
-## GATE_HALF - 1 to its side) the way runs first to a point in front of it, square on,
-## instead of along the wall's face into the gatehouse's corner (where a fighter could
-## stand pressed for minutes: guild_war_sim's stuck measure); otherwise to the opening.
+## GATE_HALF - 2 to its side: by the gatehouse's posts) the way runs first to a point in
+## front of it, square on, instead of along the wall's face into the gatehouse's corner
+## (where a fighter could stand pressed for minutes: guild_war_sim's stuck measure);
+## otherwise to the opening.
 const APPROACH_DEPTH := 6.0
 
 
 static func _square_on(from: Vector3, c: Vector3) -> Vector3:
 	var dz := from.z - c.z
-	if absf(dz) < APPROACH_DEPTH and absf(from.x - c.x) > GATE_HALF - 1.0:
+	if absf(dz) < APPROACH_DEPTH and absf(from.x - c.x) > GATE_HALF - 2.0:
 		return Vector3(c.x, c.y, c.z + signf(dz if dz != 0.0 else 1.0) * APPROACH_DEPTH)
 	return c
 
@@ -217,9 +241,26 @@ static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
 
 
-## Whether `p` stands inside the switch's circle.
-static func on_switch(p: Vector3) -> bool:
-	return Vector2(p.x - SWITCH.x, p.z - SWITCH.z).length() <= SWITCH_RADIUS
+## Whether `p` stands inside a switch's circle (`side` 0 the left, 1 the right, -1 either).
+static func on_switch(p: Vector3, side := -1) -> bool:
+	if side >= 0:
+		var c: Vector3 = SWITCHES[clampi(side, 0, SWITCHES.size() - 1)]
+		return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
+	return switch_at(p) >= 0
+
+
+## Which switch's circle `p` stands in (0 left, 1 right), -1 none.
+static func switch_at(p: Vector3) -> int:
+	for k in SWITCHES.size():
+		var c: Vector3 = SWITCHES[k]
+		if Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS:
+			return k
+	return -1
+
+
+## The nearer switch to `p` (0 left, 1 right; a tie on the carpet goes left).
+static func nearer_switch(p: Vector3) -> int:
+	return 0 if p.x <= 0.0 else 1
 
 
 ## Builds the field, a camp per guild colour in `colors` (CAMPS order: team 0 first), the
@@ -527,6 +568,16 @@ static func _castle(root: Node3D, m: Masonry, banner: StandardMaterial3D) -> voi
 	for i in 8:
 		var angle := TAU * float(i) / 8.0
 		b.box(Vector3(ALTAR.x + cos(angle) * (ALTAR_RADIUS + 0.9), 0.95, ALTAR.z + sin(angle) * (ALTAR_RADIUS + 0.9)), Vector3(0.5, 0.5, 0.5), GOLD, Vector3(0, -rad_to_deg(angle), 45))
+	# Against the back wall behind the altar: a gilded folding screen (byobu) of six panels
+	# on a low wooden step, and a stone lantern either side of the dais.
+	for i in 6:
+		var px := (float(i) - 2.5) * 2.3
+		var tilt := 8.0 if i % 2 == 0 else -8.0
+		b.box(Vector3(px, 2.1, BACK_Z + 1.4), Vector3(2.3, 3.8, 0.16), GOLD.darkened(0.08), Vector3(0, tilt, 0))
+		b.box(Vector3(px, 4.05, BACK_Z + 1.4), Vector3(2.4, 0.14, 0.24), WOOD, Vector3(0, tilt, 0))
+	b.box(Vector3(0, 0.12, BACK_Z + 1.6), Vector3(15.0, 0.24, 1.6), WOOD)
+	for x in [-ALTAR_RADIUS - 5.5, ALTAR_RADIUS + 5.5]:
+		JapanKit.toro(b, Vector3(x, 0, ALTAR.z - 1.0), 1.4)
 	for x in [-7.0, 7.0]:
 		JapanKit.toro(b, Vector3(x, 0, GATE_Z[2] - 6.0), 1.6)
 	# Great hanging banners in the holder's colour along the throne room.

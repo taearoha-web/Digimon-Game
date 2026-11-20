@@ -112,9 +112,9 @@ func _ready() -> void:
 		check(all.size() > 10, "guild war q%d: props are placed (%d)" % [q, all.size()])
 		var near_switch := 0
 		for p in all:
-			if p.distance_to(Vector2(SiegeArena.SWITCH.x, SiegeArena.SWITCH.z)) < SiegeArena.SWITCH_RADIUS + 1.0 or p.distance_to(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)) < SiegeArena.ALTAR_RADIUS + 1.0:
+			if SiegeArena.SWITCHES.any(func(sw: Vector3): return p.distance_to(Vector2(sw.x, sw.z)) < SiegeArena.SWITCH_RADIUS + 1.0) or p.distance_to(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)) < SiegeArena.ALTAR_RADIUS + 1.0:
 				near_switch += 1
-		check(near_switch == 0, "guild war q%d: the switch circle and the altar stay bare" % q)
+		check(near_switch == 0, "guild war q%d: both switch circles and the altar stay bare" % q)
 		var kinds := {}
 		for node in holder.get_children():
 			if node.is_in_group(PropDressing.GROUP):

@@ -170,7 +170,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			for L in leads:
 				if not L.is_dead():
 					print("  lead t%d goal %s keep %s cap %s hold %.0f victim %s vel %.1f c.read van %s foes %s esc %s sw %s go %s" % [L.team, L.goal_point.round(), L.keep_back, L.capture_role, L.hold_range, (L._victim.global_position.round() if L._victim != null and is_instance_valid(L._victim) else "-"), L.velocity.length(), m.commanders[L.team].last_read.get("vanguard"), m.commanders[L.team].last_read.get("altar_foes"), m.commanders[L.team].last_read.get("escort"), m.commanders[L.team].last_read.get("switch"), m.commanders[L.team].leader_go])
-			print("t %.0f state %s plans %s tactics %s/%s sections %s switches %s capture %s leads %s %s" % [clock, m.state, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, secs, m.switch_owner, m.capture, leads[0].global_position.round() if not leads[0].is_dead() else "dead", leads[1].global_position.round() if not leads[1].is_dead() else "dead"])
+			print("t %.0f state %s plans %s tactics %s/%s sections %s switches %s capture %s leads %s %s" % [clock, m.state, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, secs, m.switch_owners, m.capture, leads[0].global_position.round() if not leads[0].is_dead() else "dead", leads[1].global_position.round() if not leads[1].is_dead() else "dead"])
 		# The attackers' leader, not yet sent onto the altar: farther than most of its guild
 		# (the members in the fight round it, not the switch holders) from where the guild
 		# pushes: the gate, the switch it clears, the altar.
@@ -188,7 +188,7 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			if gate != null and c.tactic == GuildWarCommander.PUSH:
 				goal = SiegeArena.gate_front(gate.tier, gate.lane)
 			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.securing:
-				goal = SiegeArena.SWITCH
+				goal = SiegeArena.SWITCHES[c.secure_side]
 			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD]:
 				goal = SiegeArena.ALTAR
 			if not goal.is_finite():
