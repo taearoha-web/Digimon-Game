@@ -8,9 +8,8 @@ extends Node
 ##   - the focus: the castle's holder marks the enemy leader near the altar first (and its
 ##     assassins dive it), anyone leans on the enemy leader in the throne room, whoever
 ##     strikes our leader taking the altar is peeled off;
-##   - the fighters: stuns kept for a priority foe, potions drunk before a fall, the leash
-##     (nobody chased far from its post), a healer healing with nobody to fight, an area
-##     skill not spent on one foe;
+##   - the fighters: stuns kept for a priority foe, potions drunk before a fall, a healer
+##     healing with nobody to fight;
 ##   - waves: the fallen coming back meet at a join point and go in together;
 ##   - the baseline (base) runs none of it.
 ## godot --headless --audio-driver Dummy --path . res://tests/integration/guild_war_smart2_test.tscn
@@ -194,25 +193,6 @@ func _fighter_rules(m: GuildWarMatch, lead0: GuildFighter, lead1: GuildFighter) 
 	check(a._potions == 2, "the baseline does not yet")
 	a.smart2 = true
 	a.hp = a.max_hp
-	# The leash: nobody chased far from its post.
-	a.objective = null
-	a.hold_range = 0.0
-	a.holder_team = -1
-	a.focus = null
-	a.dive = null
-	a.capture_role = false
-	a.keep_back = false
-	a.goal_point = Vector3(-10.0, 0, 20.0)
-	e.global_position = Vector3(15.0, 0.3, 20.0)
-	GuildFighter.forget_view()
-	check(a._nearest_victim() != e, "a foe 15 m off but 25 m from its post is left alone (the leash)")
-	a.smart2 = false
-	GuildFighter.forget_view()
-	check(a._nearest_victim() == e, "the baseline chases it")
-	a.smart2 = true
-	a.goal_point = Vector3(5.0, 0, 20.0)
-	GuildFighter.forget_view()
-	check(a._nearest_victim() == e, "near its post it is fought")
 	# A healer heals with nobody to fight.
 	if priest != null:
 		priest.global_position = Vector3(0, 0.3, 30.0)

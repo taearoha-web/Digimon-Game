@@ -55,7 +55,7 @@ extends RefCounted
 ##     walking in alone);
 ##   the hurt fall back to the guild's own body when no healer is at the front (not alone
 ##     across the field to the far camp), the leader to its healers and a little sooner;
-##   the fighters' own (GuildFighter.smart2): the leash, focus fire without overkill,
+##   the fighters' own (GuildFighter.smart2): focus fire without overkill,
 ##     potions before a fall, the leader drinking and fighting back on the altar, idle
 ##     heals, stuns kept for a priority foe, area skills not spent on one foe, no skills on a
 ##     gate with foes near.
@@ -71,7 +71,9 @@ extends RefCounted
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
-## "waves", "leash", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
+## "waves", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
+## (A leash, nobody chased farther than 20 m from its post, was measured and dropped: the
+## guild playing it lost the trades, K/D 0.86 against 1.11, tests/tools/guild_war_sim.)
 static var off: Dictionary = {}
 
 ## The doctrine as it stood before its second brain (the measurement's baseline,
