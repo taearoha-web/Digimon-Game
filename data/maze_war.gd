@@ -108,7 +108,11 @@ static var revision := 0
 static func zone() -> Dictionary:
 	return {
 		"name": TITLE, "scene": "field", "level": [MIN_LEVEL, 100], "music": &"guildwar", "pvp": true, "maze": true,
-		"tree_density": 0.0, "camps": [], "sky": Color("3a3f78"), "ground": Color("4f6b45"), "prev": &"town", "next": &"",
+		"tree_density": 0.0, "camps": [], "sky": Color("1d4fb4"), "ground": Color("5d7d5b"), "prev": &"town", "next": &"",
+		# A golden afternoon over the isle (MazeArena): a deep blue sky going gold at the
+		# horizon, a low warm sun, a cool blue fill.
+		"sky_palette": [Color("1d4fb4"), Color("7aa2e2"), Color("ffc890")], "fog": Color("b9c6ec"),
+		"ambient": Color("98a2dc"), "sun": Color("ffd59a"), "sun_size": 1.6,
 	}
 
 
