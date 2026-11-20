@@ -48,9 +48,9 @@ def main(paths):
                 s["captures"] += r["captures_n"][t]
                 s["holds_at_bell"] += 1 if r["owner"] == t else 0
                 s["switch_s"] += r["switch_s"][t] if "switch_s" in r else 0
-                for key in ("lone_deaths", "cap_start", "cap_broken", "heal_idle"):
-                    if key in r:
-                        s[key] += r[key][t]
+                for k2 in ("lone_deaths", "cap_start", "cap_broken", "heal_idle"):
+                    if k2 in r:
+                        s[k2] += r[k2][t]
                 if r.get("leaders"):
                     s["lead_deaths"] += r["leaders"][t].get("lead_deaths", 0)
                 firsts = [c[0] for c in r["capture_log"] if c[1] == t]

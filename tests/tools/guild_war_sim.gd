@@ -196,7 +196,16 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 				else:
 					foes += 1
 			if mates <= 1 and foes >= 3:
-				lone[victim.team] += 1)
+				lone[victim.team] += 1
+				if _env("SIM_TRACE", "") != "":
+					var mid := Vector3.ZERO
+					var up := 0
+					for g in m.side(victim.team):
+						if not g.is_dead() and g != victim:
+							mid += g.global_position
+							up += 1
+					mid /= float(maxi(1, up))
+					print("  LONE t%d %s%s at (%.0f,%.0f) sec %d ret %s hp-pot %d mid %.0f m goal %.0f m lead %s phase %s tactic %s" % [victim.team, victim.fighter_class(), " LEADER" if victim.is_leader else "", victim.global_position.x, victim.global_position.z, SiegeArena.section(victim.global_position), victim.is_retreating(), victim._potions, _flat(mid, victim.global_position), _flat(victim.goal_point, victim.global_position), str(victim.capture_role), m.phase_key(victim.team), m.commanders[victim.team].tactic]))
 	var cap_team := -1
 	var lead_stat: Array = []
 	for t in teams:

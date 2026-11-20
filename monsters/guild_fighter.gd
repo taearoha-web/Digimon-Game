@@ -639,6 +639,11 @@ func _nearest_victim() -> Node3D:
 			continue
 		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
 			continue
+		# Second brain: the leash. Nobody is chased far from its post (into the other
+		# guild's side, after one falling back to its healers): only what comes within
+		# CHASE_CLOSE of it or stands within CHASE_LEASH of its post.
+		if smart2 and t != taker and not (t is CastleGate) and d > CHASE_CLOSE and _flat_distance_from(t.global_position, goal_point) > CHASE_LEASH:
+			continue
 		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + 6.0):
 			continue
 		var bias := 0.0
@@ -1152,6 +1157,10 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 	return score
 
 
+## Second brain's leash: targets farther than CHASE_LEASH from its post (goal_point) are
+## left alone unless within CHASE_CLOSE of the fighter.
+const CHASE_LEASH := 20.0
+const CHASE_CLOSE := 7.0
 ## Second brain's focus fire: a target takes FOCUS_ROOM_MIN of the guild plus FOCUS_ROOM_HP
 ## more at full health before the extra ones look elsewhere.
 const FOCUS_ROOM_MIN := 2
