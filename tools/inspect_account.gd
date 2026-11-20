@@ -69,4 +69,17 @@ func _run() -> int:
 			int((profile.get("paragon", {}) as Dictionary).get("level", 0)), int(power), int(st.atk), int(st.get("matk", 0)), int(st.max_hp), int(st.def),
 			" ".join(gear), gems, ItemData.GEM_SIZES[gem_best] if gem_best >= 0 else "-",
 			ItemData.name_of(wings) if wings is Dictionary else "-", ai.size(), place, String(ai[0].name), int(ai[0].power)])
+		# What makes the number: the pieces, the 250★ set count, the points, the mount, the job.
+		var names := PackedStringArray()
+		for slot in SLOTS:
+			var it: Variant = (profile.get("equip", {}) as Dictionary).get(slot)
+			if it is Dictionary:
+				names.append("%s=%s%s [%s]" % [slot, ItemData.name_of(it), " +%d" % int(it.get("plus", 0)), ",".join(PackedStringArray((it.get("gems", []) as Array).map(func(g): return String(g))))])
+		var gb := HeroStats.gear_bonus(profile)
+		var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
+		print("DETAIL|slot %s|%s|adv %d|attrs %s|free points %d|star alloc %s|star free %d|set250 %d|mount %s Lv.%d|%s" % [
+			key, String(profile.get("name", "")), int(profile.get("adv", 0)), JSON.stringify(HeroStats.attributes(profile)), int(profile.get("points", 0)),
+			JSON.stringify(para), int((profile.get("paragon", {}) as Dictionary).get("points", 0)), int(gb.get("set_gear", 0)),
+			String(profile.get("mount", "")), int((profile.get("mounts", {}) as Dictionary).get(String(profile.get("mount", "")), 0)) if profile.get("mounts") is Dictionary else 0,
+			" | ".join(names)])
 	return 0
