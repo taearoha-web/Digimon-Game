@@ -51,16 +51,22 @@ func _ready() -> void:
 	var play_camera := get_viewport().get_camera_3d()
 	# --- 1. the map from straight above, labelled -------------------------------
 	main.hud.visible = false
+	await _wait(6.0)
+	var hidden: Array = []
+	for n in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		if n is ToastLayer or n.name.to_lower().contains("toast"):
+			(n as CanvasLayer).visible = false
+			hidden.append(n)
 	for env in zone.find_children("*", "WorldEnvironment", true, false):
 		(env as WorldEnvironment).environment.fog_enabled = false
 		(env as WorldEnvironment).environment.volumetric_fog_enabled = false
 	var top := Camera3D.new()
 	zone.add_child(top)
 	top.projection = Camera3D.PROJECTION_ORTHOGONAL
-	top.size = 196.0
+	top.size = 214.0
 	top.near = 1.0
 	top.far = 600.0
-	top.global_position = Vector3(0, 240.0, -58.0)
+	top.global_position = Vector3(0, 240.0, -60.0)
 	top.rotation_degrees = Vector3(-90, 0, 0)
 	top.current = true
 	await _wait(0.6)
@@ -74,18 +80,20 @@ func _ready() -> void:
 	var S := SiegeArena
 	_tag(layer, lines, top, S.SWITCHES[0], Vector2(-330, -40), "สวิตช์ซ้าย", Color("ffd34d"))
 	_tag(layer, lines, top, S.SWITCHES[1], Vector2(150, -40), "สวิตช์ขวา", Color("ffd34d"))
-	_tag(layer, lines, top, S.ALTAR, Vector2(130, -70), "แท่นยึดปราสาท (ชิดผนังหลัง)", Color("ffffff"))
+	_tag(layer, lines, top, S.ALTAR, Vector2(150, -10), "แท่นยึดปราสาท (ชิดผนังหลัง)", Color("ffffff"))
 	_tag(layer, lines, top, S.KEEP_CAMP, Vector2(160, 20), "จุดเกิดใหม่ของผู้ครองปราสาท", Color("ffb35a"))
 	_tag(layer, lines, top, Vector3(0, 0, S.GATE_Z[2]), Vector2(-300, 8), "ประตูชั้น 3 (ประตูห้องบัลลังก์)", Color("b8f0c0"))
 	_tag(layer, lines, top, Vector3(-S.LANE_X, 0, S.GATE_Z[1]), Vector2(-260, 0), "ประตูชั้น 2 ซ้าย/ขวา", Color("b8f0c0"))
 	_tag(layer, lines, top, Vector3(-S.LANE_X, 0, S.GATE_Z[0]), Vector2(-260, 10), "ประตูชั้น 1 ซ้าย/ขวา", Color("b8f0c0"))
-	_tag(layer, lines, top, S.camp(0), Vector2(-60, 60), "ค่ายกิล A (ตะวันตก)", Color("8fc4ff"))
-	_tag(layer, lines, top, S.camp(1), Vector2(-120, 60), "ค่ายกิล B (ตะวันออก)", Color("ff9a8a"))
+	_tag(layer, lines, top, S.camp(0), Vector2(-90, -80), "ค่ายกิล A (ตะวันตก)", Color("8fc4ff"))
+	_tag(layer, lines, top, S.camp(1), Vector2(-120, -80), "ค่ายกิล B (ตะวันออก)", Color("ff9a8a"))
 	_rule(layer, "กติกา: บาเรียแท่นเปิดให้กิลด์ที่ถือ \"ครบทั้งสองสวิตช์\" เท่านั้น — สวิตช์แยกกันคนละกิลด์ = บาเรียปิด การนับหยุดรอ")
 	await _wait(0.3)
 	await _shot("gw2_map")
 	layer.queue_free()
 	top.queue_free()
+	for n in hidden:
+		(n as CanvasLayer).visible = true
 	# --- 2. the war in the throne room ------------------------------------------
 	main.hud.visible = true
 	play_camera.current = true
@@ -119,8 +127,8 @@ func _ready() -> void:
 	var cam := Camera3D.new()
 	zone.add_child(cam)
 	cam.fov = 58.0
-	cam.global_position = Vector3(0, 30.0, S.GATE_Z[2] + 2.0)
-	cam.look_at(Vector3(0, 0, S.SWITCH_Z - 8.0), Vector3.UP)
+	cam.global_position = Vector3(0, 52.0, S.GATE_Z[2] + 8.0)
+	cam.look_at(Vector3(0, 0, S.SWITCH_Z - 14.0), Vector3.UP)
 	cam.current = true
 	await _wait(0.4)
 	await _shot("gw2_throne")
