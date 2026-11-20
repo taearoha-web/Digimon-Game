@@ -820,13 +820,15 @@ func _apply() -> void:
 ## of the fight: farther than STRAGGLE m from the guild's objective) meet at a join point
 ## out of the fight (join_point) and go in together once WAVE_N of them are there, after
 ## JOIN_MAX s, or at once while the guild holds the field there (WAVE_MAIN of its own at the
-## objective, at least as many as the foes) or while it cannot wait (a capture running, the
-## last call). Only in a fight (the tactics push, escort, guard, defend): gathering and
+## objective, at least as many as the foes; fewer than WAVE_FOES foes there) or while it
+## cannot wait (another guild's capture running, the last call). Only in a fight (the tactics push, escort, guard, defend): gathering and
 ## falling back have their own rally point.
 const STRAGGLE := 42.0
 const MAIN_RADIUS := 24.0
 const WAVE_N := 4
 const WAVE_MAIN := 6
+## Fewer foes than this at the objective: no fight there to be fed, everyone goes on.
+const WAVE_FOES := 3
 const JOIN_RADIUS := 9.0
 const JOIN_MAX := 12.0
 const JOIN_BACK := 34.0
@@ -874,7 +876,7 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 	for e in war.foes_of(team):
 		if not e.is_dead() and GuildWarCommander._flat(e.global_position, front) < MAIN_RADIUS:
 			foes += 1
-	if urgent or stragglers.is_empty() or (main >= WAVE_MAIN and main >= foes):
+	if urgent or stragglers.is_empty() or foes < WAVE_FOES or (main >= WAVE_MAIN and main >= foes):
 		for f in stragglers:
 			_released[f.get_instance_id()] = clock + RELEASE_TIME
 		_joining.clear()

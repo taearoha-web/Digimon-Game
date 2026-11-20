@@ -425,7 +425,7 @@ func _in_war() -> void:
 		tank.global_position = front + Vector3(0, 0.3, 9)
 		m.commanders[1].apply()
 		check(d1.support_at.is_finite() and Vector2(d1.support_at.x - priest.global_position.x, d1.support_at.z - priest.global_position.z).length() < 8.0, "the support squad's place at the front is known")
-		check(mage.rear_point.is_finite() and mage.rear_point.distance_to(d1.support_at) < 0.1, "a hurt mage falls back to the healers at the front, not its camp")
+		check(mage.rear_point.is_finite() and mage.rear_point.distance_to(d1.support_at) < 0.1, "a hurt mage falls back to the healers at the front, not its camp (%s vs %s)" % [mage.rear_point, d1.support_at])
 		check(not priest.rear_point.is_finite() or priest.rear_point != d1.support_at, "the healers themselves fall back as before")
 		# A tank peels for the priest under attack.
 		var foe: GuildFighter = m.allies[0]

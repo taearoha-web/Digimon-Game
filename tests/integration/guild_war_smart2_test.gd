@@ -227,13 +227,19 @@ func _waves(m: GuildWarMatch, d1: GuildWarDoctrine, c1: GuildWarCommander, lead1
 	for f in m.enemies:
 		if f != lead1 and walkers.size() < 5:
 			walkers.append(f)
-	# Five on their way back, out of the camp, nobody at the altar: a trickle.
+	# The other guild's front at the altar (four of its own there).
+	var k := 0
+	for f in m.allies:
+		if k < 4:
+			f.global_position = SiegeArena.ALTAR + Vector3(float(k) * 1.5, 0.3, 4.0)
+			k += 1
+	# Five on their way back, out of the camp, nobody of theirs at the altar: a trickle.
 	for i in walkers.size():
 		walkers[i].global_position = Vector3(float(i) * 2.0, 0.3, -40.0)
 	var side: Array[GuildFighter] = m.side(1)
 	d1._waves(side, lead1, front)
 	var join := d1.join_at
-	check(join.is_finite(), "nobody holds the field at the altar: the ones coming back meet at a join point (%s)" % str(join.round()))
+	check(join.is_finite(), "the other guild holds the altar: the ones coming back meet at a join point (%s)" % str(join.round()))
 	check(walkers.all(func(f): return f.goal_point.distance_to(join) < D.JOIN_RADIUS), "every one of them goes to it, not on alone")
 	var sent := d1.waves_sent
 	for i in D.WAVE_N:
