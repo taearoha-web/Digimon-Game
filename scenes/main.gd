@@ -28,8 +28,6 @@ var raid_screen: RaidScreen
 var dungeon_screen: DungeonScreen
 ## The pet keeper's screen (PetData): choose the pet once, then see it.
 var pet_screen: PetScreen
-## เขาวงกตหนึ่งในใต้หล้า's full board (MazeWar), from its keeper and the maze's HUD.
-var maze_board: MazeBoard
 ## Online play with real players: trading (its window) and duels; idle while offline.
 var trade: OnlineTrade
 var trade_screen: TradeScreen
@@ -179,12 +177,8 @@ func _ready() -> void:
 	dungeon_screen.go_home_requested.connect(func(): go(&"town", false, true))
 	pet_screen = PetScreen.new()
 	add_child(pet_screen)
-	maze_board = MazeBoard.new()
-	add_child(maze_board)
-	maze_board.enter_requested.connect(func(): go(MazeWar.ID, false, true))
-	hud.maze_board_requested.connect(func():
-		if not _screen_open():
-			maze_board.open_board())
+	menu.maze_requested.connect(func(): go(MazeWar.ID, false, true))
+	hud.maze_board_requested.connect(func(): _open_menu(MazeBoardView.TAB_ID))
 	pet_screen.pet_chosen.connect(_on_pet_chosen)
 	dialog = DialogBox.new()
 	add_child(dialog)
@@ -497,7 +491,7 @@ func _open_menu(tab: StringName) -> void:
 ## True while a menu, shop, dialog or other screen is up (or the hero is travelling).
 func _screen_open() -> bool:
 	return menu.is_open or shop.is_open or trainer.is_open or storage.is_open or warp.is_open or pvp_screen.is_open or guildwar_screen.is_open \
-		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or (maze_board != null and maze_board.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
+		or guild_screen.is_open or registry.is_open or tower_screen.is_open or (raid_screen != null and raid_screen.is_open) or (dungeon_screen != null and dungeon_screen.is_open) or (pet_screen != null and pet_screen.is_open) or dialog.is_open or trade_screen.is_open or _traveling \
 		or (online_screen != null and online_screen.is_open) or (online_stall != null and online_stall.is_open)
 
 
@@ -661,7 +655,7 @@ func _talk_maze_keeper() -> void:
 		text += " ส่วนเจ้าอยู่อันดับ %d ด้วย %d คิล" % [int(mine.rank), int(mine.kills)]
 	dialog.say("ผู้เฝ้าเขาวงกต", text, [
 		{"label": "เข้าเขาวงกต", "action": func(): go(MazeWar.ID, false, true)},
-		{"label": "ดูตารางอันดับ", "action": func(): maze_board.open_board()},
+		{"label": "ดูตารางอันดับ", "action": func(): _open_menu(MazeBoardView.TAB_ID)},
 		{"label": "ไว้ก่อน"}])
 
 

@@ -9,9 +9,11 @@ signal title_requested()
 signal raid_requested()
 ## The mechanics dungeon (DungeonData) from the menu: Main opens its keeper's screen.
 signal dungeon_requested()
+## เขาวงกตหนึ่งในใต้หล้า from its board tab: Main sends the hero in.
+signal maze_requested()
 
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["loyk", LoyKrathongView.TAB_NAME], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["loyk", LoyKrathongView.TAB_NAME], ["maze", MazeBoardView.TAB_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false
@@ -222,6 +224,9 @@ func _rebuild() -> void:
 			_content.add_child(page)
 			_page_scroll = WeeklyCollectView.build(page, _queue_rebuild) as TouchScroll
 		&"loyk": _page_scroll = LoyKrathongView.build(_content, _queue_rebuild, close_menu)
+		&"maze": _page_scroll = MazeBoardView.build(_content, _queue_rebuild, func():
+			close_menu()
+			maze_requested.emit())
 		&"settings": _build_settings()
 	if is_instance_valid(_page_scroll):
 		_page_scroll.restore_vertical_position(keep_y)
