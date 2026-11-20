@@ -825,7 +825,7 @@ static func _light_fx(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var vt := SurfaceTool.new()
 	vt.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for k in MazeLayout.safe_count():
-		_tube(vt, MazeLayout.safe_center(k) + Vector3(0, 0.1, 0), MazeLayout.SAFE_RADIUS + 0.45, 3.2, Color(SAFE_COLOR, 0.55), 28, MazeLayout.SAFE_RADIUS - 0.4)
+		_tube(vt, MazeLayout.safe_center(k) + Vector3(0, 0.1, 0), MazeLayout.SAFE_RADIUS + 0.45, 3.2, Color(SAFE_COLOR, 0.85), 28, MazeLayout.SAFE_RADIUS - 0.4)
 	var veils := MeshInstance3D.new()
 	veils.name = "MazeVeils"
 	veils.mesh = vt.commit()
@@ -1157,7 +1157,7 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var sea := SurfaceTool.new()
 	sea.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var radii := [ISLE * 0.6, ISLE + 30.0, 260.0, 420.0, 650.0, 950.0, 1400.0]
-	var near := [Color("f4f6ff"), Color("dde4fa"), Color("bcc8f0"), Color("a6b2e6"), Color("a8acdc"), Color("e2c4c0"), SKY_PALETTE[2]]
+	var near := [Color("fffaf2"), Color("eef0ff"), Color("c9d2f6"), Color("aab6ec"), Color("a4aae0"), Color("e4c2bc"), SKY_PALETTE[2]]
 	var segs := 64
 	for ring in radii.size() - 1:
 		for i in segs:
@@ -1170,7 +1170,7 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 				var rr: int = corner[1]
 				var r: float = radii[rr]
 				var sunward := maxf(0.0, Vector2(cos(a), sin(a)).dot(sun_flat))
-				var col: Color = (near[rr] as Color).lerp(Color("ffd9a0"), sunward * 0.75 * minf(1.0, float(rr) / 3.0))
+				var col: Color = (near[rr] as Color).lerp(Color("ffcf8a"), sunward * 0.8 * minf(1.0, float(rr) / 2.0))
 				pts.append(Vector3(cos(a) * r, CLOUD_Y + sin(a * 6.0 + float(rr)) * 1.5, sin(a) * r))
 				cols.append(col)
 			for k in [0, 2, 1, 0, 3, 2]:
@@ -1191,10 +1191,11 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var sunward := maxf(0.0, Vector2(cos(a), sin(a)).dot(sun_flat))
 		var centre := Vector3(cos(a) * r, y, sin(a) * r)
 		var across := Vector3(-sin(a), 0, cos(a))
-		for k in 3:
-			var o := across * (float(k) - 1.0) * w * 0.42 + Vector3(0, w * (0.1 if k == 1 else 0.0), 0)
-			var s := w * (0.75 if k == 1 else 0.55)
-			pt.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, s * rng.randf_range(0.45, 0.6), s * rng.randf_range(0.6, 0.85))), centre + o))
+		for k in 5:
+			var off := (float(k) - 2.0) * 0.5
+			var o := across * off * w * 0.5 + Vector3(0, w * (0.16 - absf(off) * 0.1), 0) + Vector3(rng.randf_range(-0.1, 0.1), 0, rng.randf_range(-0.1, 0.1)) * w
+			var s := w * (0.8 - absf(off) * 0.32)
+			pt.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU) * Basis.from_scale(Vector3(s, s * rng.randf_range(0.55, 0.75), s * rng.randf_range(0.65, 0.9))), centre + o))
 			pc.append(Color("ffffff").lerp(Color("ffe0b0"), sunward * 0.8).lerp(Color("dcdcf6"), (1.0 - sunward) * 0.35))
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D

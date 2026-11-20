@@ -46,9 +46,9 @@ void fragment() {
 		EMISSION = haze.rgb * h + col * 0.06;
 	} else if (mode == 1) {
 		float up = wup * 0.5 + 0.5;
-		col *= mix(vec3(0.82, 0.68, 0.82), vec3(1.0), smoothstep(0.2, 0.8, up));
-		ALBEDO = col * 0.62 * (1.0 - h);
-		EMISSION = col * 0.32 * (1.0 - h) + haze.rgb * h;
+		col *= mix(vec3(0.74, 0.7, 0.9), vec3(1.0), smoothstep(0.2, 0.8, up));
+		ALBEDO = col * 0.45 * (1.0 - h);
+		EMISSION = col * 0.72 * (1.0 - h) + haze.rgb * h;
 	} else if (mode == 2) {
 		float lane = floor(UV.x * 7.0);
 		float k = fract(sin(lane * 91.7 + 3.1) * 43758.5453);

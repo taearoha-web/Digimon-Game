@@ -28,6 +28,8 @@ func _zone_ids() -> Array[StringName]:
 	for id in ZoneData.ZONES:
 		ids.append(StringName(id))
 	ids.append(RaidData.ID)
+	# เขาวงกตหนึ่งในใต้หล้า is not in ZONES (MazeWar.zone) but has its own sky.
+	ids.append(MazeWar.ID)
 	return ids
 
 
