@@ -624,11 +624,12 @@ static func _guardian(b: JapanKit.Batch, face: Vector3, th: Dictionary) -> void:
 	_box(b, Vector3(0, 6.9, 2.2), Vector3(2.6, 0.4, 0.5), th.metal)
 	_box(b, Vector3(0, 7.6, 2.2), Vector3(0.36, 1.1, 0.36), th.dark)
 	_gem(b, Vector3(0, 8.5, 2.2), Vector3(0.8, 1.0, 0.8), th.glow)
-	# Moss over it all.
-	for n in 9:
-		var ang := TAU * float(n) / 9.0
-		_cyl(b, Vector3(cos(ang) * 1.7, 1.5 + float(n % 3) * 1.9, sin(ang) * 1.2 - 0.2), 0.8, 0.35, moss.darkened(float(n % 2) * 0.18), 6)
-	_cyl(b, Vector3(0.3, 8.3, 0.1), 1.0, 0.3, moss, 6)
+	# Moss on its shoulders and over the plinth.
+	for s in [-1.0, 1.0]:
+		_orb(b, Vector3(s * 1.95, 6.55, -0.3), Vector3(1.2, 0.45, 1.1), moss)
+	for n in 8:
+		var ang := TAU * float(n) / 8.0 + 0.2
+		_orb(b, Vector3(cos(ang) * 3.0, 1.45, sin(ang) * 3.0), Vector3(1.4, 0.5, 1.2), moss.darkened(float(n % 2) * 0.16))
 	# Jade crystals round the plinth.
 	for n in 6:
 		var ang := TAU * float(n) / 6.0 + 0.3
@@ -703,8 +704,9 @@ static func _sun_orb(b: JapanKit.Batch, th: Dictionary) -> void:
 	_box(b, Vector3(0, 2.0, 0), Vector3(1.8, 0.3, 1.8), th.metal)
 	_box(b, Vector3(0, 7.3, 0), Vector3(2.0, 0.4, 2.0), th.metal)
 	var c := Vector3(0, 9.6, 0)
-	_orb(b, c, Vector3(3.6, 3.6, 3.6), th.metal)
-	_gem(b, c, Vector3(2.6, 2.6, 2.6), Color("fff3b0"), true, Vector3(0, 45, 0))
+	# The sun itself glows; a gold rim round its middle.
+	_orb(b, c, Vector3(3.6, 3.6, 3.6), Color("ffd24a"), true)
+	_cyl(b, c, 1.95, 0.4, th.metal, 16, SurfaceKit.KIND_NONE, Vector3(90, 0, 0))
 	for n in 12:
 		var ang := TAU * float(n) / 12.0
 		var d := Vector3(cos(ang), sin(ang), 0)
