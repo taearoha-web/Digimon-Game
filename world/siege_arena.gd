@@ -201,16 +201,28 @@ static func route(from: Vector3, to: Vector3) -> Vector3:
 	return _square_on(from, back)
 
 
+## Whether `p` is inside the moat (off the bridge, between its banks: the moat's collider).
+static func in_moat(p: Vector3) -> bool:
+	return p.z < MOAT_SOUTH - 0.2 and p.z > MOAT_NORTH + 0.2 and absf(p.x) > BRIDGE_HALF + 0.3
+
+
+## The nearer bank to `p` in the moat (just off its edge, on the ground).
+static func out_of_moat(p: Vector3) -> Vector3:
+	var mid := (MOAT_SOUTH + MOAT_NORTH) * 0.5
+	return Vector3(p.x, 0.3, MOAT_SOUTH + 1.0 if p.z >= mid else MOAT_NORTH - 1.0)
+
+
 ## Close along a wall from an opening `c` (within APPROACH_DEPTH of its line, more than
-## GATE_HALF - 1 to its side) the way runs first to a point in front of it, square on,
-## instead of along the wall's face into the gatehouse's corner (where a fighter could
-## stand pressed for minutes: guild_war_sim's stuck measure); otherwise to the opening.
+## GATE_HALF - 2 to its side: by the gatehouse's posts) the way runs first to a point in
+## front of it, square on, instead of along the wall's face into the gatehouse's corner
+## (where a fighter could stand pressed for minutes: guild_war_sim's stuck measure);
+## otherwise to the opening.
 const APPROACH_DEPTH := 6.0
 
 
 static func _square_on(from: Vector3, c: Vector3) -> Vector3:
 	var dz := from.z - c.z
-	if absf(dz) < APPROACH_DEPTH and absf(from.x - c.x) > GATE_HALF - 1.0:
+	if absf(dz) < APPROACH_DEPTH and absf(from.x - c.x) > GATE_HALF - 2.0:
 		return Vector3(c.x, c.y, c.z + signf(dz if dz != 0.0 else 1.0) * APPROACH_DEPTH)
 	return c
 

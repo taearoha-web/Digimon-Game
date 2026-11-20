@@ -878,6 +878,11 @@ func _physics_process(delta: float) -> void:
 		_bar.set_ratio(float(hp) / float(max_hp))
 	_pick_deferred = false
 	super._physics_process(delta)
+	# Pushed into the moat's bank (a knock-back or a pull at its edge left it inside the
+	# collider, where it could stand pressed for the rest of the war): back onto the bank.
+	if siege != null and SiegeArena.in_moat(global_position):
+		global_position = SiegeArena.out_of_moat(global_position)
+		velocity = Vector3.ZERO
 	if _pick_deferred:
 		# The frame's budget was spent: it picks next frame.
 		_victim_timer = 0.0
