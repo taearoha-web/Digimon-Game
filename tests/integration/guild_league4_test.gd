@@ -158,9 +158,22 @@ func _seeded(w: int) -> void:
 	GuildLeague._power_cache.clear()
 	WorldPlayers.reset_roster()
 	check(GuildLeague.sim_wars(w) == copy, "the seeded results come out the same when worked out again (same on every device)")
-	# The stronger guilds by real fighter power place better more often. Their power is
-	# their members' real forged gear (WorldGear), so the guilds stand close: over a few
-	# weeks, the pairs a few percent apart are counted.
+	# The stronger guilds place better more often. Their real power is their members'
+	# forged gear (WorldGear); with the world players' zeal (WorldGear.ZEAL) the long-time
+	# ones all reach the top and the four guilds stand within a few percent, too close for
+	# a few weeks to show it. So the season's might is set here, the guilds 8% apart (the
+	# rounds read it from GuildLeague's own cache), and the pairs are counted.
+	GuildLeague._sim_cache.clear()
+	var real_gap := 0.0
+	for week in [w, w + 1, w + 2, w + 3]:
+		var start := maxi(int(GuildLeague.week_start(week)), WorldPlayers.START_UNIX)
+		var base := 0.0
+		for g in [1, 2, 3, 4]:
+			base = maxf(base, GuildLeague.side_power(g, start))
+		for g in [1, 2, 3, 4]:
+			real_gap = maxf(real_gap, 1.0 - GuildLeague.side_power(g, start) / base)
+			GuildLeague._power_cache["%d|%d" % [g, start]] = base * (1.0 + 0.08 * float(g))
+	print("guild_league4_test: the real guilds' largest gap in might %.1f%%" % (real_gap * 100.0))
 	var stronger_ahead := 0
 	var pairs := 0
 	# Each round begun with nobody holding the castle (sim_round's own 0): the holder's
@@ -181,7 +194,9 @@ func _seeded(w: int) -> void:
 					pairs += 1
 					if pa >= pb:
 						stronger_ahead += 1
-	check(pairs == 0 or stronger_ahead > pairs / 2, "the stronger guild places ahead more often (%d of %d)" % [stronger_ahead, pairs])
+	check(pairs > 50 and stronger_ahead > pairs / 2, "the stronger guild places ahead more often (%d of %d)" % [stronger_ahead, pairs])
+	GuildLeague._sim_cache.clear()
+	GuildLeague._power_cache.clear()
 	var e0: Dictionary = wars[0]
 	var p_manual := 0.0
 	var g0 := int(e0.g[0])
