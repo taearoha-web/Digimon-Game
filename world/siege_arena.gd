@@ -36,7 +36,8 @@ const CAMP_RADIUS := 16.0
 ## The castle holder's camp inside the castle, in the second yard before the throne room's
 ## gate: a guild that holds the castle lines up and comes back there (facing the way in,
 ## rows of KEEP_ROW), and its own gates let it through (GuildWarMatch._gate_pass); from
-## there it is some thirty metres to the altar, so its fallen are not back on it at once.
+## there it is some forty-five metres to the altar at the back of the throne room (past both
+## switches), so its fallen are not back on it at once.
 ## Safe from being chased only this close.
 const KEEP_CAMP := Vector3(0, 0, -82.0)
 const KEEP_ROW := 10
