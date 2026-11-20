@@ -9,7 +9,8 @@ extends Node
 ## - the world players on the isle: only ★300 ones hunt there, a share of their sessions;
 ##   their jackpots (IsleLuck) are rare, the same every time they are asked, won by
 ##   someone really hunting there, announced once, never replayed after a long pause, and
-##   the others cheer with the real rate; their gear model is untouched;
+##   the others cheer with the real rate; a Dragon God weapon / wings jackpot is always a
+##   piece the winner really dropped (WorldGear) and its gear shows it;
 ## - what the chat says about the isle is the game's own numbers.
 ##   godot --headless --path . res://tests/integration/announcer_test.tscn
 var failures := 0
@@ -301,6 +302,8 @@ func _isle_players() -> void:
 ## The world players' jackpots: rare, the same for everyone, true to who hunts there.
 func _luck() -> void:
 	IsleLuck.clear()
+	# No WorldPresence warms the world players' forging here: a slot may work it out.
+	IsleLuck.cold = true
 	var t0 := float(WorldPlayers.START_UNIX) + 90.0 * 86400.0
 	var first := int(t0 / float(IsleLuck.SLOT))
 	var slots := 7 * 86400 / IsleLuck.SLOT
@@ -325,14 +328,18 @@ func _luck() -> void:
 		ok = ok and float(e.at) >= float(int(e.slot) * IsleLuck.SLOT) and float(e.at) < float((int(e.slot) + 1) * IsleLuck.SLOT)
 		ok = ok and bool(s.online) and StringName(String(s.place)) == SkyIsleData.ID and int(s.stars) >= SkyIsleData.ENTRY_STAR and String(s.name) == String(e.name)
 		ok = ok and SkyIsleLoot.is_jackpot(e.item) and (Announcer.WHATS.jackpot as Array).has(String(e.what))
-		ok = ok and IsleLuck.KINDS.any(func(k): return String(k[0]) == String(e.what) and is_equal_approx(float(k[1]), float(e.rate)))
+		ok = ok and (IsleLuck.KINDS + IsleLuck.DRAGON_KINDS).any(func(k): return String(k[0]) == String(e.what) and is_equal_approx(float(k[1]), float(e.rate)))
 		if String(e.what) in ["weapon", "wings"]:
-			ok = ok and String(e.cls) == String(s.job)
+			ok = ok and String(e.cls) == String(s.job) and bool(e.get("real", false))
+			# The very drop of its own forging (WorldGear), at that second.
+			var mine := WorldGear.events(int(e.index), float(e.at) - 1.0, float(e.at)).filter(func(g): return String(g.get("key", "")) == WorldGear.DRAGON and String(g.kind) in ["drop", "spare"] and is_equal_approx(float(g.at), float(e.at)))
+			ok = ok and not mine.is_empty() and String(mine[0].slot) == String(e.what) and String(mine[0].item) == ItemData.name_of(e.item)
 	check(ok, "each winner is a ★300 world player really hunting on the isle then, with a real jackpot of its own class at the owner's rate")
+	print("announcer_test: jackpots by kind %s (the weapon and wings are real drops)" % str(whats))
 	check(names.size() >= 5, "different players win (%d)" % names.size())
-	check(int(whats.get("weapon", 0)) > 0, "the weapon, the likeliest jackpot, is among them (%s)" % str(whats))
+	check(int(whats.get("weapon", 0)) + int(whats.get("wings", 0)) > 0, "the Dragon God's pieces the world players really drop are among them (%s)" % str(whats))
 	var rates := {"weapon": SkyIsleLoot.WEAPON_DROP, "wings": SkyIsleLoot.WING_DROP, "fragment": SkyIsleLoot.FRAGMENT_DROP, "egg": SkyIsleLoot.EGG_DROP}
-	check(IsleLuck.KINDS.all(func(k): return is_equal_approx(float(rates[String(k[0])]), float(k[1]))), "weighted by the owner's rates")
+	check((IsleLuck.KINDS + IsleLuck.DRAGON_KINDS).all(func(k): return is_equal_approx(float(rates[String(k[0])]), float(k[1]))), "weighted by the owner's rates")
 	# The same for every device: asked again from nothing, the same answers.
 	var copy: Array = []
 	for e in events:
@@ -406,13 +413,22 @@ func _luck() -> void:
 	check(clean and quoted > 0, "a quoted rate is the real one (%s, %d lines)" % [rate_text, quoted])
 	presence.free()
 	WorldPresence.chat_clock_override = -1.0
-	# News only: the winner's gear is what it was.
-	var gear := WorldGear.gear(int(e.index), float(e.at) + 60.0)
-	# The forge simulation never wears an isle jackpot: the weapon is one of its own finds
-	# (level / star / divine / set kinds, whose names may happen to contain "มังกร"), and
-	# the wings stay at most the legend pair's tier.
-	var weapon_kind := String((gear.get("weapon", {}) as Dictionary).get("kind", ""))
-	check(weapon_kind in ["", "level", "star", "divine", "set"] and not String((gear.get("weapon", {}) as Dictionary).get("name", "")).contains("เทพมังกร") and int((gear.get("wings", {}) as Dictionary).get("tier", 0)) <= 4, "the winner's gear model is untouched (%s)" % String((gear.get("weapon", {}) as Dictionary).get("name", "")))
+	# A Dragon God jackpot is on the winner a minute later (its card and fights read
+	# WorldGear): the weapon it wears, the dragon wings or the legend pair over them; a
+	# fragment or the egg leaves its gear as it is.
+	var wears := true
+	var real := 0
+	for j in events:
+		if not (String(j.what) in ["weapon", "wings"]):
+			continue
+		real += 1
+		var gear := WorldGear.gear(int(j.index), float(j.at) + 60.0)
+		if String(j.what) == "weapon":
+			wears = wears and String(gear.weapon.kind) == "dragon" and String(gear.weapon.name) == ItemData.name_of(j.item)
+		else:
+			wears = wears and int(gear.wings.tier) in [WorldGear.WTIER_DRAGON, 3]
+	check(wears, "each Dragon God jackpot is worn by its winner (%d)" % real)
+	IsleLuck.cold = false
 
 
 ## What the chat says about the isle is the game's own numbers.

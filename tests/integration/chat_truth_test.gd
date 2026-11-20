@@ -249,7 +249,7 @@ func _facts(s: Dictionary, t: float) -> Dictionary:
 			"mount_up":
 				mount_lv[int(e.to)] = true
 				named[String(e.item)] = true
-			"wings_up", "drop":
+			"wings_up", "drop", "spare":
 				named[String(e.item)] = true
 	for n in named.keys():
 		if String(n) != "":
@@ -343,6 +343,10 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 	# those are items, not a claim about the boss.
 	for item_word in ["อาวุธเทพมังกร", "ปีกเทพมังกร", "ชุดเทพมังกร", "ผ้าคลุมจักรพรรดิเทพมังกร", String(ItemData.JEWELS[SkyIsleLoot.CHEST].name)]:
 		rest = rest.replace(item_word, "#")
+	# The pieces the world players really drop there by their own names (WorldGear:
+	# มีดคู่เทพมังกรโลหิต, คทาเทพมังกรอรุณ ...).
+	for cls in DragonGearData.EPITHETS:
+		rest = rest.replace(DragonGearData.weapon_name(String(cls)), "#").replace(DragonGearData.wing_name(String(cls)), "#")
 	for boss in _bosses:
 		if rest.contains(String(boss)):
 			_count("boss")

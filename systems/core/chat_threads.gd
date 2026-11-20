@@ -219,6 +219,9 @@ static func news(i: int, t: float) -> Dictionary:
 		out[kind] = {}
 	for e in WorldGear.events(i, t - w, t):
 		var kind := String(e.get("kind", ""))
+		# A second Dragon God piece from the isle is a drop to talk of too (it wears the first).
+		if kind == "spare":
+			kind = "drop"
 		if out.has(kind):
 			out[kind] = e
 		if kind == "enhance_fail":

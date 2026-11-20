@@ -30,6 +30,7 @@ func _ready() -> void:
 	_fighters()
 	_views()
 	_maps()
+	_dragon()
 	_bench()
 	for message in failed:
 		print("FAILED: ", message)
@@ -290,6 +291,124 @@ func _maps() -> void:
 				elif StringName(s.place) == DivineRegionData.ID:
 					lotus += 1
 	check(abyss > 20 and lotus > 20, "★200+ players hunt both endgame maps (abyss %d, sanctum %d)" % [abyss, lotus])
+
+
+## เกาะลอยฟ้าเทพมังกร: the ★300 players really hunt the Dragon God's weapon and wings. Each
+## one worn came from a drop event of the player's own isle kills, never below ★300 or
+## without isle kills; the counts fit the owner's rates; the forge raises them; the
+## weapon stands in for the set's weapon; the card, the fighter and the stall agree.
+func _dragon() -> void:
+	var t := _t(40.0)
+	var holders_w := 0
+	var holders_wi := 0
+	var raised_w := 0
+	var raised_wi := 0
+	var own_drop := true
+	var none_below := true
+	var below := 0
+	var isle_players := 0
+	var kills := 0.0
+	var got_w := 0
+	var got_wi := 0
+	var want_holders := 0.0
+	var set_ok := true
+	var no_set_over := true
+	var views := true
+	var spares := 0
+	var pluses: Array[int] = []
+	for i in WorldPlayers.size():
+		var w := WorldPlayers.work_at(i, t)
+		var sim: WorldGear.Sim = WorldGear._sim(i, w)
+		var st := WorldGear.state_at_work(i, w)
+		var g := WorldGear.gear_at_work(i, w)
+		var step := WorldGear._step_of(w)
+		var top := WorldGear._step_of(WorldGear._edge(sim.chunks))
+		var weapon_key := String(((st.worn as Dictionary).get("weapon", [""]) as Array)[0])
+		var wings_key := String(((st.worn as Dictionary).get("wings", [""]) as Array)[0])
+		var has_w := weapon_key == WorldGear.DRAGON
+		var has_wi := wings_key == WorldGear.DRAGON
+		if top.x < Game.MAX_LEVEL or top.y < WorldGear.ISLE_STARS or sim.isle_kills <= 0.0:
+			# Never on the isle (as far as its forging has run): nothing of the Dragon God.
+			below += 1
+			none_below = none_below and not has_w and not has_wi and sim.dragon_weapons == 0 and sim.dragon_wings == 0 and sim.isle_kills == 0.0
+			continue
+		isle_players += 1
+		kills += sim.isle_kills
+		got_w += sim.dragon_weapons
+		got_wi += sim.dragon_wings
+		want_holders += 1.0 - exp(-sim.isle_kills * WorldGear.DRAGON_WEAPON_DROP)
+		# Every Dragon God piece of its own, worn or spare, is an event of its own isle kills.
+		var first := {}
+		var weapon_at := INF
+		var found := 0
+		for ev in sim.events:
+			# (The forge's events name the piece they raise by its key too.)
+			if String(ev.get("key", "")) != WorldGear.DRAGON or not (String(ev.kind) in ["drop", "spare"]):
+				continue
+			found += 1
+			var at := WorldGear._step_of(float(ev.w))
+			own_drop = own_drop and at.x >= Game.MAX_LEVEL and at.y >= WorldGear.ISLE_STARS
+			if String(ev.kind) == "drop":
+				own_drop = own_drop and not first.has(String(ev.slot))
+				first[String(ev.slot)] = float(ev.w)
+				if String(ev.slot) == "weapon":
+					weapon_at = float(ev.w)
+			else:
+				spares += 1
+				own_drop = own_drop and first.has(String(ev.slot))
+		own_drop = own_drop and found == sim.dragon_weapons + sim.dragon_wings
+		own_drop = own_drop and (not has_w or float(first.get("weapon", INF)) <= w) and (not has_wi or float(first.get("wings", INF)) <= w)
+		# No set weapon forged and no divine weapon put on over it.
+		for ev in sim.events:
+			if float(ev.w) > weapon_at and String(ev.slot) == "weapon" and (String(ev.kind) in ["set_piece", "set_fail"] or (String(ev.kind) == "divine_piece" and bool(ev.get("wear", false)))):
+				no_set_over = false
+		var equip := WorldGear.equip_at_work(i, w)
+		set_ok = set_ok and int(g.set_pieces) == SetGearData.worn_count(equip, String(WorldPlayers.entry(i)["class"]))
+		if has_w:
+			holders_w += 1
+			pluses.append(int(g.weapon.plus))
+			raised_w += 1 if int(g.weapon.plus) > 0 else 0
+			views = views and String(g.weapon.kind) == "dragon" and DragonGearData.is_weapon(equip.weapon) and int(equip.weapon.plus) == int(g.weapon.plus)
+			var sheet := WorldPlayers.profile(WorldPlayers.member(i, t))
+			views = views and DragonGearData.is_weapon(sheet.equip.weapon) and bool(HeroStats.compute(sheet).get("dragon_line", false))
+			views = views and PlayerCard.gear_lines(i, t).contains(String(g.weapon.name))
+			views = views and not StallStock.plus_limits(equip).has("weapon")
+		if has_wi:
+			holders_wi += 1
+			raised_wi += 1 if int(g.wings.plus) > 0 else 0
+			views = views and int(g.wings.tier) == WorldGear.WTIER_DRAGON and DragonGearData.is_wings(equip.wings)
+	var spread := {}
+	for p in pluses:
+		spread[p] = int(spread.get(p, 0)) + 1
+	var want_w := kills * WorldGear.DRAGON_WEAPON_DROP
+	var want_wi := kills * WorldGear.DRAGON_WING_DROP
+	print("world_gear_test dragon at day 40: %d players on the isle (%.0f isle kills), %d below; weapons dropped %d (%.1f expected), wings %d (%.1f), %d spares; worn weapon %d (%.1f expected holders, %d raised, + %s), wings %d (%d raised)"
+		% [isle_players, kills, below, got_w, want_w, got_wi, want_wi, spares, holders_w, want_holders, raised_w, str(spread), holders_wi, raised_wi])
+	check(isle_players > 10 and holders_w > 0 and holders_wi > 0, "★300 world players hold the Dragon God weapon (%d) and wings (%d) of their own drops" % [holders_w, holders_wi])
+	check(own_drop, "each one came from a drop event of its own isle kills at ★300 (the first worn, the rest spares)")
+	check(below > 0 and none_below, "nobody below ★300 or without isle kills has any (%d players)" % below)
+	check(absf(float(got_w) - want_w) <= 4.0 * sqrt(want_w) + 2.0, "weapons dropped fit the owner's rate (%d, %.1f expected)" % [got_w, want_w])
+	check(absf(float(got_wi) - want_wi) <= 4.0 * sqrt(want_wi) + 2.0, "wings dropped fit the owner's rate (%d, %.1f expected)" % [got_wi, want_wi])
+	check(absf(float(holders_w) - want_holders) <= 4.0 * sqrt(maxf(want_holders, 1.0)) + 2.0, "weapon holders fit the chance of at least one drop (%d, %.1f expected)" % [holders_w, want_holders])
+	check(raised_w > 0 and raised_wi > 0, "the forge raises the worn Dragon God pieces (weapon %d, wings %d)" % [raised_w, raised_wi])
+	check(no_set_over, "no set weapon is forged and no divine weapon put on over the Dragon God weapon")
+	check(set_ok, "the set count is the pieces the game counts (the Dragon God weapon stands in for the set's weapon)")
+	check(views, "the card, the fighter (with the Dragon God's line), the equip and the stall see the same pieces")
+	# The same on another device: worked out again from nothing.
+	var some: Array[int] = []
+	for i in WorldPlayers.size():
+		if WorldGear._sims.has(i) and (WorldGear._sims[i] as WorldGear.Sim).dragon_wings > 0:
+			some.append(i)
+		if some.size() >= 4:
+			break
+	var before: Array = []
+	for i in some:
+		before.append(JSON.stringify(WorldGear.events(i, _t(0.0), t)))
+	WorldGear.clear()
+	var same := true
+	for k in some.size():
+		same = same and JSON.stringify(WorldGear.events(some[k], _t(0.0), t)) == before[k]
+	check(some.size() > 0 and same, "the same drops on every device (%d players)" % some.size())
 
 
 ## The cost: every player's gear at a moment, worked out from nothing and again; a chat
