@@ -301,6 +301,9 @@ func _drops() -> void:
 			zone.rng.seed = 31337
 			zone._event_rng.seed = 31338
 			add_child(zone)
+			# The event dice (the weekly collection, Loy Krathong) are randomized on _ready.
+			zone._weekly_rng.seed = 31339
+			zone._loyk_rng.seed = 31340
 			zone.set_process(false)
 			var mob := QuietMob.new()
 			mob.stats = {"gold": 100}

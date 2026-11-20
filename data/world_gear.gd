@@ -71,6 +71,13 @@ const ENDGAME_STARS := EndgameFields.ENTRY_STAR
 ## more with the gold its farming brings (the merchant's and the stalls' jewels), so its
 ## jewel (and feather) income is this many times what its kills alone drop.
 const JEWEL_DILIGENCE := 2.5
+## The race for the top (the owner: "ขยันกว่าเดิม 10 เท่า"): every world player forges for
+## first place among them and for the hero's crown, ten times as hard as a plain farmer:
+## ZEAL times the jewels and feathers it gets together (on top of JEWEL_DILIGENCE), the
+## set cores, Lotus Scales and divine pieces it hunts and trades for, the gems it keeps,
+## and the drills (the forge's tries a stretch stay as they were: what is left over is
+## forged in the next stretch).
+const ZEAL := 10.0
 ## The share of an endgame map's kills that are elites (its camps' temple golems and the
 ## like): the divine pieces and Lotus Scales a kill drops blend EndgameFields' normal and
 ## elite chances by it.
@@ -90,13 +97,14 @@ const GEM_SLOTS: Array[String] = ["weapon", "ring", "amulet", "helm", "boots", "
 ## The share of the gems its kills drop that a world player keeps and puts to use (the
 ## rest it sells with its other loot, as it sells the gear it does not wear): a few in a
 ## thousand of the levelling fields' many small gems, more of the endgame fields', and
-## GEM_KEEN of the ★ fields' special gems and drills. It fuses up to size GEM_FUSE_TOP (the
-## two last steps, at 70% and 40% and dear in gold, are left to the hero). Together they keep a guild war
+## GEM_KEEN of the ★ fields' special gems and drills (all of it ZEAL times). It fuses up to
+## size GEM_FUSE_TOP: every step, the perfect and legendary ones at 70% and 40% too
+## (FUSES_PER_CHUNK a stretch, more in the maze race). Together they keep a guild war
 ## side's gain from its gems within the hero's reach (world_growth_test: MAX_GEM_LIFT).
 const GEM_KEEN := 0.3
 const GEM_KEEN_FIELD := 0.002
 const GEM_KEEN_ENDGAME := 0.015
-const GEM_FUSE_TOP := 2
+const GEM_FUSE_TOP := ItemData.GEM_MAX_SIZE
 ## The gem a class builds on, and the special gem it likes (one, in the ring).
 const GEM_MAIN := {"defender": "amethyst"}
 const GEM_SPECIAL := {"defender": "pearl", "priest": "opal", "bard": "opal"}
@@ -738,13 +746,13 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var endgame := top and stars >= ENDGAME_STARS
 	# The maze race (MazeWar): a player in it buys and trades for more jewels to forge up.
 	var driven := top and w0 >= sim.maze_from
-	var diligence := JEWEL_DILIGENCE * (MazeWar.JEWEL_DRIVE if driven else 1.0)
+	var diligence := JEWEL_DILIGENCE * ZEAL * (MazeWar.JEWEL_DRIVE if driven else 1.0)
 	if endgame:
 		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple) * diligence)
 		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink) * diligence)
 		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos) * diligence)
-		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP)
-		sim.scales += _count(rng, kills * SCALE_DROP)
+		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP * ZEAL)
+		sim.scales += _count(rng, kills * SCALE_DROP * ZEAL)
 	else:
 		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple) * diligence)
 		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink) * diligence)
@@ -766,7 +774,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	# More divine pieces of its own class once the set's hours are done (a forged one
 	# is made good this way): DIVINE_DROP a kill, its own class's at OWN_CLASS_DROP.
 	if endgame and w0 >= sim.divine_done:
-		for n in _count(rng, kills * DIVINE_DROP * ItemData.OWN_CLASS_DROP):
+		for n in _count(rng, kills * DIVINE_DROP * ItemData.OWN_CLASS_DROP * ZEAL):
 			var slot: String = DivineGearData.SLOTS[rng.randi() % DivineGearData.SLOTS.size()]
 			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine"]
 			at += 0.0001
@@ -788,7 +796,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
 	_forge(sim, at, level, stars)
-	_gems(i, sim, at + 0.01, level, stars, kills, MazeWar.GEM_DRIVE if driven else 1.0)
+	_gems(i, sim, at + 0.01, level, stars, kills, ZEAL * (MazeWar.GEM_DRIVE if driven else 1.0), MazeWar.GEM_DRIVE if driven else 1.0)
 	# What the kills brought is picked up and forged bit by bit over the stretch: its
 	# events are spread evenly after the finds (their order kept).
 	var count := sim.events.size() - e0
@@ -801,7 +809,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 ## The gems of one stretch of play: what its kills dropped (the kinds its class uses, on
 ## the gem rolls), the fusing, the drilling, and its best gems back into its sockets. One
 ## "gems" event for each slot whose sockets changed.
-static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float, drive := 1.0) -> void:
+static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float, drive := 1.0, fuse_drive := 1.0) -> void:
 	var g := sim.grng
 	var cls := sim.job
 	var plan := gem_plan(cls)
@@ -828,7 +836,7 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	if top and stars >= 1:
 		for n in _count(g, kills * Zone.SPECIAL_GEM_STAR * GEM_KEEN * drive / float(ItemData.SPECIAL_GEMS.size())):
 			_bag_add(sim, "%s_%d" % [String(plan.special), g.randi_range(0, 1)], 1)
-		sim.drills += _count(g, kills * Zone.DRILL_STAR * GEM_KEEN)
+		sim.drills += _count(g, kills * Zone.DRILL_STAR * GEM_KEEN * ZEAL)
 	var live: Dictionary = sim.live
 	var worn: Dictionary = live.worn
 	# Drills go into its endgame pieces, the weapon first.
@@ -873,7 +881,7 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	for kind in pool:
 		var sizes: Array = pool[kind]
 		for s in mini(GEM_FUSE_TOP, ItemData.GEM_MAX_SIZE):
-			while sizes[s] >= 3 and fuses < int(FUSES_PER_CHUNK * drive):
+			while sizes[s] >= 3 and fuses < int(FUSES_PER_CHUNK * fuse_drive):
 				var total := 0
 				for n in sizes:
 					total += n

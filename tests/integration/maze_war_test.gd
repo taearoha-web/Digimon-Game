@@ -318,7 +318,8 @@ func _drive() -> void:
 	MazeWar.drive_on = true
 	WorldGear.clear()
 	check(keen.size() >= 4, "keen world players at Lv.100 when the maze opened (%d)" % keen.size())
-	check(plus_on > plus_off, "the maze race makes them forge harder: their + adds up higher (%d > %d)" % [plus_on, plus_off])
+	# Keen forgers (WorldGear.ZEAL) may already be at the top either way: never lower.
+	check(plus_on >= plus_off and plus_on > 0, "the maze race makes them forge at least as hard: their + adds up as high (%d >= %d)" % [plus_on, plus_off])
 	check(gems_on >= gems_off, "and they keep and socket at least as many gems (%d >= %d)" % [gems_on, gems_off])
 	var calm := -1
 	for i in WorldPlayers.size():
@@ -456,6 +457,7 @@ func _zone() -> void:
 	f._update_shrine(0.1)
 	f._update_shrine(0.1)
 	check(not f.protected(), "after %d s the shrine's blessing wears off" % int(MazeWar.SAFE_MAX))
+	f._dodge = 0.0
 	check(f.take_hit(10, false, Color.WHITE, zone.hero) or f.hp < hp, "and it can be hit there again")
 	# The hero in a shrine.
 	var hero := zone.hero
