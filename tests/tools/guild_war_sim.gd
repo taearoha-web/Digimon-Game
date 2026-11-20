@@ -21,7 +21,12 @@ extends Node
 ## lead_front_s within 15 m of its front (the five of its members nearest a foe),
 ## lead_far_s elsewhere, lead_dead_s down, lead_ahead_s nearer a foe than all its front,
 ## lead_deaths (falls a war).
-## Each line also has retakes (captures of a castle another guild held).
+## Each line also has retakes (captures of a castle another guild held), per guild
+## lone_deaths (falls with at most one of its own and three foes within 12 m: one who
+## walked in alone), cap_start / cap_broken (captures begun, and lost before done: the
+## leader fell or left), heal_idle (5 s samples of a healer with nobody to fight while one
+## of its own beside it is under 55%); with SIM_TRACE also each lone fall and each leader
+## fall with why.
 ## The physics step is 1/15 s of war time (time_scale 4 at 60 ticks, as the capture
 ## measurements in guild_war_capture_test / guild_war_4way_test); with --fixed-fps 15 the
 ## wars run as fast as the machine can (tools/gw_sim_report.py sums the JSON lines up).

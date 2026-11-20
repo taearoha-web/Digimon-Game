@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Sums up tests/tools/guild_war_sim JSON lines (SIM_OUT): the doctrine ("new") against
 the doctrine as it stood before its second brain ("v1", SIM_BASE) or the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
-wins by camp, retakes, where the leaders stand, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
+wins by camp, retakes, where the leaders stand, the doctrine's phases and orders, stuck fighters and the doctrine's cost;
+per side leader falls (lead_D), lone falls (lone_D), captures begun (cap_go) and broken (cap_brk), idle-healer samples.
 usage: python3 tests/tools/gw_sim_report.py results.jsonl [more.jsonl ...]
 """
 import json
