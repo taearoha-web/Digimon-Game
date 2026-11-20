@@ -105,6 +105,9 @@ const ASSAULT_HOLD := 7.0
 const LEADER_THREAT_RADIUS := 7.0
 const LEADER_COVER := 4.0
 const LEADER_SWAMP := 2
+## Another guild's leader taking the altar: this leader goes up to contest it only with
+## this many of its own within 9 m of the altar (allows_capture).
+const CONTEST_GUARD := 3
 ## Taking the altar, an AI leader under LEADER_REST of its HP with enemies on it steps off
 ## behind the altar (REST_BACK m, still in the throne room, so its count waits instead of
 ## starting over when it would fall) and its healers patch it up; it steps back on at
@@ -459,7 +462,9 @@ func cc_fresh(target: Node) -> bool:
 
 
 ## Whether the AI leader may go onto the altar now: inside its escort, guarded, or to
-## contest the other guild's leader on it (taking over the moment it steps off).
+## contest the other guild's leader on it (taking over the moment it steps off) - only
+## with CONTEST_GUARD of its own round the altar and its HP over LEADER_HURT (alone into
+## the other guild's guard it would only fall).
 func allows_capture() -> bool:
 	if resting or evading:
 		return false
@@ -471,7 +476,12 @@ func allows_capture() -> bool:
 		if team == GuildFighter.TEAM_ALLY and war.hero_leads():
 			return true
 		return bool(last_read.get("we_capturing", false)) or bool(last_read.get("leader_on_altar", false))
-	return tactic == DEFEND and war.capture.has("team") and int(war.capture.team) != team
+	if tactic != DEFEND or not war.capture.has("team") or int(war.capture.team) == team:
+		return false
+	var lead := _alive_leader() as GuildFighter
+	if lead == null:
+		return team == GuildFighter.TEAM_ALLY and war.hero_leads()
+	return lead.hp_ratio() >= LEADER_HURT and _guard_near(SiegeArena.ALTAR, lead) >= CONTEST_GUARD
 
 
 func think(dt: float) -> void:
