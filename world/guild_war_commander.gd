@@ -81,6 +81,10 @@ const FRONT_MIN := 2
 const LEADER_REACH := 7.0
 const LEADER_HURT := 0.5
 const LEADER_HURT_BACK := 7.0
+## Out of the altar fight the leader falls back to heal under LEADER_RETREAT of its HP (a
+## little sooner than its members: GuildWarDoctrine.retreat_for), a fall costing its guild
+## the one who can take the castle.
+const LEADER_RETREAT := 0.35
 ## Under the siege's focus the hurt fall back REAR_STEP m behind the leader's post (its
 ## healers are there), not to the far camp.
 const REAR_STEP := 6.0
@@ -100,7 +104,7 @@ const ASSAULT_HOLD := 7.0
 ## their middle); the toughest of its guild, it holds its ground against fewer.
 const LEADER_THREAT_RADIUS := 7.0
 const LEADER_COVER := 4.0
-const LEADER_SWAMP := 3
+const LEADER_SWAMP := 2
 ## Taking the altar, an AI leader under LEADER_REST of its HP with enemies on it steps off
 ## behind the altar (REST_BACK m, still in the throne room, so its count waits instead of
 ## starting over when it would fall) and its healers patch it up; it steps back on at
@@ -361,15 +365,16 @@ static func leader_may_go(s: Dictionary, held: float) -> bool:
 	if bool(s.get("leader_on_altar", false)):
 		return true
 	# A war of more than two: the throne room is never clear (three other guilds fight
-	# round the altar), so the leader, waiting close with its guard, goes at once.
-	if int(s.get("rivals", 1)) > 1 and int(s.get("escort", 0)) + int(s.get("vanguard", 0)) >= 1:
+	# round the altar), so the leader, waiting close with its guard, goes once one of its
+	# own is up there.
+	if int(s.get("rivals", 1)) > 1 and int(s.get("vanguard", 0)) >= 1:
 		return true
 	var van := int(s.get("vanguard", 0))
 	var foes := int(s.get("altar_foes", 0))
 	if van >= maxi(1, int(s.escort_need)) and (foes <= ALTAR_CLEAR_FOES or van >= foes * 2):
 		return true
 	# The doctrine's window: the other guild's front is spent (or the bell is near).
-	if (bool(s.get("engage_now", false)) or bool(s.get("all_in", false))) and van + int(s.get("escort", 0)) >= 2 and foes <= ALTAR_CLEAR_FOES + 2:
+	if (bool(s.get("engage_now", false)) or bool(s.get("all_in", false))) and van >= 1 and van + int(s.get("escort", 0)) >= 2 and foes <= ALTAR_CLEAR_FOES + 2:
 		return true
 	# Its first member up there and nobody (or only the other guild's leader) left round
 	# the altar: the way is clear.

@@ -1,12 +1,14 @@
 extends Node
-## The guild leaders stay behind their guild in the castle assault (GuildWarCommander:
-## the members push in first, take the switch and clear the throne room, the leader
-## follows at the back and goes onto the altar only once the barrier is open and the way
-## is clear; a leader under attack falls back behind its own; the guild holding the
-## castle keeps its leader back by the altar behind its defenders). Headless, seeded: two
-## AI-led guilds (ours led by a picked member, the hero held still in its camp) fight for
-## the throne room with every gate down; the leader's distance to the altar is sampled
-## against its guild's members, leader falls and the capture are counted.
+## The guild leaders come with their guild in the castle assault, right behind its front
+## (GuildWarCommander: หัวกิลบุกพร้อมทัพ - the damage dealers and tanks push in first and
+## clear the throne room, the leader follows right behind them, never waiting at the camp
+## while its guild fights, and goes onto the altar once the way is clear; a leader swarmed
+## steps back behind its own; the guild holding the castle keeps its leader by the altar
+## behind its defenders). Headless, seeded: two AI-led guilds (ours led by a picked
+## member, the hero held still in its camp) fight for the throne room with every gate
+## down; the leader's distance to the altar is sampled against its guild's members (behind
+## its front: at least two of them nearer; within reach of it: at most FRONT_REACH m
+## farther than the nearest; not at the camp), leader falls and its going up are counted.
 ## The war runs at SPEED (SIM_SPEED=1 for real speed). SIM_SEEDS="4242,77,9001" SIM_OWNER=-1 SIM_SECONDS=420
 ## for a longer measurement (every seed with every owner given; defaults: SETUPS, 90 s of
 ## war each), SIM_SPEED=4 to run it faster, SIM_TRACE=1 (2: every sample of the assault).
@@ -25,6 +27,12 @@ const SAMPLE_EVERY := 0.25
 ## wall clock, at 4x, the leaders looked behind on one machine and not on another);
 ## measured three at a time, the escort share at 1x 77-84%, at 4x 68-83%.
 const SPEED := 2.0
+## The leader within reach of its front: at most this many metres farther from where its
+## guild pushes than the member nearest it.
+const FRONT_REACH := 15.0
+## The leader this far from its post is on its way back to it (from its camp after a fall
+## or a heal): those samples are counted apart.
+const RETURNING := 30.0
 
 
 func check(ok: bool, message: String) -> void:
@@ -121,6 +129,10 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 	var before_lead := [0, 0]
 	var member_deaths := [0, 0]
 	var behind := [0, 0]
+	var near := [0, 0]
+	var at_camp := [0, 0]
+	var returning := [0, 0]
+	var went_up := [false, false]
 	var samples := [0, 0]
 	var by_phase := {}
 	var capture_at := -1.0
@@ -169,11 +181,10 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 				secs.append(side.map(func(f): return -1 if f.is_dead() else SiegeArena.section(f.global_position)))
 			for L in leads:
 				if not L.is_dead():
-					print("  lead t%d goal %s keep %s cap %s hold %.0f victim %s vel %.1f c.read van %s foes %s esc %s sw %s go %s" % [L.team, L.goal_point.round(), L.keep_back, L.capture_role, L.hold_range, (L._victim.global_position.round() if L._victim != null and is_instance_valid(L._victim) else "-"), L.velocity.length(), m.commanders[L.team].last_read.get("vanguard"), m.commanders[L.team].last_read.get("altar_foes"), m.commanders[L.team].last_read.get("escort"), m.commanders[L.team].last_read.get("switch"), m.commanders[L.team].leader_go])
-			print("t %.0f state %s plans %s tactics %s/%s sections %s switches %s capture %s leads %s %s" % [clock, m.state, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, secs, m.switch_owners, m.capture, leads[0].global_position.round() if not leads[0].is_dead() else "dead", leads[1].global_position.round() if not leads[1].is_dead() else "dead"])
-		# The attackers' leader, not yet sent onto the altar: farther than most of its guild
-		# (the members in the fight round it, not the switch holders) from where the guild
-		# pushes: the gate, the switch it clears, the altar.
+					print("  lead t%d goal %s keep %s cap %s hold %.0f victim %s vel %.1f c.read van %s foes %s esc %s go %s" % [L.team, L.goal_point.round(), L.keep_back, L.capture_role, L.hold_range, (L._victim.global_position.round() if L._victim != null and is_instance_valid(L._victim) else "-"), L.velocity.length(), m.commanders[L.team].last_read.get("vanguard"), m.commanders[L.team].last_read.get("altar_foes"), m.commanders[L.team].last_read.get("escort"), m.commanders[L.team].leader_go])
+			print("t %.0f state %s plans %s tactics %s/%s sections %s capture %s leads %s %s" % [clock, m.state, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, secs, m.capture, leads[0].global_position.round() if not leads[0].is_dead() else "dead", leads[1].global_position.round() if not leads[1].is_dead() else "dead"])
+		# The attackers' leader, not yet sent onto the altar, against its guild out there
+		# (not falling back) on the way to where it pushes (the gate, the altar).
 		for team in 2:
 			if m.castle_owner == team:
 				continue
@@ -181,45 +192,61 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 			var c: GuildWarCommander = m.commanders[team]
 			# Sent up (leader_go): the guild cleared the way and the leader now walks onto
 			# the altar on purpose, so it is no longer "not yet sent".
-			if lead.is_dead() or lead.capture_role or lead.capturing or c.leader_go:
+			if lead.capture_role or lead.capturing or c.leader_go:
+				went_up[team] = true
+			if lead.is_dead() or lead.is_retreating() or lead.capture_role or lead.capturing or c.leader_go:
 				continue
 			var goal := Vector3.INF
 			var gate := m.front_gate()
 			if gate != null and c.tactic == GuildWarCommander.PUSH:
 				goal = SiegeArena.gate_front(gate.tier, gate.lane)
-			elif gate == null and c.tactic == GuildWarCommander.SECURE and c.securing:
-				goal = SiegeArena.SWITCHES[c.secure_side]
-			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD]:
+			elif gate == null and c.tactic in [GuildWarCommander.ESCORT, GuildWarCommander.GUARD, GuildWarCommander.GATHER]:
 				goal = SiegeArena.ALTAR
 			if not goal.is_finite():
 				continue
 			var dists: Array[float] = []
 			var side: Array[GuildFighter] = m.allies if team == 0 else m.enemies
 			for f in side:
-				if f == lead or f.is_dead() or f.switch_post or f.is_retreating() or _flat(f.global_position, lead.global_position) > 45.0:
+				if f == lead or f.is_dead() or f.is_retreating() or c._in_camp(f):
 					continue
 				dists.append(_flat(f.global_position, goal))
-			if dists.size() < 2:
+			if dists.size() < 3:
 				continue
 			dists.sort()
-			var median := dists[dists.size() / 2]
+			var lead_d := _flat(lead.global_position, goal)
+			var post := c.leader_post
+			# Sent to its camp by its commander: idling there (never while its guild is out).
+			if c._in_camp(lead) and (not post.is_finite() or _flat(post, SiegeArena.camp(team)) < SiegeArena.CAMP_RADIUS):
+				at_camp[team] += 1
+			# On its way back to its post from afar (after a fall or a heal at its camp):
+			# counted apart.
+			if post.is_finite() and _flat(lead.global_position, post) > RETURNING:
+				returning[team] += 1
+				continue
 			samples[team] += 1
 			var key := c.tactic
-			var row: Array = by_phase.get(key, [0, 0])
-			row[1] += 1
-			if _flat(lead.global_position, goal) > median:
+			var row: Array = by_phase.get(key, [0, 0, 0])
+			row[2] += 1
+			# Behind its front: at least two of its guild as near the goal or nearer (a
+			# metre's slack).
+			var is_behind := lead_d >= dists[1] - 1.0
+			# Within reach of the front: not more than FRONT_REACH farther than its front
+			# line (the second of its guild nearest the goal).
+			var is_near := lead_d - dists[1] <= FRONT_REACH
+			if is_behind:
 				behind[team] += 1
 				row[0] += 1
+			if is_near:
+				near[team] += 1
+				row[1] += 1
 			if OS.get_environment("SIM_TRACE") == "2" and key == GuildWarCommander.ESCORT:
-				# Each sample of the assault: behind (B) or ahead (A), the leader's and its
-				# post's distance to the altar, the members' round it.
-				print("  ESC t%d %s lead %.1f post %s cover %s hp %.2f | %s | switch %s" % [team, "B" if _flat(lead.global_position, goal) > median else "A", _flat(lead.global_position, goal), (str(snappedf(_flat(c.leader_post, goal), 0.1)) if c.leader_post.is_finite() else "INF"), c.leader_covering, lead.hp_ratio(), dists.map(func(x): return snappedf(x, 0.1)), m.holds_switch(team)])
+				print("  ESC t%d %s%s lead %.1f post %s cover %s hp %.2f | %s" % [team, "B" if is_behind else "A", "N" if is_near else "F", lead_d, (str(snappedf(_flat(c.leader_post, goal), 0.1)) if c.leader_post.is_finite() else "INF"), c.leader_covering, lead.hp_ratio(), dists.map(func(x): return snappedf(x, 0.1))])
 			by_phase[key] = row
 	Engine.time_scale = 1.0
 	out.merge({"clock": clock, "lead_deaths": lead_deaths, "first_lead_death": first_lead_death, "before_lead": before_lead,
-		"member_deaths": member_deaths, "behind": behind, "samples": samples, "capture_at": capture_at, "captured_by": captured_by, "by_phase": by_phase})
-	print("SIM seed %d owner %d: capture %.0f s by %d | leader falls %s first at %s (members down before it %s, members down %s) | leader behind the median %s of %s samples %s" % [
-		seed, owner, capture_at, captured_by, lead_deaths, first_lead_death, before_lead, member_deaths, behind, samples, by_phase])
+		"member_deaths": member_deaths, "behind": behind, "near": near, "at_camp": at_camp, "returning": returning, "went_up": went_up, "samples": samples, "capture_at": capture_at, "captured_by": captured_by, "by_phase": by_phase})
+	print("SIM seed %d owner %d: capture %.0f s by %d | leader falls %s first at %s (members down before it %s, members down %s) | leader behind its front %s, within %.0f m of it %s of %s samples, at the camp %s, on its way back %s, went up %s | by tactic [behind, near, samples] %s" % [
+		seed, owner, capture_at, captured_by, lead_deaths, first_lead_death, before_lead, member_deaths, behind, FRONT_REACH, near, samples, at_camp, returning, went_up, by_phase])
 	zone.queue_free()
 	await _frames(3)
 	Game.guildwar_clear_checkpoint()
@@ -228,6 +255,10 @@ func _war(seed: int, owner: int, seconds: float) -> Dictionary:
 
 func _judge(all: Array) -> void:
 	var behind := 0
+	var near := 0
+	var at_camp := 0
+	var returning := 0
+	var went_up := 0
 	var samples := 0
 	var falls := 0
 	var member_falls := 0
@@ -237,12 +268,16 @@ func _judge(all: Array) -> void:
 	var phases := {}
 	for r in all:
 		for key in r.by_phase:
-			var row: Array = phases.get(key, [0, 0])
-			row[0] += int(r.by_phase[key][0])
-			row[1] += int(r.by_phase[key][1])
+			var row: Array = phases.get(key, [0, 0, 0])
+			for i in 3:
+				row[i] += int(r.by_phase[key][i])
 			phases[key] = row
 		for team in 2:
 			behind += int(r.behind[team])
+			near += int(r.near[team])
+			at_camp += int(r.at_camp[team])
+			returning += int(r.returning[team])
+			went_up += 1 if bool(r.went_up[team]) else 0
 			samples += int(r.samples[team])
 			falls += int(r.lead_deaths[team])
 			member_falls += int(r.member_deaths[team])
@@ -251,15 +286,20 @@ func _judge(all: Array) -> void:
 			leads += 1
 		captures.append(snappedf(float(r.capture_at), 1.0))
 	var share := float(behind) / float(maxi(1, samples))
-	print("SIM total: leader behind the median member %d of %d samples (%.0f%%) | leader falls %d, member falls %d (leaders %.0f%% of falls) | mean first leader fall %.0f s | captures %s | by phase %s" % [
-		behind, samples, share * 100.0, falls, member_falls, 100.0 * float(falls) / float(maxi(1, falls + member_falls)), first_sum / float(maxi(1, leads)), captures, phases])
+	var near_share := float(near) / float(maxi(1, samples))
+	print("SIM total: leader behind its front %d, within %.0f m of it %d of %d samples (%.0f%% / %.0f%%), at the camp %d, on its way back %d | leaders went up %d | leader falls %d, member falls %d (leaders %.0f%% of falls) | mean first leader fall %.0f s | captures %s | by tactic [behind, near, samples] %s" % [
+		behind, FRONT_REACH, near, samples, share * 100.0, near_share * 100.0, at_camp, returning, went_up, falls, member_falls, 100.0 * float(falls) / float(maxi(1, falls + member_falls)), first_sum / float(maxi(1, leads)), captures, phases])
 	# The checks (the run is seeded, but the fight's timing is not exact to the frame, so
-	# the bars leave room): the leader behind most of its guild in most of the assault,
-	# and falling far less often than its members.
-	var escort: Array = phases.get(GuildWarCommander.ESCORT, [0, 0])
-	# A sample every SAMPLE_EVERY s: 50 s of the assault seen, 12.5 s of it on the altar.
+	# the bars leave room): the leader behind its front yet close to it, never at the
+	# camp while its guild assaults, going up to the altar, falling less often than its
+	# members.
+	var escort: Array = phases.get(GuildWarCommander.ESCORT, [0, 0, 0])
 	check(samples >= 200, "the leaders were seen in the assault (%d samples)" % samples)
-	check(share >= 0.55, "the attacking leader stands behind most of its guild (%.0f%% of the time, before: about 25%%)" % (share * 100.0))
-	check(int(escort[1]) >= 50, "the assault on the altar was seen long enough (%d samples)" % int(escort[1]))
-	check(float(escort[0]) >= float(escort[1]) * 0.55, "in the assault on the altar the members go in first and the leader follows (%s, before: 25-45%% at real speed)" % [escort])
-	check(falls * 4 <= member_falls + 2, "the leaders fall far less often than their members (%d against %d)" % [falls, member_falls])
+	check(share >= 0.6, "the attacking leader comes behind its front, the damage dealers lead (%.0f%% of the time)" % (share * 100.0))
+	check(near_share >= 0.7, "the attacking leader is within %.0f m of its front, not left at the back (%.0f%% of the time)" % [FRONT_REACH, near_share * 100.0])
+	check(at_camp == 0, "the leader is never kept at the camp while its guild assaults (%d samples)" % at_camp)
+	check(returning * 3 <= samples, "the leader is mostly at its post, not on its way back (%d against %d)" % [returning, samples])
+	check(int(escort[2]) >= 50, "the assault on the altar was seen long enough (%d samples)" % int(escort[2]))
+	check(float(escort[0]) >= float(escort[2]) * 0.55 and float(escort[1]) >= float(escort[2]) * 0.7, "in the assault on the altar the members go in first and the leader follows right behind (%s)" % [escort])
+	check(went_up >= 1, "a leader goes up to the altar once the way is clear (%d)" % went_up)
+	check(falls * 3 <= member_falls + 2, "the leaders fall less often than their members (%d against %d)" % [falls, member_falls])

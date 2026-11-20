@@ -686,7 +686,7 @@ func _apply() -> void:
 			tank.guard_node = s
 	for f in side:
 		var r := c._role(f, lead)
-		f.retreat_below = retreat_for(r) if f != lead else GuildFighter.RETREAT_BELOW
+		f.retreat_below = retreat_for(r) if f != lead else GuildWarCommander.LEADER_RETREAT
 		f.focus_bonus = FOCUS_BONUS
 		f.clump_aware = true
 		# The hurt fall back to the support squad at the front, not the far camp (the
@@ -816,7 +816,7 @@ func _events(r: Dictionary) -> void:
 		_tiers_seen = open
 		if not bool(r.holding):
 			if open >= SiegeArena.GATE_Z.size():
-				order("tier", "ประตูสุดท้ายพัง! ชิงสวิตช์ซ้ายและขวาให้ครบก่อนแล้วบุกแท่นท้ายห้อง", true)
+				order("tier", "ประตูสุดท้ายพัง! บุกห้องบัลลังก์ สายดาเมจนำ หัวกิลตามติดขึ้นแท่น", true)
 			else:
 				order("tier", "ประตูชั้น %d พัง! เดินหน้ารวมที่%s" % [open, _place()], true)
 		else:
@@ -824,17 +824,17 @@ func _events(r: Dictionary) -> void:
 	var lead := war.ai_leader(team)
 	var up := lead != null and not lead.is_dead()
 	if lead != null and _leader_was_up and not up and war.front_gate() == null and not bool(r.holding):
-		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล หน่วยสวิตช์เฝ้าวงทั้งสองฝั่ง", true)
+		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล อย่าบุกทีละคน", true)
 	_leader_was_up = up
 	if war.castle_owner != _owner_seen:
 		_owner_seen = war.castle_owner
 		if war.castle_owner == team:
-			order("owner", "ยึดปราสาทได้! แบ่งคนเฝ้าสวิตช์ซ้ายและขวา แทงค์คุมประตู", true)
+			order("owner", "ยึดปราสาทได้! ล้อมแท่นไว้ แทงค์คุมประตูห้องบัลลังก์", true)
 		elif war.castle_owner >= 0:
 			order("owner", "%s ยึดปราสาทไป! รวมพลแล้วชิงคืน" % war.team_name(war.castle_owner), true)
 	if last_call and not _order_at.has("last"):
 		if bool(r.holding):
-			order("last", "เหลือ 2 นาที! เฝ้าแท่นกับสวิตช์ทั้งสองฝั่งจนหมดเวลา", true)
+			order("last", "เหลือ 2 นาที! เฝ้าแท่นจนหมดเวลา", true)
 		elif war.castle_owner >= 0:
 			order("last", "เหลือ 2 นาที! ห้ามถอย บุกชิงปราสาท", true)
 		else:

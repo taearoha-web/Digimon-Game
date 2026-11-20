@@ -6,7 +6,7 @@ extends Node
 ##     thinks, at once when urgent), the last minutes' plans, the commander's tactic under
 ##     the hints (stage the wave, push at once, all in), the leader sent up in a window;
 ##   - squads by class (Defender / Warrior / Lancer vanguard, Priest and Bard support,
-##     Mage / Archer / Summoner ranged, Assassin hunters, the switch squad, the leader's
+##     Mage / Archer / Summoner ranged, Assassin hunters, the leader's
 ##     guard), each with its strongest standing as squad leader;
 ##   - in a war: every guild has a doctrine (the same brain), the phase on the HUD, the
 ##     squads' rules on the fighters (retreat thresholds by role, the hurt falling back to
@@ -149,8 +149,6 @@ func _phases() -> void:
 	check(D.phase_for(r) == "hold", "a weaker guild of four holding the bridge foot: ตั้งรับจุดคอขวด")
 	r = base.duplicate()
 	r.gates_up = false
-	r.tactic = C.SECURE
-	check(D.phase_for(r) == "switch", "gates down, the switch first: ชิงสวิตช์")
 	r.tactic = C.ESCORT
 	check(D.phase_for(r) == "assault", "escorting the leader to the altar: บุกแท่น")
 	r.waiting = true
@@ -227,11 +225,11 @@ func _hinted_tactics() -> void:
 		"plan": "storm", "gates_up": false, "holding": false, "enemy_capturing": false, "we_capturing": false,
 		"alive_share": 0.9, "loss_heat": 0.0, "kill_heat": 0.0, "leader_ai": true, "leader_alive": true,
 		"leader_hp": 1.0, "leader_threat": 0, "leader_in_castle": true, "escort": 4, "escort_need": 3,
-		"gathered": 0.2, "at_front": 0.5, "enemies_at_rally": 0, "switch": false,
+		"gathered": 0.2, "at_front": 0.5, "enemies_at_rally": 0,
 	}
-	check(C.pick_tactic(C.SECURE, 5.0, s) == C.SECURE, "the old brain: securing the switch it keeps at it")
+	check(C.pick_tactic(C.GATHER, 1.0, s) == C.ESCORT, "the gates down, its guard round the leader: the assault on the altar (no switch first)")
 	s["hold_back"] = true
-	check(C.pick_tactic(C.SECURE, 5.0, s) == C.GATHER, "the doctrine's wave: the guild stages out of reach instead of trickling in")
+	check(C.pick_tactic(C.ESCORT, 5.0, s) == C.GATHER, "the doctrine's wave: the guild stages out of reach instead of trickling in")
 	s["leader_on_altar"] = true
 	check(C.pick_tactic(C.ESCORT, 5.0, s) == C.ESCORT, "never while its leader stands on the altar")
 	s.erase("leader_on_altar")
@@ -253,12 +251,13 @@ func _hinted_tactics() -> void:
 	check(C.pick_tactic(C.PUSH, 20.0, s) == C.PUSH, "all in at the end: no falling back")
 	check(C.pick_tactic(C.FALLBACK, 1.0, s) != C.FALLBACK, "and one falling back comes again at once")
 	# The leader sent up in the window.
-	var lg := {"switch": true, "vanguard": 1, "escort": 1, "escort_need": 3, "altar_foes": 3}
+	var lg := {"vanguard": 1, "escort": 1, "escort_need": 3, "altar_foes": 3}
 	check(not C.leader_may_go(lg, 2.0), "three foes round the altar, one of ours there: the leader waits (old rule)")
 	lg["engage_now"] = true
 	check(C.leader_may_go(lg, 2.0), "their front spent: the leader goes up with its first two at the altar")
-	lg["switch"] = false
-	check(not C.leader_may_go(lg, 2.0), "never with the barrier up")
+	lg.engage_now = false
+	lg.altar_foes = 1
+	check(C.leader_may_go(lg, 2.0), "nothing to hold first: the way clear, the leader goes up")
 
 
 func _squad_rules() -> void:
@@ -267,10 +266,10 @@ func _squad_rules() -> void:
 		&"summoner": D.SQUAD_RANGED, &"assassin": D.SQUAD_HUNTERS}
 	for cls in cases:
 		var role := C.role_of(cls, cls in [&"mage", &"archer", &"summoner"])
-		check(D.squad_for(role, false, false, false) == cases[cls], "%s fights in %s" % [cls, D.SQUAD_NAMES[cases[cls]]])
-	check(D.squad_for(C.ROLE_TANK, true, false, false) == D.SQUAD_SWITCH, "posted to the switch: the switch squad")
-	check(D.squad_for(C.ROLE_TANK, false, true, false) == D.SQUAD_GUARD, "the leader's bodyguard: its guard")
-	check(D.squad_for(C.ROLE_TANK, false, false, true) == D.SQUAD_LEADER, "the leader is no squad's")
+		check(D.squad_for(role, false, false) == cases[cls], "%s fights in %s" % [cls, D.SQUAD_NAMES[cases[cls]]])
+	check(not D.SQUAD_NAMES.has("switch"), "no switch squad")
+	check(D.squad_for(C.ROLE_TANK, true, false) == D.SQUAD_GUARD, "the leader's bodyguard: its guard")
+	check(D.squad_for(C.ROLE_TANK, false, true) == D.SQUAD_LEADER, "the leader is no squad's")
 	check(D.retreat_for(C.ROLE_HEALER) > D.retreat_for(C.ROLE_TANK) and D.retreat_for(C.ROLE_RANGED) == D.RETREAT_SQUISHY, "the squishy back line falls back earlier than the tanks")
 	for key in D.SQUAD_NAMES:
 		check(_thai(String(D.SQUAD_NAMES[key])), "squad %s has a Thai name" % key)
@@ -386,7 +385,7 @@ func _in_war() -> void:
 		if f == lead:
 			check(key == D.SQUAD_LEADER, "the leader is the leader")
 			continue
-		var want := D.squad_for(m.commanders[1]._role(f, lead), m.commanders[1].post_of(f), key == D.SQUAD_GUARD, false)
+		var want := D.squad_for(m.commanders[1]._role(f, lead), key == D.SQUAD_GUARD, false)
 		check(key == want, "%s (%s) is in %s" % [f.rival_name, f.fighter_class(), key])
 	check(all_in, "every member is in one squad")
 	for key in d1.squad_leads:
@@ -534,7 +533,6 @@ func _focus_pick(m: GuildWarMatch) -> void:
 	me.objective = null
 	me.hold_range = 0.0
 	me.keep_back = false
-	me.switch_post = false
 	me.capture_role = false
 	me.dive = null
 	me.guard_node = null
