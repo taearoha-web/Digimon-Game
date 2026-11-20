@@ -106,8 +106,7 @@ static func build(zone: Node3D) -> void:
 	_light_fx(root, rng)
 	_colliders(root)
 	_signs(root)
-	_isle(root, rng)
-	_world(root, rng)
+	_world(root, rng, _isle(root, rng))
 	root.set_meta(NAME_META, true)
 
 
@@ -950,7 +949,7 @@ static func _isle_material() -> ShaderMaterial:
 ## cliffs of banded rock falling into the cloud and the isle's underside narrowing to a
 ## point far below; trees (pines and blossom), stone lanterns, a bastion at each corner of
 ## the maze and falls spilling off the rim.
-static func _isle(root: Node3D, rng: RandomNumberGenerator) -> void:
+static func _isle(root: Node3D, rng: RandomNumberGenerator) -> SurfaceTool:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var segs := 128
@@ -1047,7 +1046,8 @@ static func _isle(root: Node3D, rng: RandomNumberGenerator) -> void:
 		var a := TAU * (float(i) + 0.25) / 8.0 + 0.2
 		var r := _rim(a) - 0.5
 		_fall(fall, Vector3(cos(a) * r, -0.25, sin(a) * r), Vector3(cos(a), 0, sin(a)), rng.randf_range(4.0, 7.0), 52.0, Color("9fe2f2"))
-	_far_mesh(root, fall, 2, "MazeFalls")
+	# (drawn with the floating isles' falls: _world)
+	return fall
 
 
 ## A bastion at a corner of the maze: a stepped tower in the quadrant's stone with tiered
@@ -1152,7 +1152,7 @@ static func _far_mesh(root: Node3D, st: SurfaceTool, mode: int, node_name: Strin
 ## The sea of cloud (a great disc, gold toward the sun, rose away from it, with banks of
 ## cloud on it), the two far ranges, the floating isles with their falls and the four
 ## prang towers of the quadrants on the isles at the corners. All drawn by maze_far.gdshader.
-static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
+static func _world(root: Node3D, rng: RandomNumberGenerator, falls: SurfaceTool) -> void:
 	var sun_from := -Basis.from_euler(Vector3(deg_to_rad(SUN_ROT.x), deg_to_rad(SUN_ROT.y), 0)).z
 	var sun_flat := Vector2(sun_from.x, sun_from.z).normalized()
 	# The sea of cloud.
@@ -1221,8 +1221,6 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 	_range(rock, 820.0, 160.0, 230.0, Color("44508e"), Color("6e7cbc"), 23, 0.9)
 	var glow := JapanKit.Batch.new()
 	var body := JapanKit.Batch.new()
-	var falls := SurfaceTool.new()
-	falls.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in 12:
 		var corner := i < 4
 		var a := (TAU * (float(i) + 0.5) / 4.0) if corner else TAU * (float(i - 4) + rng.randf_range(0.2, 0.8)) / 8.0
@@ -1234,14 +1232,9 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 		if corner:
 			var q := MazeLayout.quadrant(p)
 			_prang(body, glow, p, THEMES[q], size)
+	# The isles and their towers go in with the ranges: one lit draw.
+	rock.append_from(body.mesh(), 0, Transform3D.IDENTITY)
 	_far_mesh(root, rock, 0, "MazeFarRock", false)
-	var isles := MeshInstance3D.new()
-	isles.name = "MazeFarIsles"
-	isles.mesh = body.mesh()
-	isles.material_override = _far_material(0)
-	isles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	isles.extra_cull_margin = 400.0
-	root.add_child(isles)
 	var glow_mesh := glow.mesh()
 	if glow_mesh.get_surface_count() > 0:
 		var gi := MeshInstance3D.new()
@@ -1251,7 +1244,7 @@ static func _world(root: Node3D, rng: RandomNumberGenerator) -> void:
 		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		gi.extra_cull_margin = 400.0
 		root.add_child(gi)
-	_far_mesh(root, falls, 2, "MazeFarFalls")
+	_far_mesh(root, falls, 2, "MazeFalls")
 
 
 ## A ring of mountains `radius` out: peaks to `height` (up to `peak` for the tallest),
