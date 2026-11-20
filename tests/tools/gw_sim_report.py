@@ -46,7 +46,7 @@ def main(paths):
                 s["deaths"] += r["deaths"][t]
                 s["captures"] += r["captures_n"][t]
                 s["holds_at_bell"] += 1 if r["owner"] == t else 0
-                s["switch_s"] += r["switch_s"][t]
+                s["switch_s"] += r["switch_s"][t] if "switch_s" in r else 0
                 firsts = [c[0] for c in r["capture_log"] if c[1] == t]
                 if firsts:
                     s["first_cap"] += firsts[0]
@@ -74,6 +74,16 @@ def main(paths):
         print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | rule %s" % (
             sum(len(r.get("capture_log", [])) for r in wars) / len(wars), len(retaken), len(held),
             "%.0f" % (sum(both) / len(both)) if both else "-", ",".join(sorted(set(str(r.get("rule", "-")) for r in wars)))))
+        lead = defaultdict(float)
+        for r in wars:
+            for d in r.get("leaders", []):
+                for k, v in d.items():
+                    lead[k] += v
+        if lead["fight_s"]:
+            fs = lead["fight_s"]
+            print("leaders (share of the time its guild is out): camp %.0f%%, front (<=15 m) %.0f%%, far %.0f%%, down %.0f%%, ahead of its front %.0f%% | leader deaths per guild per war %.2f" % (
+                100 * lead["lead_camp_s"] / fs, 100 * lead["lead_front_s"] / fs, 100 * lead["lead_far_s"] / fs,
+                100 * lead["lead_dead_s"] / fs, 100 * lead["lead_ahead_s"] / fs, lead["lead_deaths"] / (len(wars) * teams)))
         tiers = [[r["tiers"][k] for r in wars if r["tiers"][k] >= 0] for k in range(3)]
         print("tier open (avg s): %s" % ", ".join("%.0f" % (sum(t) / len(t)) if t else "-" for t in tiers))
         stuck = max(r.get("stuck_max", 0) for r in wars)
