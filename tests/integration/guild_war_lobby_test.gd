@@ -154,11 +154,11 @@ func _arena(at: int) -> void:
 	gate.take_damage(1.0e9, hero)
 	gate.take_hit(1000000000, false, Color.WHITE, hero)
 	check(gate.hp == gate_hp and not gate.is_dead(), "the front gate takes no harm")
-	# The switch: even standing on it nothing is taken (and the hero is pushed back).
-	foe.global_position = SiegeArena.SWITCH
-	hero.global_position = SiegeArena.SWITCH + Vector3(0, 0.3, 0)
+	# The switches: even standing on one nothing is taken (and the hero is pushed back).
+	foe.global_position = SiegeArena.SWITCHES[0]
+	hero.global_position = SiegeArena.SWITCHES[1] + Vector3(0, 0.3, 0)
 	await _frames(5)
-	check(m.switch_owner == -1, "the switch is not taken before the start")
+	check(m.switch_owners == [-1, -1], "neither switch is taken before the start")
 	check(_flat(hero.global_position, home) <= GuildWarMatch.LOBBY_RADIUS + 0.5, "the hero is kept near its camp (%.1f m)" % _flat(hero.global_position, home))
 	hero.global_position = home + Vector3(40.0, 0.3, 30.0)
 	await _frames(3)

@@ -217,7 +217,7 @@ func _rules() -> void:
 		g.set_broken_quietly()
 	m._update_breakable()
 	m._assign_objectives()
-	var room := SiegeArena.SWITCH + Vector3(4.0, 0.3, 0)
+	var room: Vector3 = SiegeArena.SWITCHES[0] + Vector3(4.0, 0.3, 0)
 	a.global_position = room
 	r.global_position = room + Vector3(3.0, 0, 0)
 	h.global_position = room + Vector3(-30.0, 0, 0)
