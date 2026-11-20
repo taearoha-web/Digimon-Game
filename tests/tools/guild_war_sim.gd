@@ -278,7 +278,11 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 					extra = " bal %.2f spent %.2f gath %.2f" % [float(fl.get("balance", 0)), float(fl.get("foe_spent", 0)), float(fl.get("gathered", 0))]
 				var lead: GuildFighter = m.ai_leader(t)
 				var lp := "down" if lead == null or lead.is_dead() else "(%.0f,%.0f) hp %.2f%s%s" % [lead.global_position.x, lead.global_position.z, lead.hp_ratio(), " camp" if m.commanders[t]._in_camp(lead) else "", " ret" if lead.is_retreating() else ""]
-				rows.append("t%d %s/%s/%s up %d mid (%.0f,%.0f) lead %s%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), mid.x, mid.z, lp, extra])
+				var ret := up.filter(func(f): return f.is_retreating()).size()
+				var joining := 0
+				if dd != null and dd.get("join_at") is Vector3 and (dd.join_at as Vector3).is_finite():
+					joining = up.filter(func(f): return _flat(f.goal_point, dd.join_at) < 9.0).size()
+				rows.append("t%d %s/%s/%s up %d ret %d join %d mid (%.0f,%.0f) lead %s%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), ret, joining, mid.x, mid.z, lp, extra])
 			print("[%.0f] %s | own %d cap %s" % [clock, " | ".join(rows), m.castle_owner, str(m.capture.get("team", "-"))])
 		lead_sample += dt
 		if lead_sample >= 1.0:

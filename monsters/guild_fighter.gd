@@ -918,7 +918,7 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if not _retreating and ratio < retreat_below and (_potions <= 0 or _potion_cd > 0.0):
 		_retreating = true
 		_rear_wait = 0.0
-	elif _retreating and (ratio > RETURN_ABOVE or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
+	elif _retreating and (ratio > (RETURN_ABOVE2 if smart2 else RETURN_ABOVE) or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
 		_retreating = false
 	if _retreating and not _frozen:
 		return _fall_back(delta)
@@ -1157,6 +1157,9 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 	return score
 
 
+## Second brain: back in the fight from falling back at this share of HP (a potion on the
+## way back brings most there; the old rule's RETURN_ABOVE kept them out longer).
+const RETURN_ABOVE2 := 0.58
 ## Second brain's leash: targets farther than CHASE_LEASH from its post (goal_point) are
 ## left alone unless within CHASE_CLOSE of the fighter.
 const CHASE_LEASH := 20.0
@@ -1338,7 +1341,9 @@ func _fall_back(delta: float) -> Vector3:
 	var back := spawn_point
 	if rear_point.is_finite() and _rear_wait < REAR_WAIT_MAX:
 		back = rear_point
-		if _flat_distance(rear_point) < 4.0:
+		# (Second brain: the wait runs from the moment it falls back, so one at a rear
+		# point that moves with its guild goes home in the end, not loiters hurt.)
+		if _flat_distance(rear_point) < 4.0 or smart2:
 			_rear_wait += delta
 	var to := SiegeArena.route(global_position, back) - global_position
 	to.y = 0.0
