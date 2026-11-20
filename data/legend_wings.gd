@@ -13,9 +13,8 @@ extends RefCounted
 ## strongest member who holds none of this streak yet, the hero among the candidates by
 ## the same score, so the hero's chance is real and never forced.
 ##
-## Receiving = worn at once (give_to_hero: the old wings go to the bag, else the storage)
-## and the holder must wear it: it comes off only for another pair of these wings
-## (Game.unequip / equip_from_bag, LOCK_TEXT). Stats: a mythic tier above the 100★ class
+## Receiving = worn at once (give_to_hero: the old wings go to the bag, else the storage);
+## after that it comes off and goes back on like any wings (WEAR_TEXT). Stats: a mythic tier above the 100★ class
 ## wings — every stat above the best 100★ pair at +15 (STATS, fixed) — plus the aura
 ## (AURA: +10% to the wearer and its party within AURA_RANGE m: HeroStats.compute, Hero,
 ## Companion). Any class from Lv.1 (no class, no stars). Never sold (Game.sell_item,
@@ -54,7 +53,7 @@ const STATS := {"atk": 1414, "matk": 1456, "hp": 5822, "def": 624, "mp": 2391, "
 ## design (LegendWingArt), its halo gems in the guild's colour.
 const MODELS: Array[String] = ["priest", "warrior", "mage", "archer", "lancer", "assassin", "defender", "summoner", "bard"]
 const LOOK := "legend_wings"
-const LOCK_TEXT := "ปีกตำนานแห่งกิลด์ถอดไม่ได้ — เปลี่ยนได้เฉพาะปีกตำนานแห่งกิลด์คู่อื่น"
+const WEAR_TEXT := "ถอดหรือเปลี่ยนปีกได้ตามใจ ปีกตำนานยังเป็นของคุณ (ขาย แลกเปลี่ยน ตั้งแผงไม่ได้)"
 const SELL_TEXT := "ปีกตำนานแห่งกิลด์ขายไม่ได้ (ฝากคลังรวมให้ตัวละครอื่นได้)"
 const TRADE_TEXT := "ปีกตำนานแห่งกิลด์แลกเปลี่ยนไม่ได้"
 const STALL_TEXT := "ปีกตำนานแห่งกิลด์ตั้งขายและฝากขายไม่ได้"
@@ -93,7 +92,7 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	return [
 		"ปีกระดับ%s · รางวัลกิลด์แชมป์ลีกฤดูกาลที่ %d (กิลด์ %s)" % [TAG, int(item.get("legend_week", 0)), GuildLeague.name_of(int(item.get("legend_guild", 0)))],
 		"ออร่าตำนาน: ทุกค่าสถานะ +%d%% ให้ผู้ใส่และปาร์ตี้ในระยะ %d ม." % [int(round(AURA * 100.0)), int(AURA_RANGE)],
-		"ใส่ได้ทุกอาชีพตั้งแต่เลเวล 1 · ใส่แล้วถอดไม่ได้ (เปลี่ยนได้เฉพาะปีกตำนานคู่อื่น)",
+		"ใส่ได้ทุกอาชีพตั้งแต่เลเวล 1 · ถอดหรือเปลี่ยนได้ตามปกติ",
 		"ขาย แลกเปลี่ยน ตั้งแผงไม่ได้ · ฝากคลังรวมให้ตัวละครอื่นในบัญชีได้",
 	]
 
@@ -380,7 +379,7 @@ static func _award_hero(w: int, g: int, streak: int, by := "") -> void:
 	var pair := item(w, g)
 	give_to_hero(pair)
 	var why := "หัวหน้ากิลด์ %s (%s) มอบปีกตำนานให้คุณ (แชมป์ลีกติดต่อกัน %d สัปดาห์)" % [GuildLeague.name_of(g), by, streak] if streak > 1 else "กิลด์ %s เป็นแชมป์ลีก คุณในฐานะหัวหน้ากิลด์ได้รับปีกตำนาน" % GuildLeague.name_of(g)
-	var text := "%s\n%s\nใส่ให้แล้วทันที — %s" % [why, title_of(pair), LOCK_TEXT]
+	var text := "%s\n%s\nใส่ให้แล้วทันที — %s" % [why, title_of(pair), WEAR_TEXT]
 	Game.say("ได้รับ %s! ใส่ให้แล้ว" % NAME, &"success")
 	Game.legend_wings_awarded.emit(pair, text)
 

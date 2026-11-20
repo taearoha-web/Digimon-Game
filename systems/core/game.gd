@@ -3080,10 +3080,6 @@ func equip_from_bag(index: int) -> bool:
 		return false
 	var slot: String = item.slot
 	var old: Variant = profile["equip"].get(slot)
-	# The Legendary Guild Wings come off only for another pair of them (LegendWings).
-	if LegendWings.is_item(old) and not LegendWings.is_item(item):
-		say(LegendWings.LOCK_TEXT, &"warning")
-		return false
 	profile["equip"][slot] = item
 	profile["inv"].remove_at(index)
 	if old != null:
@@ -3104,9 +3100,6 @@ func unequip(slot: String) -> bool:
 			say(off, &"warning")
 		return off == "ok"
 	if not profile["equip"].has(slot) or profile["inv"].size() >= bag_size():
-		return false
-	if LegendWings.is_item(profile["equip"][slot]):
-		say(LegendWings.LOCK_TEXT, &"warning")
 		return false
 	profile["inv"].append(profile["equip"][slot])
 	profile["equip"].erase(slot)

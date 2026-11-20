@@ -532,7 +532,7 @@ func open_legend_picker(w: int) -> void:
 		Game.say("ไม่มีปีกตำนานรอมอบ", &"warning")
 		return
 	var box := UIUtil.vbox(8)
-	var hint := UIUtil.label("%s ฤดูกาลที่ %d · ผู้รับจะใส่ปีกทันทีและถอดไม่ได้ (เปลี่ยนได้เฉพาะปีกตำนานคู่อื่น) · มอบให้ตัวเองได้เมื่อยังไม่มีปีกของแชมป์ชุดนี้" % [LegendWings.NAME, w], &"SmallLabel")
+	var hint := UIUtil.label("%s ฤดูกาลที่ %d · ผู้รับจะได้ใส่ปีกทันที (ถอดเปลี่ยนได้ภายหลัง) · มอบให้ตัวเองได้เมื่อยังไม่มีปีกของแชมป์ชุดนี้" % [LegendWings.NAME, w], &"SmallLabel")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(hint)
 	var scroll := TouchScroll.new()
