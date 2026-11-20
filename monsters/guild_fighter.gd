@@ -85,9 +85,9 @@ var capture_role := false
 var capturing := false
 ## Holding a position (its guild's plan): it only turns on enemies this close (0: anyone).
 var hold_range := 0.0
-## The AI leader kept at its post behind its guild (GuildWarCommander: the members go in
-## first): it never batters the gate, fights only what comes within hold_range of its
-## post (goal_point) and does not chase from it.
+## The AI leader kept at its post right behind its guild's front (GuildWarCommander: the
+## damage dealers lead): it fights only what comes within hold_range of its post (the
+## gate its guild pushes too) (goal_point) and does not chase from it.
 var keep_back := false
 ## Kept at its post with a front (the altar, in the assault on it; Vector3.INF none): it
 ## never steps nearer that front than its post (fighting from the post, it gives ground
@@ -619,7 +619,7 @@ func _nearest_victim() -> Node3D:
 		if capture_role and d > 6.0 and t != taker:
 			continue
 		# The leader behind its guild: only what comes to its post.
-		if keep_back and not capture_role and (t is CastleGate or _flat_distance_from(t.global_position, goal_point) > hold_range + 2.0):
+		if keep_back and not capture_role and (_flat_distance_from(t.global_position, goal_point) > hold_range + 2.0):
 			continue
 		# The assassin goes round to its mark (the guild's healer, bard or a leader left
 		# alone) wherever its post is.
