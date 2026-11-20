@@ -71,7 +71,7 @@ extends RefCounted
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
-## "altar", "deadline", "intercept"); empty in the game.
+## "altar", "deadline", "intercept", "leader_reach"); empty in the game.
 ## Trials: second-brain rules built, measured and kept OFF in the game (switched on by
 ## name, tests/tools/guild_war_sim SIM_TRIAL, tests): "waves" (_waves), "walkers"
 ## (_walkers), "bodyrear" (the hurt to the guild's body, back sooner). Waves cut the lone
