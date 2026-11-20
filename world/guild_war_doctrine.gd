@@ -53,6 +53,8 @@ extends RefCounted
 ##   WAVES (_waves): the fallen coming back meet at a join point and go in four at a time,
 ##     not one by one into the other guild's whole front (a third of all falls were of one
 ##     walking in alone);
+##   WALKERS (_walkers): those walking up from far behind fight only what is on them and
+##     keep walking (they fell one by one on the plaza turning on whoever they met);
 ##   the hurt fall back to the guild's own body when no healer is at the front (not alone
 ##     across the field to the far camp), the leader to its healers and a little sooner;
 ##   the fighters' own (GuildFighter.smart2): focus fire without overkill,
@@ -71,7 +73,7 @@ extends RefCounted
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
-## "waves", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
+## "waves", "walkers", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
 ## (A leash, nobody chased farther than 20 m from its post, was measured and dropped: the
 ## guild playing it lost the trades, K/D 0.86 against 1.11, tests/tools/guild_war_sim.)
 static var off: Dictionary = {}
@@ -812,8 +814,30 @@ func _apply() -> void:
 			f.rear_point = support_at
 		if body_rear.is_finite() and not f.rear_point.is_finite() and GuildWarCommander._flat(f.global_position, body_rear) < GuildWarCommander._flat(f.global_position, war.home_of(team)):
 			f.rear_point = body_rear
+	if smart2() and not off.has("walkers"):
+		_walkers(side, front)
 	if smart2() and not off.has("waves"):
 		_waves(side, lead, front)
+
+
+## Second brain: the members walking back from far behind (farther than WALKER_FAR m from the
+## guild's objective, out of the camp, not falling back) fight only what is on them
+## (WALK_HOLD m) and keep walking: the old rule had them turn on anyone of the other guild
+## they met on the plaza (with no hold range, anyone within 48 m), and they fell there one
+## by one (traced: a holder's members dying on the plaza while its altar was being taken).
+const WALKER_FAR := 55.0
+const WALK_HOLD := 6.0
+
+
+func _walkers(side: Array[GuildFighter], front: Vector3) -> void:
+	var c := _cmd()
+	for f in side:
+		if f.is_dead() or f.capture_role or f.is_retreating() or f.keep_back:
+			continue
+		if GuildWarCommander._flat(f.global_position, front) < WALKER_FAR or c._in_camp(f):
+			continue
+		if f.hold_range <= 0.0 or f.hold_range > WALK_HOLD:
+			f.hold_range = WALK_HOLD
 
 
 ## Second brain: waves, not a trickle. The members coming back from a fall (standing, out

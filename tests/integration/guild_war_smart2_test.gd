@@ -10,7 +10,8 @@ extends Node
 ##     strikes our leader taking the altar is peeled off;
 ##   - the fighters: stuns kept for a priority foe, potions drunk before a fall, a healer
 ##     healing with nobody to fight;
-##   - waves: the fallen coming back meet at a join point and go in together;
+##   - waves: the fallen coming back meet at a join point and go in together, and those
+##     walking up from far behind fight only what is on them;
 ##   - the baseline (base) runs none of it.
 ## godot --headless --audio-driver Dummy --path . res://tests/integration/guild_war_smart2_test.tscn
 var failures: Array[String] = []
@@ -249,6 +250,15 @@ func _waves(m: GuildWarMatch, d1: GuildWarDoctrine, c1: GuildWarCommander, lead1
 	c1.apply()
 	check(walkers[0].goal_point.distance_to(join) > D.JOIN_RADIUS, "those sent go on to the front")
 	check(walkers[4].goal_point.distance_to(join) < D.JOIN_RADIUS, "the one still on its way waits for the next wave")
+	# Walking up from far behind: it fights only what is on it.
+	walkers[4].hold_range = 0.0
+	walkers[4].keep_back = false
+	d1._walkers(side, front)
+	check(is_equal_approx(walkers[4].hold_range, D.WALK_HOLD), "one walking up from far behind turns only on what is on it (%.0f m)" % walkers[4].hold_range)
+	walkers[0].hold_range = 0.0
+	walkers[0].global_position = front + Vector3(4.0, 0.3, 10.0)
+	d1._walkers(side, front)
+	check(walkers[0].hold_range == 0.0, "at the front it fights as before")
 	d1.base = true
 	walkers[4].goal_point = Vector3.ZERO
 	c1.apply()

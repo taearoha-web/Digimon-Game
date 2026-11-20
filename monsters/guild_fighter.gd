@@ -639,7 +639,7 @@ func _nearest_victim() -> Node3D:
 			continue
 		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
 			continue
-		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + 6.0):
+		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + (CALLED_LEADER_REACH if smart2 and t is GuildFighter and (t as GuildFighter).is_leader else 6.0)):
 			continue
 		var bias := 0.0
 		if holder_team >= 0 and t != taker and not (t is CastleGate):
@@ -1172,6 +1172,10 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 ## Second brain: back in the fight from falling back at this share of HP (a potion on the
 ## way back brings most there; the old rule's RETURN_ABOVE kept them out longer).
 const RETURN_ABOVE2 := 0.58
+## Second brain: an enemy leader called as the guild's target is gone for from this many
+## metres past its hold range (the old rule's 6: a leader waiting behind its front was out of
+## everyone's reach until it stepped on the altar inside its guard).
+const CALLED_LEADER_REACH := 16.0
 ## Second brain's focus fire: a target takes FOCUS_ROOM_MIN of the guild plus FOCUS_ROOM_HP
 ## more at full health before the extra ones look elsewhere.
 const FOCUS_ROOM_MIN := 2
