@@ -110,8 +110,10 @@ const LEADER_RESTED := 0.8
 const REST_BACK := 7.0
 const REST_FINISH := 6.0
 ## Holding the castle, the leader stands this far behind the altar (away from the door),
-## its defenders in front.
+## its defenders in front; with half its guild or more farther than HOLD_FOLLOW m from the
+## altar (out fighting) it goes with them (_holder_out_post).
 const HOLD_BACK := 4.5
+const HOLD_FOLLOW := 22.0
 const SLOT_GAP := 1.7
 const ROW_WIDTH := 6
 const ROW_STEP := 1.2
@@ -1483,7 +1485,10 @@ func _leader_post(lead: GuildFighter, at: Vector3, fwd: Vector3, assault: bool) 
 	match tactic:
 		DEFEND:
 			if war.castle_owner == team and war.front_gate() == null:
-				return SiegeArena.ALTAR + forward * HOLD_BACK
+				# By the altar while its guild defends it; with its guild out fighting
+				# elsewhere (pushing the attackers back out of the throne room) it goes too.
+				var out := _holder_out_post(lead)
+				return out if out.is_finite() else SiegeArena.ALTAR + forward * HOLD_BACK
 			return Vector3.INF
 		GUARD, ESCORT:
 			if not assault:
@@ -1518,6 +1523,35 @@ func _front_post(lead: GuildFighter, at: Vector3) -> Vector3:
 	cands.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
 	var k := clampi(maxi(FRONT_MIN, roundi(float(cands.size()) * FRONT_SHARE)), 1, cands.size()) - 1
 	return _back_along(cands[k][1], at, LEADER_GAP)
+
+
+## Holding the castle with the gates down: its guild out fighting away from the altar (not
+## half of its standing members out of the camp within HOLD_FOLLOW m of it), the leader's
+## post behind its front towards the foe nearest the guild's middle (INF: it stays by the
+## altar).
+func _holder_out_post(lead: GuildFighter) -> Vector3:
+	var out := 0
+	var near := 0
+	var mid := Vector3.ZERO
+	for f in _side():
+		if f == lead or f.is_dead() or f.is_retreating() or _in_camp(f):
+			continue
+		out += 1
+		mid += f.global_position
+		if _flat(f.global_position, SiegeArena.ALTAR) < HOLD_FOLLOW:
+			near += 1
+	if out < FRONT_MIN or near * 2 >= out:
+		return Vector3.INF
+	mid /= float(out)
+	var at := mid
+	var best := INF
+	for f in _foes():
+		if not f.is_dead():
+			var d := _flat(f.global_position, mid)
+			if d < best:
+				best = d
+				at = f.global_position
+	return _front_post(lead, at)
 
 
 ## Holding the castle with the gates up: the leader stands out in front of the gate

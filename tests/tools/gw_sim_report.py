@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sums up tests/tools/guild_war_sim JSON lines (SIM_OUT): the doctrine ("new") against
 the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
-switch time, wins by camp, retakes, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
+wins by camp, retakes, where the leaders stand, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
 usage: python3 tests/tools/gw_sim_report.py results.jsonl [more.jsonl ...]
 """
 import json
@@ -71,7 +71,7 @@ def main(paths):
         held = [r for r in wars if r.get("capture_log")]
         retaken = [r for r in held if len(r["capture_log"]) > 1]
         both = [r["first_both"] for r in wars if r.get("first_both", -1) is not None and r.get("first_both", -1) >= 0]
-        print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | rule %s" % (
+        print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | layout %s" % (
             sum(len(r.get("capture_log", [])) for r in wars) / len(wars), len(retaken), len(held),
             "%.0f" % (sum(both) / len(both)) if both else "-", ",".join(sorted(set(str(r.get("rule", "-")) for r in wars)))))
         lead = defaultdict(float)
