@@ -53,7 +53,8 @@ extends RefCounted
 ## a pass over its own guild with the formation (every 0.5 s).
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
-## off by name ("muster", "besiege", "wait", "exploit", "squads"); empty in the game.
+## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
+## "waves", "leash", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
 static var off: Dictionary = {}
 
 ## The doctrine as it stood before its second brain (the measurement's baseline,
@@ -572,7 +573,7 @@ func think() -> void:
 		_window_since = clock
 	engage = bool(win[0]) and not off.has("exploit")
 	wait = bool(win[1]) and not off.has("wait")
-	last_at = last_call_at() if smart2() else LAST_CALL
+	last_at = last_call_at() if smart2() and not off.has("deadline") else LAST_CALL
 	r["last_at"] = last_at
 	last_call = war.time_left <= last_at
 	# The race for the castle (nobody holds it): the whole guild musters at the last gate
@@ -673,7 +674,7 @@ func focus_extra(f: GuildFighter) -> float:
 			extra += 5.0
 	if main_foe >= 0 and f.team == main_foe:
 		extra += 2.0
-	if smart2():
+	if smart2() and not off.has("intercept"):
 		extra += _intercept_extra(f)
 	return extra
 
@@ -699,7 +700,7 @@ func _intercept_extra(f: GuildFighter) -> float:
 ## Second brain: the assassins' mark when holding the castle: the enemy leader near the
 ## altar (null: the commander's own pick).
 func dive_override() -> GuildFighter:
-	if not smart2() or war.castle_owner != team or war.front_gate() != null:
+	if not smart2() or off.has("intercept") or war.castle_owner != team or war.front_gate() != null:
 		return null
 	var best: GuildFighter = null
 	var best_d := INTERCEPT_RADIUS
@@ -750,7 +751,7 @@ func _apply() -> void:
 	support_at = Vector3(sum.x / float(n), 0.0, sum.z / float(n)) if n > 0 else Vector3.INF
 	# Second brain: with no healer at the front the hurt fall back to the guild's own body
 	# (a step behind its middle), not alone across the field to the far camp.
-	var body_rear := _body_rear(side, lead, c) if smart2() and not support_at.is_finite() else Vector3.INF
+	var body_rear := _body_rear(side, lead, c) if smart2() and not support_at.is_finite() and not off.has("bodyrear") else Vector3.INF
 	# Supports with a foe on them: the nearest standing tank (not the leader's bodyguard on
 	# the altar run) goes to them.
 	var threatened: Array[GuildFighter] = []
@@ -792,7 +793,7 @@ func _apply() -> void:
 			f.rear_point = support_at
 		if body_rear.is_finite() and not f.rear_point.is_finite() and GuildWarCommander._flat(f.global_position, body_rear) < GuildWarCommander._flat(f.global_position, war.home_of(team)):
 			f.rear_point = body_rear
-	if smart2():
+	if smart2() and not off.has("waves"):
 		_waves(side, lead, front)
 
 
@@ -829,10 +830,11 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 	if not (c.tactic in [GuildWarCommander.PUSH, GuildWarCommander.ESCORT, GuildWarCommander.GUARD, GuildWarCommander.DEFEND]) or (war.castle_owner == team and war.front_gate() != null):
 		_joining.clear()
 		return
-	# Only the last call cannot wait: against a capture running a wave still beats a trickle
-	# into the other guild's whole guard (it waits a shorter while).
-	var urgent := last_call
-	var join_max := JOIN_MAX if war.capture.is_empty() else JOIN_MAX * 0.5
+	# The last call and another guild's capture running cannot wait (measured: waves of
+	# four held back while the count ran fed the capturer's whole guard all the same and
+	# lost the castle); ours running, the guild holds the field round its leader.
+	var urgent := last_call or (not war.capture.is_empty() and int(war.capture.get("team", -1)) != team)
+	var join_max := JOIN_MAX
 	var main := 0
 	var stragglers: Array[GuildFighter] = []
 	for f in side:

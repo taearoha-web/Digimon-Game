@@ -604,6 +604,7 @@ func _nearest_victim() -> Node3D:
 	var taker := siege.capturer() if siege != null else null
 	# At the gate it keeps battering: only an enemy close by draws it away.
 	var at_gate := objective != null and is_instance_valid(objective) and objective.breakable and _flat_distance(objective.global_position) < 11.0
+	var leash := smart2 and not GuildWarDoctrine.off.has("leash")
 	var my_section := SiegeArena.section(global_position)
 	var called := focus if _alive(focus) else null
 	var diving := dive if _alive(dive) else null
@@ -642,7 +643,7 @@ func _nearest_victim() -> Node3D:
 		# Second brain: the leash. Nobody is chased far from its post (into the other
 		# guild's side, after one falling back to its healers): only what comes within
 		# CHASE_CLOSE of it or stands within CHASE_LEASH of its post.
-		if smart2 and t != taker and not (t is CastleGate) and d > CHASE_CLOSE and _flat_distance_from(t.global_position, goal_point) > CHASE_LEASH:
+		if leash and t != taker and not (t is CastleGate) and d > CHASE_CLOSE and _flat_distance_from(t.global_position, goal_point) > CHASE_LEASH:
 			continue
 		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + 6.0):
 			continue
@@ -905,7 +906,7 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 
 func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if capturing:
-		if smart2 and not _frozen:
+		if smart2 and not _frozen and not GuildWarDoctrine.off.has("altar"):
 			# Second brain: on the count it fights back from where it stands (its swings
 			# and skills, never a step off the circle) and drinks.
 			super._chase(target, delta, speed_factor)
