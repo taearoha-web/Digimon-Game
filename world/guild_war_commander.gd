@@ -643,7 +643,8 @@ func _deny(s: Dictionary) -> void:
 	# breaking one of them (the quicker: few of theirs in it, near) brings it back.
 	var cost := INF
 	var held_n := war.switches_held(their)
-	if held_n == 2 or (held_n == 1 and GuildWarMatch.switch_rule == GuildWarMatch.RULE_EITHER):
+	# (Pinned by a test or a tool, the switches are not there to be taken.)
+	if war.switch_pin < 0 and (held_n == 2 or (held_n == 1 and GuildWarMatch.switch_rule == GuildWarMatch.RULE_EITHER)):
 		for k in 2:
 			if not war.holds_switch(their, k):
 				continue
