@@ -1527,7 +1527,11 @@ func _front_post(lead: GuildFighter, at: Vector3) -> Vector3:
 		return Vector3.INF
 	cands.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
 	var k := clampi(maxi(FRONT_MIN, roundi(float(cands.size()) * FRONT_SHARE)), 1, cands.size()) - 1
-	return _back_along(cands[k][1], at, LEADER_GAP)
+	var p := _back_along(cands[k][1], at, LEADER_GAP)
+	# Its guild just out of the camp: the post never falls back inside it.
+	if _flat(p, war.home_of(team)) < SiegeArena.CAMP_RADIUS:
+		p = cands[k][1]
+	return p
 
 
 ## Holding the castle with the gates down: its guild out fighting away from the altar (not

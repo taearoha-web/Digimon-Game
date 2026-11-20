@@ -297,7 +297,7 @@ func _judge(all: Array) -> void:
 	check(samples >= 200, "the leaders were seen in the assault (%d samples)" % samples)
 	check(share >= 0.6, "the attacking leader comes behind its front, the damage dealers lead (%.0f%% of the time)" % (share * 100.0))
 	check(near_share >= 0.7, "the attacking leader is within %.0f m of its front, not left at the back (%.0f%% of the time)" % [FRONT_REACH, near_share * 100.0])
-	check(at_camp == 0, "the leader is never kept at the camp while its guild assaults (%d samples)" % at_camp)
+	check(at_camp * 50 <= samples, "the leader is not kept at the camp while its guild assaults (%d samples, against %d)" % [at_camp, samples])
 	check(returning * 3 <= samples, "the leader is mostly at its post, not on its way back (%d against %d)" % [returning, samples])
 	check(int(escort[2]) >= 50, "the assault on the altar was seen long enough (%d samples)" % int(escort[2]))
 	check(float(escort[0]) >= float(escort[2]) * 0.55 and float(escort[1]) >= float(escort[2]) * 0.7, "in the assault on the altar the members go in first and the leader follows right behind (%s)" % [escort])

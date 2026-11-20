@@ -482,7 +482,11 @@ func _in_war() -> void:
 	m._assign_objectives()
 	check(theirs.tactic == GuildWarCommander.ESCORT and not lead.capture_role and lead.keep_back, "with three round it the guild goes in first, the leader not yet (%s)" % theirs.tactic)
 	var goers := m.enemies.filter(func(f): return f != lead and not f.is_dead())
-	check(goers.all(func(f): return GuildWarCommander._flat(f.goal_point, SiegeArena.ALTAR) < GuildWarCommander._flat(lead.goal_point, SiegeArena.ALTAR)), "every member goes nearer the altar than the leader")
+	# Its healers and bard escort it at its sides; every other member goes in ahead of it.
+	var escorts := goers.filter(func(f): return f.role in [GuildWarCommander.ROLE_HEALER, GuildWarCommander.ROLE_BARD] or theirs._tied.has(f.get_instance_id()))
+	var ahead := goers.filter(func(f): return not escorts.has(f))
+	check(ahead.all(func(f): return GuildWarCommander._flat(f.goal_point, SiegeArena.ALTAR) < GuildWarCommander._flat(lead.goal_point, SiegeArena.ALTAR)), "every other member goes nearer the altar than the leader")
+	check(escorts.all(func(f): return GuildWarCommander._flat(f.goal_point, lead.goal_point) < 5.0), "its healers, bard and bodyguard keep by its side")
 	check(theirs.said.any(func(t: String): return t.contains("หัวกิลตามติด")), "and the call: the damage dealers first, the leader right behind (%s)" % [theirs.said])
 	# The vanguard on the altar, nobody of ours there: the way is clear, the leader goes up.
 	k = 0
