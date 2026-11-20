@@ -733,7 +733,8 @@ func _spawn_lineups(lead_at: Array[int], tree: SceneTree) -> Array:
 					continue
 				var pid := p if team == GuildFighter.TEAM_ALLY else ENEMY_PARTY_BASE * team + p
 				var fighter := _spawn(lineup[i], team, spawn_slot(team, slot, lineup.size(), inside), team_names[team], pid)
-				# The holder starts inside but comes back from a fall at its camp outside.
+				# The holder starts inside; its base (healing, falling back) is its camp outside
+				# (it comes back from a fall in the keep while the throne gate stands: keeps_inside).
 				if inside:
 					fighter.spawn_point = spawn_slot(team, slot, lineup.size(), false)
 				side(team).append(fighter)
@@ -901,11 +902,24 @@ func hero_camp_now() -> Vector3:
 	return home_of(GuildFighter.TEAM_ALLY) + Vector3(0, 0.3, 0)
 
 
-## Team t's camp now (where it comes back): the keep while it holds the castle, else its own.
+## Team t's camp now (where it comes back): the keep while it holds the castle and the
+## throne room's gate stands (keeps_inside), else its own camp outside.
 func home_of(t: int) -> Vector3:
-	if t == castle_owner and castle_owner >= 0 and holds_keep():
+	if keeps_inside(t):
 		return SiegeArena.KEEP_CAMP
 	return SiegeArena.camp(t)
+
+
+## The third tier: the throne room's gate (SiegeArena.GATE_Z's last).
+const THRONE_TIER := 2
+
+
+## Whether team t comes back from a fall inside the castle (the keep, SiegeArena.KEEP_CAMP):
+## it holds the castle in a war of the keep (holds_keep) and the throne room's gate still
+## stands. Once that gate is broken the holder comes back at its own camp outside the
+## castle and has to fight its way back in like everyone else.
+func keeps_inside(t: int) -> bool:
+	return t == castle_owner and castle_owner >= 0 and holds_keep() and not tier_open(THRONE_TIER)
 
 
 ## Picks up a war that was cut off: the clock, the score, the broken gates and the castle's
@@ -1370,6 +1384,10 @@ func _tick_fight(delta: float) -> void:
 	for f in all_fighters():
 		if f.is_dead() and f.respawn_left <= 0.0:
 			f.respawn()
+			# The holder comes back in the keep while the throne room's gate stands.
+			if keeps_inside(f.team):
+				var list := side(f.team)
+				f.global_position = spawn_slot(f.team, maxi(0, list.find(f)), list.size(), true) + Vector3(randf_range(-0.6, 0.6), 0.0, randf_range(-0.6, 0.6))
 	if hero_respawn_left > 0.0:
 		hero_respawn_left -= delta
 		if hero_respawn_left <= 0.0:
@@ -1661,8 +1679,9 @@ func _respawn_hero() -> void:
 	Game.profile.hp = stats.max_hp
 	Game.profile.mp = stats.max_mp
 	hero.revive()
-	# Back at our camp outside the castle, even while our guild holds it.
-	hero.global_position = SiegeArena.camp(GuildFighter.TEAM_ALLY) + Vector3(0, 0.3, 0)
+	# Back in the keep while our guild holds the castle and the throne room's gate stands,
+	# else at our camp outside the castle.
+	hero.global_position = hero_camp_now()
 	BurstGuard.forget(hero.get_instance_id())
 	VfxKit.flash(zone, hero.global_position + Vector3(0, 1.0, 0), Color("bfe8ff"), 1.8)
 	hero_back.emit()

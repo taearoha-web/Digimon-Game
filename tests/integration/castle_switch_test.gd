@@ -595,7 +595,8 @@ func _ai_assault() -> void:
 	ours_cmd.tactic = GuildWarCommander.SECURE
 	ours_cmd.securing = true
 	var foc := ours_cmd._pick_focus()
-	check(foc == guard, "ai: ours call the guard in the circle as the focus (%s)" % [foc])
+	# Either circle's guard (both switches are theirs: each must fall or be pushed out).
+	check(foc == guard or foc == right_guards[0], "ai: ours call a guard in a circle as the focus (%s)" % [foc])
 	# Rotation: the guard badly hurt with a fresh one of the same side's squad beside it steps out.
 	if left_guards.size() >= 2:
 		var fresh: GuildFighter = left_guards[1]
