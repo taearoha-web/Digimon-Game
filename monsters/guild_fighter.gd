@@ -905,6 +905,12 @@ func _chase(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 
 func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if capturing:
+		if smart2 and not _frozen:
+			# Second brain: on the count it fights back from where it stands (its swings
+			# and skills, never a step off the circle) and drinks.
+			super._chase(target, delta, speed_factor)
+			_altar_potion(delta)
+			return Vector3.ZERO
 		_tick(delta)
 		return Vector3.ZERO
 	# The one sent to the altar fights only what blocks its way; close to the altar (its
@@ -1099,6 +1105,17 @@ func _recall_party() -> void:
 		VfxKit.flash(get_parent(), spot + Vector3(0, 1.0, 0), Color("ffd36b"), 1.8)
 		Game.say("%s ใช้ Summon เรียกปาร์ตี้ไปรวมพล" % rival_name, &"info")
 	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
+
+
+## Second brain: the leader holding the altar drinks its potions there (the old brain
+## stood on the count and never drank: it only drinks while it chases or falls back).
+func _altar_potion(delta: float) -> void:
+	if not smart2:
+		return
+	_think -= delta
+	if _think <= 0.0:
+		_think = 0.3
+		_try_potion()
 
 
 func _try_potion() -> bool:
@@ -1367,6 +1384,10 @@ func _wander(delta: float) -> Vector3:
 
 func _wander_on(delta: float) -> Vector3:
 	# During the countdown everybody holds their mark.
+	if capturing and not _frozen and smart2:
+		_tick(delta)
+		_altar_potion(delta)
+		return Vector3.ZERO
 	if _frozen or capturing:
 		return Vector3.ZERO
 	if capture_role:

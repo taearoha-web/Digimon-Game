@@ -216,7 +216,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 				lead_stat[victim.team]["lead_deaths"] += 1
 				if _env("SIM_TRACE", "") != "":
 					var c: GuildWarCommander = m.commanders[victim.team]
-					print("  LEADER DOWN t%d at (%.0f,%.0f) tactic %s phase %s post %s covering %s cap %s go %s" % [victim.team, victim.global_position.x, victim.global_position.z, c.tactic, m.phase_key(victim.team), str(c.leader_post.round()), c.leader_covering, victim.capture_role, c.leader_go]))
+					print("  LEADER DOWN t%d pots %d at (%.0f,%.0f) tactic %s phase %s post %s covering %s cap %s go %s" % [victim.team, victim._potions, victim.global_position.x, victim.global_position.z, c.tactic, m.phase_key(victim.team), str(c.leader_post.round()), c.leader_covering, victim.capture_role, c.leader_go]))
 	var lead_sample := 0.0
 	var sample := 0.0
 	var stuck_who := ""
