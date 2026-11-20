@@ -1923,7 +1923,7 @@ func _make_plans() -> void:
 		var d: GuildWarDoctrine = doctrines[team] if team < doctrines.size() else null
 		if d != null:
 			# The doctrine's last minutes (GuildWarDoctrine.adjust_plan), and a fresh look.
-			plan = GuildWarDoctrine.adjust_plan(plan, time_left, castle_owner == team, front_gate() != null)
+			plan = GuildWarDoctrine.adjust_plan(plan, time_left, castle_owner == team, front_gate() != null, d.last_at)
 			d.nudge()
 		if plan != plans[team]:
 			plans[team] = plan
@@ -1962,6 +1962,7 @@ func _assign_objectives() -> void:
 			f.holder_team = focus if team != castle_owner else -1
 			f.rivalry_open = open
 			f.rear_point = Vector3.INF
+			f.smart2 = c != null and c.smart2()
 			match plan:
 				"gates":
 					# The holder out in front of the front tier's gates, party by party on

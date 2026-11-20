@@ -104,7 +104,7 @@ static func pick_besiege(was: bool, held: float, r: Dictionary, trades: Dictiona
 	var owner := int(r.get("owner", -1))
 	if owner < 0 or bool(r.get("holding", false)) or bool(r.get("gates_up", true)) or engage or int(r.get("teams", 2)) > 2:
 		return false
-	if float(r.get("time_left", 9999.0)) <= LAST_CALL or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
+	if float(r.get("time_left", 9999.0)) <= float(r.get("last_at", LAST_CALL)) or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
 		return false
 	if was:
 		return held < BESIEGE_MAX
@@ -133,6 +133,18 @@ const BESIEGE_MAX := 90.0
 const SURGE_TIME := 20.0
 ## The last minutes of the war.
 const LAST_CALL := 120.0
+## Second brain: a guild not holding the castle goes all in once the bell is nearer than
+## its capture can still be won: CAPTURE_TIME on the altar, the walk there (its leader's
+## way to the altar at DEADLINE_PACE m/s) and DEADLINE_FIGHT s to clear it (last_call_at).
+const DEADLINE_PACE := 6.0
+const DEADLINE_FIGHT := 75.0
+## Second brain's focus: the enemy leader in the throne room (the only one who can take the
+## altar) for the castle's holder, and for anyone when it is this near the altar; whoever
+## strikes our own leader on the altar (peel).
+const INTERCEPT_BONUS := 40.0
+const INTERCEPT_RADIUS := 34.0
+const LEADER_IN_BONUS := 12.0
+const PEEL_BONUS := 20.0
 ## Orders: at most one every ORDER_GAP s, the same key not within ORDER_REPEAT s (urgent
 ## ones every URGENT_REPEAT s); a member answers ACK_CHANCE of them.
 const ORDER_GAP := 7.0
@@ -142,6 +154,8 @@ const ACK_CHANCE := 0.4
 ## Retreat thresholds by role (the old brain: GuildFighter.RETREAT_BELOW for all).
 const RETREAT_SQUISHY := 0.33
 const RETREAT_STURDY := 0.25
+## Second brain: the leader's own (GuildWarCommander.LEADER_RETREAT for the old rules).
+const LEADER_RETREAT2 := 0.42
 ## The called target: everyone's lean on it, on top of GuildFighter's own.
 const FOCUS_BONUS := 6.0
 ## A support member under attack: foes within this many metres of it.
@@ -186,6 +200,8 @@ var wait := false
 var _window_since := 0.0
 var _wait_ended := -1.0e9
 var last_call := false
+## When the last call comes (time left, s): LAST_CALL, or the second brain's deadline.
+var last_at := LAST_CALL
 ## The race for the castle: mustering at the last gate, surging through it (until when).
 var muster := false
 ## Besieging a holder that keeps beating the waves (see think), and since when.
@@ -358,6 +374,7 @@ func read_field() -> Dictionary:
 		"waiting": c != null and c.waiting,
 		"leading": leading_team,
 		"teams": n,
+		"last_at": last_at,
 	}
 
 
@@ -424,7 +441,7 @@ static func pick_window(was_engage: bool, was_wait: bool, held: float, rested: f
 	var bal := float(r.get("balance", 1.0))
 	var spent := float(r.get("foe_spent", 0.0))
 	var attacking := not bool(r.get("holding", false)) and not bool(r.get("enemy_capturing", false))
-	var last := float(r.get("time_left", 9999.0)) <= LAST_CALL
+	var last := float(r.get("time_left", 9999.0)) <= float(r.get("last_at", LAST_CALL))
 	# Exploit: their front is spent and ours outweighs what is left.
 	var engage := false
 	if attacking and float(r.get("alive_share", 1.0)) >= 0.55:
@@ -501,8 +518,8 @@ static func settle_phase(prev: String, held: float, candidate: String, next: Str
 ## The plan the doctrine fights instead of `plan` (GuildWarMatch.plan_for's) for a reading:
 ## in the last minutes the holder stays round the altar (defend, or its gates), the others
 ## never pull back to regroup.
-static func adjust_plan(plan: String, time_left: float, holding: bool, gates_up: bool) -> String:
-	if time_left > LAST_CALL:
+static func adjust_plan(plan: String, time_left: float, holding: bool, gates_up: bool, last := LAST_CALL) -> String:
+	if time_left > last:
 		return plan
 	if holding:
 		return "gates" if gates_up else "defend"
@@ -555,7 +572,9 @@ func think() -> void:
 		_window_since = clock
 	engage = bool(win[0]) and not off.has("exploit")
 	wait = bool(win[1]) and not off.has("wait")
-	last_call = war.time_left <= LAST_CALL
+	last_at = last_call_at() if smart2() else LAST_CALL
+	r["last_at"] = last_at
+	last_call = war.time_left <= last_at
 	# The race for the castle (nobody holds it): the whole guild musters at the last gate
 	# as it is about to fall, and surges through to the throne room the moment it does.
 	muster = pick_muster(r, _last_gate_share()) and not off.has("muster")
@@ -597,6 +616,25 @@ func think() -> void:
 	_events(r)
 
 
+## Second brain: when the last call comes (s left on the clock). Holding the castle
+## LAST_CALL; else the time its capture still needs: CAPTURE_TIME, its leader's way to the
+## altar (from its camp while it is down) and DEADLINE_FIGHT s to clear the altar, at
+## least LAST_CALL.
+func last_call_at() -> float:
+	if war.castle_owner == team:
+		return LAST_CALL
+	var lead := war.ai_leader(team)
+	var from: Vector3 = SiegeArena.camp(team)
+	if lead != null and not lead.is_dead():
+		from = lead.global_position
+	elif team == GuildFighter.TEAM_ALLY and war.hero_leads() and war.hero_alive():
+		from = war.hero.global_position
+	var way := GuildWarCommander._flat(from, SiegeArena.ALTAR)
+	if SiegeArena.section(from) < 2:
+		way = GuildWarCommander._flat(from, SiegeArena.APPROACH) + GuildWarCommander._flat(SiegeArena.APPROACH, SiegeArena.ALTAR)
+	return maxf(LAST_CALL, GuildWarMatch.CAPTURE_TIME + way / DEADLINE_PACE + DEADLINE_FIGHT)
+
+
 ## Every member's squad, each squad's leader (its strongest standing) and count.
 func assign_squads() -> void:
 	var c := _cmd()
@@ -635,7 +673,47 @@ func focus_extra(f: GuildFighter) -> float:
 			extra += 5.0
 	if main_foe >= 0 and f.team == main_foe:
 		extra += 2.0
+	if smart2():
+		extra += _intercept_extra(f)
 	return extra
+
+
+## Second brain: the enemy leader near the altar with every gate down is the one to stop
+## (INTERCEPT_BONUS for the castle's holder within INTERCEPT_RADIUS of the altar,
+## LEADER_IN_BONUS for anyone in the throne room); whoever strikes our leader taking the
+## altar is peeled off it (PEEL_BONUS).
+func _intercept_extra(f: GuildFighter) -> float:
+	var extra := 0.0
+	if f.is_leader and war.front_gate() == null:
+		var d := GuildWarCommander._flat(f.global_position, SiegeArena.ALTAR)
+		if war.castle_owner == team and d < INTERCEPT_RADIUS:
+			extra += INTERCEPT_BONUS
+		elif SiegeArena.section(f.global_position) == 4:
+			extra += LEADER_IN_BONUS
+	var lead := war.ai_leader(team)
+	if lead != null and not lead.is_dead() and (lead.capturing or lead.capture_role) and f._victim == lead:
+		extra += PEEL_BONUS
+	return extra
+
+
+## Second brain: the assassins' mark when holding the castle: the enemy leader near the
+## altar (null: the commander's own pick).
+func dive_override() -> GuildFighter:
+	if not smart2() or war.castle_owner != team or war.front_gate() != null:
+		return null
+	var best: GuildFighter = null
+	var best_d := INTERCEPT_RADIUS
+	for t in war.team_count():
+		if t == team:
+			continue
+		var lead := war.ai_leader(t)
+		if lead == null or lead.is_dead() or lead.under_guard():
+			continue
+		var d := GuildWarCommander._flat(lead.global_position, SiegeArena.ALTAR)
+		if d < best_d:
+			best_d = d
+			best = lead
+	return best
 
 
 ## After the commander's layout (GuildWarCommander.apply, before the player's orders):
@@ -697,6 +775,12 @@ func _apply() -> void:
 	for f in side:
 		var r := c._role(f, lead)
 		f.retreat_below = retreat_for(r) if f != lead else GuildWarCommander.LEADER_RETREAT
+		if f == lead and smart2() and not f.capture_role:
+			# Second brain: the leader (the only one who can take the castle) falls back a
+			# little sooner, to its healers at the front rather than the far camp.
+			f.retreat_below = LEADER_RETREAT2
+			if support_at.is_finite() and not f.rear_point.is_finite():
+				f.rear_point = support_at
 		f.focus_bonus = FOCUS_BONUS
 		f.clump_aware = true
 		# The hurt fall back to the support squad at the front, not the far camp (the

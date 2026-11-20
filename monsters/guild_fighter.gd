@@ -136,6 +136,11 @@ var focus_bonus := 0.0
 var clump_aware := false
 ## Its strength as the line-ups rate it (GuildWarData.power_of), 1 when unknown.
 var power := 1.0
+## The doctrine's second brain (GuildWarDoctrine.smart2, set with the objectives; false
+## for the measurement's baseline and the old brain): its own micro rules below
+## (SUPPORT_HEAL_AT, _stun_worth, the area skills' single-target penalty, no skills
+## spent on a gate with foes near).
+var smart2 := false
 
 ## The mount it rides (MountVisual under its turning model; null on foot) and the one it
 ## owns ("" for none, or where riding is not allowed: MountData.zone_allows).
@@ -673,7 +678,22 @@ func _nearest_victim() -> Node3D:
 		if ratio < 0.4:
 			score += 9.0 * (0.4 - ratio) / 0.4 + 3.0
 		var on_it := _on_count(t)
-		score += 2.5 * minf(on_it, 2.0) - 5.0 * maxf(on_it - 2.0, 0.0)
+		if smart2 and not (t is CastleGate):
+			# Second brain: focus fire. A fresh target takes many of the guild at once (the
+			# quickest kill ends its damage soonest); only the attackers past what its HP
+			# needs are spread off it (no overkill on the nearly dead).
+			var room := FOCUS_ROOM_MIN + int(round(ratio * float(FOCUS_ROOM_HP)))
+			score += 3.0 * minf(on_it, 3.0) - 4.0 * maxf(on_it - float(room), 0.0)
+			if t is GuildFighter:
+				var g := t as GuildFighter
+				if g.is_healer():
+					score += 4.0
+				elif g.sings():
+					score += 2.0
+				if g.is_leader and not g.under_guard() and ratio < 0.6:
+					score += 5.0
+		else:
+			score += 2.5 * minf(on_it, 2.0) - 5.0 * maxf(on_it - 2.0, 0.0)
 		if t == _victim:
 			score += 4.5
 		if t == _last_attacker and _grudge > 0.0:
@@ -1076,6 +1096,19 @@ func _recall_party() -> void:
 	VfxKit.shockwave(get_parent(), global_position + Vector3(0, 0.1, 0), Color("ffd36b"), 4.0)
 
 
+func _try_potion() -> bool:
+	if not smart2:
+		return super._try_potion()
+	if _potions <= 0 or _potion_cd > 0.0 or hp_ratio() > (POTION_LEADER if is_leader else POTION_AT):
+		return false
+	_potions -= 1
+	_potion_cd = 5.0
+	_heal(0.35)
+	BattleVfx.floating_text(get_parent(), top_point() + Vector3(0, 0.5, 0), "ดื่มยา!", Color("ff8a9a"), 0.9)
+	AudioManager.play_sfx_at(global_position, &"heal", -4.0)
+	return false
+
+
 ## A healer casts when an ally nearby is hurt, not only when it is; buffs are kept up
 ## (see _upkeep_score) and a song or team buff is worth a little more with teammates
 ## around to take it.
@@ -1091,6 +1124,11 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 	if is_buff:
 		return _upkeep_score(skill, distance)
 	var score := super._score(skill, shape, distance, own_ratio)
+	if smart2 and score > 0.0 and _victim is CastleGate and _foes_around(global_position, GATE_SKILL_CLEAR) > 0:
+		# Second brain: the gate waits while a foe is near (its cooldowns are for them).
+		return 0.0
+	if smart2 and score > 0.0 and fx.has("stun") and _victim != null and not (_victim is CastleGate) and not _stun_worth(_victim):
+		score *= STUN_SPARE
 	if score > 0.0 and _victim != null:
 		# Stuns and taunts go first on the other guild's leader taking the altar (each one
 		# holds it off the count).
@@ -1107,8 +1145,79 @@ func _score(skill: Dictionary, shape: String, distance: float, own_ratio: float)
 		# Its squad's rule: an area skill where the other guild stands thick.
 		if clump_aware and (shape == "burst" or shape == "blast"):
 			var at := _victim.global_position if shape == "blast" else global_position
-			score += 1.2 * float(mini(_foes_around(at, float(skill.get("radius", 3.0)) + 0.5), 5) - 1)
+			var caught := _foes_around(at, float(skill.get("radius", 3.0)) + 0.5)
+			score += 1.2 * float(mini(caught, 5) - 1)
+			if smart2 and caught <= 1 and not (_victim is CastleGate):
+				score = maxf(0.1, score - AREA_SINGLE_PENALTY)
 	return score
+
+
+## Second brain's focus fire: a target takes FOCUS_ROOM_MIN of the guild plus FOCUS_ROOM_HP
+## more at full health before the extra ones look elsewhere.
+const FOCUS_ROOM_MIN := 2
+const FOCUS_ROOM_HP := 5
+## Second brain: a potion under this share of HP (POTION_LEADER for the leader), so it is
+## not lost unused in a fall (the old rule: Rival's 0.32).
+const POTION_AT := 0.42
+const POTION_LEADER := 0.55
+## Second brain: a healer heals an ally within heal reach under this share of its HP even
+## with nobody to fight (_support_idle), looking again every SUPPORT_LOOK s.
+const SUPPORT_HEAL_AT := 0.6
+const SUPPORT_LOOK := 0.4
+## A stun is kept for a priority foe (the one on the altar, a leader, a healer, a diving
+## assassin) standing within STUN_SAVE_RADIUS: on anyone else it is worth STUN_SPARE of itself.
+const STUN_SAVE_RADIUS := 14.0
+const STUN_SPARE := 0.3
+## An area skill that would catch only one foe gives way to a single-target one.
+const AREA_SINGLE_PENALTY := 2.5
+## No skill on a gate while a foe stands within this many metres (the gate waits).
+const GATE_SKILL_CLEAR := 14.0
+
+
+## With nobody to fight: a self heal (it reaches the allies round it) when one of them
+## within heal reach is under SUPPORT_HEAL_AT. True when it cast.
+func _support_idle(delta: float) -> bool:
+	if not is_healer():
+		return false
+	_think -= delta
+	if _think > 0.0 or GameClock.msec() < _cast_until:
+		return false
+	_think = SUPPORT_LOOK
+	if _lowest_near(hp_ratio()) >= SUPPORT_HEAL_AT or not _take_think():
+		return false
+	_flush_cooldowns()
+	for skill in class_data.get("skills", []):
+		var fx: Dictionary = skill.get("fx", {})
+		if String(skill.shape) != "self" or not fx.has("heal") or fx.has("recall") or not _knows(skill):
+			continue
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+			continue
+		_cast(skill, self)
+		return true
+	return false
+
+
+## Whether `t` is worth a stun now: the one taking the altar, a leader, a healer or an
+## assassin of the other guild; or nobody of those stands within STUN_SAVE_RADIUS (then
+## anyone is).
+func _stun_worth(t: Node3D) -> bool:
+	if t is GuildFighter:
+		var g := t as GuildFighter
+		if g.capturing or g.is_leader or g.is_healer() or g.fighter_class() == &"assassin":
+			return true
+	elif t == hero:
+		return true
+	if siege == null or not is_instance_valid(siege):
+		return true
+	var r2 := STUN_SAVE_RADIUS * STUN_SAVE_RADIUS
+	for k in siege.leaders.size():
+		var lead: Variant = siege.leaders[k]
+		if k == team or lead == null or not is_instance_valid(lead) or not _up(lead):
+			continue
+		var p := (lead as Node3D).global_position
+		if (p.x - global_position.x) * (p.x - global_position.x) + (p.z - global_position.z) * (p.z - global_position.z) < r2:
+			return false
+	return true
 
 
 ## How many of the other guilds stand within `radius` m of `at` (the frame's shared view).
@@ -1249,6 +1358,10 @@ func _wander_on(delta: float) -> Vector3:
 	if capture_role:
 		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
 	_tick(delta)
+	# Second brain: a healer with nobody in reach still heals the hurt round it (the old
+	# rule healed only while it had someone to fight).
+	if smart2 and _support_idle(delta):
+		return Vector3.ZERO
 	var way := SiegeArena.route(global_position, goal_point)
 	var to := way - global_position
 	to.y = 0.0

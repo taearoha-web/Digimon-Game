@@ -264,6 +264,12 @@ func _init(p_war: GuildWarMatch, p_team: int) -> void:
 	spread(2)
 
 
+## Whether its doctrine plays the second brain (GuildWarDoctrine.smart2; false for the old
+## brain alone and the measurement's baseline).
+func smart2() -> bool:
+	return doctrine != null and doctrine.smart2()
+
+
 ## The guilds think a share of a beat apart (never two in the same frame): `n` guilds.
 func spread(n: int) -> void:
 	_think_left = 0.2 + THINK_EVERY * float(team) / float(maxi(1, n))
@@ -511,6 +517,10 @@ func think(dt: float) -> void:
 	var before := focus
 	focus = _pick_focus()
 	dive = _pick_dive()
+	if doctrine != null:
+		var mark := doctrine.dive_override()
+		if mark != null:
+			dive = mark
 	if focus != null and focus != before:
 		_call_focus(focus)
 
@@ -1456,10 +1466,26 @@ func _read_wave(lead: GuildFighter) -> void:
 		return
 	if clock - _evade_since < EVADE_REST + EVADE_MAX and _evade_since > 0.0 and not evading and clock - _evade_since < EVADE_REST:
 		return
-	if incoming >= WAVE_MIN and incoming >= guard + WAVE_EDGE and progress < GuildWarMatch.CAPTURE_TIME * 0.7:
+	if incoming >= WAVE_MIN and incoming >= guard + WAVE_EDGE and progress < GuildWarMatch.CAPTURE_TIME * 0.7 and not (smart2() and _rival_leader_near(SiegeArena.ALTAR, EVADE_LEADER_NEAR)):
 		evading = true
 		_evade_since = clock
 		trace_line("evade", "หัวหน้ากิลด์ %s ถอยลงจากแท่นหลบคลื่นศัตรู %d คน (นับค้างไว้ %d/%d วิ)" % [war.team_name(team), incoming, int(progress), int(GuildWarMatch.CAPTURE_TIME)])
+
+
+## Second brain: the leader never steps off the altar before a wave while another guild's
+## leader stands this near it (its count would take the altar over: _offer_altar).
+const EVADE_LEADER_NEAR := 12.0
+
+
+## Whether another guild's standing leader is within `radius` of `at`.
+func _rival_leader_near(at: Vector3, radius: float) -> bool:
+	for t in war.team_count():
+		if t == team:
+			continue
+		var lead := war.leader_of(t)
+		if lead != null and is_instance_valid(lead) and not bool(lead.call("is_dead")) and _flat(lead.global_position, at) < radius:
+			return true
+	return false
 
 
 func _foes_near(at: Vector3, radius: float) -> int:
