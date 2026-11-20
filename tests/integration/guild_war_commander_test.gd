@@ -423,9 +423,13 @@ func _in_war() -> void:
 		priest.global_position = front + Vector3(3, 0.3, 6)
 		mage.global_position = front + Vector3(-3, 0.3, 4)
 		tank.global_position = front + Vector3(0, 0.3, 9)
+		# (As GuildWarMatch._assign_objectives does before every layout: the apply above,
+		# with no healer at the front, sent the hurt to the guild's body - the second brain.)
+		for f in m.enemies:
+			f.rear_point = Vector3.INF
 		m.commanders[1].apply()
 		check(d1.support_at.is_finite() and Vector2(d1.support_at.x - priest.global_position.x, d1.support_at.z - priest.global_position.z).length() < 8.0, "the support squad's place at the front is known")
-		check(mage.rear_point.is_finite() and mage.rear_point.distance_to(d1.support_at) < 0.1, "a hurt mage falls back to the healers at the front, not its camp (%s vs %s)" % [mage.rear_point, d1.support_at])
+		check(mage.rear_point.is_finite() and mage.rear_point.distance_to(d1.support_at) < 0.1, "a hurt mage falls back to the healers at the front, not its camp")
 		check(not priest.rear_point.is_finite() or priest.rear_point != d1.support_at, "the healers themselves fall back as before")
 		# A tank peels for the priest under attack.
 		var foe: GuildFighter = m.allies[0]
