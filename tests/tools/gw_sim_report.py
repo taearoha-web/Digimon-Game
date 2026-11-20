@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Sums up tests/tools/guild_war_sim JSON lines (SIM_OUT): the doctrine ("new") against
-the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
+the doctrine as it stood before its second brain ("v1", SIM_BASE) or the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
 wins by camp, retakes, where the leaders stand, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
 usage: python3 tests/tools/gw_sim_report.py results.jsonl [more.jsonl ...]
 """
@@ -35,7 +35,8 @@ def main(paths):
             winner = r["winner"]
             places = {p["team"]: p["place"] for p in r.get("places", [])}
             for t in range(teams):
-                brain = "new" if int(r["smart"][t]) else "old"
+                base = r.get("base", [])
+                brain = ("v1" if t < len(base) and int(base[t]) else "new") if int(r["smart"][t]) else "old"
                 strong = r["mults"][t] > min(r["mults"]) if key[1] != "equal" else None
                 tag = brain if strong is None else "%s(%s)" % (brain, "strong" if strong else "weak")
                 s = stat[tag]
@@ -47,6 +48,11 @@ def main(paths):
                 s["captures"] += r["captures_n"][t]
                 s["holds_at_bell"] += 1 if r["owner"] == t else 0
                 s["switch_s"] += r["switch_s"][t] if "switch_s" in r else 0
+                for key in ("lone_deaths", "cap_start", "cap_broken", "heal_idle"):
+                    if key in r:
+                        s[key] += r[key][t]
+                if r.get("leaders"):
+                    s["lead_deaths"] += r["leaders"][t].get("lead_deaths", 0)
                 firsts = [c[0] for c in r["capture_log"] if c[1] == t]
                 if firsts:
                     s["first_cap"] += firsts[0]
@@ -64,6 +70,11 @@ def main(paths):
             print("%-14s %5d %5.0f%% %6.2f %6.1f %5.1f %6.2f %7.2f %9.0f %7.0f%%" % (
                 tag, n, 100.0 * s["wins"] / n, s["place"] / n, s["kills"] / n, s["deaths"] / n, kd,
                 s["captures"] / n, first, 100.0 * s["holds_at_bell"] / n))
+        print("%-14s %7s %7s %7s %7s %7s" % ("side", "lead_D", "lone_D", "cap_go", "cap_brk", "heal_id"))
+        for tag in sorted(stat):
+            s = stat[tag]
+            n = n_side[tag]
+            print("%-14s %7.2f %7.1f %7.2f %7.2f %7.1f" % (tag, s["lead_deaths"] / n, s["lone_deaths"] / n, s["cap_start"] / n, s["cap_broken"] / n, s["heal_idle"] / n))
         # Camp bias: wins by camp (team 0 west, 1 east, ...), whatever the brains.
         camps = Counter(r["winner"] for r in wars)
         print("wins by camp: " + ", ".join("t%d %d (%.0f%%)" % (t, camps[t], 100.0 * camps[t] / len(wars)) for t in range(teams)))

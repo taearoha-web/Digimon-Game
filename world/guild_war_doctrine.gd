@@ -56,6 +56,16 @@ extends RefCounted
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"); empty in the game.
 static var off: Dictionary = {}
 
+## The doctrine as it stood before its second brain (the measurement's baseline,
+## GuildWarMatch.next_base / tests/tools/guild_war_sim SIM_BASE): none of the rules marked
+## "v2" below (smart2) run for it. False in the game.
+var base := false
+
+
+## Whether the second brain's rules run (every guild in the game's own wars).
+func smart2() -> bool:
+	return not base
+
 const THINK_EVERY := 2.0
 ## What a leader at the front sees: fighters within this many metres of it.
 const FRONT_RADIUS := 24.0

@@ -187,6 +187,10 @@ var smart: Array[bool] = []
 static var next_smart: Array[bool] = []
 ## Tools: every war after this plays the old commander alone (the measurement's baseline).
 static var legacy_ai := false
+## Tools: which guilds of the next war play the doctrine as it stood before its second
+## brain (GuildWarDoctrine.base: the old-vs-new measurement of tests/tools/guild_war_sim,
+## SIM_BASE; taken once by build like next_smart; [] = none, the game's own wars).
+static var next_base: Array[bool] = []
 
 ## Our commander's called target, marked for the player too: a red ring on the ground.
 var _focus_mark: MeshInstance3D
@@ -311,6 +315,8 @@ func _ensure_teams(n: int) -> void:
 	while doctrines.size() < n:
 		var t := doctrines.size()
 		doctrines.append(GuildWarDoctrine.new(self, t) if smart[t] else null)
+		if doctrines[t] != null:
+			doctrines[t].base = t < next_base.size() and next_base[t]
 		commanders[t].doctrine = doctrines[t]
 
 
