@@ -3621,11 +3621,10 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 	# Saved flags are never negative: 0 nobody, team + 1 otherwise.
 	flags["gw_r_owner"] = clampi(int(siege.get("owner", -1)), -1, 3) + 1
 	flags["gw_r_n"] = clampi(int(siege.get("teams", 2)), 2, 4)
-	# The castle's switches: each holder + 1 (0 nobody): the left one in gw_r_sw (what an
-	# older build reads as its one switch), the right one in gw_r_sw1.
-	var sws: Array = siege.get("switches", [siege.get("switch", -1), siege.get("switch", -1)])
-	flags["gw_r_sw"] = clampi(int(sws[0]) if not sws.is_empty() else -1, -1, 3) + 1
-	flags["gw_r_sw1"] = clampi(int(sws[1]) if sws.size() > 1 else int(siege.get("switch", -1)), -1, 3) + 1
+	# (The castle's switches are gone: an older checkpoint's gw_r_sw / gw_r_sw0 / gw_r_sw1
+	# are ignored, and cleared with the rest: GW_CKPT_KEYS.)
+	for key in ["gw_r_sw", "gw_r_sw0", "gw_r_sw1"]:
+		flags.erase(key)
 	# The hero's party: roster index + 1 per pick (0 for an empty place).
 	var picks: Array = siege.get("picks", [])
 	flags["gw_r_pc"] = 1 if bool(siege.get("chosen", false)) else 0
@@ -3672,25 +3671,7 @@ func guildwar_checkpoint() -> Dictionary:
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
 			"gates": _guildwar_saved_gates(flags), "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 4) - 1,
 			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags),
-			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags), "switch": _guildwar_saved_switch(flags),
-			"switches": _guildwar_saved_switches(flags)}
-
-
-## The castle switch's holder in a checkpoint (-1 nobody); a checkpoint from the two
-## switches' days kept one a switch (gw_r_sw0 / gw_r_sw1): the first (left) one's.
-func _guildwar_saved_switch(flags: Dictionary) -> int:
-	if flags.has("gw_r_sw"):
-		return clampi(int(flags["gw_r_sw"]), 0, 4) - 1
-	return clampi(int(flags.get("gw_r_sw0", 0)), 0, 4) - 1
-
-
-## Both switches' holders in a checkpoint ([left, right], -1 nobody): gw_r_sw (or, from the
-## two switches' first days, gw_r_sw0) and gw_r_sw1; a checkpoint of the one switch (no
-## gw_r_sw1) gives its holder both.
-func _guildwar_saved_switches(flags: Dictionary) -> Array:
-	var left := _guildwar_saved_switch(flags)
-	var right := clampi(int(flags["gw_r_sw1"]), 0, 4) - 1 if flags.has("gw_r_sw1") else left
-	return [left, right]
+			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags)}
 
 
 ## The castle's gates in a checkpoint: one value a gate (GW_GATES), or, from a save before

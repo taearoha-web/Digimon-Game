@@ -3,7 +3,7 @@ extends Node3D
 ##   - their density follows the quality setting: fewer at quality 0, the most at 2
 ##   - hunting field props keep off the trail, the camps, the portals and the boss spot
 ##   - the guild war's grass, flowers, torches, racks and banners keep off the camps and
-##     their roads, the plaza, the gates' approaches, the switch circle and the altar
+##     their roads, the plaza, the gates' approaches, the throne room's floor and the altar
 ##   - the village's street props keep off every villager, the spot in front of them,
 ##     every stall, the plaza and the gate, and off every collider (walls, buildings)
 ##   - the Drowned Abyss's shells and starfish keep off its paths, camps and spawn
@@ -108,13 +108,13 @@ func _ready() -> void:
 		var holder := siege.get_node("Siege/PropDressing")
 		var all := _origins(holder)
 		var excl := PropDressing.siege_exclusions(4)
-		check(_inside(all, excl) == 0, "guild war q%d: no grass, flower, torch, rack or banner on a camp, road, the plaza, a gate, the switch or the altar (%d of %d)" % [q, _inside(all, excl), all.size()])
+		check(_inside(all, excl) == 0, "guild war q%d: no grass, flower, torch, rack or banner on a camp, road, the plaza, a gate, the throne room's floor or the altar (%d of %d)" % [q, _inside(all, excl), all.size()])
 		check(all.size() > 10, "guild war q%d: props are placed (%d)" % [q, all.size()])
-		var near_switch := 0
+		var near_altar := 0
 		for p in all:
-			if SiegeArena.SWITCHES.any(func(sw: Vector3): return p.distance_to(Vector2(sw.x, sw.z)) < SiegeArena.SWITCH_RADIUS + 1.0) or p.distance_to(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)) < SiegeArena.ALTAR_RADIUS + 1.0:
-				near_switch += 1
-		check(near_switch == 0, "guild war q%d: both switch circles and the altar stay bare" % q)
+			if p.distance_to(Vector2(SiegeArena.ALTAR.x, SiegeArena.ALTAR.z)) < SiegeArena.ALTAR_RADIUS + 1.0:
+				near_altar += 1
+		check(near_altar == 0, "guild war q%d: the altar stays bare" % q)
 		var kinds := {}
 		for node in holder.get_children():
 			if node.is_in_group(PropDressing.GROUP):

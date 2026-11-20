@@ -5,15 +5,9 @@ extends Control
 ## the altar right now and the hero's respawn countdown (the fighters' HP lives over their
 ## heads, no roster rows: they cluttered the top of the screen). The war's news (kills, plans, gates, captures)
 ## goes to the chat box (Game.channel_chat on CHAT_CHANNEL), not over the field.
-## Once the gates are down a row under the board shows the castle's two switches
-## (สวิตช์ซ้าย: <guild> / สวิตช์ขวา: <guild>, each in its holder's colour, flickering while
-## another guild fights for it) and whom the altar's barrier is open for (บาเรียเปิดให้
-## <guild>: only a guild holding both), the barrier's warning while our leader waits on the
-## altar behind it (which switch to take or clear), and a button that sends the hero's
-## party to take a switch.
 ## The hero leading our guild gets a command button under the board (บัญชาการ, the order
 ## standing on it: "สั่ง: ตีประตูซ้าย"): a tap opens the orders panel (ตีประตู ซ้าย / ขวา,
-## แบ่งยึดสวิตช์ซ้าย-ขวา, ยึดสวิตช์ซ้าย, ยึดสวิตช์ขวา, บุกแท่น/คุ้มกัน, ตั้งรับ, รวมพลที่ตัวฉัน, ถอยกลับค่าย, ตามแผน AI), each a
+## บุกแท่น/คุ้มกัน, ตั้งรับ, รวมพลที่ตัวฉัน, ถอยกลับค่าย, ตามแผน AI), each a
 ## thumb-sized button; the order drives the whole guild's AI (GuildWarMatch.order_guild).
 ## Hidden for a party member in its leader's war (mirror) and when a member leads.
 
@@ -32,28 +26,21 @@ var _clock: Label
 var _owner: Label
 var _taking: Label
 var _respawn: Label
-## The switch's row: [switch chip, barrier chip] (PanelContainer with a Label), the
-## barrier's warning and the party's button.
-var _switch_row: HBoxContainer
-var _chips: Array[PanelContainer] = []
-var _barrier: Label
-var _party_button: Button
-var _pulse := 0.0
 ## The leader's command row (under the board), its button and the orders panel.
 var _command_row: HBoxContainer
 var _command_button: Button
 var _orders: PanelContainer
 var _order_grid: GridContainer
 ## Short names on the command button (the war chat gets the full order).
-const ORDER_SHORT := {"gate": "ตีประตู", "switch": "ยึดสวิตช์", "switches": "แบ่งยึดซ้าย-ขวา", "escort": "บุกแท่น", "defend": "ตั้งรับ", "rally": "รวมพล", "fallback": "ถอยกลับค่าย"}
+const ORDER_SHORT := {"gate": "ตีประตู", "escort": "บุกแท่น", "defend": "ตั้งรับ", "rally": "รวมพล", "fallback": "ถอยกลับค่าย"}
 const COMMAND_LABEL := "บัญชาการ"
 ## The orders panel's buttons: thumb-sized on a phone.
 const ORDER_BUTTON := Vector2(178, 58)
-## The top column (board, capture line, switch row, warning).
+## The top column (board, command row, capture line).
 var _top: VBoxContainer
 ## The bottom (logical px) of the guild-war board's column on screen, 0 without one: the
-## toasts start under it and the switch's floating label hides above it (one lane each,
-## nothing drawn over the board). The player's HUD and the spectator's board set it.
+## toasts start under it (nothing drawn over the board). The player's HUD and the
+## spectator's board set it.
 static var top_band := 0.0
 var _refresh := 0.0
 ## The front gate's last quarter told in the chat (gate index * 4 + quarters left).
@@ -107,34 +94,6 @@ func _ready() -> void:
 	_taking.name = "AltarCapture"
 	_taking.add_theme_color_override("font_color", TAKING_COLOR)
 	top.add_child(_taking)
-	_switch_row = UIUtil.hbox(8)
-	_switch_row.name = "SwitchRow"
-	_switch_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_switch_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	top.add_child(_switch_row)
-	_party_button = UIUtil.button("ไปยึดสวิตช์", &"", Vector2(0, 44))
-	_party_button.name = "PartySwitch"
-	_party_button.add_theme_font_size_override("font_size", 15)
-	_party_button.pressed.connect(press_party_switch)
-	_switch_row.add_child(_party_button)
-	for k in 3:
-		var chip := UIUtil.chip(SiegeArena.SWITCH_NAMES[k] if k < 2 else "บาเรีย", Color("c9c9c9"), 16)
-		chip.name = ["SwitchChip", "SwitchChipRight", "BarrierChip"][k]
-		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_outlined(chip.get_child(0) as Label)
-		var sb := chip.get_theme_stylebox("panel") as StyleBoxFlat
-		if sb != null:
-			sb.set_border_width_all(3)
-			sb.content_margin_top = 4
-			sb.content_margin_bottom = 4
-		_chips.append(chip)
-		_switch_row.add_child(chip)
-	_switch_row.visible = false
-	_barrier = _outlined(UIUtil.label("", &"HeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
-	_barrier.name = "BarrierWarning"
-	_barrier.add_theme_color_override("font_color", Color("9fe0ff"))
-	_barrier.visible = false
-	top.add_child(_barrier)
 	_respawn = UIUtil.label("", &"TitleLabel", HORIZONTAL_ALIGNMENT_CENTER)
 	_respawn.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_respawn.offset_top = 40
@@ -182,9 +141,6 @@ func order_choices() -> Array:
 			out.append(["gate", {"lane": g.lane}, "ตีประตู" + SiegeArena.LANE_NAMES[g.lane], not ours])
 	else:
 		out.append(["gate", {}, "ตีประตู", not ours and not front.is_empty()])
-	out.append(["switches", {}, "แบ่งยึดสวิตช์\nซ้าย-ขวา", front.is_empty()])
-	out.append(["switch", {"side": 0}, "ยึดสวิตช์ซ้าย", front.is_empty()])
-	out.append(["switch", {"side": 1}, "ยึดสวิตช์ขวา", front.is_empty()])
 	out.append(["escort", {}, "บุกแท่น/คุ้มกัน", true])
 	out.append(["defend", {}, "ตั้งรับป้องกัน", true])
 	out.append(["rally", {}, "รวมพลที่ตัวฉัน", true])
@@ -210,7 +166,7 @@ func open_orders() -> void:
 	for choice in order_choices():
 		var data: Dictionary = choice[1]
 		var b := UIUtil.button(String(choice[2]), &"", ORDER_BUTTON)
-		b.name = "Order_%s%s" % [choice[0], ("_%d" % int(data.lane)) if data.has("lane") else (("_%d" % int(data.side)) if data.has("side") else "")]
+		b.name = "Order_%s%s" % [choice[0], ("_%d" % int(data.lane)) if data.has("lane") else ""]
 		b.add_theme_font_size_override("font_size", 16 if String(choice[2]).contains("\n") else 18)
 		b.disabled = not bool(choice[3])
 		b.pressed.connect(press_order.bind(String(choice[0]), data))
@@ -260,14 +216,7 @@ func command_text() -> String:
 
 func _update_command(m: GuildWarMatch) -> void:
 	var shown := m.hero_commands()
-	# With the gates down it sits in the switch's row (no extra line under the board: the
-	# band the switch's floating label keeps out of stays as it was).
-	var host: Control = _switch_row if _switch_row.visible else _command_row
-	if _command_button.get_parent() != host:
-		_command_button.get_parent().remove_child(_command_button)
-		host.add_child(_command_button)
-		_command_button.custom_minimum_size = Vector2(120 if host == _switch_row else 170, 46)
-	_command_row.visible = shown and host == _command_row
+	_command_row.visible = shown
 	_command_button.visible = shown
 	if not shown:
 		_orders.visible = false
@@ -278,8 +227,6 @@ func _update_command(m: GuildWarMatch) -> void:
 		text = "สั่ง: " + String(ORDER_SHORT.get(c.order, c.order))
 		if c.order == GuildWarCommander.ORDER_GATE and c.order_data.has("lane"):
 			text += SiegeArena.LANE_NAMES[clampi(int(c.order_data.lane), 0, 1)]
-		elif c.order == GuildWarCommander.ORDER_SWITCH:
-			text += SiegeArena.LANE_NAMES[c.order_switch_side()]
 	if _command_button.text != text:
 		_command_button.text = text
 	_command_button.modulate = Color("ffd27a") if c.has_order() else Color.WHITE
@@ -302,7 +249,6 @@ func _process(delta: float) -> void:
 	if _refresh <= 0.0:
 		_refresh = 0.2
 		_update(delta, false)
-	_pulse_chip(delta)
 	# Hidden (the spectator's board up instead): that board keeps the band.
 	if is_visible_in_tree():
 		top_band = band_bottom()
@@ -319,94 +265,21 @@ func band_bottom() -> float:
 	return _top.get_global_rect().end.y
 
 
-## The rects on screen of the board, the switch row, the capture line and the warning (tests).
+## The rects on screen of the board, the command row and the capture line (tests).
 func layout_rects() -> Dictionary:
 	var out := {}
-	for pair in [["board", _top.get_child(0)], ["command", _command_row], ["taking", _taking], ["switch_row", _switch_row], ["warning", _barrier]]:
+	for pair in [["board", _top.get_child(0)], ["command", _command_row], ["taking", _taking]]:
 		var c := pair[1] as Control
 		if c.is_visible_in_tree():
 			out[pair[0]] = c.get_global_rect()
 	return out
 
 
-## Switch chip `k`'s text colour as drawn (tests): the label stays opaque while fought over.
-func switch_label_alpha(k := 0) -> float:
-	var label := _chip_label(k)
-	return (label.get_theme_color("font_color") * _chips[k].modulate * label.modulate * modulate).a
-
 
 ## The top bar's texts now (tests): [owner line, capture line].
 func bar_texts() -> PackedStringArray:
 	return PackedStringArray([_owner.text, _taking.text])
 
-
-## The switches' row now (tests): [left switch chip, right switch chip, barrier chip,
-## barrier warning].
-func switch_texts() -> PackedStringArray:
-	return PackedStringArray([_chip_label(0).text, _chip_label(1).text, _chip_label(2).text, _barrier.text if _barrier.visible else ""])
-
-
-func _chip_label(k: int) -> Label:
-	return _chips[k].get_child(0) as Label
-
-
-## Switch chip `k`'s colour now (tests; 2 the barrier's).
-func switch_chip_color(k := 0) -> Color:
-	var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
-	return sb.border_color if sb != null else Color.BLACK
-
-
-## The party button: the hero's party goes to take the switch (pressed again: back to the plan).
-func press_party_switch() -> void:
-	if match_node == null or not is_instance_valid(match_node):
-		return
-	var said := match_node.order_party_switch()
-	if said != "":
-		Game.say(said, &"info")
-	_update(0.0, false)
-
-
-func _update_switches(m: GuildWarMatch) -> void:
-	var shown := m.front_gate() == null and m.state in ["fight", "ending"]
-	_switch_row.visible = shown
-	for k in _chips.size():
-		var color := m.switch_color(k if k < 2 else -1)
-		var label := _chip_label(k)
-		label.text = m.switch_text(k) if k < 2 else m.barrier_open_text()
-		# Solid dark backing, light text with an outline: readable on snow and on stone.
-		label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.6))
-		var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
-		if sb != null:
-			sb.bg_color = Color(color.darkened(0.72), 0.92)
-			sb.border_color = color
-	_chips[0].modulate = Color.WHITE
-	_chips[1].modulate = Color.WHITE
-	_party_button.visible = shown and not m.mirror and not m.hero_party_members().is_empty()
-	_party_button.modulate = Color("9dff9a") if m.party_switch else Color.WHITE
-	var warn := m.barrier_line()
-	_barrier.text = warn
-	_barrier.visible = warn != ""
-
-
-## Fought over: only that switch's chip's border and backing swing between the holder's
-## and the challenger's colours (the text stays fully opaque).
-func _pulse_chip(delta: float) -> void:
-	var m := match_node
-	if m == null or not is_instance_valid(m) or _chips.is_empty() or not _switch_row.visible:
-		return
-	if not m.switch_contested:
-		_pulse = 0.0
-		return
-	_pulse += delta
-	var w := 0.5 + 0.5 * sin(_pulse * 7.0)
-	for k in 2:
-		var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
-		var challenger: int = m.switch_challengers[k]
-		if sb == null or challenger < 0:
-			continue
-		var mix := m.switch_color(k).lerp(m.team_color(challenger), w)
-		sb.border_color = mix
-		sb.bg_color = Color(mix.darkened(0.72), 0.92)
 
 
 func _update(_delta: float, force: bool) -> void:
@@ -421,7 +294,6 @@ func _update(_delta: float, force: bool) -> void:
 	_taking.text = m.capture_line()
 	_taking.add_theme_color_override("font_color", TAKING_COLOR if not m.capture.is_empty() else Color("bfe8ff"))
 	_taking.visible = _taking.text != ""
-	_update_switches(m)
 	_update_command(m)
 	_tell_gate(m, force)
 	if m.hero_respawn_left > 0.0:

@@ -751,19 +751,18 @@ func _gw_tick(delta: float) -> void:
 	var cp: Array = []
 	# A member's view of the war is ours against the rest (any other guild is "them").
 	if not war.capture.is_empty():
-		cp = [mini(int(war.capture.team), 1), _q(float(war.capture.progress)), bool(war.capture.get("paused", false)), bool(war.capture.get("barrier", false))]
+		cp = [mini(int(war.capture.team), 1), _q(float(war.capture.progress)), bool(war.capture.get("paused", false))]
 	var them := 0
 	for t in range(1, war.team_count()):
 		them = maxi(them, war.score[t])
-	# The castle's two switches too (GuildWarMatch.switch_code: [left, right], each -1
-	# nobody, 0 ours, 1 another; +2 fought over; an older member reads the left one).
-	var status := {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_code(), "ot": war.overtime}
+	# (The castle's switches are gone: no "sw" / "swa" any more; an older member reads
+	# their absence as nobody holding them.)
+	var status := {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "ot": war.overtime}
 	# A war of more guilds: every guild's falls and the holder as they are (a league mirror
 	# keeps the four guilds; an older member reads s / o).
 	if war.team_count() > 2:
 		status["sa"] = Array(war.score)
 		status["oa"] = war.castle_owner
-		status["swa"] = [[war.switch_owners[0], war.switch_challengers[0]], [war.switch_owners[1], war.switch_challengers[1]]]
 	# Our guild's plan and its doctrine's phase (the members' HUD shows them; only this
 	# game runs the AI).
 	if war.plans.size() > 0:

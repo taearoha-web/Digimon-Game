@@ -11,7 +11,7 @@ extends RefCounted
 ## Three tiers of gates stand one behind the other in the castle's long hall (GATE_Z): the
 ## first two tiers have TWO gates each, a left and a right one (LANE_X), and either of them
 ## broken lets everyone through to the next tier; the third tier is one gate, the throne
-## room's. In the throne room stand the two switches (left and right) and, against its
+## room's. In the throne room, against its
 ## back wall, the altar a guild must hold to take the castle. The ground is flat:
 ## the moat and the walls are colliders, and fighters find their way along the sections
 ## (route): the field, the bridge, the two yards and the throne room, joined at the bridge
@@ -36,8 +36,8 @@ const CAMP_RADIUS := 16.0
 ## The castle holder's camp inside the castle, in the second yard before the throne room's
 ## gate: a guild that holds the castle lines up and comes back there (facing the way in,
 ## rows of KEEP_ROW), and its own gates let it through (GuildWarMatch._gate_pass); from
-## there it is some forty-five metres to the altar at the back of the throne room (past both
-## switches), so its fallen are not back on it at once.
+## there it is some forty-five metres to the altar at the back of the throne room (across
+## the hall), so its fallen are not back on it at once.
 ## Safe from being chased only this close.
 const KEEP_CAMP := Vector3(0, 0, -82.0)
 const KEEP_ROW := 10
@@ -69,25 +69,10 @@ const PARAPET_H := 2.4
 const WALL_H := STONE_H + PARAPET_H
 ## The altar against the throne room's back wall (in the middle, ALTAR_BACK m off the
 ## wall: room to stand all round it) and how close one must stand to take it. From the
-## holder's camp (KEEP_CAMP) it is some forty-five metres, past both switches.
+## holder's camp (KEEP_CAMP) it is some forty-five metres.
 const ALTAR_BACK := 9.0
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH + ALTAR_BACK)
 const ALTAR_RADIUS := 2.8
-## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา), mirrored left (-x) and right (+x)
-## of the carpet halfway down the throne room (inside the pillars), as far from the door
-## and from the altar as each other, so no camp's way in is nearer to one. Each is held on
-## its own: the first guild to stand in its circle while it is free takes it and keeps it
-## while one living member of it is inside, however many others come in (the next guild
-## must clear it out of the circle). The altar's barrier falls only for a guild holding
-## BOTH (GuildWarMatch.barrier_up): with the switches split between guilds it stays up for
-## everyone and a count in progress waits, so an attacker must take both sides and a
-## defender need only win one back.
-const SWITCH_X := 17.0
-const SWITCH_Z := -18.0 - GATE_GAP * 2.0 - 16.0
-const SWITCHES: Array[Vector3] = [Vector3(-SWITCH_X, 0, SWITCH_Z), Vector3(SWITCH_X, 0, SWITCH_Z)]
-const SWITCH_RADIUS := 4.2
-const SWITCH_NAME := "สวิตช์"
-const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
 const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
 ## Where the sections join, each a list of openings: the bridge foot (one per lane), the
 ## first two tiers' two gates, the third tier's one.
@@ -239,28 +224,6 @@ static func hall_rect() -> Rect2:
 
 static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
-
-
-## Whether `p` stands inside a switch's circle (`side` 0 the left, 1 the right, -1 either).
-static func on_switch(p: Vector3, side := -1) -> bool:
-	if side >= 0:
-		var c: Vector3 = SWITCHES[clampi(side, 0, SWITCHES.size() - 1)]
-		return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
-	return switch_at(p) >= 0
-
-
-## Which switch's circle `p` stands in (0 left, 1 right), -1 none.
-static func switch_at(p: Vector3) -> int:
-	for k in SWITCHES.size():
-		var c: Vector3 = SWITCHES[k]
-		if Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS:
-			return k
-	return -1
-
-
-## The nearer switch to `p` (0 left, 1 right; a tie on the carpet goes left).
-static func nearer_switch(p: Vector3) -> int:
-	return 0 if p.x <= 0.0 else 1
 
 
 ## Builds the field, a camp per guild colour in `colors` (CAMPS order: team 0 first), the
