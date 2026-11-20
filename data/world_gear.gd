@@ -15,12 +15,29 @@ extends RefCounted
 ##   wings in the star fields (WING_DROP, Zone.STAR_WING_DROP). Only its own class's
 ##   pieces and wings are kept (ItemData.OWN_CLASS_DROP). A chunk's count is its expected
 ##   count with the fraction rolled on the player's own seeded rng.
+## * เกาะลอยฟ้าเทพมังกร (SkyIsleData, from ★300): WorldPlayers.session_zone sends a ★300
+##   player there in ISLE_SHARE of its sessions, so that share of its ★300 kills are isle
+##   kills (isle_share, KILLS_ISLE a probe minute). An isle kill drops what the two endgame
+##   maps drop (the same jewels, core, scales and divine pieces: EndgameFields) but no
+##   Lv.100 wings, and SkyIsleLoot's own: the Dragon God weapon (WEAPON_DROP a kill) and
+##   the 300★ Dragon God wings (WING_DROP), of its own class at OWN_CLASS_DROP, the owner's
+##   rates as they are (no ZEAL: the owner wants every piece really dropped by its own
+##   kills), on a rng of their own (so the forge's rolls stay as they were). It puts one on
+##   the moment it drops ("drop", the owner: ใส่เลย) and the forge raises it from +0 like
+##   the rest (it is then the lowest worn piece, so the +1 loop takes it first). The weapon
+##   stands in for the 250★ set's weapon (SetGearData.worn_count: the set count keeps it,
+##   no set weapon is forged over it, no divine weapon or find replaces it); the wings
+##   replace Lv.100 / 100★ wings (tier WTIER_DRAGON), never the Legendary Guild Wings
+##   (LegendWings, worn over any at the read). A second one of a kind is a "spare" (an
+##   event that changes nothing worn; IsleLuck announces them too). The boss's, the chests' and the rare dragon's extra chances are left out:
+##   a world player hunts the isle's camps.
 ## * Finds: a piece per slot every level band (WorldPlayers' finds: some bands miss), the
 ##   star tiers' pieces after ★50/100/150/200, the divine set's four pieces as its divine
 ##   hours go by (WorldPlayers.DIVINE_HOURS); worn when better than what it has (its +
 ##   counts). A find comes at +0.
 ## * The forge, with the hero's own rules, every chunk:
-##   1. the 250★ set (from ★250, SetGearData.SLOTS order): weapon / armour / helm / boots
+##   1. the 250★ set (from ★250, SetGearData.SLOTS order, the weapon skipped while the
+##      Dragon God weapon stands in for it): weapon / armour / helm / boots
 ##      each take the divine piece of that slot at +10 or more, ring and amulet their Lotus
 ##      Scales, and every try a set core and the jewels (SetGearData.recipe), at its
 ##      chance; a success uses the divine piece / scales up, a failed try loses only the
@@ -86,12 +103,25 @@ const DIVINE_DROP := DivineGearData.DROP_NORMAL * (1.0 - ELITE_SHARE) + DivineGe
 const SCALE_DROP := EndgameFields.SCALE_NORMAL * (1.0 - ELITE_SHARE) + EndgameFields.SCALE_ELITE * ELITE_SHARE
 ## Lv.100 wings a star-field kill drops (Zone.STAR_WING_DROP).
 const WING_DROP := EndgameFields.WING_NORMAL
+## เกาะลอยฟ้าเทพมังกร (see the class notes): from ISLE_STARS. Kills a probe minute there:
+## the balance probe sized the isle's normal monster for a ★300 hero in the 250★ set at
+## +15 to the abyss's band (about 175 hits a kill, SkyIsleData.TUNING), so the endgame
+## maps' pace.
+const ISLE_STARS := SkyIsleData.ENTRY_STAR
+const KILLS_ISLE := 1.5
+## The Dragon God's pieces of its own class an isle kill drops (SkyIsleLoot's owner's
+## rates, its own class at ItemData.OWN_CLASS_DROP; never ZEAL).
+const DRAGON_WEAPON_DROP := SkyIsleLoot.WEAPON_DROP * ItemData.OWN_CLASS_DROP
+const DRAGON_WING_DROP := SkyIsleLoot.WING_DROP * ItemData.OWN_CLASS_DROP
+## The find key of the Dragon God weapon / wings (DragonGearData) and the wings' tier.
+const DRAGON := "dragon"
+const WTIER_DRAGON := 4
 ## The divine piece's + a set piece asks for (SetGearData.recipe's divine_plus).
 const SET_DIVINE_PLUS := SetGearData.DIVINE_PLUS
 ## Events between two snapshots of the state.
 const SNAP := 24
 const ENHANCE_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots", "wings"]
-const KINDS: Array[String] = ["enhance_ok", "enhance_fail", "set_piece", "set_fail", "divine_piece", "wings_up", "wings_fail", "mount_up", "mount_fail", "drop", "gems"]
+const KINDS: Array[String] = ["enhance_ok", "enhance_fail", "set_piece", "set_fail", "divine_piece", "wings_up", "wings_fail", "mount_up", "mount_fail", "drop", "spare", "gems"]
 ## The slots that hold gems, the best gems first.
 const GEM_SLOTS: Array[String] = ["weapon", "ring", "amulet", "helm", "boots", "armor"]
 ## The share of the gems its kills drop that a world player keeps and puts to use (the
@@ -131,9 +161,11 @@ static func clear() -> void:
 # --- The API -----------------------------------------------------------------------
 
 ## What player i wears at real time t (see the class notes): weapon / armor / helm / boots
-## / ring / amulet {name, grade (item level), plus, rarity, kind, key}, wings {tier (0 none,
-## 1 Lv.100 wings, 2 the 100★ wings), name, plus}, set_pieces (the 250★ class set, 0-6),
-## set_name, divine_pieces (0-4: the slots it has a divine piece for; one forged into a
+## / ring / amulet {name, grade (item level), plus, rarity, kind (level / star / divine /
+## set / dragon), key}, wings {tier (0 none, 1 Lv.100 wings, 2 the 100★ wings, 3 the
+## Legendary Guild Wings, WTIER_DRAGON the 300★ Dragon God wings), name, plus}, set_pieces
+## (the 250★ class set's pieces worn, 0-6, the Dragon God weapon standing in for its
+## weapon), set_name, divine_pieces (0-4: the slots it has a divine piece for; one forged into a
 ## set piece is gone), divine_plus (the lowest + among the divine pieces
 ## it wears, 0 with none worn), mount {name, level, id} or {}.
 static func gear(i: int, t: float) -> Dictionary:
@@ -141,7 +173,9 @@ static func gear(i: int, t: float) -> Dictionary:
 
 
 ## The events of player i between real times t0 and t1 (t0 < at <= t1), oldest first:
-## {at, kind, slot, from, to, item}. Kinds: KINDS.
+## {at, kind, slot, from, to, item, key (the piece's find key when it has one: DRAGON
+## for the Dragon God weapon / wings)}. Kinds: KINDS (a Dragon God piece dropped on the
+## isle and put on is a "drop").
 static func events(i: int, t0: float, t1: float) -> Array:
 	var out: Array = []
 	if t1 <= t0:
@@ -197,6 +231,17 @@ static func warm(t: float, budget: int) -> bool:
 			return false
 	_warm_next = (_warm_next + mini(n, WARM_PLAYERS)) % n
 	return true
+
+
+## Whether player i's forging is already worked out up to work w (a read is a look-up).
+static func is_warm(i: int, w: float) -> bool:
+	var sim: Sim = _sims.get(i)
+	return sim != null and _edge(sim.chunks) > w
+
+
+## A copy of the item behind find key `key` of player i's `slot` (_item).
+static func piece(i: int, slot: String, key: String) -> Dictionary:
+	return _item(i, slot, key).duplicate(true)
 
 
 static var _warm_next := 0
@@ -396,6 +441,8 @@ static func _public(i: int, ev: Dictionary) -> Dictionary:
 	var out := {"kind": ev.kind, "slot": ev.slot, "from": ev.from, "to": ev.to, "item": item}
 	if ev.has("used"):
 		out["used"] = ev.used
+	if ev.has("key"):
+		out["key"] = ev.key
 	if ev.has("gems"):
 		out["gems"] = (ev.gems as Array).duplicate()
 	return out
@@ -404,6 +451,8 @@ static func _public(i: int, ev: Dictionary) -> Dictionary:
 static func _kind_of(key: String) -> String:
 	if key == "set":
 		return "set"
+	if key == DRAGON:
+		return "dragon"
 	if key == "divine":
 		return "divine"
 	if key.begins_with("s"):
@@ -415,7 +464,7 @@ static func _kind_of(key: String) -> String:
 
 ## The item behind a find key of player i's slot (made once, kept): "b<band>" a level
 ## band's find, "s<tier>" a star tier's, "divine", "set", "w<n>" its n-th Lv.100 wings,
-## "sw" the 100★ wings.
+## "sw" the 100★ wings, DRAGON the Dragon God weapon / wings (DragonGearData).
 static func _item(i: int, slot: String, key: String) -> Dictionary:
 	var ck := "%d|%s|%s" % [i, slot, key]
 	var hit: Variant = _items.get(ck)
@@ -431,6 +480,8 @@ static func _item(i: int, slot: String, key: String) -> Dictionary:
 		item = SetGearData.item(String(job), slot)
 	elif key == "divine":
 		item = DivineGearData.item(job, slot, rng)
+	elif key == DRAGON:
+		item = DragonGearData.weapon(job, rng) if slot == "weapon" else DragonGearData.wings(job, rng)
 	elif key == "sw":
 		item = StarWingData.item(String(job), rng)
 	elif key.begins_with("w"):
@@ -488,6 +539,14 @@ class Sim:
 	var drills := 0
 	## The work from which the maze race drives it (MazeWar.drive_from; INF never).
 	var maze_from := INF
+	## เกาะลอยฟ้าเทพมังกร: the Dragon God's drops on their own rolls, its isle kills so far
+	## and the pieces of its class they dropped (worn or spare).
+	var drng := RandomNumberGenerator.new()
+	var isle_kills := 0.0
+	## Isle kills of the stretch it reached ★300 in, rolled with the next stretch.
+	var isle_carry := 0.0
+	var dragon_weapons := 0
+	var dragon_wings := 0
 
 
 ## The fixed chunk grid: edges[c] is where chunk c starts (narrow while levelling, wider
@@ -521,6 +580,7 @@ static func _new_sim(i: int) -> Sim:
 	var name := String(e.name)
 	sim.rng.seed = hash("wgear_sim|%s" % name)
 	sim.grng.seed = hash("wgear_gems|%s" % name)
+	sim.drng.seed = hash("wgear_dragon|%s" % name)
 	sim.eff = WorldPlayers.efficiency(i)
 	sim.job = String(e["class"])
 	sim.live = {"worn": {}, "prev": {}, "dv": {}, "wtier": 0, "set": 0, "divine": 0, "mounts": {}, "mount": "", "gems": {}, "drill": {}}
@@ -598,9 +658,23 @@ static func _step_of(w: float) -> Vector2i:
 static func kills_per_minute(level: int, stars: int) -> float:
 	if level < Game.MAX_LEVEL:
 		return _lerp(KILLS_LEVEL, level)
+	if stars >= ISLE_STARS:
+		return KILLS_ISLE * isle_share() + KILLS_ENDGAME * (1.0 - isle_share())
 	if stars >= ENDGAME_STARS:
 		return KILLS_ENDGAME
 	return _lerp(KILLS_STAR, stars)
+
+
+## The share of a ★300 player's kills made on เกาะลอยฟ้าเทพมังกร: the share of its
+## sessions WorldPlayers.session_zone sends there.
+static func isle_share() -> float:
+	return float(WorldPlayers.ISLE_SHARE) / 100.0
+
+
+## The work (probe minutes) at which a player reaches ★300 and the isle opens to it.
+static func isle_work() -> float:
+	var steps := WorldPlayers._steps()
+	return steps[mini(Game.MAX_LEVEL - 1 + ISLE_STARS, steps.size() - 1)]
 
 
 static func _lerp(table: Array, x: int) -> float:
@@ -642,7 +716,11 @@ static func _apply(st: Dictionary, ev: Dictionary) -> void:
 			# A drilled socket stays with the old piece.
 			(st.drill as Dictionary).erase(slot)
 			if slot == "wings":
-				st.wtier = 1
+				st.wtier = int(ev.get("wtier", 1))
+			# The Dragon God weapon stands in for the 250★ set's weapon: the set count
+			# it wears comes with the event.
+			if ev.has("set"):
+				st.set = int(ev.set)
 		"enhance_ok":
 			(worn[slot] as Array)[1] = int(ev.to)
 		"divine_piece":
@@ -705,7 +783,7 @@ static func _worn_worth(sim: Sim, slot: String) -> float:
 	if worn == null:
 		return -1.0
 	var key := String(worn[0])
-	if key == "set" or key == "divine":
+	if key == "set" or key == "divine" or key == DRAGON:
 		return INF
 	var score := 0.0
 	if key.begins_with("s"):
@@ -734,7 +812,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 		var key := String(f[2])
 		at = maxf(at, float(f[0]))
 		if key == "divine":
-			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine"]
+			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine", DRAGON]
 			_emit(sim, at, "divine_piece", slot, int(live.divine), 0, "", {"wear": wear, "key": "divine"})
 			sim.events[-1].to = int(live.divine)
 		elif float(f[3]) > _worn_worth(sim, slot):
@@ -776,13 +854,23 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	if endgame and w0 >= sim.divine_done:
 		for n in _count(rng, kills * DIVINE_DROP * ItemData.OWN_CLASS_DROP * ZEAL):
 			var slot: String = DivineGearData.SLOTS[rng.randi() % DivineGearData.SLOTS.size()]
-			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine"]
+			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine", DRAGON]
 			at += 0.0001
 			_emit(sim, at, "divine_piece", slot, int(live.divine), 0, "", {"wear": wear, "key": "divine"})
 			sim.events[-1].to = int(live.divine)
 	# Lv.100 wings of its own class in the star fields; a better pair is worn.
+	# The isle drops none (its kills are left out). Its kills are the stretch's work from
+	# ★300 on; those of the stretch it reaches ★300 in are rolled with the next one, so
+	# every Dragon God piece falls at ★300 or later.
+	var isle_kills := maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share()
+	if w0 < isle_work():
+		sim.isle_carry += isle_kills
+	else:
+		isle_kills += sim.isle_carry
+		sim.isle_carry = 0.0
 	if top and stars >= 1 and int(live.wtier) < 2:
-		for n in _count(rng, kills * WING_DROP * ItemData.OWN_CLASS_DROP):
+		var field_kills := kills - maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share()
+		for n in _count(rng, maxf(0.0, field_kills) * WING_DROP * ItemData.OWN_CLASS_DROP):
 			var r := rng.randf()
 			var rarity := 4 if r < 0.03 else (3 if r < 0.12 else (2 if r < 0.30 else (1 if r < 0.60 else 0)))
 			var have_r := int(sim.wing_rarity.get(String(worn.wings[0]), -1)) if worn.has("wings") else -1
@@ -795,6 +883,8 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 					_emit(sim, at, "drop", "wings", int(worn.wings[1]), 0, "", {"key": key})
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
+	if isle_kills > 0.0 and w0 >= isle_work():
+		at = _isle_drops(sim, at, isle_kills)
 	_forge(sim, at, level, stars)
 	_gems(i, sim, at + 0.01, level, stars, kills, ZEAL * (MazeWar.GEM_DRIVE if driven else 1.0), MazeWar.GEM_DRIVE if driven else 1.0)
 	# What the kills brought is picked up and forged bit by bit over the stretch: its
@@ -804,6 +894,38 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 		var ws := at + (w1 - at) * float(k + 1) / float(count + 1)
 		sim.events[e0 + k].w = ws
 		sim.works[e0 + k] = ws
+
+
+## What `isle_kills` kills on เกาะลอยฟ้าเทพมังกร drop of the Dragon God's gear (see the
+## class notes), on the dragon rolls: a piece of its own class is put on at once ("drop",
+## +0) unless it wears one already ("spare": kept, changes nothing worn). Returns the
+## work of its last event.
+static func _isle_drops(sim: Sim, at: float, isle_kills: float) -> float:
+	var live: Dictionary = sim.live
+	var worn: Dictionary = live.worn
+	var rng := sim.drng
+	sim.isle_kills += isle_kills
+	for n in _count(rng, isle_kills * DRAGON_WEAPON_DROP):
+		sim.dragon_weapons += 1
+		var had: Array = worn.get("weapon", ["", 0])
+		at += 0.0001
+		if String(had[0]) == DRAGON:
+			_emit(sim, at, "spare", "weapon", 0, 0, "", {"key": DRAGON})
+			continue
+		# It stands in for the set's weapon: a set weapon it wore leaves the count as it was.
+		var set_n := int(live.set)
+		if String(had[0]) != "set" and SetGearData.THEMES.has(sim.job):
+			set_n = mini(set_n + 1, SetGearData.SLOTS.size())
+		_emit(sim, at, "drop", "weapon", int(had[1]), 0, "", {"key": DRAGON, "set": set_n})
+	for n in _count(rng, isle_kills * DRAGON_WING_DROP):
+		sim.dragon_wings += 1
+		var had: Array = worn.get("wings", ["", 0])
+		at += 0.0001
+		if String(had[0]) == DRAGON:
+			_emit(sim, at, "spare", "wings", 0, 0, "", {"key": DRAGON})
+			continue
+		_emit(sim, at, "drop", "wings", int(had[1]), 0, "", {"key": DRAGON, "wtier": WTIER_DRAGON})
+	return at
 
 
 ## The gems of one stretch of play: what its kills dropped (the kinds its class uses, on
@@ -844,7 +966,7 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	for slot in GEM_SLOTS:
 		if sim.drills <= 0:
 			break
-		if not worn.has(slot) or not (String(worn[slot][0]) in ["set", "divine", "s200"]):
+		if not worn.has(slot) or not (String(worn[slot][0]) in ["set", "divine", "s200", DRAGON]):
 			continue
 		var item := _item(i, slot, String(worn[slot][0]))
 		if not EnhanceFx.can_enhance(item):
@@ -955,8 +1077,16 @@ static func _pool_take(pool: Dictionary, kind: String) -> String:
 static func _set_slot(sim: Sim, level: int, stars: int) -> String:
 	if level < Game.MAX_LEVEL or stars < SetGearData.STARS or not SetGearData.THEMES.has(sim.job):
 		return ""
-	var n := int(sim.live.set)
-	return SetGearData.SLOTS[n] if n < SetGearData.SLOTS.size() else ""
+	if int(sim.live.set) >= SetGearData.SLOTS.size():
+		return ""
+	# The first slot without its piece: the Dragon God weapon is the set's weapon (no set
+	# weapon is forged over it).
+	var worn: Dictionary = sim.live.worn
+	for slot in SetGearData.SLOTS:
+		var key := String((worn.get(slot, [""]) as Array)[0])
+		if key != "set" and not (slot == "weapon" and key == DRAGON):
+			return slot
+	return ""
 
 
 static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:

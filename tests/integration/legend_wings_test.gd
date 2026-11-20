@@ -363,6 +363,19 @@ func _streak_hero_picks() -> void:
 	var equip := WorldGear.equip_at_work(i, WorldPlayers.work_at(i, t))
 	check(LegendWings.is_item(equip.get("wings")) and int(equip.wings.legend_week) == W0 + 1, "and it wears the item itself")
 	check(PlayerCard.gear_lines(i, t).contains(LegendWings.NAME), "the player card tells the truth")
+	# The pair stays over whatever its own forging gave it, the 300★ Dragon God wings its
+	# isle kills dropped included (WorldGear).
+	var over := true
+	var dragon_under := 0
+	for k in WorldPlayers.size():
+		if not LegendWings.ai_holds(k):
+			continue
+		var wk := WorldPlayers.work_at(k, t)
+		var under := String(((WorldGear.state_at_work(k, wk).worn as Dictionary).get("wings", [""]) as Array)[0])
+		dragon_under += 1 if under == WorldGear.DRAGON else 0
+		over = over and int(WorldGear.gear(k, t).wings.tier) == 3 and LegendWings.is_item(WorldGear.equip_at_work(k, wk).get("wings"))
+	print("legend_wings_test: %d holders wear the pair over the Dragon God wings of their own drops" % dragon_under)
+	check(over, "every holder wears its pair over its own wings (%d over Dragon God wings)" % dragon_under)
 	check(LegendWings.ai_holds(i) and WorldGear.signature_at_work(i, WorldPlayers.work_at(i, t)).contains("legend:%d" % (W0 + 1)), "the name plate tag and the dress signature know it")
 	check(LegendWings.streak_holders().size() == 2 and LegendWings.line_now().contains("ติดต่อกัน 2 สัปดาห์"), "the streak reads two weeks")
 	await _frames(1)
