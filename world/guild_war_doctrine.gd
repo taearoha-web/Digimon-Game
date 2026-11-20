@@ -811,8 +811,11 @@ const JOIN_RADIUS := 9.0
 const JOIN_MAX := 12.0
 const JOIN_BACK := 34.0
 const JOIN_CONTESTED := 2
-## The wave held at the join point (ids -> true), since when it waits, and the join point.
+## The wave held at the join point (ids -> true), since when it waits, and the join point;
+## the members sent in with a wave (ids -> until when they are left to go on).
 var _joining: Dictionary = {}
+var _released: Dictionary = {}
+const RELEASE_TIME := 30.0
 var _join_since := -1.0
 var join_at := Vector3.INF
 ## Waves sent in (the measurement, tests).
@@ -833,11 +836,17 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 	var main := 0
 	var stragglers: Array[GuildFighter] = []
 	for f in side:
+		var id := f.get_instance_id()
 		if f.is_dead() or f.capture_role:
+			_released.erase(id)
 			continue
 		var d := GuildWarCommander._flat(f.global_position, front)
+		if _released.has(id) and (d < MAIN_RADIUS or clock > float(_released[id])):
+			_released.erase(id)
 		if d < MAIN_RADIUS:
 			main += 1
+		elif _released.has(id):
+			continue
 		elif d > STRAGGLE and not f.is_retreating() and not c._in_camp(f) or d > STRAGGLE and c._in_camp(f) and f.hp_ratio() > 0.95:
 			stragglers.append(f)
 	var foes := 0
@@ -845,6 +854,8 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 		if not e.is_dead() and GuildWarCommander._flat(e.global_position, front) < MAIN_RADIUS:
 			foes += 1
 	if urgent or stragglers.is_empty() or (main >= WAVE_MAIN and main >= foes):
+		for f in stragglers:
+			_released[f.get_instance_id()] = clock + RELEASE_TIME
 		_joining.clear()
 		_join_since = -1.0
 		return
@@ -854,6 +865,8 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 		if not e.is_dead() and GuildWarCommander._flat(e.global_position, at) < JOIN_RADIUS + 5.0:
 			contested += 1
 	if contested >= JOIN_CONTESTED:
+		for f in stragglers:
+			_released[f.get_instance_id()] = clock + RELEASE_TIME
 		_joining.clear()
 		_join_since = -1.0
 		return
@@ -867,6 +880,9 @@ func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> vo
 	var go := there >= WAVE_N or (_join_since >= 0.0 and clock - _join_since >= join_max)
 	if go:
 		waves_sent += 1
+		for f in stragglers:
+			if GuildWarCommander._flat(f.global_position, at) < JOIN_RADIUS:
+				_released[f.get_instance_id()] = clock + RELEASE_TIME
 		_joining.clear()
 		_join_since = -1.0
 		order("wave", "ครบแล้ว! %d คนบุกพร้อมกัน ตามไปที่แนวหน้า" % there)
