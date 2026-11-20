@@ -291,19 +291,19 @@ func _owner_war() -> void:
 	var posted := 0
 	var lead := m.ai_leader(2)
 	for f in m.side(2):
-		if f == lead or f.switch_post:
+		if f == lead:
 			continue
 		for g in m.front_gates():
 			if f.goal_point.distance_to(SiegeArena.gate_front(g.tier, g.lane)) < 9.0 and f.objective == null:
 				at_lane[g.lane] += 1
 				posted += 1
 	check(posted >= m.side(2).size() - 3 and at_lane[0] > 0 and at_lane[1] > 0, "the holder's members stand before both gates (%s)" % [at_lane])
-	check(lead == null or lead.goal_point.z < SiegeArena.GATE_Z[0], "its leader stays inside behind them")
+	check(lead == null or m.front_gates().any(func(g): return lead.goal_point.distance_to(SiegeArena.gate_front(g.tier, g.lane)) < 1.0), "its leader comes out with them, just behind its defenders at a gate (%s)" % [lead.goal_point.round() if lead != null else Vector3.ZERO])
 	check(m.side(1).all(func(f): return f.objective == null or not f.objective.is_dead()), "the attackers go for the gates")
 	# A capture: the castle, its gates and the keep are the new holder's.
 	var taker := m.ai_leader(1)
 	m._gate_pass()
-	m.capture = {"team": 1, "who": taker, "progress": GuildWarMatch.CAPTURE_TIME, "paused": false, "barrier": false}
+	m.capture = {"team": 1, "who": taker, "progress": GuildWarMatch.CAPTURE_TIME, "paused": false}
 	m._complete_capture()
 	check(m.castle_owner == 1 and m.captures[1] == 1, "a capture changes the holder")
 	check(m.side(1).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(1)) < SiegeArena.CAMP_RADIUS) and m.side(2).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(2)) < SiegeArena.CAMP_RADIUS), "after a fall both the new holder and the old one come back at their camps outside")
@@ -635,7 +635,7 @@ func _ai_war(war_seed: int, seconds: float, full: bool) -> Dictionary:
 				var idle := up.filter(func(f): return f._victim == null or not is_instance_valid(f._victim)).size()
 				rows.append("t%d %s/%s up %d at (%.0f,%.0f) gate %d home %d idle %d" % [t, m.plans[t], m.commanders[t].tactic, up.size(), mid.x, mid.z, near, back, idle])
 			var hp := m.gates.map(func(g): return int(100.0 * float(g.hp) / float(maxi(1, g.max_hp))))
-			print("  [%.0f] %s | gates %s sw %s" % [clock, " | ".join(rows), hp, m.switch_owner])
+			print("  [%.0f] %s | gates %s owner %d" % [clock, " | ".join(rows), hp, m.castle_owner])
 			if OS.get_environment("SIM_DUMP") != "" and int(clock) % 100 < 20:
 				for f in m.side(int(OS.get_environment("SIM_DUMP"))):
 					print("    %s at %s goal %s obj %s hold %.0f vic %s ret %s dead %s vel %.1f" % [f.rival_name, f.global_position.round(), f.goal_point.round(), f.objective.global_position.round() if f.objective != null else "-", f.hold_range, (f._victim.global_position.round() if f._victim != null and is_instance_valid(f._victim) else "-"), f.is_retreating(), f.is_dead(), f.velocity.length()])

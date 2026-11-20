@@ -374,7 +374,7 @@ func _in_war() -> void:
 		if lead_of != null:
 			# The leader comes with its guild: LEADER_GAP behind its front (the rally point
 			# itself while none of it is out yet), never back at the camp.
-			var want := c._front_post(lead_of, c.rally)
+			var want: Vector3 = c._front_post(lead_of, c.rally)
 			if not want.is_finite():
 				want = c.rally
 			var post_d := GuildWarCommander._flat(lead_of.goal_point, c.rally)

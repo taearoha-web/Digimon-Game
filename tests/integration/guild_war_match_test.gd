@@ -411,14 +411,15 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	for c in m.commanders:
 		c.tactic = GuildWarCommander.PUSH
 	m._assign_objectives()
-	# A fighter of the front (the leader and its healers wait behind: guild_leader_rear_test).
+	# A fighter of the front (the leader comes right behind it with its healers:
+	# guild_leader_rear_test).
 	var f0: GuildFighter = m.enemies[3]
 	for f in m.enemies:
 		if not f.is_leader and not f.is_healer() and not f.sings():
 			f0 = f
 			break
 	var lead: GuildFighter = m.enemy_leader
-	check(lead == null or (lead.objective == null and lead.keep_back and lead.goal_point.distance_to(SiegeArena.gate_front(0, 0)) > GuildWarCommander.LEADER_TRAIL - 1.0 and lead.goal_point.distance_to(SiegeArena.gate_front(0, 1)) > GuildWarCommander.LEADER_TRAIL - 1.0), "%s: their leader stays behind, not at the gate" % label)
+	check(lead == null or (lead.keep_back and lead.objective in [gates[0], gates[1]] and lead.goal_point.is_finite()), "%s: their leader comes with the push, the gate its objective too (behind its front: %s)" % [label, lead.goal_point.round() if lead != null else Vector3.ZERO])
 	check(f0.objective in [gates[0], gates[1]] and f0._targets().has(f0.objective), "%s: the fighters go for a front gate" % label)
 	var f0_gate: CastleGate = f0.objective
 	check(f0_gate != null and f0.goal_point.distance_to(SiegeArena.gate_front(0, f0_gate.lane)) < 7.0, "%s: and gather in front of it" % label)
@@ -484,13 +485,9 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		check(far_one.model().anim_lod == 1 and not far_one.model()._far, "%s: a near one in full" % label)
 		far_one.global_position = keep
 		m._cull_far()
-	# The hero on the altar: behind the barrier (no switch held) it cannot take it.
+	# The hero on the altar (no switch to hold first): the interact button takes it;
+	# stepping off breaks the hold.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
-	await _frames(2)
-	check(not m.hero_can_capture() and m.hero_blocked_by_barrier() and m.barrier_line() != "", "%s: with the switch not held the barrier keeps the hero off the altar" % label)
-	# With the switch held (pinned here; castle_switch_test holds it for real) the
-	# interact button takes it; stepping off breaks the hold.
-	m.switch_pin = GuildFighter.TEAM_ALLY
 	await _frames(2)
 	check(m.hero_can_capture(), "%s: standing on the altar the hero may take it" % label)
 	zone._update_interact()
@@ -551,9 +548,6 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	foe.capture_role = true
 	await _frames(3)
-	check(m.capture.is_empty(), "%s: the rival leader behind the barrier (our switch) cannot start" % label)
-	m.switch_pin = GuildFighter.TEAM_ENEMY
-	await _frames(3)
 	check(not m.capture.is_empty() and int(m.capture.team) == GuildFighter.TEAM_ENEMY and foe.capturing, "%s: the rival leader on the altar starts taking the castle" % label)
 	check(m.allies.is_empty() or m.allies[0]._targets().has(foe), "%s: our guild can strike the one on the altar" % label)
 	var tries := 0
@@ -567,7 +561,6 @@ func _siege(m: GuildWarMatch, zone: Zone, hero: Hero, label: String, take: bool)
 		hero.global_position = GuildWarMatch.hero_camp()
 		return
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
-	m.switch_pin = GuildFighter.TEAM_ALLY
 	await _frames(2)
 	check(m.hero_can_capture(), "%s: back on the altar the hero may take it again (cap %s owner %d dead %s at %s)" % [label, m.capture, m.castle_owner, hero.is_dead(), hero.global_position])
 	# The top bar: nobody holds the castle yet; the war's news goes to the chat box.

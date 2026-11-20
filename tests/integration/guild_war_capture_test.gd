@@ -3,8 +3,8 @@ extends Node
 ## member, the hero held still in its camp) fight for the castle with every gate down,
 ## headless and seeded, and the castle is taken (and changes hands) within the war.
 ## Measured per war: the captures and when, the leader falls, and where an assault stalls
-## (seconds with the switch held, with the leader sent up, with the leader on the
-## altar, capture counts started and lost).
+## (seconds with the leader right behind its front ("both", the old switch slot), with the
+## leader sent up, with the leader on the altar, capture counts started and lost).
 ## SIM_SEEDS="4242,77,9001,31337,555" SIM_SECONDS=1200 SIM_OWNER=-1|1 for a full measurement
 ## (defaults: one seed, both setups, until the first capture or CAPTURE_BOUND s).
 ## godot --headless --path . res://tests/integration/guild_war_capture_test.tscn
@@ -151,7 +151,7 @@ func _war(war_seed: int, owner: int, seconds: float, full: bool) -> Dictionary:
 			tactics[team][c.tactic] = float(tactics[team].get(c.tactic, 0.0)) + dt
 			if m.castle_owner == team:
 				continue
-			if m.holds_switch(team):
+			if c.leader_post.is_finite() and not c.leader_go:
 				both[team] += dt
 			if c.leader_go:
 				sent[team] += dt
@@ -171,13 +171,13 @@ func _war(war_seed: int, owner: int, seconds: float, full: bool) -> Dictionary:
 			if not full:
 				break
 		if OS.get_environment("SIM_TRACE") != "" and int(clock / dt) % int(20.0 / dt) == 0:
-			print("t %.0f (war %.0f) plans %s tactics %s/%s switches %s capture %s go %s/%s" % [clock, m.commanders[0].clock, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, m.switch_owner,
+			print("t %.0f (war %.0f) plans %s tactics %s/%s owner %d capture %s go %s/%s" % [clock, m.commanders[0].clock, m.plans, m.commanders[0].tactic, m.commanders[1].tactic, m.castle_owner,
 				{} if m.capture.is_empty() else {"team": m.capture.team, "p": snappedf(float(m.capture.progress), 1.0)}, m.commanders[0].leader_go, m.commanders[1].leader_go])
 			for team in 2:
 				var c: GuildWarCommander = m.commanders[team]
 				var lead: GuildFighter = leads[team]
-				print("    team %d: since %.0f van %s foes %s escort %s lead %s altar %.0f m posted %s alive %d" % [team, c.since, c.last_read.get("vanguard"), c.last_read.get("altar_foes"), c.last_read.get("escort"),
-					"dead" if lead.is_dead() else str(lead.global_position.round()), SiegeArena.ALTAR.distance_to(lead.global_position), c.squad.size(),
+				print("    team %d: since %.0f van %s foes %s escort %s lead %s altar %.0f m post %s alive %d" % [team, c.since, c.last_read.get("vanguard"), c.last_read.get("altar_foes"), c.last_read.get("escort"),
+					"dead" if lead.is_dead() else str(lead.global_position.round()), SiegeArena.ALTAR.distance_to(lead.global_position), c.leader_post.round() if c.leader_post.is_finite() else "-",
 					(m.allies if team == 0 else m.enemies).filter(func(f): return not f.is_dead()).size()])
 	Engine.time_scale = 1.0
 	out.merge({"clock": clock, "lead_deaths": lead_deaths, "member_deaths": member_deaths, "both": both, "sent": sent,
@@ -188,7 +188,7 @@ func _war(war_seed: int, owner: int, seconds: float, full: bool) -> Dictionary:
 		for key in tactics[team]:
 			row[key] = int(tactics[team][key])
 		tac.append(row)
-	print("SIM seed %d owner %d (%.0f s): captures %s | leader falls %s members %s | switch held %s s, leader sent %s s, on altar %s s, counts started %s best %s | tactics %s | wall %.0f s" % [
+	print("SIM seed %d owner %d (%.0f s): captures %s | leader falls %s members %s | leader posted %s s, leader sent %s s, on altar %s s, counts started %s best %s | tactics %s | wall %.0f s" % [
 		war_seed, owner, clock, out.captures, lead_deaths, member_deaths, both.map(func(x): return int(x)), sent.map(func(x): return int(x)),
 		on_altar.map(func(x): return int(x)), starts, best.map(func(x): return int(x)), tac, (Time.get_ticks_msec() - t0) / 1000.0])
 	zone.queue_free()

@@ -150,14 +150,7 @@ func _leader() -> void:
 	check(war.state == "fight", "leader: the war began")
 	var status := link.events("gw")
 	check(not status.is_empty() and String(status[-1].data.st) == "fight", "leader: the war's status goes out")
-	check(not status.is_empty() and status[-1].data.has("sw") and status[-1].data.sw is Array and (status[-1].data.sw as Array).size() == 2, "leader: the status carries both of the castle's switches")
-	# The member's body standing in the left switch holds it for our guild.
-	buddy.global_position = SiegeArena.SWITCHES[0] + Vector3(0, 0.3, 0)
-	for f in war.all_fighters():
-		if SiegeArena.on_switch(f.global_position):
-			f.global_position = f.spawn_point
-	war.read_switches()
-	check(war.switch_owners[0] == GuildFighter.TEAM_ALLY and war.barrier_up(GuildFighter.TEAM_ALLY), "leader: a party member standing in the left switch holds it for our guild (one of two: the barrier stays)")
+	check(not status.is_empty() and not status[-1].data.has("sw") and not status[-1].data.has("swa"), "leader: the status carries no switch (the castle has none)")
 	foe.hp = 5
 	foe._guard_until = 0
 	var score_before := war.score[0]
@@ -237,11 +230,14 @@ func _member() -> void:
 	Online._dispatch({"t": "ent_event", "zone": "guildwar", "eid": 0, "ev": "gw", "from": "lead1", "data": {"st": "fight", "tl": GuildWarData.DURATION - 100.0, "s": [3, 2], "o": -1, "cp": [], "ot": false}})
 	await frames(3)
 	check(war.state == "fight" and war.score == [3, 2] and absf(war.time_left - (GuildWarData.DURATION - 100.0)) < 1.0, "member: clock, score and state follow the leader (%s %s %.1f)" % [war.state, str(war.score), war.time_left])
+	# An older leader's status (its switch codes and the count's barrier flag) reads fine.
 	Online._dispatch({"t": "ent_event", "zone": "guildwar", "eid": 0, "ev": "gw", "from": "lead1", "data": {"st": "fight", "tl": GuildWarData.DURATION - 101.0, "s": [3, 2], "o": -1, "cp": [0, 20.0, true, true], "sw": [0, 3], "ot": false, "pp": ["storm", "switch", "แบ่งยึดสวิตช์ซ้าย-ขวา"]}})
 	await frames(2)
-	check(war.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY] and war.switch_contested and war.barrier_up(GuildFighter.TEAM_ALLY), "member: both switches follow the leader's (left ours, right another guild's with ours fighting in it)")
-	check(war.guild_order_name() == "แบ่งยึดสวิตช์ซ้าย-ขวา" and war.sides_status().contains("สั่ง: แบ่งยึดสวิตช์ซ้าย-ขวา"), "member: the leader's order shows on the HUD's line (%s)" % war.sides_status())
-	check(war.capture_line().contains("บาเรีย"), "member: the bar tells the barrier holds our count (%s)" % war.capture_line())
+	check(int(war.capture.get("progress", 0)) == 20 and bool(war.capture.get("paused", false)) and not war.capture.has("barrier"), "member: an older leader's count is read, its switch codes and barrier flag ignored (%s)" % [war.capture])
+	check(war.capture_line().contains("หยุดนับ") and not war.capture_line().contains("บาเรีย"), "member: the bar tells the count waits (%s)" % war.capture_line())
+	Online._dispatch({"t": "ent_event", "zone": "guildwar", "eid": 0, "ev": "gw", "from": "lead1", "data": {"st": "fight", "tl": GuildWarData.DURATION - 101.0, "s": [3, 2], "o": -1, "cp": [0, 20.0, false], "ot": false, "pp": ["storm", "assault", "บุกแท่น/คุ้มกันหัวกิล"]}})
+	await frames(2)
+	check(war.guild_order_name() == "บุกแท่น/คุ้มกันหัวกิล" and war.sides_status().contains("สั่ง: บุกแท่น/คุ้มกันหัวกิล"), "member: the leader's order shows on the HUD's line (%s)" % war.sides_status())
 	# A kill by the hero; the fighter comes back with the leader's.
 	Online._dispatch({"t": "ent_event", "zone": "guildwar", "eid": 501, "ev": "dead", "from": "lead1", "data": {"killer": "me", "share": {}}})
 	check(mirror.is_dead() and war.hero_kills == 1, "member: the hero's kill counts")
