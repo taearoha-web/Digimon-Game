@@ -71,13 +71,13 @@ extends RefCounted
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
-## "altar", "deadline", "intercept"); empty in the game.
+## "altar", "deadline", "intercept", "leader_reach"); empty in the game.
 ## Trials: second-brain rules built, measured and kept OFF in the game (switched on by
 ## name, tests/tools/guild_war_sim SIM_TRIAL, tests): "waves" (_waves), "walkers"
-## (_walkers), "bodyrear" (the hurt to the guild's body, back sooner). They cut the lone
-## falls (one walking in alone: 67 a guild a war against 73) but kept members out of the
-## fight; with them on the second brain won 50-56% of its wars against the first (28),
-## without them 83% (12).
+## (_walkers), "bodyrear" (the hurt to the guild's body, back sooner). Waves cut the lone
+## falls (one walking in alone: 63 a guild a war against 71) but held members out of the
+## fight: with the three on the second brain won 12 of 22 wars against the first brain,
+## without them (the game's) 20 of 30 (tests/tools/guild_war_sim, both camps).
 static var trial: Dictionary = {}
 ## (A leash, nobody chased farther than 20 m from its post, was measured and dropped: the
 ## guild playing it lost the trades, K/D 0.86 against 1.11, tests/tools/guild_war_sim.)

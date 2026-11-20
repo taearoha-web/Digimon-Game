@@ -604,6 +604,7 @@ func _nearest_victim() -> Node3D:
 	var taker := siege.capturer() if siege != null else null
 	# At the gate it keeps battering: only an enemy close by draws it away.
 	var at_gate := objective != null and is_instance_valid(objective) and objective.breakable and _flat_distance(objective.global_position) < 11.0
+	var reach_leader := smart2 and not GuildWarDoctrine.off.has("leader_reach")
 	var my_section := SiegeArena.section(global_position)
 	var called := focus if _alive(focus) else null
 	var diving := dive if _alive(dive) else null
@@ -639,7 +640,7 @@ func _nearest_victim() -> Node3D:
 			continue
 		if at_gate and not (t is CastleGate) and t != taker and d > 7.0:
 			continue
-		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + (CALLED_LEADER_REACH if smart2 and t is GuildFighter and (t as GuildFighter).is_leader else 6.0)):
+		if hold_range > 0.0 and t != taker and not (t is CastleGate) and d > hold_range and not (t == called and d < hold_range + (CALLED_LEADER_REACH if reach_leader and t is GuildFighter and (t as GuildFighter).is_leader else 6.0)):
 			continue
 		var bias := 0.0
 		if holder_team >= 0 and t != taker and not (t is CastleGate):
