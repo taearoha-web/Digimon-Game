@@ -88,8 +88,9 @@ var hold_range := 0.0
 ## Posted to hold the castle's switch (GuildWarCommander's switch squad): it goes there,
 ## stands inside the circle (never out of it, no falling back, no Summon pulling it away)
 ## and fights only what comes near the switch (the first guild in keeps it while one of it
-## stands inside, so it camps there).
+## stands inside, so it camps there). switch_side: which of the two (0 left, 1 right).
 var switch_post := false
+var switch_side := 0
 ## The AI leader kept at its post behind its guild (GuildWarCommander: the members go in
 ## first): it never batters the gate, fights only what comes within hold_range of its
 ## post (goal_point) and does not chase from it.
@@ -628,7 +629,7 @@ func _nearest_victim() -> Node3D:
 			continue
 		# A switch holder fights only what comes to its switch, whoever stands in the circle first.
 		if switch_post:
-			var post: Vector3 = SiegeArena.SWITCH
+			var post: Vector3 = SiegeArena.SWITCHES[clampi(switch_side, 0, 1)]
 			var from_post := _flat_distance_from(t.global_position, post)
 			if t is CastleGate or from_post > SiegeArena.SWITCH_RADIUS + float(class_data.attack.range) + 1.5:
 				continue
@@ -675,8 +676,8 @@ func _nearest_victim() -> Node3D:
 		elif t == taker:
 			# Whoever is taking the altar must be stopped.
 			score += 30.0
-		elif my_section == 4 and siege != null and siege.switch_owner >= 0 and siege.switch_owner != team and siege.team_of(t) == siege.switch_owner and SiegeArena.on_switch(t.global_position):
-			# The guild holding the switch keeps it while one of it stands in the circle:
+		elif my_section == 4 and siege != null and _holds_switch_under(t):
+			# A guild holding a switch keeps it while one of it stands in the circle:
 			# clear them out of it.
 			score += 10.0
 		var ratio := 1.0
@@ -931,10 +932,19 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	return super._chase(target, delta, speed_factor)
 
 
+## Whether `t` stands in a switch's circle that its guild holds against ours.
+func _holds_switch_under(t: Node3D) -> bool:
+	var k := SiegeArena.switch_at(t.global_position)
+	if k < 0:
+		return false
+	var owner: int = siege.switch_owners[k]
+	return owner >= 0 and owner != team and siege.team_of(t) == owner
+
+
 ## A switch holder: back into the circle when out of it, else it fights from where it
 ## stands (it swings, casts and drinks as ever, but never steps out of the circle).
 func _hold_switch(target: Node3D, delta: float, speed_factor: float) -> Vector3:
-	var post: Vector3 = SiegeArena.SWITCH
+	var post: Vector3 = SiegeArena.SWITCHES[clampi(switch_side, 0, 1)]
 	if _flat_distance(post) > SiegeArena.SWITCH_RADIUS * 0.7:
 		return _run_to(SiegeArena.route(global_position, post), delta)
 	var step := super._chase(target, delta, speed_factor)
@@ -1288,7 +1298,7 @@ func _wander_on(delta: float) -> Vector3:
 	if capture_role:
 		return _run_to(SiegeArena.route(global_position, SiegeArena.ALTAR), delta)
 	if switch_post:
-		var post: Vector3 = SiegeArena.SWITCH
+		var post: Vector3 = SiegeArena.SWITCHES[clampi(switch_side, 0, 1)]
 		if _flat_distance(post) < SiegeArena.SWITCH_RADIUS * 0.45:
 			_tick(delta)
 			return Vector3.ZERO

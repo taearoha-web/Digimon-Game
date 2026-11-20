@@ -755,18 +755,21 @@ func _gw_tick(delta: float) -> void:
 	var them := 0
 	for t in range(1, war.team_count()):
 		them = maxi(them, war.score[t])
-	# The castle's switch too (GuildWarMatch.switch_code: -1 nobody, 0 ours, 1 another; +2 fought over).
+	# The castle's two switches too (GuildWarMatch.switch_code: [left, right], each -1
+	# nobody, 0 ours, 1 another; +2 fought over; an older member reads the left one).
 	var status := {"st": war.state, "tl": _q(war.time_left), "s": [war.score[0], them], "o": mini(war.castle_owner, 1), "cp": cp, "sw": war.switch_code(), "ot": war.overtime}
 	# A war of more guilds: every guild's falls and the holder as they are (a league mirror
 	# keeps the four guilds; an older member reads s / o).
 	if war.team_count() > 2:
 		status["sa"] = Array(war.score)
 		status["oa"] = war.castle_owner
+		status["swa"] = [[war.switch_owners[0], war.switch_challengers[0]], [war.switch_owners[1], war.switch_challengers[1]]]
 	# Our guild's plan and its doctrine's phase (the members' HUD shows them; only this
 	# game runs the AI).
 	if war.plans.size() > 0:
 		var d: Variant = war.doctrines[0] if war.doctrines.size() > 0 else null
-		status["pp"] = [war.plans[0], d.phase if d != null else ""]
+		# The hero's standing order to the guild too (an older member reads the first two).
+		status["pp"] = [war.plans[0], d.phase if d != null else "", war.order_code()]
 	_event(0, "gw", status)
 
 
