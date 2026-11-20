@@ -50,13 +50,11 @@ extends RefCounted
 ##   the INTERCEPT (focus_extra, dive_override): the holder marks the enemy leader near the
 ##     altar above all (the only one who can take it) and its assassins dive it; whoever
 ##     strikes our leader on the altar is peeled off;
-##   WAVES (_waves): the fallen coming back meet at a join point and go in four at a time,
-##     not one by one into the other guild's whole front (a third of all falls were of one
-##     walking in alone);
-##   WALKERS (_walkers): those walking up from far behind fight only what is on them and
-##     keep walking (they fell one by one on the plaza turning on whoever they met);
-##   the hurt fall back to the guild's own body when no healer is at the front (not alone
-##     across the field to the far camp), the leader to its healers and a little sooner;
+##   the leader falls back to its healers at the front, and a little sooner;
+##   (trials, off in the game, see `trial`: WAVES, the fallen coming back meeting at a join
+##     point to go in four at a time - a third of all falls were of one walking in alone;
+##     WALKERS, those walking up from far behind turning only on what is on them; the hurt
+##     falling back to the guild's own body when no healer is at the front);
 ##   the fighters' own (GuildFighter.smart2): focus fire without overkill,
 ##     potions before a fall, the leader drinking and fighting back on the altar, idle
 ##     heals, stuns kept for a priority foe, area skills not spent on one foe, no skills on a
@@ -73,7 +71,14 @@ extends RefCounted
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
 ## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
-## "waves", "walkers", "bodyrear", "altar", "deadline", "intercept"); empty in the game.
+## "altar", "deadline", "intercept"); empty in the game.
+## Trials: second-brain rules built, measured and kept OFF in the game (switched on by
+## name, tests/tools/guild_war_sim SIM_TRIAL, tests): "waves" (_waves), "walkers"
+## (_walkers), "bodyrear" (the hurt to the guild's body, back sooner). They cut the lone
+## falls (one walking in alone: 67 a guild a war against 73) but kept members out of the
+## fight; with them on the second brain won 50-56% of its wars against the first (28),
+## without them 83% (12).
+static var trial: Dictionary = {}
 ## (A leash, nobody chased farther than 20 m from its post, was measured and dropped: the
 ## guild playing it lost the trades, K/D 0.86 against 1.11, tests/tools/guild_war_sim.)
 static var off: Dictionary = {}
@@ -772,7 +777,7 @@ func _apply() -> void:
 	support_at = Vector3(sum.x / float(n), 0.0, sum.z / float(n)) if n > 0 else Vector3.INF
 	# Second brain: with no healer at the front the hurt fall back to the guild's own body
 	# (a step behind its middle), not alone across the field to the far camp.
-	var body_rear := _body_rear(side, lead, c) if smart2() and not support_at.is_finite() and not off.has("bodyrear") else Vector3.INF
+	var body_rear := _body_rear(side, lead, c) if smart2() and not support_at.is_finite() and trial.has("bodyrear") else Vector3.INF
 	# Supports with a foe on them: the nearest standing tank (not the leader's bodyguard on
 	# the altar run) goes to them.
 	var threatened: Array[GuildFighter] = []
@@ -814,9 +819,9 @@ func _apply() -> void:
 			f.rear_point = support_at
 		if body_rear.is_finite() and not f.rear_point.is_finite() and GuildWarCommander._flat(f.global_position, body_rear) < GuildWarCommander._flat(f.global_position, war.home_of(team)):
 			f.rear_point = body_rear
-	if smart2() and not off.has("walkers"):
+	if smart2() and trial.has("walkers"):
 		_walkers(side, front)
-	if smart2() and not off.has("waves"):
+	if smart2() and trial.has("waves"):
 		_waves(side, lead, front)
 
 

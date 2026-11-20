@@ -10,8 +10,9 @@ extends Node
 ##     strikes our leader taking the altar is peeled off;
 ##   - the fighters: stuns kept for a priority foe, potions drunk before a fall, a healer
 ##     healing with nobody to fight;
-##   - waves: the fallen coming back meet at a join point and go in together, and those
-##     walking up from far behind fight only what is on them;
+##   - the trials (GuildWarDoctrine.trial, off in the game): waves, the fallen coming back
+##     meeting at a join point to go in together, and those walking up from far behind
+##     fighting only what is on them;
 ##   - the baseline (base) runs none of it.
 ## godot --headless --audio-driver Dummy --path . res://tests/integration/guild_war_smart2_test.tscn
 var failures: Array[String] = []
@@ -221,6 +222,9 @@ func _waves(m: GuildWarMatch, d1: GuildWarDoctrine, c1: GuildWarCommander, lead1
 	m.capture = {}
 	m.castle_owner = -1
 	d1.last_call = false
+	# The trial rules (off in the game: GuildWarDoctrine.trial).
+	D.trial["waves"] = true
+	D.trial["walkers"] = true
 	c1.tactic = GuildWarCommander.ESCORT
 	var front := SiegeArena.ALTAR
 	d1.field["front"] = front
@@ -264,3 +268,7 @@ func _waves(m: GuildWarMatch, d1: GuildWarDoctrine, c1: GuildWarCommander, lead1
 	c1.apply()
 	check(walkers[4].goal_point.distance_to(join) > D.JOIN_RADIUS, "the baseline sends everyone on alone")
 	d1.base = false
+	D.trial.clear()
+	walkers[4].goal_point = Vector3.ZERO
+	c1.apply()
+	check(walkers[4].goal_point.distance_to(join) > D.JOIN_RADIUS, "off in the game: the trial is not played")

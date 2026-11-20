@@ -919,7 +919,7 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	if not _retreating and ratio < retreat_below and (_potions <= 0 or _potion_cd > 0.0):
 		_retreating = true
 		_rear_wait = 0.0
-	elif _retreating and (ratio > (RETURN_ABOVE2 if smart2 and not GuildWarDoctrine.off.has("bodyrear") else RETURN_ABOVE) or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
+	elif _retreating and (ratio > (RETURN_ABOVE2 if smart2 and GuildWarDoctrine.trial.has("bodyrear") else RETURN_ABOVE) or (_flat_distance(spawn_point) < BASE_RADIUS * 0.6 and ratio > 0.5)):
 		_retreating = false
 	if _retreating and not _frozen:
 		return _fall_back(delta)
@@ -1355,7 +1355,7 @@ func _fall_back(delta: float) -> Vector3:
 		back = rear_point
 		# (Second brain: the wait runs from the moment it falls back, so one at a rear
 		# point that moves with its guild goes home in the end, not loiters hurt.)
-		if _flat_distance(rear_point) < 4.0 or (smart2 and not GuildWarDoctrine.off.has("bodyrear")):
+		if _flat_distance(rear_point) < 4.0 or (smart2 and GuildWarDoctrine.trial.has("bodyrear")):
 			_rear_wait += delta
 	var to := SiegeArena.route(global_position, back) - global_position
 	to.y = 0.0

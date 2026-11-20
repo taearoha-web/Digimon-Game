@@ -10,7 +10,8 @@ extends Node
 ## env: SIM_TEAMS=2|4, SIM_SEEDS=1,2,3, SIM_SMART=1,0[,0,0], SIM_MULT=1,1[,..],
 ##      SIM_SECONDS (default the whole war), SIM_SIZE (fighters a guild, 20), SIM_SWAP=0|1,
 ##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4),
-##      SIM_OFF=muster,besiege,wait,exploit,squads (the doctrine's rules switched off),
+##      SIM_OFF=muster,besiege,wait,exploit,squads,altar,deadline,intercept (the doctrine's
+##      rules switched off), SIM_TRIAL=waves,walkers,bodyrear (trial rules switched on),
 ##      SIM_BASE=0,1[,..] (1: that guild plays the doctrine as it stood before its second
 ##      brain, GuildWarDoctrine.base: SIM_SMART=1,1 SIM_BASE=0,1 is new against the
 ##      current one; rotated with SIM_SMART by SIM_SWAP),
@@ -81,6 +82,8 @@ func _ready() -> void:
 
 	for key in _env("SIM_OFF", "").split(",", false):
 		GuildWarDoctrine.off[key] = true
+	for key in _env("SIM_TRIAL", "").split(",", false):
+		GuildWarDoctrine.trial[key] = true
 	for s in seeds:
 		var setups: Array = [[smart, mults, bases]]
 		if swap:
@@ -143,7 +146,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	zone.layout_seed = 77
 	add_child(zone)
 	var m: GuildWarMatch = zone.gw_match
-	var out := {"seed": war_seed, "teams": teams, "smart": smart, "base": bases, "mults": mults, "off": GuildWarDoctrine.off.keys(), "rule": "altar"}
+	var out := {"seed": war_seed, "teams": teams, "smart": smart, "base": bases, "mults": mults, "off": GuildWarDoctrine.off.keys(), "trial": GuildWarDoctrine.trial.keys(), "rule": "altar"}
 	if m == null:
 		out["error"] = "no match"
 		return out
