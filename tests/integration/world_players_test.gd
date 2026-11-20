@@ -777,8 +777,9 @@ func _mount_data() -> void:
 	var share := float(owners) / WorldPlayers.size()
 	check(share > 0.4 and share < 0.8, "a share of the endgame players own a mount (%d of %d)" % [owners, WorldPlayers.size()])
 	# The mounts are forged for real (WorldGear) with the chaos jewels the kills bring, so
-	# by ★300 most have traded up from the wolf and the drake (10% a try) stays rare.
-	check(kinds.size() >= 2 and drakes < owners / 3, "more than one kind of mount on the way up, the drake rare even at ★300 (%s, %d drakes)" % [str(kinds.keys()), drakes])
+	# by ★300 most have traded up from the wolf; the keen forgers (WorldGear.ZEAL) reach the
+	# drake (10% a try) often, but not every rider has one.
+	check(kinds.size() >= 2 and drakes < owners, "more than one kind of mount on the way up, the drake not for every rider even at ★300 (%s, %d drakes of %d riders)" % [str(kinds.keys()), drakes, owners])
 	check(never >= 5 and rarely >= 5 and often >= 20, "some never ride, some rarely, many often (%d / %d / %d)" % [never, rarely, often])
 	# A month in, some veterans already ride (state of the schedule now).
 	var t := float(WorldPlayers.START_UNIX) + 30.0 * 86400.0

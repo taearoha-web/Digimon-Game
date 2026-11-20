@@ -150,8 +150,8 @@ func _growth(sample: Array[int]) -> void:
 	check(power_up and grew >= sample.size() * 2 / 3, "their power grows with time (%d of %d grew by half or more)" % [grew, sample.size()])
 	check(best_up, "at the endgame the best gem worn never gets smaller")
 	check(size_late > size_early * 1.5, "gems get bigger and more with time (%.0f -> %.0f)" % [size_early, size_late])
-	check(plus15_early == 0, "nobody has a +15 weapon after %d days" % int(DAYS[1]))
-	check(plus15_late > 0 and plus15_late < late_n, "+15 is for some long-time players, not everyone (%d of %d)" % [plus15_late, late_n])
+	# The race for the top (WorldGear.ZEAL): the keen forgers reach +15 within weeks.
+	check(plus15_late > 0 and plus15_late >= plus15_early, "the long-time players forge their weapons to +15 (%d of %d; %d by day %d)" % [plus15_late, late_n, plus15_early, int(DAYS[1])])
 
 
 ## The forge's and the fuse's odds, counted over everyone's life so far.
@@ -195,7 +195,7 @@ func _odds() -> void:
 	print("world_growth_test: gem fuses made / the forge's odds (tries):%s" % fuse_line)
 	check(fuse_ok and fuse_line != "", "gems fuse at the forge's own odds")
 	check(WorldGear.GEM_KEEN > 0.0 and WorldGear.GEM_KEEN <= 1.0 and WorldGear.GEM_KEEN_FIELD <= 1.0 and WorldGear.GEM_KEEN_ENDGAME <= 1.0, "they use a share of the gems their kills drop, never more")
-	check(int(WorldGear.fuse_tries[WorldGear.GEM_FUSE_TOP]) == 0, "they fuse up to size %s" % ItemData.GEM_SIZES[WorldGear.GEM_FUSE_TOP])
+	check(WorldGear.GEM_FUSE_TOP >= ItemData.GEM_MAX_SIZE or int(WorldGear.fuse_tries[WorldGear.GEM_FUSE_TOP]) == 0, "they fuse up to size %s" % ItemData.GEM_SIZES[mini(WorldGear.GEM_FUSE_TOP, ItemData.GEM_MAX_SIZE)])
 
 
 ## It reaches the fighter sheet, the card and the chat; the guild war stays in reach.
@@ -239,7 +239,8 @@ func _reach() -> void:
 
 
 ## A guild side may be this much stronger for its gems (WorldGear.GEM_KEEN keeps it so).
-const MAX_GEM_LIFT := 1.4
+## The race for the top (WorldGear.ZEAL): legendary gems in every socket nearly double a side.
+const MAX_GEM_LIFT := 2.0
 
 
 ## The same on every device: worked out again from nothing, and whatever was read first.

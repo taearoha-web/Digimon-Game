@@ -117,7 +117,7 @@ const PARTY_ITEM := ["ดรอปดีไหม? ของดีแบ่ง�
 const PARTY_GREET := ["หวัดดีหัวหน้าตี้! พร้อมลุยแล้ว", "ดีจ้า ตี้เราพร้อมแล้ว", "หวัดดี~ วันนี้ไปไหนกันดี"]
 const PARTY_GREET_MATE := ["หวัดดี %name!", "ดีจ้า %name"]
 const MATE_IDLE := ["จริง 555", "ใช่ ๆ เห็นด้วย", "โอเค ๆ", "555 ใช่เลย", "%name พูดถูก"]
-const GUILD_GREET := ["หวัดดีเพื่อนกิลด์!", "ดีจ้า ชาว %guild", "มาแล้วเหรอ คนของ %guild!"]
+const GUILD_GREET := ["หวัดดีเพื่อนกิลด์!", "ดีจ้า ชาว %guild", "มาแล้วเหรอ คนของ %guild!", "หวัดดีจ้า ชาว %guild ทุกคน", "ดีจ้าเพื่อน ๆ %guild", "มาแล้ว ๆ ชาว %guild", "หวัดดีทุกคนในกิลด์~"]
 const GUILD_THANKS := ["ยินดีจ้า คนกันเองทั้งนั้น", "เพื่อนกิลด์ช่วยกันอยู่แล้ว", "ไม่เป็นไรเลย กิลด์เดียวกัน"]
 const GUILD_WAR := ["กิลด์วอรอบหน้า %wartime ลงชื่อด้วยนะ", "รอบนี้ %guild ต้องชนะ!", "ไปกิลด์วอด้วยแน่นอน"]
 const GUILD_SUFFIX := ["%guild สู้ ๆ", "เพื่อนกิลด์ช่วยกันนะ", "ว่าง ๆ มาล่าด้วยกันนะ"]
@@ -205,6 +205,9 @@ static func reply(body: Dictionary) -> Dictionary:
 	var channel := String(body.get("channel", ""))
 	var mate := String(body.get("from", ""))
 	var mine := news_of(body)
+	# A new talk (nothing said yet): the hello of an earlier one is forgotten.
+	if history.is_empty():
+		ChatMind.forget_greeting(String(p.get("name", "")))
 	# The party's / guild's own talk ("บอสมาแล้ว", "ฮีลหน่อย"), unless the line asks about
 	# something by name ("บอสภูเขาน้ำแข็งคือใคร": ChatMind answers it).
 	if (channel == "party" or channel == "guild") and (mate != "" or not ChatMind.names_something(text)):
@@ -437,9 +440,13 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 		"greet":
 			if intent_of(_last(history, "hero")) == "greet":
 				return {"reply": GREET_AGAIN, "action": "none"}
-			# Greeted earlier in the talk: noticed, in other words each time.
-			if history.any(func(line): return String(line.get("who", "")) == "hero" and intent_of(String(line.get("text", ""))) == "greet"):
+			# Greeted earlier in the talk (in the lines it still sees, or before them in this
+			# talk: ChatMind.greeted): noticed, in other words each time.
+			var who := String(p.get("name", ""))
+			if history.any(func(line): return String(line.get("who", "")) == "hero" and intent_of(String(line.get("text", ""))) == "greet") \
+					or (not history.is_empty() and ChatMind.greeted(who)):
 				return _say(GREET_AGAIN_MORE, rng)
+			ChatMind.mark_greeted(who)
 			if TONE_GREET.has(tone):
 				return _say(TONE_GREET[tone], rng)
 			return _say(GREET, rng)

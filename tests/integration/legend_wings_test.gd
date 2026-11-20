@@ -115,7 +115,7 @@ func _item_and_stats() -> void:
 	check(String(pair.name).begins_with(LegendWings.NAME) and pair.name.contains("Alpha"), "named for the guild (%s)" % pair.name)
 	check(ItemData.sell_price(pair) == 0 and ItemData.unit_sell_price(pair) == 0, "it has no sale price")
 	check(ItemData.color_of(pair) == LegendWings.COLOR, "its own gold colour")
-	check(ItemData.detail_lines(pair).any(func(l: String): return l.contains("ออร่าตำนาน")) and ItemData.detail_lines(pair).any(func(l: String): return l.contains("ถอดไม่ได้")), "the tooltip tells of the aura and the lock")
+	check(ItemData.detail_lines(pair).any(func(l: String): return l.contains("ออร่าตำนาน")) and ItemData.detail_lines(pair).any(func(l: String): return l.contains("ถอดหรือเปลี่ยนได้")), "the tooltip tells of the aura and that it comes off")
 	check(ItemLook.look_of(pair).begins_with(LegendWings.LOOK), "its own look (%s)" % ItemLook.look_of(pair))
 	# Every stat above the best 100★ pair of every class at the mythic roll's top and +15.
 	var rng := RandomNumberGenerator.new()
@@ -280,13 +280,15 @@ func _hero_leader() -> void:
 	check(_pairs().size() == 1, "exactly one pair was minted (%d)" % _pairs().size())
 	check(Game.profile.inv.has(old), "the old wings went to the bag")
 	check(LegendWings.hold_of(W0) == {"g": WorldPlayers.ALPHA, "n": "", "s": 1}, "the record names the hero as the holder (%s)" % [LegendWings.hold_of(W0)])
-	check(awarded.size() == 1 and awarded[0].text.contains("หัวหน้ากิลด์") and awarded[0].text.contains(LegendWings.LOCK_TEXT), "the letter popup came once, in Thai")
+	check(awarded.size() == 1 and awarded[0].text.contains("หัวหน้ากิลด์") and awarded[0].text.contains(LegendWings.WEAR_TEXT), "the letter popup came once, in Thai")
 	check(not LegendWings.tick() and _pairs().size() == 1, "a second tick mints nothing more")
 	check(LegendWings.line_now().contains("Alpha") and LegendWings.line_now().contains("(คุณ)"), "the line names Alpha and the hero (%s)" % LegendWings.line_now())
-	# The lock: it never comes off, except for another pair.
-	check(not Game.unequip("wings") and LegendWings.is_item(Game.profile.equip.get("wings")), "it cannot be taken off")
+	# No lock: it comes off and goes back on like any wings.
+	check(Game.unequip("wings") and not Game.profile.equip.has("wings") and Game.profile.inv.has(worn), "it can be taken off, to the bag")
+	check(Game.equip_from_bag(Game.profile.inv.find(worn)) and Game.profile.equip.wings == worn, "and worn again")
 	var at: int = Game.profile.inv.find(old)
-	check(at >= 0 and not Game.equip_from_bag(at) and LegendWings.is_item(Game.profile.equip.get("wings")) and Game.profile.inv.has(old), "other wings cannot replace it")
+	check(at >= 0 and Game.equip_from_bag(at) and Game.profile.equip.wings == old and Game.profile.inv.has(worn), "other wings replace it, the pair to the bag")
+	check(Game.equip_from_bag(Game.profile.inv.find(worn)) and Game.profile.equip.wings == worn and Game.profile.inv.has(old), "and it goes back on")
 	var other := LegendWings.item(W0 + 5, WorldPlayers.TITAN)
 	Game.profile.inv.append(other)
 	check(Game.equip_from_bag(Game.profile.inv.find(other)) and Game.profile.equip.wings == other and Game.profile.inv.has(worn), "another pair of these wings replaces it, the first to the bag")
@@ -457,7 +459,7 @@ func _storage_other_class() -> void:
 	check(index >= 0 and Game.withdraw_item(index) and Game.profile.inv.has(pair), "withdrawn")
 	check(Game.equip_problem(pair) == "", "worn from Lv.1 by any class")
 	check(Game.equip_from_bag(Game.profile.inv.find(pair)) and Game.profile.equip.wings == pair, "and worn")
-	check(not Game.unequip("wings"), "locked on the newcomer too")
+	check(Game.unequip("wings") and Game.equip_from_bag(Game.profile.inv.find(pair)) and Game.profile.equip.wings == pair, "the newcomer may take it off and wear it again")
 	check(Game._valid_profile(Game.profile.duplicate(true)) and Game.save(), "its save is valid")
 	check(LegendWings.account_weeks().has(W0), "the account knows it holds season %d's pair" % W0)
 	# One pair a character: a second pair only replaces the first.

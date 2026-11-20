@@ -209,14 +209,14 @@ static func verify(text: String, ctx: Dictionary) -> Array[String]:
 		var bname := BossWorld.boss_name(zid)
 		if bname == "" or not text.contains(bname):
 			continue
-		for m in _re("killed", bname + "ถูก (.+?) ปราบ").search_all(text):
+		for m in _re("killed|" + bname, bname + "ถูก (.+?) ปราบ").search_all(text):
 			var by := m.get_string(1)
 			var any := BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and BossWorld.killer_text(BossWorld.state(z, t)) == by)
 			if not any:
 				bad.append("%s was not brought down by %s" % [bname, by])
 		if text.contains(bname + "ยังอยู่ ยังไม่มีใครล้ม") and not BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and bool(BossWorld.state(z, t).alive) and float(BossWorld.state(z, t).killed_at) <= 0.0):
 			bad.append("%s is not untouched" % bname)
-		for m in _re("down", bname + "ถูก .+? ปราบไป.*?เกิดใหม่ใน (\\d\\d):(\\d\\d)").search_all(text):
+		for m in _re("down|" + bname, bname + "ถูก .+? ปราบไป.*?เกิดใหม่ใน (\\d\\d):(\\d\\d)").search_all(text):
 			var left := int(m.get_string(1)) * 60 + int(m.get_string(2))
 			var ok := BossWorld.zones().any(func(z): return String(BossWorld.state(z, t).name) == bname and not bool(BossWorld.state(z, t).alive) and absf(float(BossWorld.state(z, t).respawn_at) - t - float(left)) <= 1.5)
 			if not ok:

@@ -55,7 +55,7 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	box.add_child(last)
 	# The season's Legendary Guild Wings (LegendWings): the champion's leader wears them; a
 	# champion again hands the new pair to a member.
-	var legend := UIUtil.label("%s — %s: มอบให้หัวหน้ากิลด์%s ใส่ทันทีถอดไม่ได้ ทุกค่าสถานะเหนือปีก 100 ดาว +15 พร้อมออร่าปาร์ตี้ +%d%% · แชมป์ซ้ำสัปดาห์ถัดไปหัวหน้าต้องมอบคู่ใหม่ให้สมาชิก" % [
+	var legend := UIUtil.label("%s — %s: มอบให้หัวหน้ากิลด์%s ใส่ทันที (ถอดเปลี่ยนได้) ทุกค่าสถานะเหนือปีก 100 ดาว +15 พร้อมออร่าปาร์ตี้ +%d%% · แชมป์ซ้ำสัปดาห์ถัดไปหัวหน้าต้องมอบคู่ใหม่ให้สมาชิก" % [
 		LegendWings.line_now(), LegendWings.NAME, GuildLeague.LEAGUE_TITLE, int(round(LegendWings.AURA * 100.0))], &"SmallLabel")
 	legend.name = "LegendLine"
 	legend.add_theme_color_override("font_color", LegendWings.COLOR)

@@ -47,6 +47,10 @@ const MOODS := {
 	&"arena": {"clouds": Color(1.0, 0.98, 0.94, 0.85), "warm": 0.45, "shadows": 0.14},
 	&"guildwar": {"clouds": Color(1.0, 1.0, 1.0, 0.9), "warm": 0.45, "shadows": 0.16, "grade": Vector3(1.0, 1.1, 1.2)},
 	&"pvp": {"clouds": Color(1.0, 0.86, 0.8, 0.7), "warm": 0.5, "grade": Vector3(1.0, 1.06, 1.1)},
+	# เขาวงกตหนึ่งในใต้หล้า (MazeArena): a golden afternoon over the isle, gold-edged clouds,
+	# long gold shafts over the throne, a rich grade.
+	&"maze_war": {"clouds": Color(1.0, 0.96, 0.9, 0.6), "warm": 0.55, "rays": Color(1.0, 0.82, 0.52, 0.26), "ray_count": 6,
+		"sky_light": 0.22, "grade": Vector3(1.0, 1.12, 1.24)},
 	&"digital": {"clouds": Color(0.62, 0.55, 0.85, 0.35), "warm": 0.0, "sky_light": 0.4, "grade": Vector3(1.0, 1.05, 1.06)},
 	&"desert": {"clouds": Color(1.0, 0.93, 0.82, 0.5), "warm": 0.5, "shadows": 0.14, "exposure": 0.98, "grade": Vector3(1.0, 1.06, 1.06)},
 	&"snow": {"clouds": Color(0.95, 0.98, 1.0, 0.8), "warm": 0.15, "exposure": 0.96, "grade": Vector3(1.0, 1.05, 1.06)},

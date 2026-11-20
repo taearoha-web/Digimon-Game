@@ -1,22 +1,31 @@
 extends Node
-## The castle's one switch and the altar's barrier (headless): the first guild to stand in
-## the circle while it is free takes the switch and keeps it while one of it is inside,
-## however many of another guild come in; it is free again only when none of the holder is
-## left there (fallen or gone), then the next guild in takes it (most bodies, then the
-## first to arrive). The barrier is open only for the holder (no capture can start for
-## anyone else), comes back for a guild the moment it loses the switch (the count freezes
-## where it was, the progress kept) and falls again when it retakes it (the count goes on
-## from the same second); the leader leaving the throne room or falling counts for
-## nothing. The switch's look follows the holder (ring, light pillar, label, barrier tint;
-## neutral when free, flickering and naming the challenger while fought over); the HUD
-## shows "สวิตช์: <guild>", "บาเรียเปิดให้ <guild>" and who to clear out of the circle;
-## the hero holds the switch by standing in it; the party can be sent to it; a checkpoint
-## keeps its holder. Then the AI: attackers post a sturdy squad on the switch, take it and
-## capture the castle on their own (a fixed seed); the castle's holder guards it.
+## The castle's two switches and the altar's barrier (headless). The switches stand left
+## and right of the carpet in the throne room, mirrored (as far from the door and from the
+## altar as each other), and the altar against the throne room's back wall. Each switch is
+## held on its own: the first guild to stand in its circle while it is free takes it and
+## keeps it while one of it is inside, however many of another guild come in; it is free
+## again only when none of the holder is left there, then the next guild in takes it (most
+## bodies, then the first to arrive). The barrier opens only for a guild holding BOTH
+## switches (no capture can start for anyone else; one switch is not enough), comes back
+## the moment it loses one (the count freezes where it was, the progress kept) and falls
+## again when it holds both again (the count goes on from the same second); split between
+## two guilds the barrier stays up for both. The leader leaving the throne room or falling
+## counts for nothing. Each switch's look follows its holder (ring, light pillar, label;
+## neutral when free, flickering and naming the challenger while fought over), the barrier
+## is tinted only for a holder of both; the HUD shows "สวิตช์ซ้าย: <guild>", "สวิตช์ขวา:
+## <guild>", "บาเรียเปิดให้ <guild>" and which switch to take or clear; the hero holds a
+## switch by standing in it; the party can be sent to the one we lack; the online status
+## carries both (an older leader's one code stands for both); a checkpoint keeps both
+## holders (an older one's one holder holds both). The "either" rule (the simulator's
+## alternative): one switch opens the barrier and the count runs at half speed. Then the
+## AI: attackers post a squad on each switch, take both and capture the castle on their
+## own (a fixed seed); the castle's holder guards both and retakes a side it lost.
 ## godot --headless --path . res://tests/integration/castle_switch_test.tscn
 var failures: Array[String] = []
 var checks := 0
 const SEED := 424242
+const L := 0
+const R := 1
 
 
 func check(ok: bool, message: String) -> void:
@@ -42,6 +51,7 @@ func _ready() -> void:
 	Game.profile.hp = Game.stats_now().max_hp
 	_pure_rules()
 	await _switch_and_barrier()
+	await _either_rule()
 	await _resume()
 	await _ai_assault()
 	print("CASTLE SWITCH: %d checks, %d failures" % [checks, failures.size()])
@@ -60,12 +70,22 @@ func _pure_rules() -> void:
 	check(GuildWarMatch.switch_next([0, 2, 3, 0], 0) == 2, "several waiting: the most bodies")
 	check(GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 7, 2: 4}) == 2 and GuildWarMatch.switch_next([0, 2, 2, 0], 0, {1: 3, 2: 4}) == 1, "level: the one that came in first")
 	check(GuildWarMatch.switch_next([0, 2, 2], -1) == 1, "level, no arrival known: the lower team")
-	var p: Vector3 = SiegeArena.SWITCH
-	check(SiegeArena.section(p) == 4 and SiegeArena.hall_rect().has_point(Vector2(p.x, p.z)) and absf(p.x) + SiegeArena.SWITCH_RADIUS < SiegeArena.THRONE_HALF - 1.5 and p.z - SiegeArena.SWITCH_RADIUS > SiegeArena.BACK_Z + 1.5, "the switch stands inside the throne room, clear of the walls")
-	check(not SiegeArena.on_altar(p) and Vector2(p.x - SiegeArena.ALTAR.x, p.z - SiegeArena.ALTAR.z).length() > SiegeArena.ALTAR_RADIUS + SiegeArena.SWITCH_RADIUS + 6.0, "the switch is off the altar")
+	# The layout: two switches mirrored left and right, the altar against the back wall.
+	check(SiegeArena.SWITCHES.size() == 2 and SiegeArena.SWITCH_NAMES == ["สวิตช์ซ้าย", "สวิตช์ขวา"], "two switches, named left and right")
+	var a: Vector3 = SiegeArena.SWITCHES[L]
+	var b: Vector3 = SiegeArena.SWITCHES[R]
+	check(a.x < -SiegeArena.SWITCH_RADIUS and is_equal_approx(a.x, -b.x) and is_equal_approx(a.z, b.z), "mirrored: the left one at -x, the right one at +x (%s / %s)" % [a, b])
 	var door := Vector3(0, 0, SiegeArena.GATE_Z[2])
-	check(p.x < -SiegeArena.SWITCH_RADIUS and Vector2(p.x - door.x, p.z - door.z).length() < 25.0, "on one side, a short walk from the door")
-	check(SiegeArena.on_switch(p + Vector3(SiegeArena.SWITCH_RADIUS - 0.2, 0, 0)) and not SiegeArena.on_switch(p + Vector3(SiegeArena.SWITCH_RADIUS + 0.3, 0, 0)), "the circle's edge")
+	for p in [a, b]:
+		check(SiegeArena.section(p) == 4 and SiegeArena.hall_rect().has_point(Vector2(p.x, p.z)) and absf(p.x) + SiegeArena.SWITCH_RADIUS < SiegeArena.THRONE_HALF * 0.62 - 1.0 and p.z - SiegeArena.SWITCH_RADIUS > SiegeArena.BACK_Z + 1.5, "the switch %s stands inside the throne room, inside the pillars, clear of the walls" % p)
+		check(not SiegeArena.on_altar(p) and Vector2(p.x - SiegeArena.ALTAR.x, p.z - SiegeArena.ALTAR.z).length() > SiegeArena.ALTAR_RADIUS + SiegeArena.SWITCH_RADIUS + 6.0, "the switch is off the altar")
+		check(Vector2(p.x - door.x, p.z - door.z).length() < 30.0, "a short walk from the door")
+	check(is_equal_approx(a.distance_to(door), b.distance_to(door)) and is_equal_approx(a.distance_to(SiegeArena.ALTAR), b.distance_to(SiegeArena.ALTAR)), "as far from the door and from the altar as each other")
+	check(is_zero_approx(SiegeArena.ALTAR.x) and SiegeArena.ALTAR.z - SiegeArena.BACK_Z < 12.0 and SiegeArena.ALTAR.z - SiegeArena.ALTAR_RADIUS - 4.0 > SiegeArena.BACK_Z, "the altar stands in the middle against the back wall, with room behind it (z %.1f, wall %.1f)" % [SiegeArena.ALTAR.z, SiegeArena.BACK_Z])
+	check(SiegeArena.ALTAR.z < a.z - 15.0 and SiegeArena.KEEP_CAMP.distance_to(SiegeArena.ALTAR) > 40.0, "the altar is past the switches, far from the holder's camp")
+	check(SiegeArena.on_switch(a + Vector3(SiegeArena.SWITCH_RADIUS - 0.2, 0, 0), L) and not SiegeArena.on_switch(a + Vector3(SiegeArena.SWITCH_RADIUS + 0.3, 0, 0)), "the circle's edge")
+	check(SiegeArena.switch_at(a) == L and SiegeArena.switch_at(b) == R and SiegeArena.switch_at(SiegeArena.ALTAR) == -1 and not SiegeArena.on_switch(a, R), "which circle a point stands in")
+	check(SiegeArena.nearer_switch(Vector3(-3, 0, -100)) == L and SiegeArena.nearer_switch(Vector3(3, 0, -100)) == R, "the nearer switch")
 
 
 ## A war with the gates down (a fixed seed), the AI held still.
@@ -86,19 +106,29 @@ func _away(f: GuildFighter) -> void:
 	f.global_position = f.spawn_point + Vector3(0, 0.3, 0)
 
 
-func _in_circle(f: Node3D, k: int) -> void:
+func _in_circle(f: Node3D, k: int, side := L) -> void:
 	var a := TAU * float(k) / 7.0
-	f.global_position = SiegeArena.SWITCH + Vector3(cos(a), 0, sin(a)) * SiegeArena.SWITCH_RADIUS * 0.5 + Vector3(0, 0.3, 0)
+	f.global_position = SiegeArena.SWITCHES[side] + Vector3(cos(a), 0, sin(a)) * SiegeArena.SWITCH_RADIUS * 0.5 + Vector3(0, 0.3, 0)
 
 
 func _same(a: Color, b: Color) -> bool:
 	return absf(a.r - b.r) < 0.02 and absf(a.g - b.g) < 0.02 and absf(a.b - b.b) < 0.02
 
 
+func _hold_still(m: GuildWarMatch) -> void:
+	for f in m.all_fighters():
+		f.set_physics_process(false)
+		f._guard_until = 0
+		f._dodge = 0.0
+		_away(f)
+	m.set_process(false)
+
+
 ## The war HUD's lanes at phone landscape sizes (844x390 and its 2x 1688x780): the board,
-## the switch row, the warning and the toasts never overlap, the toasts start under the
-## board's column, the switch chip's text stays opaque while it flickers, and the
-## switch's floating label hides in the board's band.
+## the switch row (both switches' chips and the barrier's), the warning and the toasts never
+## overlap, the toasts start under the board's column, the row fits the screen, a switch
+## chip's text stays opaque while it flickers, and a switch's floating label hides in the
+## board's band.
 func _layout(hud: GuildWarHud, m: GuildWarMatch) -> void:
 	var toasts := ToastLayer.new()
 	add_child(toasts)
@@ -110,7 +140,7 @@ func _layout(hud: GuildWarHud, m: GuildWarMatch) -> void:
 		window.size = size
 		hud._barrier.text = GuildWarMatch.BARRIER_TEXT
 		hud._barrier.visible = true
-		Game.say("กิลด์ %s ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % [m.team_name(0), m.team_name(0)], &"info")
+		Game.say("กิลด์ %s ถือสวิตช์ครบ 2 ฝั่ง! บาเรียเปิดให้กิลด์ %s" % [m.team_name(0), m.team_name(0)], &"info")
 		await _frames(4)
 		var rects := hud.layout_rects()
 		var stack := toasts.stack_rect()
@@ -118,44 +148,46 @@ func _layout(hud: GuildWarHud, m: GuildWarMatch) -> void:
 		var names: Array = rects.keys()
 		for i in names.size():
 			for j in range(i + 1, names.size()):
-				var a: Rect2 = rects[names[i]]
-				var b: Rect2 = rects[names[j]]
-				check(not a.grow(-0.5).intersects(b.grow(-0.5)), "%s: %s and %s do not overlap (%s / %s)" % [size, names[i], names[j], a, b])
+				var ra: Rect2 = rects[names[i]]
+				var rb: Rect2 = rects[names[j]]
+				check(not ra.grow(-0.5).intersects(rb.grow(-0.5)), "%s: %s and %s do not overlap (%s / %s)" % [size, names[i], names[j], ra, rb])
 		check(stack.size.y > 0.0, "%s: a toast is up" % size)
 		for key in names:
 			check(not (rects[key] as Rect2).grow(-0.5).intersects(stack), "%s: the toast lane is clear of the %s (%s / %s)" % [size, key, stack, rects[key]])
 		check(stack.position.y >= hud.band_bottom(), "%s: the toasts start under the board's column (%.0f >= %.0f)" % [size, stack.position.y, hud.band_bottom()])
 		var view := get_viewport().get_visible_rect()
 		check(view.encloses(hud.layout_rects().board), "%s: the board is on screen (%s in %s)" % [size, rects.board, view])
-		# The switch chip while fought over: the text stays fully opaque, the border swings.
+		check(view.encloses((rects.switch_row as Rect2).grow(-0.5)), "%s: the switch row (two switches and the barrier) fits the screen (%s in %s)" % [size, rects.switch_row, view])
+		# A switch chip while fought over: the text stays fully opaque, the border swings.
 		var alphas: Array[float] = []
 		var borders: Array[Color] = []
 		for i in 8:
 			hud._pulse_chip(0.05)
-			alphas.append(hud.switch_label_alpha())
-			borders.append(hud.switch_chip_color())
+			alphas.append(hud.switch_label_alpha(R))
+			borders.append(hud.switch_chip_color(R))
 		check(m.switch_contested and alphas.all(func(x: float): return x >= 0.999), "%s: the chip's text stays opaque while contested (%s)" % [size, alphas])
-		check(borders.any(func(c: Color): return not _same(c, borders[0])), "%s: the chip's border pulses instead" % size)
+		check(borders.any(func(c: Color): return not _same(c, borders[0])), "%s: the fought-over chip's border pulses instead" % size)
 	# The floating label: hidden while it would sit in the board's band, capped in size.
+	var at: Vector3 = SiegeArena.SWITCHES[L]
 	var cam := Camera3D.new()
 	add_child(cam)
 	cam.current = true
-	cam.global_position = SiegeArena.SWITCH + Vector3(0, 6.5, 2.0)
-	cam.look_at(SiegeArena.SWITCH + Vector3(0, -20, 0.5), Vector3.UP)
+	cam.global_position = at + Vector3(0, 6.5, 2.0)
+	cam.look_at(at + Vector3(0, -20, 0.5), Vector3.UP)
 	m._fit_switch_label()
-	var tag := m.switch_label_screen()
+	var tag := m.switch_label_screen(L)
 	check(not bool(tag.visible), "the switch label hides above the board's lane or under the camera (%s)" % [tag])
-	cam.global_position = SiegeArena.SWITCH + Vector3(16, 8, 3)
-	cam.look_at(SiegeArena.SWITCH + Vector3(0, 9, 0), Vector3.UP)
+	cam.global_position = at + Vector3(16, 8, 3)
+	cam.look_at(at + Vector3(0, 9, 0), Vector3.UP)
 	GuildWarHud.top_band = hud.band_bottom()
 	ToastLayer.lane_bottom = 0.0
 	m._fit_switch_label()
-	tag = m.switch_label_screen()
+	tag = m.switch_label_screen(L)
 	check(bool(tag.visible) and float(tag.line_px) <= GuildWarMatch.SWITCH_LABEL_MAX_PX + 0.5 and (tag.pos as Vector2).y > GuildWarHud.top_band, "in view under the board: shown, at most %d px a line (%s)" % [GuildWarMatch.SWITCH_LABEL_MAX_PX, tag])
-	cam.global_position = SiegeArena.SWITCH + Vector3(3, 7.5, 1.5)
-	cam.look_at(SiegeArena.SWITCH + Vector3(0, 6.5, 0), Vector3.UP)
+	cam.global_position = at + Vector3(3, 7.5, 1.5)
+	cam.look_at(at + Vector3(0, 6.5, 0), Vector3.UP)
 	m._fit_switch_label()
-	tag = m.switch_label_screen()
+	tag = m.switch_label_screen(L)
 	check(float(tag.line_px) <= GuildWarMatch.SWITCH_LABEL_MAX_PX + 0.5, "up close the label does not fill the screen (%.1f px)" % float(tag.line_px))
 	cam.queue_free()
 	toasts.queue_free()
@@ -175,22 +207,18 @@ func _switch_and_barrier() -> void:
 	m._timer = 0.05
 	await _frames(6)
 	check(m.state == "fight", "the fight begins")
-	for f in m.all_fighters():
-		f.set_physics_process(false)
-		f._guard_until = 0
-		f._dodge = 0.0
-		_away(f)
-	m.set_process(false)
-	check(zone.find_child("CastleSwitch", true, false) != null and zone.find_child("CastleSwitch1", true, false) == null, "one switch pad stands in the castle")
-	check(zone.find_child("AltarBarrier", true, false) != null, "the altar has its barrier")
+	_hold_still(m)
+	check(zone.find_child("CastleSwitch", true, false) != null and zone.find_child("CastleSwitchRight", true, false) != null, "two switch pads stand in the castle")
+	check(zone.find_child("AltarBarrier", true, false) != null and (zone.find_child("AltarBarrier", true, false) as Node3D).position.is_equal_approx(SiegeArena.ALTAR), "the altar at the back has its barrier")
 	var lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): lines.append(text))
-	# Nobody on the switch: the barrier stands for both guilds, the switch looks neutral.
+	# Nobody on the switches: the barrier stands for both guilds, the switches look neutral.
 	m.read_switches()
-	check(m.switch_owner == -1 and m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY), "the switch free: the barrier stands for both")
+	check(m.switch_owners == [-1, -1] and m.switch_owner == -1 and m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY), "the switches free: the barrier stands for both")
 	check(m._barrier.visible and _same(m._barrier_mat.albedo_color, GuildWarMatch.BARRIER_COLOR), "the barrier dome is shown, pale blue")
-	var look := m.switch_look()
-	check(_same(look.ring, Color("f2f2f2")) and String(look.label).begins_with("สวิตช์: ว่าง") and float((look.beam as Color).a) < 0.1, "free: a neutral white ring, a faint pillar, the label says ว่าง (%s)" % [look])
+	for k in 2:
+		var look0 := m.switch_look(k)
+		check(_same(look0.ring, Color("f2f2f2")) and String(look0.label).begins_with("%s: ว่าง" % SiegeArena.SWITCH_NAMES[k]) and float((look0.beam as Color).a) < 0.1, "free: a neutral white ring, a faint pillar, the label says %s: ว่าง (%s)" % [SiegeArena.SWITCH_NAMES[k], look0])
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	check(not m.hero_can_capture() and m.hero_blocked_by_barrier(), "the hero on the altar cannot start behind the barrier")
 	m.start_hero_capture()
@@ -202,14 +230,15 @@ func _switch_and_barrier() -> void:
 	m._altar_hint_tick()
 	m._altar_hint_tick()
 	check(toasts.filter(func(x: String): return x == GuildWarMatch.BARRIER_TEXT).size() == 1, "the hero is told once why (%s)" % [toasts])
-	# The HUD: the switch chip, the barrier chip and the warning.
+	Game.toast.disconnect(listen)
+	# The HUD: both switch chips, the barrier chip and the warning.
 	var hud := GuildWarHud.new()
 	add_child(hud)
 	hud.bind(m)
 	hud._update(0.0, false)
-	check(hud._switch_row.visible and hud.switch_texts()[0] == "สวิตช์: ว่าง" and hud.switch_texts()[1] == "บาเรียปิดแท่น", "the HUD shows the switch free (%s)" % [hud.switch_texts()])
-	check(hud.switch_texts()[2] == GuildWarMatch.BARRIER_TEXT, "and the barrier's warning")
-	check(_same(hud.switch_chip_color(), Color("c9c9c9")), "the chip is grey while free")
+	check(hud._switch_row.visible and hud.switch_texts()[0] == "สวิตช์ซ้าย: ว่าง" and hud.switch_texts()[1] == "สวิตช์ขวา: ว่าง" and hud.switch_texts()[2] == "บาเรียปิดแท่น", "the HUD shows both switches free (%s)" % [hud.switch_texts()])
+	check(hud.switch_texts()[3] == GuildWarMatch.BARRIER_TEXT, "and the barrier's warning")
+	check(_same(hud.switch_chip_color(L), Color("c9c9c9")) and _same(hud.switch_chip_color(R), Color("c9c9c9")), "the chips are grey while free")
 	var ours: Array[GuildFighter] = []
 	for f in m.allies:
 		ours.append(f)
@@ -217,76 +246,95 @@ func _switch_and_barrier() -> void:
 	for f in m.enemies:
 		if f != m.enemy_leader:
 			theirs.append(f)
-	check(ours.size() >= 4 and theirs.size() >= 4, "enough fighters for the test (%d / %d)" % [ours.size(), theirs.size()])
-	# The first guild in takes it: the barrier opens for it alone.
-	toasts.clear()
-	Game.toast.connect(listen)
-	ours[0].global_position = SiegeArena.SWITCH + Vector3(0.5, 0.3, 0.5)
+	check(ours.size() >= 6 and theirs.size() >= 5, "enough fighters for the test (%d / %d)" % [ours.size(), theirs.size()])
+	# The first guild in takes the left one: one switch is not enough, the barrier stays.
+	ours[0].global_position = SiegeArena.SWITCHES[L] + Vector3(0.5, 0.3, 0.5)
 	m.read_switches()
-	Game.toast.disconnect(listen)
-	check(m.switch_owner == GuildFighter.TEAM_ALLY and m.holds_switch(GuildFighter.TEAM_ALLY) and not m.barrier_up(GuildFighter.TEAM_ALLY), "a fighter of ours in the circle takes the switch: the barrier opens for us")
-	check(m.barrier_up(GuildFighter.TEAM_ENEMY), "it stays up for the other guild")
-	check(lines.any(func(t: String): return t.contains("ยึดสวิตช์ได้") and t.contains("บาเรียเปิดให้")), "the feed tells the switch taken and the barrier open (%s)" % [lines])
-	check(toasts.any(func(t: String): return t.contains("ยึดสวิตช์ได้! บาเรียเปิดให้กิลด์ %s" % m.team_name(0))), "a toast tells it (%s)" % [toasts])
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, -1] and m.holds_switch(GuildFighter.TEAM_ALLY, L) and not m.holds_switch(GuildFighter.TEAM_ALLY) and m.switches_held(GuildFighter.TEAM_ALLY) == 1, "a fighter of ours in the left circle takes the left switch only")
+	check(m.switch_owner == -1 and m.barrier_up(GuildFighter.TEAM_ALLY) and not m.hero_can_capture(), "one switch: the barrier still stands for us (both are needed)")
+	check(lines.any(func(t: String): return t.contains("ยึดสวิตช์ซ้ายได้") and t.contains("1/2")), "the feed tells the left switch taken, 1 of 2 (%s)" % [lines])
+	check(m.barrier_line().contains("ยึดสวิตช์ขวา") and not m.barrier_line().contains("สวิตช์ซ้าย"), "the warning names the switch still needed (%s)" % m.barrier_line())
 	var ally_color := m.team_color(GuildFighter.TEAM_ALLY)
 	var enemy_color := m.team_color(GuildFighter.TEAM_ENEMY)
-	look = m.switch_look()
-	check(_same(look.ring, ally_color) and float((look.beam as Color).a) > 0.2 and String(look.label).contains(m.team_name(0)) and String(look.label).contains("บาเรียเปิดให้"), "held: the ring and the pillar in our colour, the label names us (%s)" % [look])
-	check(_same(look.label_color, ally_color.lerp(Color.WHITE, 0.2)), "the label is in our colour")
-	check(not _same(look.barrier, GuildWarMatch.BARRIER_COLOR) and _same(look.barrier, ally_color.lerp(Color.WHITE, 0.15)), "the barrier is tinted our colour (open for us)")
+	var look := m.switch_look(L)
+	check(_same(look.ring, ally_color) and String(look.label).contains(m.team_name(0)) and String(look.label).contains("1/2"), "held: the left ring in our colour, its label names us, 1/2 (%s)" % [look])
+	check(_same(m.switch_look(R).ring, Color("f2f2f2")) and _same(look.barrier, GuildWarMatch.BARRIER_COLOR), "the right one still neutral, the barrier untinted")
 	hud._update(0.0, false)
-	check(hud.switch_texts()[0] == "สวิตช์: เรา" and hud.switch_texts()[1] == "บาเรียเปิดให้ เรา" and _same(hud.switch_chip_color(), ally_color), "the HUD: สวิตช์: เรา, บาเรียเปิดให้ เรา, in our colour (%s)" % [hud.switch_texts()])
+	check(hud.switch_texts()[0] == "สวิตช์ซ้าย: เรา" and hud.switch_texts()[1] == "สวิตช์ขวา: ว่าง" and hud.switch_texts()[2] == "บาเรียปิด (ต้องถือครบ 2 ฝั่ง)", "the HUD: left ours, right free, the barrier shut (%s)" % [hud.switch_texts()])
+	check(_same(hud.switch_chip_color(L), ally_color) and _same(hud.switch_chip_color(R), Color("c9c9c9")), "each chip in its holder's colour")
+	# Ours take the right one too: both held, the barrier opens for us alone.
+	toasts.clear()
+	Game.toast.connect(listen)
+	ours[1].global_position = SiegeArena.SWITCHES[R] + Vector3(-0.5, 0.3, 0.5)
+	m.read_switches()
+	Game.toast.disconnect(listen)
+	check(m.switch_owner == GuildFighter.TEAM_ALLY and m.holds_switch(GuildFighter.TEAM_ALLY) and not m.barrier_up(GuildFighter.TEAM_ALLY), "both switches ours: the barrier opens for us")
+	check(m.barrier_up(GuildFighter.TEAM_ENEMY), "it stays up for the other guild")
+	check(lines.any(func(t: String): return t.contains("ถือสวิตช์ครบทั้งซ้ายและขวา") and t.contains("บาเรียเปิดให้")), "the feed tells both held and the barrier open (%s)" % [lines])
+	check(toasts.any(func(t: String): return t.contains("ถือสวิตช์ครบ 2 ฝั่ง! บาเรียเปิดให้กิลด์ %s" % m.team_name(0))), "a toast tells it (%s)" % [toasts])
+	look = m.switch_look(R)
+	check(_same(look.ring, ally_color) and float((look.beam as Color).a) > 0.2 and String(look.label).contains("บาเรียเปิด"), "both held: the label says the barrier is open (%s)" % [look])
+	check(_same(look.label_color, ally_color.lerp(Color.WHITE, 0.2)), "the label is in our colour")
+	check(_same(look.barrier, ally_color.lerp(Color.WHITE, 0.15)), "the barrier is tinted our colour (open for us)")
+	hud._update(0.0, false)
+	check(hud.switch_texts()[1] == "สวิตช์ขวา: เรา" and hud.switch_texts()[2] == "บาเรียเปิดให้ เรา" and _same(hud.switch_chip_color(2), ally_color), "the HUD: บาเรียเปิดให้ เรา in our colour (%s)" % [hud.switch_texts()])
 	# The hero leads and goes to the altar: the count runs.
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
-	check(m.hero_can_capture() and m.barrier_line() == "", "the switch held: the hero may take the altar, no warning")
+	check(m.hero_can_capture() and m.barrier_line() == "", "both held: the hero may take the altar, no warning")
 	m.start_hero_capture()
 	check(m.capturer() == hero, "the capture starts")
 	m._tick_capture(5.0)
 	check(is_equal_approx(float(m.capture.progress), 5.0), "the count runs (%.1f)" % float(m.capture.get("progress", 0.0)))
-	# Three enemies come into the circle against our one: it stays ours (first come keeps it).
+	# Three enemies come into the right circle against our one: it stays ours.
 	for i in 3:
-		_in_circle(theirs[i], i + 1)
+		_in_circle(theirs[i], i + 1, R)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ALLY and m.switch_contested and m.switch_challenger == GuildFighter.TEAM_ENEMY and not m.barrier_up(GuildFighter.TEAM_ALLY), "three enemies against our one inside: still ours, fought over, no barrier")
-	check(m.barrier_up(GuildFighter.TEAM_ENEMY), "and still shut for them")
+	check(m.switch_owners[R] == GuildFighter.TEAM_ALLY and m.switch_challengers[R] == GuildFighter.TEAM_ENEMY and m.switch_contested and not m.barrier_up(GuildFighter.TEAM_ALLY), "three enemies against our one inside the right circle: still ours, fought over, no barrier")
 	m._tick_capture(2.0)
 	check(is_equal_approx(float(m.capture.progress), 7.0), "the count goes on while ours stays inside (%.1f)" % float(m.capture.progress))
-	look = m.switch_look()
-	check(String(look.label) == "%s ถือสวิตช์ · %s กำลังแย่ง" % [m.team_name(0), m.team_name(1)], "the label names holder and challenger (%s)" % look.label)
-	# The circle flickers between the two colours while fought over.
+	look = m.switch_look(R)
+	check(String(look.label) == "สวิตช์ขวา: %s\n%s กำลังแย่ง" % [m.team_name(0), m.team_name(1)], "the label names holder and challenger (%s)" % look.label)
 	var seen_blend := false
 	for i in 12:
 		m._tick_switches(0.05)
-		var ring: Color = m.switch_look().ring
-		if not _same(ring, ally_color):
+		if not _same(m.switch_look(R).ring, ally_color):
 			seen_blend = true
-	check(seen_blend, "the ring flickers towards the challenger's colour")
+	check(seen_blend and _same(m.switch_look(L).ring, ally_color), "the fought-over ring flickers towards the challenger's colour, the other stays")
 	hud._update(0.0, false)
-	check(hud.switch_texts()[0].begins_with("สวิตช์: เรา") and hud.switch_texts()[0].contains("กำลังแย่ง"), "the HUD shows it ours, fought over (%s)" % [hud.switch_texts()])
+	check(hud.switch_texts()[1].begins_with("สวิตช์ขวา: เรา") and hud.switch_texts()[1].contains("แย่ง"), "the HUD shows the right one ours, fought over (%s)" % [hud.switch_texts()])
 	await _layout(hud, m)
-	check(lines.any(func(t: String): return t.contains("บุกวงสวิตช์")), "the feed tells the fight in the circle")
-	# Our one is pushed out: none of ours left, the enemy (inside) takes it; the barrier is
-	# back for us, the count freezes.
-	_away(ours[0])
+	check(lines.any(func(t: String): return t.contains("บุกสวิตช์ขวา")), "the feed tells the fight in the right circle")
+	# Our one on the right is pushed out: theirs take the right one; the switches are split,
+	# the barrier is back for everybody, the count freezes.
+	_away(ours[1])
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.barrier_up(GuildFighter.TEAM_ALLY) and not m.barrier_up(GuildFighter.TEAM_ENEMY), "none of ours left inside: theirs take it, the barrier opens for them alone")
-	check(lines.any(func(t: String): return t.contains("ชิงสวิตช์จากกิลด์ %s" % m.team_name(0))), "the feed tells who cleared whom")
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY] and m.switch_owner == -1, "split: the left ours, the right theirs")
+	check(m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY), "split switches: the barrier stands for both guilds")
+	check(lines.any(func(t: String): return t.contains("ชิงสวิตช์ขวาจากกิลด์ %s" % m.team_name(0))) and lines.any(func(t: String): return t.contains("บาเรียกลับมา")), "the feed tells who cleared whom and the barrier back")
 	m._tick_capture(7.0)
 	check(not m.capture.is_empty() and is_equal_approx(float(m.capture.progress), 7.0) and bool(m.capture.barrier) and bool(m.capture.paused), "the count freezes at 7 s, kept (%s)" % m.capture)
-	var want := "บาเรียกันแท่นอยู่ — ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % m.team_name(1)
-	check(m.capture_line().contains("ต้องมีคนในวงสวิตช์มากกว่ากิลด์ %s" % m.team_name(1)) and m.barrier_line() == want, "the bar says who to clear out: %s / %s" % [m.capture_line(), m.barrier_line()])
-	look = m.switch_look()
-	check(_same(look.ring, enemy_color) and String(look.label).contains(m.team_name(1)) and _same(look.barrier, enemy_color.lerp(Color.WHITE, 0.15)), "the look follows the new holder (%s)" % [look])
+	var want := "บาเรียกันแท่นอยู่ — ต้องถือสวิตช์ครบ 2 ฝั่ง: ไล่กิลด์ %s ออกจากสวิตช์ขวา" % m.team_name(1)
+	check(m.barrier_line() == want and m.capture_line().contains("ไล่กิลด์ %s ออกจากสวิตช์ขวา" % m.team_name(1)), "the bar says which circle to clear: %s / %s" % [m.capture_line(), m.barrier_line()])
+	look = m.switch_look(R)
+	check(_same(look.ring, enemy_color) and _same(look.barrier, GuildWarMatch.BARRIER_COLOR), "the right ring in their colour, the barrier untinted (open for nobody) (%s)" % [look])
 	hud._update(0.0, false)
-	check(hud.switch_texts()[0] == "สวิตช์: ศัตรู" and hud.switch_texts()[1] == "บาเรียเปิดให้ ศัตรู" and hud.switch_texts()[2] == want and _same(hud.switch_chip_color(), enemy_color), "the HUD shows the switch theirs and the warning (%s)" % [hud.switch_texts()])
-	check(lines.any(func(t: String): return t.contains("บาเรียกลับมา")), "the feed tells the barrier came back")
-	# Ours come back in (two of them) while theirs are still inside: theirs keep it.
-	_in_circle(ours[1], 5)
-	_in_circle(ours[2], 6)
+	check(hud.switch_texts()[1] == "สวิตช์ขวา: ศัตรู" and hud.switch_texts()[2] == "บาเรียปิด (ต้องถือครบ 2 ฝั่ง)" and hud.switch_texts()[3] == want and _same(hud.switch_chip_color(R), enemy_color), "the HUD shows the split and the warning (%s)" % [hud.switch_texts()])
+	# Theirs take the left one too (ours cleared out): the barrier opens for them alone.
+	_away(ours[0])
+	_in_circle(theirs[3], 0, L)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.switch_challenger == GuildFighter.TEAM_ALLY, "ours coming in later do not take it while theirs stand inside")
-	# Two of theirs fall, one is pushed out: none of theirs left, ours take it; the count
-	# goes on from 7.
+	check(m.switch_owner == GuildFighter.TEAM_ENEMY and not m.barrier_up(GuildFighter.TEAM_ENEMY) and m.barrier_up(GuildFighter.TEAM_ALLY), "both theirs: the barrier opens for them alone")
+	check(_same(m.switch_look(L).barrier, enemy_color.lerp(Color.WHITE, 0.15)), "the barrier tinted their colour")
+	# Ours come back into the left one while theirs are still inside: theirs keep it.
+	_in_circle(ours[2], 5, L)
+	_in_circle(ours[3], 6, L)
+	m.read_switches()
+	check(m.switch_owners[L] == GuildFighter.TEAM_ENEMY and m.switch_challengers[L] == GuildFighter.TEAM_ALLY, "ours coming in later do not take it while theirs stand inside")
+	# Theirs cleared out of the left one: split again; then ours clear the right one too
+	# and the count goes on from 7.
+	_away(theirs[3])
+	m.read_switches()
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY] and m.barrier_up(GuildFighter.TEAM_ALLY), "the left back to ours: split, still shut for us")
 	for i in 2:
 		var f := theirs[i]
 		var tries := 0
@@ -295,26 +343,25 @@ func _switch_and_barrier() -> void:
 			f.take_hit(f.max_hp, false)
 			tries += 1
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY, "one of theirs still inside: still theirs")
+	check(m.switch_owners[R] == GuildFighter.TEAM_ENEMY, "one of theirs still inside the right circle: still theirs")
 	_away(theirs[2])
+	_in_circle(ours[4], 1, R)
 	m.read_switches()
 	m._tick_capture(3.0)
-	check(m.switch_owner == GuildFighter.TEAM_ALLY and not m.barrier_up(GuildFighter.TEAM_ALLY) and is_equal_approx(float(m.capture.progress), 10.0) and not bool(m.capture.barrier), "theirs cleared out: ours take it back, the count goes on from the same second (%.1f)" % float(m.capture.progress))
+	check(m.switch_owner == GuildFighter.TEAM_ALLY and not m.barrier_up(GuildFighter.TEAM_ALLY) and is_equal_approx(float(m.capture.progress), 10.0) and not bool(m.capture.barrier), "both ours again: the count goes on from the same second (%.1f)" % float(m.capture.progress))
 	check(lines.any(func(t: String): return t.contains("บาเรียหายไป")), "the feed tells the barrier fell again")
-	# Ours leave the circle: free, the barrier is back for everybody, the look is neutral.
-	_away(ours[1])
-	_away(ours[2])
+	# Ours leave the right circle: it is free, the barrier is back.
+	_away(ours[4])
 	m.read_switches()
 	m._tick_capture(4.0)
-	check(m.switch_owner == -1 and m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY) and is_equal_approx(float(m.capture.progress), 10.0), "nobody inside: the switch is free, no progress")
-	look = m.switch_look()
-	check(_same(look.ring, Color("f2f2f2")) and _same(look.barrier, GuildWarMatch.BARRIER_COLOR) and String(look.label).begins_with("สวิตช์: ว่าง"), "free again: neutral (%s)" % [look])
-	check(lines.any(func(t: String): return t.contains("สวิตช์ว่าง")), "the feed tells the switch is free")
-	# The hero holds it by standing in it (and is the leader: an ally holds while it goes up).
-	hero.global_position = SiegeArena.SWITCH + Vector3(0, 0.3, 0)
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, -1] and m.barrier_up(GuildFighter.TEAM_ALLY) and is_equal_approx(float(m.capture.progress), 10.0), "the right one free: the barrier is back, no progress")
+	check(_same(m.switch_look(R).ring, Color("f2f2f2")) and String(m.switch_look(R).label).begins_with("สวิตช์ขวา: ว่าง"), "free again: neutral")
+	check(lines.any(func(t: String): return t.contains("สวิตช์ขวาว่าง")), "the feed tells the right switch is free")
+	# The hero holds the right one by standing in it (an ally holds while it goes up).
+	hero.global_position = SiegeArena.SWITCHES[R] + Vector3(0, 0.3, 0)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ALLY, "the hero standing in the circle takes it")
-	_in_circle(ours[3], 2)
+	check(m.switch_owner == GuildFighter.TEAM_ALLY, "the hero standing in the right circle takes it")
+	_in_circle(ours[5], 2, R)
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	m.read_switches()
 	m._tick_capture(1.0)
@@ -343,15 +390,18 @@ func _switch_and_barrier() -> void:
 	check(hero.is_dead() and m.capture.is_empty() and m.castle_owner == -1, "the leader fell: no progress, the count is gone")
 	m.hero_respawn_left = 0.0
 	m._respawn_hero()
-	# The party is sent to the switch.
+	# The party is sent to the switch our guild lacks.
 	var mates := m.hero_party_members()
 	if not mates.is_empty():
+		_away(ours[5])
+		m.read_switches()
+		check(m.switch_owners == [GuildFighter.TEAM_ALLY, -1], "the right one free again")
 		var said := m.order_party_switch()
-		check(m.party_switch and said == "สั่งปาร์ตี้ไปยืนยึดสวิตช์", "the party is sent to the switch (%s)" % said)
+		check(m.party_switch and m.party_switch_side == R and said == "สั่งปาร์ตี้ไปยืนยึดสวิตช์ขวา", "the party is sent to the switch we lack (%s)" % said)
 		m.commanders[0].tactic = GuildWarCommander.PUSH
 		m._assign_objectives()
 		var alive := mates.filter(func(f): return not f.is_dead())
-		check(alive.all(func(f): return f.switch_post and f.goal_point.distance_to(SiegeArena.SWITCH) < SiegeArena.SWITCH_RADIUS), "every one of the party is posted in the circle")
+		check(alive.all(func(f): return f.switch_post and f.switch_side == R and f.goal_point.distance_to(SiegeArena.SWITCHES[R]) < SiegeArena.SWITCH_RADIUS), "every one of the party is posted in the right circle")
 		check(m.order_party_switch() != "" and not m.party_switch, "pressed again: back to the guild's plan")
 		m._assign_objectives()
 		check(alive.all(func(f): return not f.switch_post or m.commanders[0]._posts.has(f.get_instance_id())), "the party is released")
@@ -360,60 +410,100 @@ func _switch_and_barrier() -> void:
 	post.switch_post = true
 	check(not ours[1]._recall_targets().has(post) or ours[1].team != post.team, "a holder is never pulled away by Summon")
 	post.switch_post = false
-	# The online status carries the switch; a member's war reads it.
+	# The online status carries both switches; a member's war reads them.
+	_in_circle(ours[5], 2, R)
+	_in_circle(theirs[4], 3, R)
+	_in_circle(ours[2], 5, L)
 	m.read_switches()
-	check(m.switch_code() == GuildFighter.TEAM_ALLY, "the status code says who holds it (%d)" % m.switch_code())
-	m.mirror_sync("gw", {"st": "fight", "tl": 100.0, "s": [0, 0], "o": -1, "cp": [1, 12.0, true, true], "sw": 3, "ot": false})
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.switch_contested and bool(m.capture.get("barrier", false)), "a member's war takes the switch (fought over) and the barrier from the leader's status")
+	check(m.switch_code() == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ALLY + 2], "the status codes say who holds each (left ours, right ours fought over: %s)" % [m.switch_code()])
+	m.mirror_sync("gw", {"st": "fight", "tl": 100.0, "s": [0, 0], "o": -1, "cp": [0, 12.0, true, true], "sw": [0, 3], "ot": false})
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY] and m.switch_contested and m.barrier_up(GuildFighter.TEAM_ALLY) and bool(m.capture.get("barrier", false)), "a member's war takes both switches (the right one theirs, fought over) and the barrier from the leader's status")
+	m.mirror_sync("gw", {"st": "fight", "tl": 100.0, "s": [0, 0], "o": -1, "cp": [], "sw": 1, "ot": false})
+	check(m.switch_owners == [GuildFighter.TEAM_ENEMY, GuildFighter.TEAM_ENEMY] and m.switch_owner == GuildFighter.TEAM_ENEMY and not m.switch_contested, "an older leader's one code (its one switch) stands for both")
+	m.mirror_sync("gw", {"st": "fight", "tl": 100.0, "s": [0, 0, 0, 0], "o": -1, "cp": [], "sw": [1, 1], "swa": [[2, -1], [3, 0]], "ot": false})
+	check(m.switch_owners == [-1, 0] or m.team_count() < 4, "a league's swa (absolute owners) is clamped to the guilds there are")
+	# The checkpoint keeps both holders (the left one also where an older build reads it).
 	m.mirror_sync("gw", {"st": "fight", "tl": 100.0, "s": [0, 0], "o": -1, "cp": [], "sw": [0, 1], "ot": false})
-	check(m.switch_owner == GuildFighter.TEAM_ALLY and not m.switch_contested, "an older leader's two codes: the left one's")
-	# The checkpoint keeps the holder.
 	m.save_checkpoint()
-	check(int(Game.guildwar_checkpoint().get("switch", -9)) == GuildFighter.TEAM_ALLY, "the checkpoint stores the switch's holder (%s)" % Game.guildwar_checkpoint().get("switch"))
+	var ck := Game.guildwar_checkpoint()
+	check(int(ck.get("switch", -9)) == GuildFighter.TEAM_ALLY and Array(ck.get("switches", [])) == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY], "the checkpoint stores both holders (%s / %s)" % [ck.get("switch"), ck.get("switches")])
 	hud.queue_free()
 	zone.queue_free()
 	await _frames(3)
 	Game.guildwar_clear_checkpoint()
 
 
-## A resumed war gives the switch back to its saved holder until somebody steps in; an
-## older checkpoint of two switches reads as its left one's.
+## The "either" rule (kept for the simulator's comparison): one switch opens the barrier
+## and the count runs at EITHER_RATE; both at full speed; none: shut.
+func _either_rule() -> void:
+	var zone := _open_war()
+	var m: GuildWarMatch = zone.gw_match
+	if m == null:
+		check(false, "either: no match")
+		return
+	m._timer = 0.05
+	await _frames(6)
+	_hold_still(m)
+	GuildWarMatch.switch_rule = GuildWarMatch.RULE_EITHER
+	var hero: Hero = zone.hero
+	var ours: Array = m.allies
+	_in_circle(ours[0], 0, L)
+	m.read_switches()
+	check(not m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY) and is_equal_approx(m.capture_rate(GuildFighter.TEAM_ALLY), GuildWarMatch.EITHER_RATE), "either: one switch opens the barrier, the count at half speed")
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	m.start_hero_capture()
+	m._tick_capture(4.0)
+	check(is_equal_approx(float(m.capture.get("progress", -1.0)), 4.0 * GuildWarMatch.EITHER_RATE), "either: 4 s with one switch count %.1f (%s)" % [4.0 * GuildWarMatch.EITHER_RATE, m.capture])
+	_in_circle(ours[1], 1, R)
+	m.read_switches()
+	m._tick_capture(2.0)
+	check(is_equal_approx(float(m.capture.progress), 4.0 * GuildWarMatch.EITHER_RATE + 2.0) and is_equal_approx(m.capture_rate(GuildFighter.TEAM_ALLY), 1.0), "either: with both, full speed")
+	GuildWarMatch.switch_rule = GuildWarMatch.RULE_BOTH
+	check(not m.barrier_up(GuildFighter.TEAM_ALLY), "the game's rule back (both held: open)")
+	zone.queue_free()
+	await _frames(3)
+	Game.guildwar_clear_checkpoint()
+
+
+## A resumed war gives each switch back to its saved holder until somebody steps in; an
+## older checkpoint's one switch holds both; one of the two switches' first days keeps both.
 func _resume() -> void:
-	var zone := _open_war({"switch": GuildFighter.TEAM_ENEMY})
+	var zone := _open_war({"switches": [GuildFighter.TEAM_ENEMY, GuildFighter.TEAM_ALLY]})
 	var m: GuildWarMatch = zone.gw_match
 	if m == null:
 		check(false, "resume: no match")
 		return
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.barrier_up(GuildFighter.TEAM_ALLY), "resume: the saved holder holds the switch")
+	check(m.switch_owners == [GuildFighter.TEAM_ENEMY, GuildFighter.TEAM_ALLY] and m.barrier_up(GuildFighter.TEAM_ALLY) and m.barrier_up(GuildFighter.TEAM_ENEMY), "resume: the saved holders hold the switches (split)")
 	m._timer = 0.05
 	await _frames(6)
-	m.set_process(false)
-	for f in m.all_fighters():
-		f.set_physics_process(false)
-		_away(f)
+	_hold_still(m)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY, "resume: kept while nobody is in the circle")
+	check(m.switch_owners == [GuildFighter.TEAM_ENEMY, GuildFighter.TEAM_ALLY], "resume: kept while nobody is in the circles")
 	var mine: GuildFighter = m.allies[0]
-	_in_circle(mine, 0)
+	_in_circle(mine, 0, L)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ALLY, "resume: none of the holder inside, the first one in takes it")
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ALLY] and not m.barrier_up(GuildFighter.TEAM_ALLY), "resume: none of the holder inside, the first one in takes it (both ours)")
 	zone.queue_free()
 	await _frames(3)
 	Game.guildwar_clear_checkpoint()
-	# A checkpoint from the two switches' days (gw_r_sw0 / gw_r_sw1, no gw_r_sw).
+	# A checkpoint of the one switch (gw_r_sw, no gw_r_sw1): its holder holds both.
 	Game.guildwar_save_checkpoint(SEED, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": -1})
 	var flags: Dictionary = Game.profile["flags"]
+	flags["gw_r_sw"] = 2
+	flags.erase("gw_r_sw1")
+	check(int(Game.guildwar_checkpoint().get("switch", -9)) == 1 and Array(Game.guildwar_checkpoint().get("switches", [])) == [1, 1], "an old checkpoint of the one switch: its holder holds both (%s)" % [Game.guildwar_checkpoint().get("switches")])
+	# From the two switches' first days (gw_r_sw0 / gw_r_sw1, no gw_r_sw).
 	flags.erase("gw_r_sw")
 	flags["gw_r_sw0"] = 2
 	flags["gw_r_sw1"] = 1
-	check(int(Game.guildwar_checkpoint().get("switch", -9)) == 1, "an old checkpoint with two holders loads its left one's (%s)" % Game.guildwar_checkpoint().get("switch"))
+	check(int(Game.guildwar_checkpoint().get("switch", -9)) == 1 and Array(Game.guildwar_checkpoint().get("switches", [])) == [1, 0], "an old checkpoint with two holders loads both (%s)" % [Game.guildwar_checkpoint().get("switches")])
 	Game.guildwar_clear_checkpoint()
-	check(not flags.has("gw_r_sw0") and not flags.has("gw_r_sw"), "clearing the checkpoint drops the switch keys")
+	check(not flags.has("gw_r_sw0") and not flags.has("gw_r_sw") and not flags.has("gw_r_sw1"), "clearing the checkpoint drops the switch keys")
 
 
-## The AI on its own: theirs storm an undefended castle (ours held at their camp): a
-## squad camps on the switch, then the leader goes up, and the castle is theirs. Then,
-## holding it, theirs guard the switch: one of theirs inside keeps it against ours.
+## The AI on its own: theirs storm an undefended castle (ours held at their camp): a squad
+## camps on each switch, then the leader goes up, and the castle is theirs. Then, holding
+## it, theirs guard both switches: one of theirs inside keeps a switch against ours.
 func _ai_assault() -> void:
 	var zone := _open_war()
 	var m: GuildWarMatch = zone.gw_match
@@ -436,6 +526,7 @@ func _ai_assault() -> void:
 		k += 1
 	var theirs: GuildWarCommander = m.commanders[1]
 	var posted := false
+	var both_posted := false
 	var held := false
 	var tanks_first := true
 	var tactics := {}
@@ -454,17 +545,21 @@ func _ai_assault() -> void:
 				if first.role in [GuildWarCommander.ROLE_ASSASSIN, GuildWarCommander.ROLE_BARD] and m.enemies.any(func(f): return f.role == GuildWarCommander.ROLE_TANK and not f.is_leader and not f.is_dead()):
 					tanks_first = false
 			posted = true
+			var sides := {}
+			for f in theirs.squad:
+				sides[theirs.side_of(f)] = true
+			both_posted = both_posted or sides.size() == 2
 		if m.holds_switch(GuildFighter.TEAM_ENEMY):
 			held = true
 	Engine.time_scale = 1.0
 	print("ai: the castle fell to theirs after about %.0f s of war" % war_s if m.castle_owner == GuildFighter.TEAM_ENEMY else "ai: no capture after %.0f s of war" % war_s)
-	check(posted, "ai: theirs post a squad on the switch")
+	check(posted and both_posted, "ai: theirs post a squad on each switch")
 	check(tanks_first, "ai: sturdy ones go first (a tank before an assassin or a bard)")
-	check(tactics.has(GuildWarCommander.SECURE), "ai: theirs secure the switch before the leader goes up (%s)" % [tactics.keys()])
-	check(held, "ai: theirs hold the switch")
+	check(tactics.has(GuildWarCommander.SECURE), "ai: theirs secure the switches before the leader goes up (%s)" % [tactics.keys()])
+	check(held, "ai: theirs hold both switches")
 	check(m.castle_owner == GuildFighter.TEAM_ENEMY, "ai: theirs take the castle on their own (owner %d, capture %s, tactic %s)" % [m.castle_owner, m.capture, theirs.tactic])
 	check(theirs.said.any(func(t: String): return t.contains("สวิตช์")), "ai: the plan is called in the war chat (%s)" % [theirs.said])
-	# Holding the castle, theirs guard the switch.
+	# Holding the castle, theirs guard both switches.
 	m.set_process(false)
 	for f in m.all_fighters():
 		f.set_physics_process(false)
@@ -473,45 +568,54 @@ func _ai_assault() -> void:
 			f.respawn()
 	theirs.think(GuildWarCommander.THINK_EVERY)
 	m._assign_objectives()
-	check(theirs.contesting and theirs.tactic == GuildWarCommander.DEFEND, "ai: holding the castle theirs defend and guard the switch (%s)" % theirs.tactic)
+	check(theirs.contesting and theirs.tactic == GuildWarCommander.DEFEND, "ai: holding the castle theirs defend and guard the switches (%s)" % theirs.tactic)
 	var guards := m.enemies.filter(func(f): return f.switch_post)
-	check(theirs.squad.size() >= 2 and guards.size() >= 2, "ai: a guard squad on the switch (%d)" % guards.size())
-	check(guards.all(func(f): return f.goal_point.distance_to(SiegeArena.SWITCH) < SiegeArena.SWITCH_RADIUS and not f.is_leader), "ai: the guards go into the circle, never the leader")
-	# One guard stays in the circle; ours storm in with three: it stays theirs.
+	var left_guards := guards.filter(func(f): return f.switch_side == L)
+	var right_guards := guards.filter(func(f): return f.switch_side == R)
+	check(left_guards.size() >= 2 and right_guards.size() >= 2, "ai: a guard squad on each switch (%d left, %d right)" % [left_guards.size(), right_guards.size()])
+	check(guards.all(func(f): return f.goal_point.distance_to(SiegeArena.SWITCHES[f.switch_side]) < SiegeArena.SWITCH_RADIUS and not f.is_leader), "ai: the guards go into their circles, never the leader")
+	# One guard stays in the left circle; ours storm in with three: it stays theirs.
 	for f in m.enemies:
 		if SiegeArena.on_switch(f.global_position):
-			f.global_position = SiegeArena.SWITCH + Vector3(0, 0.3, SiegeArena.SWITCH_RADIUS + 4.0)
-	var guard: GuildFighter = guards[0]
-	_in_circle(guard, 0)
+			f.global_position = Vector3(0, 0.3, SiegeArena.GATE_Z[2] - 3.0)
+	var guard: GuildFighter = left_guards[0]
+	_in_circle(guard, 0, L)
+	_in_circle(right_guards[0], 0, R)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY, "ai: the guard alone holds the switch")
+	check(m.switch_owner == GuildFighter.TEAM_ENEMY, "ai: one guard on each side holds both switches")
 	var storm: Array[GuildFighter] = []
 	for f in m.allies:
 		if not f.is_dead() and storm.size() < 3:
 			storm.append(f)
-			_in_circle(f, storm.size())
+			_in_circle(f, storm.size(), L)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ENEMY and m.switch_contested, "ai: three of ours against one guard inside: still theirs, fought over")
+	check(m.switch_owners[L] == GuildFighter.TEAM_ENEMY and m.switch_contested, "ai: three of ours against one guard inside: still theirs, fought over")
 	# Ours focus whoever stands in the circle for them.
 	var ours_cmd: GuildWarCommander = m.commanders[0]
 	ours_cmd.tactic = GuildWarCommander.SECURE
 	ours_cmd.securing = true
 	var foc := ours_cmd._pick_focus()
-	check(foc == guard, "ai: ours call the guard in the circle as the focus (%s)" % [foc])
-	# Rotation: the guard badly hurt with a fresh one of the squad beside it steps out.
-	if guards.size() >= 2:
-		var fresh: GuildFighter = guards[1]
-		_in_circle(fresh, 4)
+	# Either circle's guard (both switches are theirs: each must fall or be pushed out).
+	check(foc == guard or foc == right_guards[0], "ai: ours call a guard in a circle as the focus (%s)" % [foc])
+	# Rotation: the guard badly hurt with a fresh one of the same side's squad beside it steps out.
+	if left_guards.size() >= 2:
+		var fresh: GuildFighter = left_guards[1]
+		_in_circle(fresh, 4, L)
 		guard.hp = int(guard.max_hp * 0.2)
 		var before := theirs.rotated
 		theirs._plan_switches(theirs.read())
-		check(theirs.rotated > before and not theirs.squad.has(guard) and theirs.squad.has(fresh), "ai: a hurt guard rotates out while a fresh one holds the circle")
-	# The guards are cleared out: ours take it.
+		check(theirs.rotated > before and not theirs.squad.has(guard) and theirs.squad.has(fresh), "ai: a hurt guard rotates out while a fresh one of its side holds the circle")
+	# The left guards are cleared out: ours take the left one; the barrier stays up for us
+	# (theirs still hold the right), and theirs send more to win the left one back.
 	for f in m.enemies:
-		if SiegeArena.on_switch(f.global_position):
+		if SiegeArena.on_switch(f.global_position, L):
 			_away(f)
 	m.read_switches()
-	check(m.switch_owner == GuildFighter.TEAM_ALLY, "ai: theirs cleared out of the circle, ours take the switch")
+	check(m.switch_owners == [GuildFighter.TEAM_ALLY, GuildFighter.TEAM_ENEMY] and m.barrier_up(GuildFighter.TEAM_ALLY), "ai: ours take the left switch, theirs keep the right: still shut for ours")
+	theirs._plan_switches(theirs.read())
+	var on_left := theirs.squad.filter(func(f): return theirs.side_of(f) == L).size()
+	var on_right := theirs.squad.filter(func(f): return theirs.side_of(f) == R).size()
+	check(on_left >= on_right and on_left >= 2, "ai: the holder sends at least as many to retake the lost side (%d left, %d right)" % [on_left, on_right])
 	zone.queue_free()
 	await _frames(3)
 	Game.guildwar_clear_checkpoint()

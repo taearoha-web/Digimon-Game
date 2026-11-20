@@ -740,7 +740,9 @@ static func siege_exclusions(camps: int) -> Array[Vector3]:
 			for dz in [-5.0, 0.0, 5.0]:
 				out.append(Vector3(x, S.GATE_Z[tier] + dz, S.GATE_HALF + 3.0))
 	out.append(Vector3(S.KEEP_CAMP.x, S.KEEP_CAMP.z, 10.0))
-	out.append(Vector3(S.SWITCH.x, S.SWITCH.z, S.SWITCH_RADIUS + 3.0))
+	for sw in S.SWITCHES:
+		out.append(Vector3(sw.x, sw.z, S.SWITCH_RADIUS + 3.0))
+	out.append(Vector3(0.0, S.BACK_Z + 1.6, 9.0))
 	out.append(Vector3(S.ALTAR.x, S.ALTAR.z, S.ALTAR_RADIUS + 5.0))
 	return out
 

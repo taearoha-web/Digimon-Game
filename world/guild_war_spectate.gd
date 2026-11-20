@@ -88,7 +88,7 @@ var _clock: Label
 var _owner: Label
 var _status: Label
 var _plans: Label
-## The castle switch's chip (สวิตช์: <guild> · บาเรียเปิดให้ <guild>) in the holder's colour,
+## The castle switches' chip (สวิตช์ซ้าย: <guild> · สวิตช์ขวา: <guild> · บาเรียเปิดให้ <guild>) in the colour of a guild holding both,
 ## shown once the gates are down.
 var _switch_chip: PanelContainer
 var _banner: Label

@@ -773,6 +773,24 @@ static func _say(pool: Array, rng: RandomNumberGenerator, topic := "") -> Dictio
 ## history the chat keeps: a talk that starts afresh (empty history) clears it.
 const SAID_KEEP := 24
 static var _said := {}
+## The players who said their hello in the talk now (a talk starts with an empty history).
+static var _greeted := {}
+
+
+static func greeted(who: String) -> bool:
+	return who != "" and _greeted.has(who)
+
+
+static func forget_greeting(who: String) -> void:
+	_greeted.erase(who)
+
+
+static func mark_greeted(who: String) -> void:
+	if who == "":
+		return
+	if _greeted.size() > 512:
+		_greeted.clear()
+	_greeted[who] = true
 
 
 ## A reply already given in this talk (the short history and _said): said once more with a

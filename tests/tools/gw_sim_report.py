@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sums up tests/tools/guild_war_sim JSON lines (SIM_OUT): the doctrine ("new") against
 the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
-switch time, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
+switch time, wins by camp, retakes, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
 usage: python3 tests/tools/gw_sim_report.py results.jsonl [more.jsonl ...]
 """
 import json
@@ -64,6 +64,16 @@ def main(paths):
             print("%-14s %5d %5.0f%% %6.2f %6.1f %5.1f %6.2f %7.2f %9.0f %7.0f%%" % (
                 tag, n, 100.0 * s["wins"] / n, s["place"] / n, s["kills"] / n, s["deaths"] / n, kd,
                 s["captures"] / n, first, 100.0 * s["holds_at_bell"] / n))
+        # Camp bias: wins by camp (team 0 west, 1 east, ...), whatever the brains.
+        camps = Counter(r["winner"] for r in wars)
+        print("wins by camp: " + ", ".join("t%d %d (%.0f%%)" % (t, camps[t], 100.0 * camps[t] / len(wars)) for t in range(teams)))
+        # A held castle taken by another guild (every capture after the first is one).
+        held = [r for r in wars if r.get("capture_log")]
+        retaken = [r for r in held if len(r["capture_log"]) > 1]
+        both = [r["first_both"] for r in wars if r.get("first_both", -1) is not None and r.get("first_both", -1) >= 0]
+        print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | rule %s" % (
+            sum(len(r.get("capture_log", [])) for r in wars) / len(wars), len(retaken), len(held),
+            "%.0f" % (sum(both) / len(both)) if both else "-", ",".join(sorted(set(str(r.get("rule", "-")) for r in wars)))))
         tiers = [[r["tiers"][k] for r in wars if r["tiers"][k] >= 0] for k in range(3)]
         print("tier open (avg s): %s" % ", ".join("%.0f" % (sum(t) / len(t)) if t else "-" for t in tiers))
         stuck = max(r.get("stuck_max", 0) for r in wars)

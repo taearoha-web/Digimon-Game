@@ -19,7 +19,7 @@ signal world_tapped(position: Vector2)
 signal interact_pressed()
 ## A real party member's card was tapped (Online): their id.
 signal online_member_tapped(id: String)
-## The maze's live board was tapped: the full board (MazeBoard).
+## The maze's live board was tapped: the full board (the game menu's MazeBoardView tab).
 signal maze_board_requested()
 
 ## One bottom row leaves the joystick's touch circle clear on the left.

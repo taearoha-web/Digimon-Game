@@ -5,14 +5,15 @@ extends Control
 ## the altar right now and the hero's respawn countdown (the fighters' HP lives over their
 ## heads, no roster rows: they cluttered the top of the screen). The war's news (kills, plans, gates, captures)
 ## goes to the chat box (Game.channel_chat on CHAT_CHANNEL), not over the field.
-## Once the gates are down a row under the board shows the castle's switch (สวิตช์: <guild>
-## in that guild's colour, flickering while another guild fights for it) and whom the
-## altar's barrier is open for (บาเรียเปิดให้ <guild>), the barrier's warning while our
-## leader waits on the altar behind it (who to clear out of the circle), and a button that
-## sends the hero's party to take the switch.
+## Once the gates are down a row under the board shows the castle's two switches
+## (สวิตช์ซ้าย: <guild> / สวิตช์ขวา: <guild>, each in its holder's colour, flickering while
+## another guild fights for it) and whom the altar's barrier is open for (บาเรียเปิดให้
+## <guild>: only a guild holding both), the barrier's warning while our leader waits on the
+## altar behind it (which switch to take or clear), and a button that sends the hero's
+## party to take a switch.
 ## The hero leading our guild gets a command button under the board (บัญชาการ, the order
 ## standing on it: "สั่ง: ตีประตูซ้าย"): a tap opens the orders panel (ตีประตู ซ้าย / ขวา,
-## ยึดสวิตช์, บุกแท่น/คุ้มกัน, ตั้งรับ, รวมพลที่ตัวฉัน, ถอยกลับค่าย, ตามแผน AI), each a
+## แบ่งยึดสวิตช์ซ้าย-ขวา, ยึดสวิตช์ซ้าย, ยึดสวิตช์ขวา, บุกแท่น/คุ้มกัน, ตั้งรับ, รวมพลที่ตัวฉัน, ถอยกลับค่าย, ตามแผน AI), each a
 ## thumb-sized button; the order drives the whole guild's AI (GuildWarMatch.order_guild).
 ## Hidden for a party member in its leader's war (mirror) and when a member leads.
 
@@ -44,7 +45,7 @@ var _command_button: Button
 var _orders: PanelContainer
 var _order_grid: GridContainer
 ## Short names on the command button (the war chat gets the full order).
-const ORDER_SHORT := {"gate": "ตีประตู", "switch": "ยึดสวิตช์", "escort": "บุกแท่น", "defend": "ตั้งรับ", "rally": "รวมพล", "fallback": "ถอยกลับค่าย"}
+const ORDER_SHORT := {"gate": "ตีประตู", "switch": "ยึดสวิตช์", "switches": "แบ่งยึดซ้าย-ขวา", "escort": "บุกแท่น", "defend": "ตั้งรับ", "rally": "รวมพล", "fallback": "ถอยกลับค่าย"}
 const COMMAND_LABEL := "บัญชาการ"
 ## The orders panel's buttons: thumb-sized on a phone.
 const ORDER_BUTTON := Vector2(178, 58)
@@ -116,9 +117,9 @@ func _ready() -> void:
 	_party_button.add_theme_font_size_override("font_size", 15)
 	_party_button.pressed.connect(press_party_switch)
 	_switch_row.add_child(_party_button)
-	for k in 2:
-		var chip := UIUtil.chip(SiegeArena.SWITCH_NAME if k == 0 else "บาเรีย", Color("c9c9c9"), 17)
-		chip.name = "SwitchChip" if k == 0 else "BarrierChip"
+	for k in 3:
+		var chip := UIUtil.chip(SiegeArena.SWITCH_NAMES[k] if k < 2 else "บาเรีย", Color("c9c9c9"), 16)
+		chip.name = ["SwitchChip", "SwitchChipRight", "BarrierChip"][k]
 		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_outlined(chip.get_child(0) as Label)
 		var sb := chip.get_theme_stylebox("panel") as StyleBoxFlat
@@ -181,7 +182,9 @@ func order_choices() -> Array:
 			out.append(["gate", {"lane": g.lane}, "ตีประตู" + SiegeArena.LANE_NAMES[g.lane], not ours])
 	else:
 		out.append(["gate", {}, "ตีประตู", not ours and not front.is_empty()])
-	out.append(["switch", {}, "ยึดสวิตช์", front.is_empty()])
+	out.append(["switches", {}, "แบ่งยึดสวิตช์\nซ้าย-ขวา", front.is_empty()])
+	out.append(["switch", {"side": 0}, "ยึดสวิตช์ซ้าย", front.is_empty()])
+	out.append(["switch", {"side": 1}, "ยึดสวิตช์ขวา", front.is_empty()])
 	out.append(["escort", {}, "บุกแท่น/คุ้มกัน", true])
 	out.append(["defend", {}, "ตั้งรับป้องกัน", true])
 	out.append(["rally", {}, "รวมพลที่ตัวฉัน", true])
@@ -207,8 +210,8 @@ func open_orders() -> void:
 	for choice in order_choices():
 		var data: Dictionary = choice[1]
 		var b := UIUtil.button(String(choice[2]), &"", ORDER_BUTTON)
-		b.name = "Order_%s%s" % [choice[0], ("_%d" % int(data.lane)) if data.has("lane") else ""]
-		b.add_theme_font_size_override("font_size", 18)
+		b.name = "Order_%s%s" % [choice[0], ("_%d" % int(data.lane)) if data.has("lane") else (("_%d" % int(data.side)) if data.has("side") else "")]
+		b.add_theme_font_size_override("font_size", 16 if String(choice[2]).contains("\n") else 18)
 		b.disabled = not bool(choice[3])
 		b.pressed.connect(press_order.bind(String(choice[0]), data))
 		_order_grid.add_child(b)
@@ -275,6 +278,8 @@ func _update_command(m: GuildWarMatch) -> void:
 		text = "สั่ง: " + String(ORDER_SHORT.get(c.order, c.order))
 		if c.order == GuildWarCommander.ORDER_GATE and c.order_data.has("lane"):
 			text += SiegeArena.LANE_NAMES[clampi(int(c.order_data.lane), 0, 1)]
+		elif c.order == GuildWarCommander.ORDER_SWITCH:
+			text += SiegeArena.LANE_NAMES[c.order_switch_side()]
 	if _command_button.text != text:
 		_command_button.text = text
 	_command_button.modulate = Color("ffd27a") if c.has_order() else Color.WHITE
@@ -324,10 +329,10 @@ func layout_rects() -> Dictionary:
 	return out
 
 
-## The switch chip's text colour as drawn (tests): the label stays opaque while fought over.
-func switch_label_alpha() -> float:
-	var label := _chip_label(0)
-	return (label.get_theme_color("font_color") * _chips[0].modulate * label.modulate * modulate).a
+## Switch chip `k`'s text colour as drawn (tests): the label stays opaque while fought over.
+func switch_label_alpha(k := 0) -> float:
+	var label := _chip_label(k)
+	return (label.get_theme_color("font_color") * _chips[k].modulate * label.modulate * modulate).a
 
 
 ## The top bar's texts now (tests): [owner line, capture line].
@@ -335,18 +340,19 @@ func bar_texts() -> PackedStringArray:
 	return PackedStringArray([_owner.text, _taking.text])
 
 
-## The switch's row now (tests): [switch chip, barrier chip, barrier warning].
+## The switches' row now (tests): [left switch chip, right switch chip, barrier chip,
+## barrier warning].
 func switch_texts() -> PackedStringArray:
-	return PackedStringArray([_chip_label(0).text, _chip_label(1).text, _barrier.text if _barrier.visible else ""])
+	return PackedStringArray([_chip_label(0).text, _chip_label(1).text, _chip_label(2).text, _barrier.text if _barrier.visible else ""])
 
 
 func _chip_label(k: int) -> Label:
 	return _chips[k].get_child(0) as Label
 
 
-## The switch chip's colour now (tests).
-func switch_chip_color() -> Color:
-	var sb := _chips[0].get_theme_stylebox("panel") as StyleBoxFlat
+## Switch chip `k`'s colour now (tests; 2 the barrier's).
+func switch_chip_color(k := 0) -> Color:
+	var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
 	return sb.border_color if sb != null else Color.BLACK
 
 
@@ -363,10 +369,10 @@ func press_party_switch() -> void:
 func _update_switches(m: GuildWarMatch) -> void:
 	var shown := m.front_gate() == null and m.state in ["fight", "ending"]
 	_switch_row.visible = shown
-	var color := m.switch_color()
 	for k in _chips.size():
+		var color := m.switch_color(k if k < 2 else -1)
 		var label := _chip_label(k)
-		label.text = m.switch_text() if k == 0 else m.barrier_open_text()
+		label.text = m.switch_text(k) if k < 2 else m.barrier_open_text()
 		# Solid dark backing, light text with an outline: readable on snow and on stone.
 		label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.6))
 		var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
@@ -374,6 +380,7 @@ func _update_switches(m: GuildWarMatch) -> void:
 			sb.bg_color = Color(color.darkened(0.72), 0.92)
 			sb.border_color = color
 	_chips[0].modulate = Color.WHITE
+	_chips[1].modulate = Color.WHITE
 	_party_button.visible = shown and not m.mirror and not m.hero_party_members().is_empty()
 	_party_button.modulate = Color("9dff9a") if m.party_switch else Color.WHITE
 	var warn := m.barrier_line()
@@ -381,24 +388,25 @@ func _update_switches(m: GuildWarMatch) -> void:
 	_barrier.visible = warn != ""
 
 
-## Fought over: only the switch chip's border and backing swing between the holder's and
-## the challenger's colours (the text stays fully opaque).
+## Fought over: only that switch's chip's border and backing swing between the holder's
+## and the challenger's colours (the text stays fully opaque).
 func _pulse_chip(delta: float) -> void:
 	var m := match_node
 	if m == null or not is_instance_valid(m) or _chips.is_empty() or not _switch_row.visible:
 		return
-	var sb := _chips[0].get_theme_stylebox("panel") as StyleBoxFlat
-	if sb == null:
+	if not m.switch_contested:
+		_pulse = 0.0
 		return
-	var color := m.switch_color()
-	if m.switch_contested and m.switch_challenger >= 0:
-		_pulse += delta
-		var w := 0.5 + 0.5 * sin(_pulse * 7.0)
-		var mix := color.lerp(m.team_color(m.switch_challenger), w)
+	_pulse += delta
+	var w := 0.5 + 0.5 * sin(_pulse * 7.0)
+	for k in 2:
+		var sb := _chips[k].get_theme_stylebox("panel") as StyleBoxFlat
+		var challenger: int = m.switch_challengers[k]
+		if sb == null or challenger < 0:
+			continue
+		var mix := m.switch_color(k).lerp(m.team_color(challenger), w)
 		sb.border_color = mix
 		sb.bg_color = Color(mix.darkened(0.72), 0.92)
-	else:
-		_pulse = 0.0
 
 
 func _update(_delta: float, force: bool) -> void:

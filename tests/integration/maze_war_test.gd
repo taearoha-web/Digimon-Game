@@ -318,7 +318,8 @@ func _drive() -> void:
 	MazeWar.drive_on = true
 	WorldGear.clear()
 	check(keen.size() >= 4, "keen world players at Lv.100 when the maze opened (%d)" % keen.size())
-	check(plus_on > plus_off, "the maze race makes them forge harder: their + adds up higher (%d > %d)" % [plus_on, plus_off])
+	# Keen forgers (WorldGear.ZEAL) may already be at the top either way: never lower.
+	check(plus_on >= plus_off and plus_on > 0, "the maze race makes them forge at least as hard: their + adds up as high (%d >= %d)" % [plus_on, plus_off])
 	check(gems_on >= gems_off, "and they keep and socket at least as many gems (%d >= %d)" % [gems_on, gems_off])
 	var calm := -1
 	for i in WorldPlayers.size():
@@ -456,6 +457,7 @@ func _zone() -> void:
 	f._update_shrine(0.1)
 	f._update_shrine(0.1)
 	check(not f.protected(), "after %d s the shrine's blessing wears off" % int(MazeWar.SAFE_MAX))
+	f._dodge = 0.0
 	check(f.take_hit(10, false, Color.WHITE, zone.hero) or f.hp < hp, "and it can be hit there again")
 	# The hero in a shrine.
 	var hero := zone.hero
@@ -527,23 +529,28 @@ func _hud() -> void:
 	var zone: Zone = main.zone
 	await _wait(0.3)
 	var hud: HUD = main.hud
-	check(hud.maze_hud != null and is_instance_valid(hud.maze_hud), "the maze's live board is on the HUD")
+	check(hud.maze_hud != null and is_instance_valid(hud.maze_hud), "the maze's strip is on the HUD")
 	if hud.maze_hud == null:
 		return
 	hud.maze_hud.refresh()
-	var board := MazeWar.standings(MazeWar.week_of(MazeWar.now()))
-	var rows: Array = hud.maze_hud.shown_rows
-	check(rows.size() == mini(MazeWar.HUD_ROWS, board.size()) and String(rows[0].name) == String(board[0].name) and int(rows[0].kills) == int(board[0].kills), "the HUD shows the board's top rows")
+	var board := MazeWar.standings(MazeWar.week_of(MazeWar.now()), MazeWar.now())
+	var strip: Control = hud.maze_hud.find_child("MazeStrip", true, false)
+	check(strip != null and strip.size.x <= MazeHud.WIDTH + 40.0 and hud.maze_hud.find_child("MazeRows", true, false) == null, "the HUD keeps only a small strip, no table (%s)" % (str(strip.size) if strip else "none"))
 	var mine: Label = hud.maze_hud.find_child("MazeMine", true, false)
 	var rank := MazeWar.hero_rank(MazeWar.week_of(MazeWar.now()))
-	check(mine != null and mine.text.contains("%d" % int(rank.rank)), "and the hero's own place (%s)" % (mine.text if mine else ""))
-	main.maze_board.open_board()
+	check(mine != null and mine.text.contains("%d" % int(rank.rank)), "it shows the hero's own place (%s)" % (mine.text if mine else ""))
+	hud.maze_hud.board_requested.emit()
 	await get_tree().process_frame
-	check(main.maze_board.is_open and main.maze_board._list.get_child_count() >= mini(board.size(), MazeBoard.ROWS), "the full board lists the week rank 1 to last")
-	var crown: Label = main.maze_board.find_child("CrownHolder", true, false)
-	check(crown != null and crown.text.contains(MazeCrown.TITLE_NAME), "the full board names the crown")
-	main.maze_board.close_board()
-	check(not main.maze_board.is_open and main.maze_board._list.get_child_count() == 0 and not get_tree().paused, "closing it keeps nothing")
+	await get_tree().process_frame
+	check(main.menu.is_open and main.menu.current_tab == MazeBoardView.TAB_ID, "a tap on the strip opens the board's tab in the game menu")
+	var rows: Control = main.menu.find_child("MazeRows", true, false)
+	check(rows != null and rows.get_child_count() >= mini(board.size(), MazeBoardView.ROWS), "the board tab lists the week rank 1 to last (%d)" % (rows.get_child_count() if rows else -1))
+	var crown: Label = main.menu.find_child("CrownHolder", true, false)
+	check(crown != null and crown.text.contains(MazeCrown.TITLE_NAME), "the board tab names the crown")
+	check(main.menu.find_child("EnterMaze", true, false) == null, "no enter button while already inside")
+	main.menu.close_menu()
+	await get_tree().process_frame
+	check(not main.menu.is_open and main.menu.find_child("MazeRows", true, false) == null and not get_tree().paused, "closing it keeps nothing")
 	await main.go(&"town", true)
 	var keeper := (main.zone as Zone).npcs.filter(func(n): return n.role == "maze")
 	check(keeper.size() == 1, "the maze's keeper stands in the village")
