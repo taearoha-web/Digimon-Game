@@ -42,6 +42,23 @@ extends RefCounted
 ##     at the front (not the far camp) and come back, squishy ones a little earlier; a tank
 ##     peels for a healer under attack; area skills go where foes stand thick; everyone
 ##     leans harder on the called target.
+## The SECOND BRAIN (smart2, every guild in the game's own wars; `base` keeps the doctrine
+## as it stood before it, the measurement's baseline), from traced sim wars:
+##   the DEADLINE (last_call_at): a guild not holding the castle goes all in once the bell
+##     is nearer than its capture can still be won (the walk, the fight, CAPTURE_TIME), not
+##     at a fixed two minutes (it was still staging a wave with its count out of reach);
+##   the INTERCEPT (focus_extra, dive_override): the holder marks the enemy leader near the
+##     altar above all (the only one who can take it) and its assassins dive it; whoever
+##     strikes our leader on the altar is peeled off;
+##   WAVES (_waves): the fallen coming back meet at a join point and go in four at a time,
+##     not one by one into the other guild's whole front (a third of all falls were of one
+##     walking in alone);
+##   the hurt fall back to the guild's own body when no healer is at the front (not alone
+##     across the field to the far camp), the leader to its healers and a little sooner;
+##   the fighters' own (GuildFighter.smart2): the leash, focus fire without overkill,
+##     potions before a fall, the leader drinking and fighting back on the altar, idle
+##     heals, stuns kept for a priority foe, area skills not spent on one foe, no skills on a
+##     gate with foes near.
 ## It tells its orders in the war feed in a commander's voice (orders: ⚑ แผน ...), only
 ## when the phase or the war really changes, at most one every ORDER_GAP s and the same
 ## order not again within ORDER_REPEAT s; members acknowledge some of them. With the hero
