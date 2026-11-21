@@ -1412,13 +1412,19 @@ func _skill_row(skill: Dictionary) -> Control:
 	var desc := UIUtil.label("%s  •  MP %d  •  คูลดาวน์ %.1f วิ" % [skill.desc, SkillRank.mp(skill, maxi(rank, 1)), SkillRank.cooldown(skill, maxi(rank, 1))], &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(desc)
+	var evolve := Game.evolution_note(skill)
+	if evolve != "":
+		var evo := UIUtil.label(evolve, &"SmallLabel")
+		evo.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		evo.add_theme_color_override("font_color", UIPalette.GOLD)
+		info.add_child(evo)
 	var upcoming := SkillRank.next_changes(SkillRank.table(skill), rank)
 	if unlocked and not upcoming.is_empty():
 		var next := UIUtil.label("อัปเป็นดาว %d ที่ครูฝึกสกิล: %s" % [rank + 1, ",  ".join(upcoming)], &"SmallLabel")
 		next.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		next.add_theme_color_override("font_color", UIPalette.SUCCESS)
 		info.add_child(next)
-	var equipped := Game.loadout().find(skill.id)
+	var equipped := Game.loadout().find(ClassData.rank_id(skill))
 	for slot in ClassData.SLOTS:
 		var b := UIUtil.button(str(slot + 1), &"PrimaryButton" if equipped == slot else &"", Vector2(48, 52))
 		b.disabled = not unlocked or equipped == slot

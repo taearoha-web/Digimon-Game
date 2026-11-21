@@ -124,7 +124,7 @@ static func best_bar(cls: StringName, mode := "pack") -> Array:
 	var stars := int(Game.paragon().level)
 	var attacks := []
 	var buffs := []
-	for skill in ClassData.pool(cls):
+	for skill in ClassData.kit(cls, int(Game.profile.level), tier):
 		if int(skill.level) > int(Game.profile.level) or ClassData.skill_tier(skill) > tier or int(skill.get("star", 0)) > stars:
 			continue
 		var fx: Dictionary = skill.get("fx", {})
@@ -144,9 +144,9 @@ static func best_bar(cls: StringName, mode := "pack") -> Array:
 							targets += pow(0.85, i)
 					"summon": targets = 2.0
 					_: targets = 3.0 if skill.has("pierce") or skill.has("line") else 1.0
-			attacks.append([float(skill.mult) * targets / maxf(float(skill.cd), 1.0), String(skill.id)])
+			attacks.append([float(skill.mult) * targets / maxf(float(skill.cd), 1.0), ClassData.rank_id(skill)])
 		elif fx.has("buff") and float(fx.buff.get("atk", 0.0)) > 0.0:
-			buffs.append([float(fx.buff.atk), String(skill.id)])
+			buffs.append([float(fx.buff.atk), ClassData.rank_id(skill)])
 	attacks.sort_custom(func(a, b): return a[0] > b[0])
 	buffs.sort_custom(func(a, b): return a[0] > b[0])
 	var bar := attacks.slice(0, 6).map(func(e): return e[1]) + buffs.slice(0, 2).map(func(e): return e[1])
@@ -186,9 +186,9 @@ func _measure(cls: StringName, zone_id: StringName, seconds: float, only: Varian
 		para.alloc[key] = put
 		spend -= put
 	para.points = spend
-	for skill in ClassData.pool(cls) + ClassData.PASSIVES.get(cls, []):
+	for skill in ClassData.pool(cls) + ClassData.passives(cls):
 		if int(skill.level) <= int(p.level):
-			p.skills[String(skill.id)] = SkillRank.MAX
+			p.skills[ClassData.rank_id(skill)] = SkillRank.MAX
 	p.party = []
 	p["pet"] = _pet
 	var fixed: Array = []

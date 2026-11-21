@@ -293,7 +293,7 @@ func _summon(skill: Dictionary, mult: float) -> void:
 			old.queue_free()
 			_summons.erase(old)
 	var count := int(spec.get("count", 1))
-	var p_rank := maxi(1, int(_party_profile().get("skills", {}).get(skill.id, 1)))
+	var p_rank := maxi(1, int(_party_profile().get("skills", {}).get(ClassData.rank_id(skill), 1)))
 	for i in count:
 		if _summons.size() >= SUMMON_LIMIT:
 			break
@@ -837,7 +837,7 @@ func _try_skills(distance: float) -> bool:
 	var best: Dictionary = {}
 	var best_score := 0.0
 	for skill in skills:
-		if not ClassData.ai_allows(skill, _buff_kit()) or skill.has("star") or int(skill.level) > int(member.level) + 9 or ClassData.skill_tier(skill) > _tier() or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if not ClassData.ai_allows(skill, _buff_kit()) or skill.has("star") or not ClassData.knows(skill, int(member.level) + 9, _tier(), 0) or float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
 			continue
 		var score := _score(skill, distance, hero_hp)
 		if score > best_score:
@@ -919,7 +919,7 @@ var _recall_mode := "hero"
 ## The Summon (recall) skill this member knows, {} for none (not a Dark Lord, too low).
 func summon_skill() -> Dictionary:
 	for skill in data.get("skills", []):
-		if (skill as Dictionary).get("fx", {}).has("recall") and not skill.has("star") and int(skill.level) <= int(member.level) + 9 and ClassData.skill_tier(skill) <= _tier():
+		if (skill as Dictionary).get("fx", {}).has("recall") and not skill.has("star") and ClassData.knows(skill, int(member.level) + 9, _tier(), 0):
 			return skill
 	return {}
 

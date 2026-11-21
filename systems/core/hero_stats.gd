@@ -118,7 +118,7 @@ static func set_gear_bonus(profile: Dictionary) -> Dictionary:
 static func passive_bonus(profile: Dictionary) -> Dictionary:
 	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "speed": 0.0, "dodge": 0.0}
 	var level: int = profile["level"]
-	for passive in ClassData.PASSIVES.get(StringName(profile["class"]), []):
+	for passive in ClassData.passives(StringName(profile["class"])):
 		if level < int(passive.level) or ClassData.skill_tier(passive) > ClassData.tier_of(StringName(profile["class"]), int(profile.get("adv", 0))):
 			continue
 		var rank := maxi(1, int(profile.get("skills", {}).get(passive.id, 0)))

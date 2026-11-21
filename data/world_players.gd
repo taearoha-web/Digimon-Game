@@ -1296,8 +1296,9 @@ static func skill_points(level: int, stars: int) -> int:
 ## for yet wait for the next skill.
 static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
 	var unlocked: Array = []
+	# A class with skill lines: its lines (ranks are kept per line, ClassData.rank_id).
 	for skill in ClassData.pool(cls):
-		if int(skill.level) <= level:
+		if int(skill.level) <= level and (not ClassData.has_lines(cls) or ClassData.is_line(cls, String(skill.id)) or skill.has("star")):
 			unlocked.append(skill)
 	unlocked.sort_custom(func(a, b): return int(a.level) < int(b.level))
 	var ranks := {}

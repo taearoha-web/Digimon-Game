@@ -181,7 +181,7 @@ func _summon(skill: Dictionary) -> void:
 			old.queue_free()
 			_summons.erase(old)
 	var count := int(spec.get("count", 1))
-	var p_rank := maxi(1, int(_profile.get("skills", {}).get(skill.id, 1)))
+	var p_rank := maxi(1, int(_profile.get("skills", {}).get(ClassData.rank_id(skill), 1)))
 	var mult := float(skill.get("mult", 1.0)) * HeroStats.SKILL_POWER
 	for i in count:
 		if _summons.size() >= SUMMON_LIMIT:
@@ -475,7 +475,7 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 		_usable_key = key
 		_usable = []
 		for skill in class_data.skills:
-			if ClassData.ai_allows(skill, _buff_kit) and int(skill.level) <= level and ClassData.skill_tier(skill) <= _tier() and int(skill.get("star", 0)) <= _stars():
+			if ClassData.ai_allows(skill, _buff_kit) and ClassData.knows(skill, level, _tier(), _stars()):
 				_usable.append(skill)
 	for skill in _usable:
 		var shape := String(skill.shape)

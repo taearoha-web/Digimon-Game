@@ -168,6 +168,12 @@ func _row(skill: Dictionary, passive: bool) -> Control:
 	var desc := UIUtil.label(text, &"SmallLabel")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(desc)
+	var evolve := "" if passive else Game.evolution_note(skill)
+	if evolve != "":
+		var evo := UIUtil.label(evolve, &"SmallLabel")
+		evo.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		evo.add_theme_color_override("font_color", UIPalette.GOLD)
+		info.add_child(evo)
 	info.add_child(SkillRankTable.build(SkillRank.passive_table(skill) if passive else SkillRank.table(skill), rank))
 	var cost := Game.skill_upgrade_cost(skill)
 	var maxed := rank >= Game.MAX_SKILL_RANK

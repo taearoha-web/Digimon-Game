@@ -220,7 +220,7 @@ func set_class(id: StringName) -> void:
 static func class_lines(id: StringName) -> Dictionary:
 	var data := ClassData.get_class_data(id)
 	var skills: PackedStringArray = []
-	for skill in ClassData.pool(id):
+	for skill in ClassData.kit(id, 1, 1):
 		if skills.size() >= 3 or skill.has("star"):
 			break
 		skills.append("%s (Lv.%d)" % [skill.name, int(skill.level)])

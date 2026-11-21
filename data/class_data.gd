@@ -263,14 +263,6 @@ const CLASSES := {
 ## Passive skills: always on once the level is reached, +[per] per rank.
 ## Keys of [bonus]: atk, def, hp, mp (fractions), crit, speed, dodge (added).
 const PASSIVES := {
-	&"warrior": [
-		{"id": "melee_mastery", "name": "Melee Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
-		{"id": "physical_training", "name": "Physical Training", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
-		{"id": "holy_body", "name": "Holy Body", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 30, "bonus": {"def": 0.04}},
-		{"id": "weapon_mastery", "name": "Weapon Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 40, "bonus": {"atk": 0.025}},
-		{"id": "battle_instinct", "name": "Battle Instinct", "desc": "คริติคอล +1.5% ต่อดาว", "level": 60, "bonus": {"crit": 0.015}},
-		{"id": "immortal_body", "name": "Immortal Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 80, "bonus": {"hp": 0.05}},
-	],
 	&"archer": [
 		{"id": "shooting_mastery", "name": "Shooting Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "wind_step", "name": "Wind Step", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
@@ -348,6 +340,217 @@ const PASSIVES := {
 static var _pools: Dictionary = {}
 
 
+# --- Skill lines (the 8-skill classes) ------------------------------------------
+## A converted class has exactly 8 active skills, its LINES, each of which EVOLVES with
+## level: a line is a list of stages [base, evo1, evo2], every stage a whole skill of
+## the pool (own id, name, desc, shape, effects and art). A stage's "level" is when it
+## becomes available (base: unlock level, others: evolution level); the hero always
+## casts the highest stage its level and job advancement (skill_tier) reach. The bar
+## slot and the star rank (Game.profile.skills) belong to the LINE, under its id = the
+## base stage's id, so evolving keeps both. The class's data lives in its own file
+## (data/skill_lines/<class>.gd: TUNE, LINES, OLD_IDS, PASSIVES, skills()); a class
+## not listed here still uses its old pool (_build_pools), TUNE and PASSIVES row.
+## Every stage dict also carries "skill_line" (its line id; "line" is a star skill's
+## beam flag), "stage" (0, 1, 2) and, when a later stage exists, "next_level" (the
+## level it is replaced at).
+const LINE_FILES := {
+	&"warrior": "res://data/skill_lines/warrior.gd",
+}
+static var _line_scripts := {}
+## Per converted class: {stage id: line id}.
+static var _line_index := {}
+
+
+static func has_lines(cls: StringName) -> bool:
+	return LINE_FILES.has(cls)
+
+
+static func _lines_of(cls: StringName) -> Script:
+	if not _line_scripts.has(cls):
+		_line_scripts[cls] = load(String(LINE_FILES[cls]))
+	return _line_scripts[cls]
+
+
+## The line ids of a converted class in bar order ([] for an old-style class).
+static func line_ids(cls: StringName) -> Array:
+	var out: Array = []
+	for stages in line_table(cls):
+		out.append(String(stages[0]))
+	return out
+
+
+## The stage ids of each line of a converted class, in bar order.
+static func line_table(cls: StringName) -> Array:
+	return _lines_of(cls).LINES if has_lines(cls) else []
+
+
+## The line a skill id belongs to: the line id for a stage of a converted class, else
+## the id itself (old-style classes, star skills, unknown ids).
+static func line_of(cls: StringName, skill_id: String) -> String:
+	if not has_lines(cls):
+		return skill_id
+	pool(cls)
+	return String((_line_index.get(cls, {}) as Dictionary).get(skill_id, skill_id))
+
+
+## Whether [param skill_id] is a line id (a line's first stage) of a converted class.
+static func is_line(cls: StringName, skill_id: String) -> bool:
+	return has_lines(cls) and line_ids(cls).has(skill_id)
+
+
+## The key a skill's star rank is kept under in a profile's "skills": its line id.
+static func rank_id(skill: Dictionary) -> String:
+	return String(skill.get("skill_line", skill.get("id", "")))
+
+
+## The stage dicts of a line, first stage first ([] when it is no line).
+static func line_stages(cls: StringName, line_id: String) -> Array:
+	var out: Array = []
+	for stages in line_table(cls):
+		if String(stages[0]) == line_id:
+			for id in stages:
+				out.append(find_skill(cls, String(id)))
+	return out
+
+
+## Whether a hero of [param level] and advancement tier [param tier] has reached a stage.
+static func stage_reached(skill: Dictionary, level: int, tier: int) -> bool:
+	return level >= int(skill.get("level", 1)) and tier >= skill_tier(skill)
+
+
+## Whether [param skill] is the stage to cast at [param level] / [param tier]: true for
+## every skill that is no line stage, false for a stage a later one has replaced.
+## (The stage's own unlock is checked by the caller as before.)
+static func is_current(skill: Dictionary, level: int, tier: int) -> bool:
+	if not skill.has("next_level"):
+		return true
+	return not stage_reached({"level": int(skill.next_level)}, level, tier)
+
+
+## The stage of a line a hero casts at [param level] / [param tier]: the highest one
+## reached, the first stage when none is (still locked; its level says when).
+static func current_stage(cls: StringName, line_id: String, level: int, tier: int) -> Dictionary:
+	var stages := line_stages(cls, line_id)
+	if stages.is_empty():
+		return find_skill(cls, line_id)
+	var at: Dictionary = stages[0]
+	for stage in stages:
+		if stage_reached(stage, level, tier):
+			at = stage
+	return at
+
+
+## The next evolution of a line after the current stage, {} at the last one.
+static func next_stage(cls: StringName, line_id: String, level: int, tier: int) -> Dictionary:
+	var stages := line_stages(cls, line_id)
+	var at := stages.find(current_stage(cls, line_id, level, tier))
+	return stages[at + 1] if at >= 0 and at + 1 < stages.size() else {}
+
+
+## The skills of a class as a hero of [param level] / [param tier] sees them: for a
+## converted class the current stage of each of its 8 lines plus the star skills, for
+## an old-style class its whole pool. Not filtered by unlock (callers check that).
+static func kit(cls: StringName, level: int, tier: int) -> Array:
+	if not has_lines(cls):
+		return pool(cls)
+	var out: Array = []
+	for line_id in line_ids(cls):
+		out.append(current_stage(cls, line_id, level, tier))
+	for skill in pool(cls):
+		if skill.has("star"):
+			out.append(skill)
+	return out
+
+
+## Whether an AI fighter of [param level] / [param tier] / [param stars] can cast a skill:
+## unlocked, its tier and star reached, and the line's current stage.
+static func knows(skill: Dictionary, level: int, tier: int, stars: int) -> bool:
+	return int(skill.get("level", 1)) <= level and skill_tier(skill) <= tier and int(skill.get("star", 0)) <= stars and is_current(skill, level, tier)
+
+
+## The passive skills of a class (3 for a converted class).
+static func passives(cls: StringName) -> Array:
+	if has_lines(cls):
+		return _lines_of(cls).PASSIVES
+	return PASSIVES.get(cls, [])
+
+
+## Old save data of a converted class: moves the star ranks of [param skills] (id ->
+## rank) to today's lines and passives. A stage's rank goes to its line, an OLD_IDS
+## entry to its target (the higher rank stays when several meet); anything else is
+## dropped. Returns the skill points to refund: every star above the free first one
+## that no longer counts. Star skills and current ids stay as they are (idempotent).
+static func migrate_ranks(cls: StringName, skills: Dictionary) -> int:
+	if not has_lines(cls):
+		return 0
+	var keep := {}
+	for line_id in line_ids(cls):
+		keep[line_id] = true
+	for passive in passives(cls):
+		keep[String(passive.id)] = true
+	for skill in pool(cls):
+		if skill.has("star"):
+			keep[String(skill.id)] = true
+	var old_ids: Dictionary = _lines_of(cls).OLD_IDS
+	var refund := 0
+	var out := {}
+	for id in skills.keys():
+		var rank := int(skills[id])
+		var to := line_of(cls, String(id))
+		if not keep.has(to):
+			to = String(old_ids.get(String(id), ""))
+		if to == "" or not keep.has(to):
+			refund += maxi(0, rank - 1)
+			continue
+		if out.has(to):
+			refund += maxi(0, mini(rank, int(out[to])) - 1)
+			out[to] = maxi(rank, int(out[to]))
+		else:
+			out[to] = rank
+	skills.clear()
+	skills.merge(out)
+	return refund
+
+
+## An old bar of a converted class: every stage id becomes its line id, star skills
+## stay, other ids and repeats are emptied (default_loadout then fills the gaps).
+static func migrate_bar(cls: StringName, bar: Array) -> Array:
+	var out: Array = []
+	for i in SLOTS:
+		var id := line_of(cls, String(bar[i])) if i < bar.size() else ""
+		var ok := id != "" and not out.has(id) and (is_line(cls, id) or find_skill(cls, id).has("star"))
+		out.append(id if ok else "")
+	return out
+
+
+## Builds a converted class's pool from its file and checks its shape.
+static func _line_pool(cls: StringName) -> Array:
+	var script := _lines_of(cls)
+	var skills: Array = script.skills()
+	var by_id := {}
+	for skill in skills:
+		by_id[String(skill.id)] = skill
+	var index := {}
+	var table: Array = script.LINES
+	assert(table.size() == SLOTS, "%s: a class has %d skill lines" % [cls, SLOTS])
+	for stages in table:
+		var line_id := String(stages[0])
+		for i in stages.size():
+			var skill: Dictionary = by_id.get(String(stages[i]), {})
+			assert(not skill.is_empty(), "%s: line stage %s has no skill" % [cls, stages[i]])
+			skill["skill_line"] = line_id
+			skill["stage"] = i
+			index[String(stages[i])] = line_id
+			if i + 1 < stages.size():
+				var later: Dictionary = by_id.get(String(stages[i + 1]), {})
+				assert(int(later.get("level", 0)) > int(skill.level), "%s: %s must evolve later than %s" % [cls, stages[i + 1], stages[i]])
+				skill["next_level"] = int(later.get("level", 0))
+	for skill in skills:
+		assert(index.has(String(skill.id)), "%s: %s is in no line" % [cls, skill.id])
+	_line_index[cls] = index
+	return skills
+
+
 static func get_class_data(class_id: StringName) -> Dictionary:
 	return CLASSES.get(class_id, CLASSES[&"warrior"])
 
@@ -405,9 +608,13 @@ static func is_signature(skill: Dictionary) -> bool:
 ## ones unlocked at [param level]: the class signature first, then a stable pick.
 static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 	var open: Array = []
-	for skill in pool(class_id):
+	# A converted class: the current stage of each line, kept by line id (evolving
+	# keeps the pick).
+	var stage_of := {}
+	for skill in kit(class_id, level, 1 + JobData.adv_for_level(level)):
 		if is_buff_skill(skill) and int(skill.level) <= level and not skill.has("star"):
-			open.append(String(skill.id))
+			open.append(rank_id(skill))
+			stage_of[rank_id(skill)] = skill
 	var kit: Array = []
 	var signature := String(SIGNATURE_BUFFS.get(class_id, ""))
 	if signature != "" and open.has(signature):
@@ -417,7 +624,7 @@ static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 	var heals: Array = []
 	if AI_ALL_HEALS.has(class_id):
 		for id in open.duplicate():
-			if _heals_and_buffs(find_skill(class_id, id)):
+			if _heals_and_buffs(stage_of[id]):
 				heals.append(id)
 				open.erase(id)
 	var seed := absi(hash(who))
@@ -431,7 +638,7 @@ static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 
 ## Whether an AI player with buff kit [param kit] may cast [param skill].
 static func ai_allows(skill: Dictionary, kit: Array) -> bool:
-	return not is_buff_skill(skill) or kit.has(String(skill.id))
+	return not is_buff_skill(skill) or kit.has(rank_id(skill))
 
 
 static func find_skill(class_id: StringName, skill_id: String) -> Dictionary:
@@ -461,12 +668,17 @@ static func tier_of(class_id: StringName, adv: int) -> int:
 	return 1 + clampi(adv, 0, 4)
 
 
-## The first unlocked skills fill the empty bar slots.
+## The first unlocked skills fill the empty bar slots (a converted class: its lines).
 static func default_loadout(class_id: StringName, level: int, current: Array = [], tier := 3, stars := 0) -> Array:
 	var out: Array = []
 	for i in SLOTS:
 		out.append(String(current[i]) if i < current.size() else "")
 	var pool_skills := pool(class_id)
+	# A converted class: the bar holds line ids (a stage id becomes its line's) and the
+	# star skills; its 8 lines fill the gaps in order.
+	if has_lines(class_id):
+		out = migrate_bar(class_id, out)
+		pool_skills = kit(class_id, 1, 1).filter(func(s): return int(s.get("stage", 0)) == 0)
 	# Drop ids that no longer belong to this class or are not unlocked.
 	for i in SLOTS:
 		var skill := find_skill(class_id, out[i])
@@ -495,7 +707,6 @@ const AREA_SHARE := 0.7
 ## factors for skills unlocked at Lv.1-35, Lv.36-75 and Lv.76-100 / star skills,
 ## so no class stands out in either fight at any stage.
 const TUNE := {
-	&"warrior": [[1.016, 1.016], [0.403, 0.403], [1.032, 1.183]],
 	&"archer": [[0.527, 0.527], [0.515, 0.515], [0.676, 0.676]],
 	&"mage": [[0.441, 0.36], [1.33, 0.34], [1.73, 0.789]],
 	&"priest": [[1.718, 1.718], [0.74, 0.74], [1.8, 1.8]],
@@ -514,7 +725,7 @@ const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 static func skill_tune(cls: StringName, level: int, star: bool, shape: String) -> float:
 	var area := shape in AREA_SHAPES
 	var band := 2 if star or level > 75 else (1 if level > 35 else 0)
-	var table: Array = TUNE.get(cls, [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
+	var table: Array = _lines_of(cls).TUNE if has_lines(cls) else TUNE.get(cls, [[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
 	return float(table[band][1 if area else 0]) * (AREA_SHARE if area else SINGLE_EDGE)
 
 
@@ -581,34 +792,6 @@ static func _build_pools() -> void:
 		_sk(v, "power_strike", "Power Strike", "ฟันหนักๆ ใส่ศัตรูตัวเดียว", 1, 6, 3.0, "single", 2.3, {"color": Color("ffb05a"), "icon": "sword"}),
 		_sk(v, "round_slash", "Round Slash", "หมุนตัวฟันศัตรูรอบตัว", 4, 12, 8.0, "burst", 1.8, {"radius": 4.0, "special": "spin", "color": Color("ffc27a"), "icon": "spin"}),
 		_sk(v, "second_wind", "Second Wind", "ฟื้นฟู HP 35%", 7, 14, 16.0, "self", 0.0, {"fx": {"heal": 0.35}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
-	]
-	var w := &"warrior"
-	_pools[w] = [
-		_sk(w, "raving", "Raving", "ฟันรัวใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 1, 10, 3.0, "single", 3.0, {"color": Color("ffb05a"), "icon": "sword"}),
-		_sk(w, "impact", "Impact", "ฟันกระแทกหนักๆ ศัตรูมึนงง 1.5 วินาที", 5, 12, 6.0, "single", 3.4, {"fx": {"stun": 1.5}, "vfx": &"impact", "anim": "Block_Attack", "color": Color("ffe27a"), "icon": "shield"}),
-		_sk(w, "triple_impact", "Triple Impact", "ฟันต่อเนื่อง 3 ครั้งใส่เป้าหมายเดียว", 14, 16, 6.0, "single", 4.6, {"color": Color("ff9a5a"), "icon": "sword"}),
-		_sk(w, "brutal_swing", "Brutal Swing", "หมุนตัวฟันรอบทิศ", 17, 20, 9.0, "burst", 2.8, {"radius": 4.3, "special": "spin", "color": Color("ff9a5a"), "icon": "spin"}),
-		_sk(w, "roar", "Roar", "คำรามก้อง ศัตรูรอบตัวมึนงง 2.5 วินาที", 20, 20, 14.0, "burst", 1.4, {"radius": 6.0, "fx": {"stun": 2.5}, "vfx": &"impact", "anim": "Cheer", "color": Color("ffd27a"), "icon": "roar"}),
-		_sk(w, "rage_of_zecram", "Rage of Zecram", "พลังโกรธาปะทุ ฟันศัตรูรอบตัวอย่างรุนแรง", 24, 26, 10.0, "burst", 4.0, {"radius": 4.8, "color": Color("ff5a3a"), "icon": "spin"}),
-		_sk(w, "concentration", "Concentration", "ATK +30% คริติคอล +15% นาน 1 นาที", 27, 24, 30.0, "self", 0.0, {"fx": {"buff": {"atk": 0.3, "crit": 0.15, "secs": 60.0}}, "color": Color("ffb04a"), "icon": "roar"}),
-		_sk(w, "avenging_crash", "Avenging Crash", "ฟันจู่โจมแรงสูงใส่ศัตรูตัวเดียว", 31, 28, 7.0, "single", 6.2, {"range": 3.1, "color": Color("ff5a3a"), "icon": "sword"}),
-		_sk(w, "swift_axe", "Swift Axe", "วิ่งเร็ว +30% ATK +20% นาน 1 นาที", 35, 26, 30.0, "self", 0.0, {"fx": {"buff": {"speed": 0.3, "atk": 0.2, "secs": 60.0}}, "color": Color("7affd0"), "icon": "boots"}),
-		_sk(w, "bone_crash", "Bone Crash", "ทุบพื้นถล่มศัตรูรอบตัว มึนงง 1.2 วินาที", 39, 38, 12.0, "burst", 4.8, {"radius": 5.2, "fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ff8a4a"), "icon": "spin"}),
-		_sk(w, "destroyer", "Destroyer", "ฟันทำลายล้างศัตรูตัวเดียว", 43, 40, 9.0, "single", 8.2, {"range": 3.2, "color": Color("ff3a3a"), "icon": "sword"}),
-		_sk(w, "berserker", "Berserker", "ATK +55% วิ่งเร็ว +15% นาน 1 นาที", 47, 44, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "speed": 0.15, "secs": 60.0}}, "color": Color("ff4a3a"), "icon": "roar"}),
-		_sk(w, "sword_blast", "Sword Blast", "ปล่อยคลื่นดาบพุ่งไปไกลใส่ศัตรู", 52, 48, 8.0, "single", 9.5, {"range": 9.0, "projectile": true, "vfx": &"impact", "color": Color("ffb04a"), "icon": "sword"}),
-		_sk(w, "holy_valor", "Holy Valor", "ATK +40% DEF +30% นาน 1 นาที", 56, 52, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "def": 0.3, "secs": 60.0}}, "color": Color("ffe27a"), "icon": "roar"}),
-		_sk(w, "cyclone_strike", "Cyclone Strike", "พายุดาบหมุนรอบตัว ศัตรูมึนงง 1 วินาที", 60, 62, 12.0, "burst", 8.0, {"radius": 6.5, "special": "spin", "fx": {"stun": 1.0}, "color": Color("ff8a4a"), "icon": "spin"}),
-		_sk(w, "brandish", "Brandish", "ฟันกวาดแรงสูงใส่ศัตรูตัวเดียว", 64, 60, 8.0, "single", 13.0, {"range": 3.4, "color": Color("ff5a3a"), "icon": "sword"}),
-		_sk(w, "double_crash", "Double Crash", "กระแทกสองครั้งติด ศัตรูรอบตัวบาดเจ็บหนัก", 68, 70, 11.0, "burst", 9.5, {"radius": 5.5, "vfx": &"impact", "color": Color("ff7a3a"), "icon": "spin"}),
-		_sk(w, "piercing", "Piercing", "ดาบพุ่งทะลวงศัตรู 6 ตัวต่อเนื่อง", 72, 72, 12.0, "chain", 5.5, {"hits": 6, "range": 9.0, "vfx": &"slash", "color": Color("ffd27a"), "icon": "sword"}),
-		_sk(w, "drastic_spirit", "Drastic Spirit", "DEF +80% ฟื้นฟู HP 30% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"def": 0.8, "secs": 60.0}}, "color": Color("ffe9a0"), "icon": "shield"}),
-		_sk(w, "grand_cross", "Grand Cross", "ไม้กางเขนดาบถล่มรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 13.0, {"radius": 7.5, "special": "spin", "fx": {"stun": 1.5}, "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
-		_sk(w, "sword_of_justice", "Sword of Justice", "ดาบแห่งความยุติธรรมฟันขาดศัตรูตัวเดียว", 84, 92, 10.0, "single", 18.0, {"range": 3.6, "vfx": &"light", "color": Color("fff0a0"), "icon": "sword"}),
-		_sk(w, "godly_shield", "Godly Shield", "DEF +120% ฟื้นฟู HP 40% นาน 1 นาที", 88, 90, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 1.2, "secs": 60.0}}, "color": Color("ffffff"), "icon": "shield"}),
-		_sk(w, "divine_piercing", "Divine Piercing", "ดาบศักดิ์สิทธิ์พุ่งไปที่ศัตรู 8 ทิศ", 92, 100, 14.0, "fan", 5.5, {"hits": 8, "range": 12.0, "vfx": &"light", "color": Color("fff0a0"), "icon": "triple"}),
-		_sk(w, "triumph_of_valhalla", "Triumph of Valhalla", "ATK +80% คริ +20% วิ่งเร็ว +20% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.8, "crit": 0.2, "speed": 0.2, "secs": 60.0}}, "color": Color("ffd84a"), "icon": "roar"}),
-		_sk(w, "gladiator", "Gladiator", "การฟันสังหารสุดยอดของนักดาบในตำนาน", 100, 130, 14.0, "single", 26.0, {"range": 3.8, "color": Color("ff3a3a"), "icon": "sword"}),
 	]
 	var a := &"archer"
 	_pools[a] = [
@@ -899,5 +1082,8 @@ static func _build_pools() -> void:
 		_sk(b, "grand_finale", "Grand Finale", "มหาคอนเสิร์ตปิดม่าน เวทีแสงและเสียงระเบิดถล่มพื้นที่กว้างมาก ศัตรูมึนงง 1.5 วินาที เกราะแตก 20% และอ่อนแรง 20% นาน 8 วินาที", 100, 140, 18.0, "blast", 10.5, {"radius": 9.5, "range": 12.0, "hit_delay": 0.9, "anim": "Spellcast_Long", "fx": {"stun": 1.5, "shred": [0.2, 8.0], "weaken": [0.2, 8.0]}, "vfx": &"light", "color": rose, "icon": "nova"}),
 	]
 
+	# The converted classes (LINE_FILES): their 8 skill lines from their own file.
+	for line_class in LINE_FILES:
+		_pools[line_class] = _line_pool(line_class)
 	for star_class in IDS:
 		_pools[star_class].append_array(StarSkillData.pool(star_class))

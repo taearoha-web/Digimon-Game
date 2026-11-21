@@ -248,19 +248,26 @@ func class_data() -> Dictionary:
 	return data
 
 
-## Every active skill of the class (the pool the bar is filled from).
+## Every active skill of the class (the pool the bar is filled from). A class with
+## skill lines (ClassData.has_lines): its 8 lines at the stage the hero has reached,
+## then its star skills.
 func skill_pool() -> Array:
-	return ClassData.pool(class_id())
+	return ClassData.kit(class_id(), int(profile.get("level", 1)), class_tier())
 
 
 func passive_pool() -> Array:
-	return ClassData.PASSIVES.get(class_id(), [])
+	return ClassData.passives(class_id())
 
 
+## The bar's skills; a line on the bar is cast at the stage the hero has reached.
 func loadout_skills() -> Array:
 	var out: Array = []
+	var cls := class_id()
 	for id in loadout():
-		out.append(ClassData.find_skill(class_id(), String(id)))
+		var skill := ClassData.find_skill(cls, String(id))
+		if skill.has("skill_line"):
+			skill = ClassData.current_stage(cls, String(skill.skill_line), int(profile.get("level", 1)), class_tier())
+		out.append(skill)
 	return out
 
 
@@ -295,6 +302,8 @@ func _keep_signature_skill() -> void:
 
 ## Puts a skill on a bar slot; a skill already on the bar swaps places.
 func equip_skill(skill_id: String, slot: int) -> bool:
+	# Any stage of a line goes on the bar as its line.
+	skill_id = ClassData.line_of(class_id(), skill_id)
 	var skill := ClassData.find_skill(class_id(), skill_id)
 	if skill.is_empty() or not skill_unlocked(skill) or slot < 0 or slot >= ClassData.SLOTS:
 		return false
@@ -1623,10 +1632,17 @@ func _migrate_skills(data: Dictionary) -> void:
 			for i in (data["loadout"] as Array).size():
 				if data["loadout"][i] == old:
 					data["loadout"][i] = now
+	# A class with skill lines: the old skills' ranks go to their lines (refunding
+	# what no longer counts) and the bar holds the lines (ClassData.migrate_ranks).
+	if ClassData.has_lines(cls):
+		data["skill_points"] = int(data["skill_points"]) + ClassData.migrate_ranks(cls, data.skills)
+		if data.get("loadout") is Array:
+			data["loadout"] = ClassData.migrate_bar(cls, data["loadout"])
 	var valid := {}
 	for skill in ClassData.pool(cls):
-		valid[skill.id] = true
-	for skill in ClassData.PASSIVES.get(cls, []):
+		if not ClassData.has_lines(cls) or ClassData.is_line(cls, String(skill.id)) or skill.has("star"):
+			valid[skill.id] = true
+	for skill in ClassData.passives(cls):
 		valid[skill.id] = true
 	for skill_id in data.skills.keys():
 		if not valid.has(skill_id):
@@ -2241,9 +2257,27 @@ func skill_lock_reason(skill: Dictionary) -> String:
 	return ""
 
 
+## A skill line's stage and next evolution for the skill screens, "" for a skill
+## that is no line stage: "ขั้น 1/3 • วิวัฒน์ที่ Lv.60 → Triple Impact".
+func evolution_note(skill: Dictionary) -> String:
+	if not skill.has("skill_line"):
+		return ""
+	var cls := class_id()
+	var stages := ClassData.line_stages(cls, String(skill.skill_line))
+	var text := "ขั้น %d/%d" % [int(skill.get("stage", 0)) + 1, stages.size()]
+	var next := ClassData.next_stage(cls, String(skill.skill_line), int(profile.get("level", 1)), class_tier())
+	if next.is_empty():
+		return text + " • ร่างสุดท้าย" if stages.size() > 1 else text
+	text += " • วิวัฒน์ที่ Lv.%d → %s" % [int(next.level), String(next.name)]
+	var need := ClassData.skill_tier(next)
+	if int(profile.get("level", 1)) >= int(next.level) and class_tier() < need:
+		text += " (ต้องเปลี่ยนเป็น%s ก่อน)" % JobData.tier_name(cls, need)
+	return text
+
+
 ## Skills start at rank 1 once their level is reached; ranks 2-5 cost a skill point.
 func effective_rank(skill: Dictionary) -> int:
-	return maxi(1, skill_rank(skill.id)) if skill_unlocked(skill) else 0
+	return maxi(1, skill_rank(ClassData.rank_id(skill))) if skill_unlocked(skill) else 0
 
 
 ## Radius multiplier of an area skill at a star rank.
@@ -2266,7 +2300,7 @@ func upgrade_skill(skill: Dictionary) -> bool:
 	profile["gold"] -= skill_upgrade_cost(skill)
 	gold_changed.emit(profile["gold"])
 	profile["skill_points"] -= 1
-	profile["skills"][skill.id] = rank + 1
+	profile["skills"][ClassData.rank_id(skill)] = rank + 1
 	profile_changed.emit()
 	mark_dirty()
 	return true
