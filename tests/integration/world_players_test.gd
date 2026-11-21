@@ -82,9 +82,9 @@ func _skill_ranks() -> void:
 
 
 func _roster() -> void:
-	# Ninety-nine hand-made players (a hundred with the hero), then the daily newcomers
-	# (newcomers_test) who have joined by today.
-	check(WorldPlayers.ROSTER.size() == 99 and WorldPlayers.size() >= WorldPlayers.ROSTER.size(), "ninety-nine world players, a hundred with the hero, and the newcomers (%d)" % WorldPlayers.size())
+	# A hundred hand-made players since the reopening of 22 Nov 2026, and no daily
+	# newcomers any more (NEWCOMER_MAX = 0: newcomers_test, world_reopen_test).
+	check(WorldPlayers.ROSTER.size() == 100 and WorldPlayers.size() == WorldPlayers.ROSTER.size(), "a hundred world players, no newcomers (%d)" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
 	var sizes := []

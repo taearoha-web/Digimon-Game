@@ -123,11 +123,11 @@ func _guilds() -> void:
 			hardcore[g] = int(hardcore.get(g, 0)) + 1
 	for g in WorldPlayers.GUILDS:
 		check(int(hardcore.get(g, 0)) >= WorldPlayers.GUILD_MIN, "%s draws %d hardcore roster players" % [WorldPlayers.guild_name(g), int(hardcore.get(g, 0))])
-	# Newcomers pick by name too.
+	# Newcomers would pick by name too (none since the reopening: NEWCOMER_MAX = 0).
 	var ok := true
 	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers.size()):
 		ok = ok and int(WorldPlayers.entry(i).guild) == WorldPlayers.pick_guild(String(WorldPlayers.entry(i).name))
-	check(ok and WorldPlayers.size() > WorldPlayers.ROSTER.size(), "daily newcomers pick one of the four by name")
+	check(ok and WorldPlayers.size() == WorldPlayers.ROSTER.size(), "no daily newcomers since the reopening (any would pick by name)")
 	check(GuildWarData.GUILD_SIDE == 20, "twenty a side")
 
 
