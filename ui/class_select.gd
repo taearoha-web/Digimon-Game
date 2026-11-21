@@ -1,9 +1,10 @@
 class_name ClassSelect
 extends CanvasLayer
 ## Character creator: the player picks the class (one of the ten, sword to lute: it
-## plays from Lv.1), the body (boy or girl), one of its ready-made characters
-## (ChibiLook styles), then a name. Hair, eyes, skin and accessories are not customised:
-## the hero wears its character's own designed look (FaceKit.hero_look).
+## plays from Lv.1), the gender (boy or girl), one of that gender's four characters
+## (ChibiBodies: the original chibi and three more, shown as portrait cards), then a
+## name. Hair, eyes, skin and accessories are not customised: the hero wears its
+## character's own designed look (FaceKit.hero_look).
 ## With [member pick_only] it is only the class picker: an old save still a Vagabond
 ## (ClassData.LEGACY) picks its class once on load (main.gd _pick_class).
 
@@ -31,7 +32,9 @@ var _name_input: LineEdit
 var _pivot: Node3D
 var _spin_dragging := false
 var _gender_buttons: Array[Button] = []
-var _style_buttons: Array[Button] = []
+var _body_cards: Array[Button] = []
+var _body_names: Array[Label] = []
+var _body_pics: Array[TextureRect] = []
 var _body: BoxContainer
 var _stage: HeroPreview
 var _options: Control
@@ -117,15 +120,37 @@ func _ready() -> void:
 		gender_row.add_child(button)
 		_gender_buttons.append(button)
 	right.add_child(UIUtil.label("ตัวละคร", &"BoldLabel"))
-	var style_row := UIUtil.hbox(8)
-	right.add_child(style_row)
-	for i in ChibiLook.count("style"):
-		var button := UIUtil.button("", &"ChoiceButton", Vector2(120, 54))
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.clip_text = true
-		button.pressed.connect(func(): _set_style(i))
-		style_row.add_child(button)
-		_style_buttons.append(button)
+	# The gender's four characters as portrait cards (a baked picture, so no model
+	# loads until one is picked); the row wraps on a narrow phone.
+	var cards := HFlowContainer.new()
+	cards.name = "Bodies"
+	cards.add_theme_constant_override("h_separation", 8)
+	cards.add_theme_constant_override("v_separation", 8)
+	cards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(cards)
+	for i in ChibiBodies.count(0):
+		var card := UIUtil.button("", &"ChoiceButton", Vector2(118, 150))
+		card.name = "Body_%d" % i
+		card.toggle_mode = true
+		card.pressed.connect(func(): set_body(i))
+		cards.add_child(card)
+		var col := UIUtil.vbox(2)
+		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 6)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(col)
+		var pic := TextureRect.new()
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(pic)
+		var name_label := UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(name_label)
+		_body_cards.append(card)
+		_body_pics.append(pic)
+		_body_names.append(name_label)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))
 	_name_input = LineEdit.new()
 	_name_input.max_length = 14
@@ -213,12 +238,12 @@ func _set_gender(g: int) -> void:
 	if int(look.gender) == g:
 		return
 	look["gender"] = g
-	ChibiLook.apply_style(look, int(look.get("style", 0)))
 	_refresh()
 
 
-func _set_style(style: int) -> void:
-	ChibiLook.apply_style(look, style)
+## Picks character [param i] of the gender (ChibiBodies).
+func set_body(i: int) -> void:
+	look["body"] = i
 	_refresh()
 
 
@@ -235,9 +260,12 @@ func _refresh() -> void:
 	_stage_title.text = String(ClassData.get_class_data(picked).name)
 	for g in _gender_buttons.size():
 		_gender_buttons[g].disabled = int(look.gender) == g
-	for i in _style_buttons.size():
-		_style_buttons[i].text = ChibiLook.style_name(int(look.gender), i)
-		_style_buttons[i].disabled = int(look.get("style", 0)) == i
+	for i in _body_cards.size():
+		var on := int(look.body) == i
+		_body_cards[i].set_pressed_no_signal(on)
+		_body_cards[i].disabled = on
+		_body_names[i].text = ChibiBodies.body_name(int(look.gender), i)
+		_body_pics[i].texture = ChibiBodies.card(int(look.gender), i)
 	_stage.show_hero(picked, {}, "", look)
 	_preview = _stage.visual
 

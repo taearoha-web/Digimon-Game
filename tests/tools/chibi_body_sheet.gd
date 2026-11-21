@@ -10,8 +10,8 @@ const CELLS := [
 	["archer", "2H_Ranged_Shoot", 0.2], ["archer", "2H_Ranged_Shoot", 0.5], ["warrior", "Hit_A", 0.3], ["warrior", "Death_A", 0.35], ["warrior", "Death_A", 1.0],
 	["warrior", "Jump_Full_Short", 0.4], ["warrior", "Dodge_Backward", 0.3], ["priest", "Cheer", 0.4], ["lancer", "2H_Melee_Attack_Stab", 0.4], ["bard", "Idle", 0.3],
 ]
-const COLS := 5
-const CELL := Vector2i(320, 300)
+var COLS := 5
+var CELL := Vector2i(320, 300)
 
 
 func _ready() -> void:
@@ -24,22 +24,29 @@ func _ready() -> void:
 	var gender := int(args[1]) if args.size() > 1 else 0
 	var body := int(args[2]) if args.size() > 2 else 0
 	var view := args[3] if args.size() > 3 else "front"
+	var cells: Array = CELLS
+	if view == "big":
+		cells = [CELLS[0], CELLS[3], CELLS[6]]
+		CELL = Vector2i(700, 900)
+		COLS = 3
 	get_viewport().size = CELL
 	var cam := Camera3D.new(); add_child(cam)
 	cam.fov = 40; cam.position = Vector3(0, 1.35, 4.6); cam.rotation_degrees = Vector3(-5, 0, 0)
-	var sheet := Image.create(CELL.x * COLS, CELL.y * ceili(CELLS.size() / float(COLS)), false, Image.FORMAT_RGBA8)
+	if view == "big":
+		cam.fov = 30; cam.position = Vector3(0, 1.3, 5.0)
+	var sheet := Image.create(CELL.x * COLS, CELL.y * ceili(cells.size() / float(COLS)), false, Image.FORMAT_RGBA8)
 	var look := FaceKit.default_look(); look["gender"] = gender; look["body"] = body
-	for i in CELLS.size():
-		var cell: Array = CELLS[i]
+	for i in cells.size():
+		var cell: Array = cells[i]
 		var equip := {}
-		if i >= CELLS.size() - COLS:
+		if view != "big" and i >= cells.size() - COLS:
 			for slot in ["weapon", "armor", "helm", "wings"]:
 				var item: Variant = StarProgression.item(StringName(cell[0]), 100, slot, RandomNumberGenerator.new()) if slot != "wings" else null
 				if item != null:
 					equip[slot] = item
 		var h := HeroVisual.new(); add_child(h)
 		h.setup(StringName(cell[0]), "", true, equip, look)
-		h.rotation_degrees.y = {"front": 25.0, "side": 90.0, "back": 180.0}.get(view, 25.0)
+		h.rotation_degrees.y = {"front": 25.0, "side": 90.0, "back": 180.0, "big": 20.0}.get(view, 25.0)
 		var clip := String(cell[1])
 		if h.anim.has_animation(clip):
 			h.anim.play(clip, 0.0)

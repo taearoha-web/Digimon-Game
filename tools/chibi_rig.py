@@ -280,11 +280,17 @@ def top4(W):
 
 
 def normals(V, F):
-    n = np.zeros_like(V)
+    """Smooth, area-weighted normals, shared by the copies of a vertex on a uv seam."""
+    _u, weld = np.unique(np.round(V, 6), axis=0, return_inverse=True)
+    weld = weld.reshape(-1)
+    Fw = weld[F]
     fn = np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]])
+    n = np.zeros((weld.max() + 1, 3))
     for c in range(3):
-        np.add.at(n, F[:, c], fn)
-    return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
+        np.add.at(n, Fw[:, c], fn)
+    length = np.linalg.norm(n, axis=1, keepdims=True)
+    n = np.where(length > 1e-12, n / np.maximum(length, 1e-12), np.array([0.0, 1.0, 0.0]))
+    return n[weld]
 
 
 def m2q(M):
@@ -402,7 +408,13 @@ def main(argv):
     F = d['faces'].astype(np.int64)
     G, sim = fit(base, bl, ml, V)
     posed = pose_base(base, sim)
-    W = transfer(base, posed, V, F, int(ml.get('smooth', 3)))
+    # Weights live on the welded surface: the copies of a vertex on a uv seam must
+    # move together, or the seams open as the body bends.
+    _u, weld = np.unique(np.round(V, 6), axis=0, return_inverse=True)
+    weld = weld.reshape(-1)
+    first = np.zeros(weld.max() + 1, int)
+    first[weld[::-1]] = np.arange(len(weld))[::-1]
+    W = transfer(base, posed, V[first], weld[F], int(ml.get('smooth', 3)))[weld]
     # vertex colour R: how much may be recoloured as outfit (head, neck, hands stay)
     keep = np.zeros(len(V))
     for k, nm in enumerate(base.names):
@@ -417,7 +429,7 @@ def main(argv):
     for g in G:
         g[:3, 3] -= offset
     Vs = V - offset
-    write_glb(out, base, G, offset, Vs, normals(V, F), d['uv'], F, J, Wt, COL, d['jpg'], name + '_basecolor')
+    write_glb(out, base, G, offset, Vs, normals(V, F), d['uv'], F, J, Wt, COL, d['jpg'], 'basecolor')
     print('%s: %d verts %d tris, offset %s' % (name, len(V), len(F), np.round(offset, 3)))
     if preview:
         np.savez_compressed(preview, V=Vs, F=F, J=J, W=Wt, G=np.array(G), names=np.array(base.names), posed=posed, base_F=base.F, offset=offset)

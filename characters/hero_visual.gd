@@ -199,7 +199,7 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 		anim.name = "AnimationPlayer"
 		model.add_child(anim)
 		anim.add_animation_library("", ChibiBodies.clips(gender))
-	_head_scale = ChibiBodies.head_scale(look)
+	_head_scale = ChibiBodies.head_scale(look, _skeleton)
 	MartialClips.prepare(anim)
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)

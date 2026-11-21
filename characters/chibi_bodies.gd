@@ -7,21 +7,21 @@ extends RefCounted
 ## original (clips() — Godot drops the constant bone offsets on import, so the
 ## fitted bone lengths stay). A body loads only when someone wears it.
 ##
-## look["body"] (FaceKit.repair keeps it): the index in BODIES[gender]; an unknown
+## look["body"] (FaceKit.hero_look keeps it): the index in BODIES[gender]; an unknown
 ## index (a newer game's body, a bad save) is the original.
 
 const BODIES := [
 	[
 		{"name": "ฮีโร่ดั้งเดิม", "path": "res://assets/models/heroes/chibi_boy.glb"},
-		{"name": "นักเดินทางผมเงิน", "path": "res://assets/models/heroes/chibi_silver.glb", "head": 0.81},
-		{"name": "นินจาเงาม่วง", "path": "res://assets/models/heroes/chibi_ninja.glb", "head": 0.76},
-		{"name": "หนุ่มน้อยผมหยิก", "path": "res://assets/models/heroes/chibi_curly.glb", "head": 0.84},
+		{"name": "นักเดินทางผมเงิน", "path": "res://assets/models/heroes/chibi_silver.glb"},
+		{"name": "นินจาเงาม่วง", "path": "res://assets/models/heroes/chibi_ninja.glb"},
+		{"name": "หนุ่มน้อยผมหยิก", "path": "res://assets/models/heroes/chibi_curly.glb"},
 	],
 	[
 		{"name": "นักผจญภัยดั้งเดิม", "path": "res://assets/models/heroes/chibi_girl.glb"},
-		{"name": "ภูตม่วงลาเวนเดอร์", "path": "res://assets/models/heroes/chibi_lavender.glb", "head": 0.81},
-		{"name": "สาวเปียแดง", "path": "res://assets/models/heroes/chibi_braid.glb", "head": 0.81},
-		{"name": "สาวผมมวยทอง", "path": "res://assets/models/heroes/chibi_bun.glb", "head": 0.84},
+		{"name": "ภูตม่วงลาเวนเดอร์", "path": "res://assets/models/heroes/chibi_lavender.glb"},
+		{"name": "สาวเปียแดง", "path": "res://assets/models/heroes/chibi_braid.glb"},
+		{"name": "สาวผมมวยทอง", "path": "res://assets/models/heroes/chibi_bun.glb"},
 	],
 ]
 
@@ -52,15 +52,34 @@ static func body_name(gender: int, i: int) -> String:
 	return String(list[clampi(i, 0, list.size() - 1)].name)
 
 
+## The create screen's picture of a character (tools/render_body_cards.gd), or null.
+static func card(gender: int, i: int) -> Texture2D:
+	var file := "res://assets/ui/portraits/body_%d_%d.png" % [clampi(gender, 0, 1), i]
+	return load(file) as Texture2D if ResourceLoader.exists(file) else null
+
+
 ## The original body of the gender (its clips, its weapon poses).
 static func base_path(gender: int) -> String:
 	return String(BODIES[clampi(gender, 0, 1)][0].path)
 
 
 ## How much smaller (or larger) this body's head is than the original's: head gear
-## authored on the original is scaled by it.
-static func head_scale(look: Dictionary) -> float:
-	return float(info(look).get("head", 1.0))
+## authored on the original is scaled by it. The pipeline scales the head's own bones
+## (hair, face) with the head, so their reach from the head bone measures it.
+static func head_scale(look: Dictionary, skeleton: Skeleton3D) -> float:
+	if index(look) == 0 or skeleton == null:
+		return 1.0
+	var head := skeleton.find_bone("Head")
+	var tip := skeleton.find_bone(HEAD_PROBE)
+	if head < 0 or tip < 0:
+		return 1.0
+	var reach := (skeleton.get_bone_global_rest(tip).origin - skeleton.get_bone_global_rest(head).origin).length()
+	var g := int(look.get("gender", 0))
+	var base := (base_rest(g, HEAD_PROBE).origin - base_rest(g, "Head").origin).length()
+	return clampf(reach / base, 0.5, 1.5) if base > 0.0001 else 1.0
+
+
+const HEAD_PROBE := "Hair_Bang_C_1"
 
 
 ## The clips of the gender's original body, shared by its other bodies.

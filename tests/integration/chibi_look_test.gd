@@ -1,7 +1,8 @@
 extends Node3D
-## Hero looks (ChibiLook): six ready-made characters (styles) on the two chibi bodies.
-## The look is not customised: a hero's look is {gender, style}; old saves' and old
-## clients' hair / eye / skin colours and accessory are dropped and never rendered.
+## Hero looks: a hero's look is {gender, body} (ChibiBodies: four characters per
+## gender); old saves' and old clients' style, hair / eye / skin colours and accessory
+## are dropped and never rendered. World players and rivals keep the original body in
+## one of its three ready-made colourings (ChibiLook styles).
 ##   godot --headless --path . res://tests/integration/chibi_look_test.tscn
 var failures := 0
 var checks := 0
@@ -52,25 +53,26 @@ func _ready() -> void:
 			ChibiLook.apply_style(look, s)
 			var p := ChibiLook.paint(look)
 			check(int(look.style) == s and int(p.hair_tint) > 0 and int(p.eye_tint) > 0, "style %d of body %d recolours hair and eyes" % [s, g])
-			check(look.keys() == ["gender", "style"], "picking style %d writes only the style (%s)" % [s, look])
 
-	# A hero's look is only its body and character.
-	check(FaceKit.hero_look({}) == {"gender": 0, "style": 0}, "a new hero has the default look")
+	# A hero's look is only its gender and character body.
+	check(FaceKit.hero_look({}) == {"gender": 0, "body": 0}, "a new hero has the default look")
 	var custom := {"gender": 1, "style": 2, "skin": 3, "hair": 2, "hair_color": 4, "eyes": 1, "eye_color": 2, "outfit": 3,
 		"skin_tone": 5, "hair_tint": 7, "eye_tint": 1, "acc": 3}
-	check(FaceKit.hero_look(custom) == {"gender": 1, "style": 2}, "custom colours, hair, eyes and accessory are dropped")
-	check(ChibiLook.paint(custom) == ChibiLook.paint({"gender": 1, "style": 2}), "old custom keys never change what the character shows")
-	var wild := FaceKit.hero_look({"gender": 9, "style": -3, "hair_tint": "x"})
-	check(wild == {"gender": 1, "style": 0}, "out-of-range values are clamped (%s)" % wild)
-	check(FaceKit.hero_look({"gender": "girl", "style": INF}) == {"gender": 0, "style": 0}, "non-numbers fall back")
-	check(FaceKit.hero_look(null) == {"gender": 0, "style": 0}, "a missing look is the default")
+	check(FaceKit.hero_look(custom) == {"gender": 1, "body": 0}, "an old style, custom colours, hair, eyes and accessory are dropped: the original body")
+	check(ChibiLook.paint(FaceKit.hero_look(custom)) == ChibiLook.paint({"gender": 1, "style": 0}), "an old save's style shows the original body's own look")
+	var wild := FaceKit.hero_look({"gender": 9, "body": -3, "hair_tint": "x"})
+	check(wild == {"gender": 1, "body": 0}, "out-of-range values are clamped (%s)" % wild)
+	check(FaceKit.hero_look({"gender": 1, "body": 99}) == {"gender": 1, "body": 0}, "an unknown body (a newer game's) is the original")
+	check(FaceKit.hero_look({"gender": 1, "body": 3}) == {"gender": 1, "body": 3}, "a known body is kept")
+	check(FaceKit.hero_look({"gender": "girl", "body": INF}) == {"gender": 0, "body": 0}, "non-numbers fall back")
+	check(FaceKit.hero_look(null) == {"gender": 0, "body": 0}, "a missing look is the default")
 	check(not "hair_tint" in FaceKit.default_look() and not "acc" in FaceKit.repair({"acc": 2}), "FaceKit looks carry no colour keys")
 
 	# A new hero created with an old-style look keeps only its body and character.
 	Game.new_profile(&"warrior", "ลุคเก่า", custom)
-	check(Game.profile.look == {"gender": 1, "style": 2}, "new_profile keeps only gender and style (%s)" % Game.profile.look)
+	check(Game.profile.look == {"gender": 1, "body": 0}, "new_profile keeps only gender and body (%s)" % Game.profile.look)
 	Game.new_profile(&"warrior", "ค่าเดิม", FaceKit.default_look())
-	check(Game.profile.look == {"gender": 0, "style": 0}, "a default new hero has the default look")
+	check(Game.profile.look == {"gender": 0, "body": 0}, "a default new hero has the default look")
 	check(Game.save_code_roundtrip(), "the default look round-trips through the save code")
 
 	# An old save with custom colours loads, renders its character's look, saves without them.
@@ -80,17 +82,19 @@ func _ready() -> void:
 	Game.new_profile(&"warrior", "อื่น", FaceKit.default_look())
 	check(Game.import_code(code), "an old save with custom colours imports")
 	var back: Dictionary = Game.profile.get("look", {})
-	check(back == {"gender": 1, "style": 2}, "the loaded look is stripped to gender and style (%s)" % back)
+	check(back == {"gender": 1, "body": 0}, "the loaded look is stripped to gender and body (%s)" % back)
 	var again := Game.export_code()
 	Game.new_profile(&"warrior", "อื่นอีก", FaceKit.default_look())
 	check(Game.import_code(again) and not Game.profile.look.has("hair_tint") and not Game.profile.look.has("acc"), "it saves without the old keys")
 	check(not PlayerLook.of_profile(Game.profile).face.has("hair_tint"), "the online look sends no colours")
 
 	# Remote looks: without and with old fields, the default of the character applies.
-	check(PlayerLook.clean({"class": "mage"}).face == {"gender": 0, "style": 0}, "a remote look without a face is the default")
-	check(PlayerLook.clean({"class": "mage", "face": custom}).face == {"gender": 1, "style": 2}, "a remote look's old colours are dropped")
-	check(PlayerLook.clean({"class": "mage", "face": {"hair_tint": [1], "acc": {"x": 1}, "gender": "1"}}).face == {"gender": 0, "style": 0}, "a broken remote face does not crash and is the default")
-	check(PlayerLook.clean({"class": "mage", "face": "oops"}).face == {"gender": 0, "style": 0}, "a non-dictionary remote face is the default")
+	check(PlayerLook.clean({"class": "mage"}).face == {"gender": 0, "body": 0}, "a remote look without a face is the default")
+	check(PlayerLook.clean({"class": "mage", "face": custom}).face == {"gender": 1, "body": 0}, "a remote look's old colours are dropped")
+	check(PlayerLook.clean({"class": "mage", "face": {"hair_tint": [1], "acc": {"x": 1}, "gender": "1"}}).face == {"gender": 0, "body": 0}, "a broken remote face does not crash and is the default")
+	check(PlayerLook.clean({"class": "mage", "face": "oops"}).face == {"gender": 0, "body": 0}, "a non-dictionary remote face is the default")
+	check(PlayerLook.clean({"class": "mage", "face": {"gender": 1, "body": 2}}).face == {"gender": 1, "body": 2}, "a remote player's character body comes through")
+	check(PlayerLook.clean({"class": "mage", "face": {"gender": 0, "body": 7}}).face == {"gender": 0, "body": 0}, "a remote body this game does not know is the original")
 
 	# The body material: original look sets nothing, a style sets the uniforms.
 	var plain := HeroVisual.new()
@@ -117,7 +121,7 @@ func _ready() -> void:
 	piece.material_overlay = null
 	for g in 2:
 		for s in range(1, 3):
-			var look := FaceKit.hero_look({"gender": g, "style": s})
+			var look := {"gender": g, "style": s}
 			var p := ChibiLook.paint(look)
 			var v := HeroVisual.new()
 			add_child(v)
@@ -163,17 +167,27 @@ func _ready() -> void:
 	check(a.randi() == b.randi(), "random_look draws the same numbers as before")
 	check(styles.size() == 3, "rivals wear all three styles")
 
-	# The creator: gender and character buttons only; no colour / hair / eye / skin /
-	# accessory controls and no random look.
+	# World players keep the original body in one of its colourings.
+	var world_styles := {}
+	for i in mini(WorldPlayers.size(), 60):
+		var wl := WorldPlayers.look(i)
+		world_styles[int(wl.get("style", 0))] = true
+		check(int(wl.get("body", 0)) == 0, "world player %d wears the original body" % i)
+	check(world_styles.size() == 3, "world players wear all three colourings")
+	# A colouring is for the original body only (its masks fit that texture).
+	check(int(ChibiLook.paint({"gender": 0, "style": 1, "body": 2}).hair_tint) == 0, "another body is never recoloured")
+
+	# The creator: gender buttons and the gender's four character cards; no colour /
+	# hair / eye / skin / accessory controls and no random look.
 	var screen := ClassSelect.new()
 	add_child(screen)
 	await get_tree().process_frame
-	check(screen._style_buttons.size() == 3, "the creator shows three character buttons")
-	check(screen._gender_buttons.size() == 2, "the creator shows the two bodies")
+	check(screen._body_cards.size() == 4, "the creator shows four character cards")
+	check(screen._gender_buttons.size() == 2, "the creator shows the two genders")
 	screen._set_gender(1)
-	screen._set_style(1)
-	check(screen._style_buttons[1].disabled and screen._style_buttons[1].text == ChibiLook.style_name(1, 1), "the chosen character is marked")
-	check(screen.look == {"gender": 1, "style": 1}, "the creator's look is gender and character only (%s)" % screen.look)
+	screen.set_body(1)
+	check(screen._body_cards[1].disabled and screen._body_names[1].text == ChibiBodies.body_name(1, 1), "the chosen character is marked")
+	check(screen.look == {"gender": 1, "body": 1}, "the creator's look is gender and character only (%s)" % screen.look)
 	var texts: PackedStringArray = []
 	for node in screen.find_children("*", "", true, false):
 		if node is Button or node is Label:
@@ -186,7 +200,7 @@ func _ready() -> void:
 	var got := []
 	screen.confirmed.connect(func(c, n, l): got.append(l))
 	screen._on_confirm()
-	check(got.size() == 1 and got[0] == {"gender": 1, "style": 1}, "the creator confirms gender and character only (%s)" % [got])
+	check(got.size() == 1 and got[0] == {"gender": 1, "body": 1}, "the creator confirms gender and character only (%s)" % [got])
 	screen.queue_free()
 
 	print("chibi_look_test: %d checks, %d failures" % [checks, failures])

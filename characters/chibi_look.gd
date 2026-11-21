@@ -57,6 +57,9 @@ static func paint(look: Dictionary) -> Dictionary:
 	var own: Variant = look.get(PAINT_KEY)
 	if own is Dictionary:
 		return own
+	# The other bodies (ChibiBodies) wear their own texture: the masks do not fit it.
+	if ChibiBodies.index(look) != 0:
+		return {"skin_tone": 0, "hair_tint": 0, "eye_tint": 0, "acc": 0}
 	var row: Array = STYLES[clampi(int(look.get("gender", 0)), 0, 1)][clampi(int(look.get("style", 0)), 0, 2)]
 	var out := {}
 	for i in KEYS.size():
