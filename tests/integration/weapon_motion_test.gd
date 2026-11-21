@@ -101,15 +101,30 @@ func grip(item: Node3D, kind: String) -> Vector3:
 	# field_efficiency_test separately checks every triangle/material survives merging.
 	var look := String(item.name).trim_prefix("Held_")
 	if kind == "wraps":
-		# The Muay Thai fighter's hand wraps (HandWraps) are built round the fist with the
-		# grip at their origin: no source model to read.
-		return posed_transform(item.get_child(0).get_child(0).get_child(0) as Node3D).origin
+		# The Muay Thai fighter's hand wraps (HandWraps) are mounted at the grip (the Grip
+		# pivot's origin) and fitted from there onto the hand (wrap_centre): no source model.
+		return posed_transform(item.get_child(0) as Node3D).origin
 	if not _source_grips.has(look):
 		var source := (load(WeaponKit.MODEL_DIR + look + ".glb") as PackedScene).instantiate() as Node3D
 		_source_grips[look] = _source_grip(source, kind)
 		source.free()
 	var model := item.get_child(0).get_child(0).get_child(0) as Node3D
 	return posed_transform(model) * (_source_grips[look] as Vector3)
+
+
+## Where a held wrap's tape is centred (HandWraps.HAND_CENTRE through the fitted root),
+## posed, and how far that is from the hand bone's root, against the hand's own size
+## (its root's distance from the grip): the tape must wrap the hand, not float off it.
+func wrap_off_hand(hero: HeroVisual, item: Node3D, side: String) -> float:
+	var s := hero._skeleton
+	var hand := s.find_bone("RightHand" if side == "r" else "LeftHand")
+	if hand < 0:
+		hand = s.find_bone("hand." + side)
+	var root := item.get_child(0).get_child(0) as Node3D
+	var centre := posed_transform(root) * HandWraps.HAND_CENTRE
+	var hand_at := s.global_transform * s.get_bone_global_pose(hand).origin
+	var grip_at := posed_transform(item.get_child(0) as Node3D).origin
+	return centre.distance_to(hand_at) / maxf(grip_at.distance_to(hand_at), 0.001)
 
 
 func _source_grip(item: Node3D, kind: String) -> Vector3:
@@ -194,6 +209,8 @@ func _ready() -> void:
 					note(body_tag, "grip", error)
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
 					if family == &"muaythai":
+						var off := wrap_off_hand(hero, held(hero, kind), "r")
+						check(off < 0.6, "%s tier%d %s the right wrap wraps the hand (%.2f hand lengths off)" % [tag, tier, clip, off])
 						# The second wrap, on the left fist.
 						var left := hero._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).filter(func(n): return (n as BoneAttachment3D).bone_name == "handslot.l")
 						check(left.size() == 1, "%s tier%d a wrap on the left fist" % [tag, tier])
@@ -201,6 +218,8 @@ func _ready() -> void:
 							error = grip(left[0], "wraps").distance_to(palm(hero, "l"))
 							note(body_tag, "grip", error)
 							check(error < 0.015, "%s tier%d %s left wrap grip %.4fm" % [tag, tier, clip, error])
+							off = wrap_off_hand(hero, left[0], "l")
+							check(off < 0.6, "%s tier%d %s the left wrap wraps the hand (%.2f hand lengths off)" % [tag, tier, clip, off])
 					if family == &"warrior":
 						error = grip(held(hero, "shield"), "shield").distance_to(palm(hero, "l"))
 						note(body_tag, "grip", error)

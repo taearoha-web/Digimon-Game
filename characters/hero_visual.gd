@@ -1160,6 +1160,9 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	pivot.scale = Vector3.ONE * _gear_scale
 	attach.add_child(pivot)
 	pivot.add_child(item)
+	if kind == HandWraps.KIND:
+		# The tape wraps this body's own hand: mirrored on the left, sized to the hand.
+		HandWraps.fit(item, _hand_in_grip(bone, pivot), bone.ends_with(".l"), not chibi)
 	if kind not in ["shield","book","tome"] and not offhand:
 		_emission_grip = pivot
 		_emission_bone = _skeleton.find_bone(bone)
@@ -1177,6 +1180,21 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	if plus > 0:
 		EnhanceFx.on_item(item, plus, decor_light)
 	_hold_nodes.append(attach)
+
+
+## The root of the hand bone holding slot [param bone] in the grip space of [param pivot],
+## written as for a right hand (the left mirrored in X), from the rest pose (the slot
+## rides the hand rigidly).
+func _hand_in_grip(bone: String, pivot: Node3D) -> Vector3:
+	var left := bone.ends_with(".l")
+	var hand := _skeleton.find_bone("LeftHand" if left else "RightHand")
+	if hand < 0:
+		hand = _skeleton.find_bone("hand.l" if left else "hand.r")
+	var slot := _skeleton.find_bone(bone)
+	if hand < 0 or slot < 0:
+		return Vector3.ZERO
+	var to_grip := (_skeleton.get_bone_global_rest(slot) * pivot.transform).affine_inverse()
+	return to_grip * _skeleton.get_bone_global_rest(hand).origin * (Vector3(-1, 1, 1) if left else Vector3.ONE)
 
 
 ## Sample the current skeleton directly: BoneAttachment updates can otherwise
