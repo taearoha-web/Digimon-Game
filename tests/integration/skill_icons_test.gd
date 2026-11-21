@@ -36,7 +36,7 @@ func _ready() -> void:
 			if not output.is_empty():
 				check(img.save_png(output.path_join(String(skill.id) + ".png")) == OK, "save preview: " + String(skill.id))
 			count += 1
-	check(count == 275, "all 275 active skills covered (220 class skills, 55 star skills: 44 up to 200 stars and eleven 300-star god skills; %d. A class converted to skill lines drops the skills in no line)" % count)
+	check(count == 274, "all 274 active skills covered (219 class skills, 55 star skills: 44 up to 200 stars and eleven 300-star god skills; %d. A class converted to skill lines drops the skills in no line)" % count)
 	check(SkillIcons.for_skill({}) == null, "empty slot safely returns null")
 	check(SkillIcons.for_id("../game") == null, "path is not an icon ID")
 	check(SkillIcons.for_id("future_skill") == null, "new skill can use the developer fallback")

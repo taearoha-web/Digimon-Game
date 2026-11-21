@@ -121,10 +121,12 @@ static func build(look: String) -> Node3D:
 	var model := Node3D.new()
 	model.name = "Wraps"
 	root.add_child(model)
-	_part(model, _fist, _material(colors[0]), Vector3.ZERO)
-	# Two bands of the wrap's tape across the fist.
-	for y in [-0.045, 0.045]:
-		_part(model, _band, _material(colors[1], glow * 0.5), Vector3(0, y, 0))
+	# The tape wound round the fist: three cloth turns and two coloured bands, round the
+	# fist itself (the hand slot's axis), so the hand shows through between them.
+	for y in [-0.05, 0.0, 0.05]:
+		_part(model, _band, _material(colors[0]), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.0, 1.4, 1.0))
+	for y in [-0.025, 0.025]:
+		_part(model, _band, _material(colors[1], glow * 0.5), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.04, 0.8, 1.04))
 	if level >= 1:
 		# The knuckle guard over the front of the fist.
 		_part(model, _plate, _material(colors[2], glow * 0.6), Vector3(0, 0, 0.058))

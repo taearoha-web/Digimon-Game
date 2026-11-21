@@ -18,7 +18,7 @@ const HEADS := {
 	"scepter": [Vector3(0, 0.86, 0.0), 0.42], "lute": [Vector3(0, -0.33, -0.05), 0.3], "book": [Vector3(0, 0.06, 0.0), 0.5],
 	"tome": [Vector3(0, 0.06, 0.0), 0.5],
 }
-const HELD := ["sword", "spear", "bow", "staff", "wand", "lantern", "greatshield", "shield", "dagger", "scepter", "lute", "book", "tome"]
+const HELD := ["sword", "spear", "bow", "staff", "wand", "lantern", "greatshield", "shield", "dagger", "scepter", "lute", "book", "tome", "wraps"]
 
 
 static func cloth(cls: String) -> Color:

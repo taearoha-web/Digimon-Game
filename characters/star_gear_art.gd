@@ -87,7 +87,7 @@ static func build_icon_node(look: String) -> Node3D:
 	var bits := look.split("_")
 	var cls := String(bits[2]) if bits.size() > 3 else "warrior"
 	var root := Node3D.new()
-	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter", "lute"]:
+	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter", "lute", "wraps"]:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
 		return root

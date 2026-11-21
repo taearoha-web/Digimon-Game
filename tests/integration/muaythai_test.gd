@@ -74,7 +74,7 @@ func _data() -> void:
 	for look in ["wraps_0", "wraps_9", "star_wraps_200", "set_wraps_muaythai", "divine_wraps_muaythai_200", "dragon_wraps_muaythai"]:
 		var node := WeaponKit.build(look) if not look.begins_with("star_") else StarGearArt.build(look)
 		var meshes := node.find_children("*", "MeshInstance3D", true, false)
-		check(meshes.size() >= 3 and meshes.size() <= 6, "%s is a few cheap meshes (%d)" % [look, meshes.size()])
+		check(meshes.size() >= 5 and meshes.size() <= 8, "%s is a few cheap meshes (%d)" % [look, meshes.size()])
 		node.free()
 	check(ClassSelect.class_lines(MT).role.contains("หมัดปลุกใจ"), "the create screen tells its role")
 

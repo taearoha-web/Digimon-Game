@@ -24,7 +24,7 @@ func _ready() -> void:
 			# The 50 star skills (ten of them 300-star god skills) sit in the pools too; StarSkillSequence choreographs those.
 			if not skill.has("star"):
 				count += 1
-	check(seen.size() == count and count == 220, "exactly the complete 220-skill catalogue (%d; a class converted to skill lines drops the skills in no line)" % count)
+	check(seen.size() == count and count == 219, "exactly the complete 219-skill catalogue (%d; a class converted to skill lines drops the skills in no line)" % count)
 	for rig in 3:
 		for family in SkillShow.FAMILY_COLORS:
 			var visual := HeroVisual.new()

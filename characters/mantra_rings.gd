@@ -10,8 +10,8 @@ extends MultiMeshInstance3D
 ## A skill that throws them (MuayThai: ring throw, ultimate) lends them out: they hide
 ## while their flying copies (fly) are away, then come back.
 
-const HEIGHT := 1.05
-const RADIUS := 0.72
+const HEIGHT := 1.2
+const RADIUS := 0.56
 const SPIN := 1.6
 const SIZE := 0.17
 const COLOR := Color("ffb347")
@@ -102,7 +102,7 @@ func _place() -> void:
 		var y := HEIGHT + (0.16 if i % 2 == 1 else -0.04) + bob
 		var at := Vector3(cos(a) * RADIUS, y, sin(a) * RADIUS)
 		# Each band faces outward and rolls along its orbit.
-		var b := Basis(Vector3.UP, -a) * Basis(Vector3.RIGHT, PI * 0.5) * Basis(Vector3.UP, _time * 3.0 + float(i))
+		var b := Basis(Vector3.UP, -a) * Basis(Vector3.RIGHT, 0.5 + 0.15 * sin(_time * 1.3 + float(i)))
 		multimesh.set_instance_transform(i, Transform3D(b, at))
 
 
