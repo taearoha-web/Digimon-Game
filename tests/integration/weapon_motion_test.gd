@@ -1,10 +1,18 @@
 extends Node3D
 ## Exercise rendered weapon geometry against posed hand bones, across all
-## equipment tiers and all three rigs. Uses an isolated test data directory.
+## equipment tiers, every hero body (ChibiBodies) and the KayKit rig. Uses an isolated
+## test data directory.
 var checks := 0
 var failures: Array[String] = []
 ## The strumming hand's palm from the lute's strumming line, in metres.
 const STRUM_TOLERANCE := 0.03
+## Worst main-hand grip / spear support / bow string / lute strum per body, in metres.
+const BODY_LIMITS := {
+	"chibi_boy": {"grip": 0.0021, "shaft": 0.0021, "string": 0.0023, "strum": 0.0007},
+	"chibi_girl": {"grip": 0.0021, "shaft": 0.0013, "string": 0.0023, "strum": 0.0004},
+	"kaykit": {"grip": 0.0021, "shaft": 0.0064, "string": 0.0033, "strum": 0.0091},
+	"other": {"grip": 0.0021, "shaft": 0.010, "string": 0.005, "strum": 0.005},
+}
 var max_grip_error := 0.0
 var max_support_error := 0.0
 var min_torso_clearance := 9.0
@@ -280,6 +288,12 @@ func _ready() -> void:
 			print("CHECKED: ", tag)
 	for body in per_body:
 		var b: Dictionary = per_body[body]
+		# The originals keep their measured worst (their baked poses are unchanged); the
+		# other bodies grip as well and keep the support hand within 1 cm of the shaft,
+		# 5 mm of the bow string and the lute's strings.
+		var limit: Dictionary = BODY_LIMITS.get(body, BODY_LIMITS.other)
+		for key in limit:
+			check(float(b[key]) <= float(limit[key]), "%s worst %s %.4fm over %.4fm" % [body, key, b[key], limit[key]])
 		print("BODY %-15s grip %.4f  spear-support %.4f  bow-string %.4f  lute-strum %.4f  spear-clearance %.2f" % [body, b.grip, b.shaft, b.string, b.strum, b.clear])
 	print("WEAPON MOTION: %s | %d checks, %d failures | max grip %.4fm, support %.4fm, min pole up %.4f, spear torso clearance %.2f" % ["PASS" if failures.is_empty() else "FAIL", checks, failures.size(), max_grip_error, max_support_error, min_pole_up, min_torso_clearance])
 	var args := OS.get_cmdline_user_args()
