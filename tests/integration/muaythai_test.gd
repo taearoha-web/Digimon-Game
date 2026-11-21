@@ -35,6 +35,7 @@ func _ready() -> void:
 	_data()
 	_lines()
 	await _rings()
+	await _robes()
 	await _guild_war()
 	await _field()
 	_save_round_trip()
@@ -160,6 +161,86 @@ func _rings() -> void:
 			var held := v._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false)
 			check(held.size() == 2 and (held[0] as BoneAttachment3D).bone_name != (held[1] as BoneAttachment3D).bone_name, "body %d/%d wears wraps on both fists" % [gender, body])
 			v.free()
+	holder.queue_free()
+	await _frames(2)
+
+
+# ---------------------------------------------------------------------------
+# The ring robes: a cape in the wing slot, never wings
+# ---------------------------------------------------------------------------
+
+func _robes() -> void:
+	check(CapeArt.wears_cape("muaythai") and CapeArt.wears_cape("darklord") and not CapeArt.wears_cape("lancer"), "the fighter and the Lord wear capes, the lancer wings")
+	check(String(ItemData.WING_INFO.muaythai.name) == "ผ้าคลุมนักมวย" and StarWingData.item_name("muaythai") == "ผ้าคลุมมนตราดารา", "the robes' names")
+	check(ItemData.name_of({"kind": "equip", "slot": "wings", "wing": "muaythai", "name": "ปีกเพลิงมนตราดารา แห่งเทพนิยาย", "plus": 3}) == "+3 ผ้าคลุมมนตราดารา แห่งเทพนิยาย"
+		and ItemData.name_of({"kind": "equip", "slot": "wings", "wing": "muaythai", "name": "ปีกเพลิงประเจียด ล้ำค่า"}) == "ผ้าคลุมนักมวย ล้ำค่า", "pieces dropped as wings show their robe names")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var holder := Node3D.new()
+	add_child(holder)
+	for star in [false, true]:
+		var tier := "100★" if star else "Lv.100"
+		var item := StarWingData.item("muaythai", rng, 4) if star else ItemData.wings(rng, "muaythai", 3)
+		var v := HeroVisual.new()
+		holder.add_child(v)
+		v.setup(MT, "", true, {"wings": item}, {"gender": 0, "body": 0})
+		await _frames(2)
+		var robe := v.find_child("Wings_star_muaythai" if star else "Wings_muaythai", true, false) as CapeArt
+		check(robe != null and robe.cls == "muaythai" and robe.star == star, "%s: the wing slot shows the robe" % tier)
+		if robe == null:
+			continue
+		# Nothing of the old fire dragon pair, no feather capelet or collar of the Lord's.
+		check(v.find_children("Wings_lancer*", "", true, false).is_empty() and robe.find_children("*", "Skeleton3D", true, false).is_empty(), "%s: no wing model under it" % tier)
+		var mats := {}
+		var layers := 0
+		var tails: Array[MeshInstance3D] = []
+		var tris := 0
+		for mi in robe.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.material_override is ShaderMaterial and (m.material_override as ShaderMaterial).shader == CapeArt.SHADER:
+				mats[m.material_override] = true
+				layers += 1
+				var sm := m.material_override as ShaderMaterial
+				check(float(sm.get_shader_parameter("boxer")) == (2.0 if star else 1.0) and float(sm.get_shader_parameter("kind")) != 1.0 and float(sm.get_shader_parameter("kind")) != 2.0, "%s: %s is a boxer layer (no capelet, no collar)" % [tier, m.name])
+				if float(sm.get_shader_parameter("ribbon")) > 0.5:
+					tails.append(m)
+			if m.mesh is ArrayMesh:
+				for s in m.mesh.get_surface_count():
+					tris += m.mesh.surface_get_array_index_len(s) / 3
+		check(tails.size() == 4 and tails.all(func(t): return t.mesh == tails[0].mesh and t.material_override == tails[0].material_override), "%s: four prajiad tails share one mesh and one material" % tier)
+		check(mats.size() == (3 if star else 2) and layers == (6 if star else 5), "%s: robe, tails%s on %d materials" % [tier, " and the mantra ring" if star else "", mats.size()])
+		check((robe.find_child("MantraRing", true, false) != null) == star, "%s: %s" % [tier, "the mantra ring floats behind" if star else "no mantra ring"])
+		var meshes := robe.find_children("*", "MeshInstance3D", true, false).size()
+		check(meshes <= 10 and tris < 4000, "%s: phone-sized (%d meshes, %d triangles)" % [tier, meshes, tris])
+		check(robe.find_children("*", "Light3D", true, false).is_empty() and robe.find_children("*", "GPUParticles3D", true, false).is_empty() and robe.find_children("*", "CPUParticles3D", true, false).is_empty(), "%s: no lights or particles" % tier)
+		v.set_wing_mode(HeroVisual.WING_FOLD, true)
+		await _wait(0.5)
+		check(robe.fold > 0.9, "%s: folding gathers the robe" % tier)
+		v.set_wing_mode(HeroVisual.WING_FLY, true)
+		await _wait(0.9)
+		check(v.flying() and robe.fold < 0.1 and robe.billow > 0.4, "%s: flying streams it out (billow %.2f)" % [tier, robe.billow])
+		v.free()
+	# The Dragon God robe: the star robe in jade, no wings.
+	var dragon := DragonWingArt.build("muaythai", true)
+	var dragon_robe := dragon.find_child("DragonCape", true, false) as CapeArt
+	check(dragon_robe != null and dragon_robe.cls == "muaythai" and dragon.find_child("WingR", true, false) == null, "the dragon robe has no wings")
+	dragon.free()
+	# Icons and the shop come from the same builders.
+	for id in ["wings_muaythai", "star_wings_muaythai_100", "dragon_wings_muaythai"]:
+		check(ItemLook.icon_for_id(id) != null, "%s has its icon" % id)
+	# The Dark Lord's capes are untouched: three layers (cape, feather capelet, collar)
+	# and the gem clasps, on the royal or galaxy style.
+	for star in [false, true]:
+		var cape := CapeArt.build(star) as CapeArt
+		var kinds: Array[float] = []
+		for mi in cape.find_children("*", "MeshInstance3D", true, false):
+			var sm := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if sm == null or sm.shader != CapeArt.SHADER:
+				continue
+			kinds.append(float(sm.get_shader_parameter("kind")))
+			check(float(sm.get_shader_parameter("boxer")) == 0.0 and float(sm.get_shader_parameter("style")) == (1.0 if star else 0.0), "the Lord's %s cape layer keeps its style" % ("star" if star else "Lv.100"))
+		check(cape.cls == "darklord" and String(cape.name) == ("Wings_star_darklord" if star else "Wings_darklord") and kinds == [0.0, 1.0, 2.0] and cape.find_child("Clasps", true, false).get_child_count() == 4, "the Lord's %s cape: cape, capelet, collar and clasps" % ("star" if star else "Lv.100"))
+		cape.free()
 	holder.queue_free()
 	await _frames(2)
 

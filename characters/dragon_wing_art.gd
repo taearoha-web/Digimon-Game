@@ -232,7 +232,10 @@ static func build_icon_node(p_cls: String) -> Node3D:
 	var wings := build(p_cls, true)
 	wings.rotation_degrees = Vector3(0, 180, 0)
 	holder.add_child(wings)
-	if CapeArt.wears_cape(p_cls):
+	if p_cls == "muaythai":
+		# The robe and its mantra ring alone (no wings): framed closer.
+		holder.set_meta("frame", Vector3(0.0, 0.42, 0.92))
+	elif p_cls == "darklord":
 		holder.set_meta("frame", Vector3(0.0, 0.4, 1.16))
 	else:
 		holder.set_meta("frame", Vector3(0.0, 0.8, 1.72))
