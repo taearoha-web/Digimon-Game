@@ -355,7 +355,7 @@ func _process(delta: float) -> void:
 		elif not casting:
 			_face(summoner.global_position - global_position + Vector3(0, 0, 0.001), delta * 0.3)
 		_visual.play("idle")
-	global_position.y = summoner.global_position.y
+	global_position.y = _level_y()
 	if peaceful or casting:
 		return
 	if _gcd <= 0.0 and _try_skill():

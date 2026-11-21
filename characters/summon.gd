@@ -398,7 +398,7 @@ func _process(delta: float) -> void:
 		if _valid(_target):
 			_face(_target.global_position - global_position, delta)
 		_visual.play("idle")
-	global_position.y = summoner.global_position.y
+	global_position.y = _level_y()
 	if _blade:
 		_blade.rotation.y += delta * 7.0
 		_blade.position.y = float(_kind.hover) + sin(_age * 4.0 + float(_slot)) * 0.12
@@ -427,7 +427,7 @@ func _tick_fairy(delta: float) -> void:
 	_face(face, delta)
 	if _visual:
 		_visual.play("idle")
-	global_position.y = summoner.global_position.y
+	global_position.y = _level_y()
 	if _visual:
 		# The body already carries its hover (MonsterVisual); this is only the bob.
 		_visual.position.y = sin(_age * 2.2) * 0.12
@@ -539,6 +539,15 @@ func _vanish() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector3.ONE * 0.05, 0.35)
 	tween.tween_callback(queue_free)
+
+
+## The height it stands at: its summoner's, carried to its own spot where the floor is not
+## level (the guild war's grand staircase and raised court: SiegeArena.floor_y).
+func _level_y() -> float:
+	var y := summoner.global_position.y
+	if Game.current_zone == &"guildwar":
+		y += SiegeArena.floor_y(global_position) - SiegeArena.floor_y(summoner.global_position)
+	return y
 
 
 func _face(direction: Vector3, delta: float) -> void:

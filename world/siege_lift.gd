@@ -74,7 +74,8 @@ func _entered(node: Node) -> void:
 		return
 	if not (node is Node3D) or node is CollisionObject3D or node is Light3D or node is Camera3D or node is ThirdPersonCamera:
 		return
-	if node.name == &"Siege" or node == self:
+	# A summon or a pet keeps its own height by its summoner's (Summon._level_y).
+	if node.name == &"Siege" or node == self or node is Summon:
 		return
 	_track(node as Node3D)
 
