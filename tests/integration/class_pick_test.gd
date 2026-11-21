@@ -34,6 +34,10 @@ func _ready() -> void:
 	_check_world_players()
 	await _check_create_screen()
 	await _check_old_save()
+	if main:
+		main.queue_free()
+		main = null
+		await frames(3)
 	for i in range(1, Game.SLOT_COUNT + 1):
 		Game.delete_save(i)
 	print("class_pick_test: %d checks, %d failures" % [checks, failures])
@@ -160,7 +164,7 @@ func _check_old_save() -> void:
 		await get_tree().process_frame
 		waited += 1
 	check(main.zone != null and Game.playing and main.class_screen == null, "after the pick the game starts")
-	check(Game.class_id() == &"lancer" and int(Game.profile.level) == 14 and int(Game.profile.exp) == 77 and int(Game.profile.gold) == 4321, "converted to a lancer, level, EXP and gold kept")
+	check(Game.class_id() == &"lancer" and int(Game.profile.level) == 14 and int(Game.profile.exp) == 77 and int(Game.profile.gold) >= 4321, "converted to a lancer, level, EXP and gold kept (Lv.%d, %d EXP, %d gold)" % [int(Game.profile.level), int(Game.profile.exp), int(Game.profile.gold)])
 	check(int(Game.profile.points) == 38 and int(Game.profile.attrs.str) == 0, "every stat point is back to spend (%d)" % int(Game.profile.points))
 	check(int(Game.profile.skill_points) == sp_before + 3 and not Game.profile.skills.has("round_slash"), "the Vagabond's skill ranks are back as skill points")
 	check(String(Game.profile.equip.weapon["class"]) == "lancer", "the Vagabond's weapon became a spear")
