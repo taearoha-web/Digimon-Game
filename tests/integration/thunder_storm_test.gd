@@ -34,8 +34,9 @@ func _ready() -> void:
 	hero.stats.atk = 100
 	hero.stats.crit = 0
 	for rank in [1, 3, 5]:
-		Game.profile.skills["thunder_storm"] = rank
-		Game.profile.skills["ice_storm"] = rank
+		# Skill lines: a stage's rank lives on its line (Ice Storm is a Watornado stage).
+		Game.profile.skills[ClassData.rank_id(skill)] = rank
+		Game.profile.skills[ClassData.rank_id(ice)] = rank
 		check(hero._ranked(skill).radius == hero._ranked(ice).radius, "matching ranked radius %d" % rank)
 	var mobs: Array[Dummy] = []
 	for i in 9:
@@ -48,7 +49,8 @@ func _ready() -> void:
 		mob.stats.def = 0
 		mob.set_physics_process(false)
 		mobs.append(mob)
-	Game.profile.skills["thunder_storm"] = 1
+	Game.profile.skills[ClassData.rank_id(skill)] = 1
+	Game.profile.skills[ClassData.rank_id(ice)] = 1
 	# Real hero path, no generic blast/chain damage is allowed in addition.
 	hero._resolve(skill, mobs[0], Vector3.ZERO)
 	var seq: ThunderStormSequence = get_tree().get_first_node_in_group("thunder_storm_sequences")
@@ -149,6 +151,12 @@ func _ready() -> void:
 	hero.position = Vector3(-5, 0, 0)
 	hero.target = mobs[2]
 	Game.profile.loadout[0] = "thunder_storm"
+	# The storm's line evolves into Armageddon at its next stage: the button casts the storm
+	# just below that level.
+	var evolve := ClassData.next_stage(&"mage", ClassData.rank_id(skill), int(skill.level), 4)
+	if not evolve.is_empty():
+		Game.profile.level = int(evolve.level) - 1
+	check(String(Game.class_data().skills[0].get("id", "")) == "thunder_storm", "the bar's first slot holds Thunder Storm")
 	hero.cooldowns.clear()
 	var mana_before := int(Game.profile.mp)
 	var mana_cost := hero.mp_cost(skill)

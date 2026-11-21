@@ -10,6 +10,8 @@ extends Node
 ## on an empty field (there it also spends the free shared budget; in the crowd only the
 ## hero's room is left, and a third sat at the edge: 18 of 56, 19 of 59 on CI). Nobody but the hero spends the hero's room, and every reservation
 ## (the hero's room's too, pooled layers included) comes back once the zone goes.
+## A skill with its own signature art (combat/skill_art) is held to more: its own roots draw
+## (nearly) all they draw on the empty field.
 ## Before the hero's room, the hero's casts drew 0-3 pieces on such a field.
 ##   godot --headless --path . res://tests/integration/hero_vfx_priority_test.tscn
 
@@ -36,6 +38,11 @@ var checks := 0
 var _alone := {}
 var place: StringName = &""
 var _seen := {}
+## The pieces of the cast's own signature roots (combat/skill_art, "Skill_<id>_*").
+var _own := {}
+var _own_prefix := ""
+## Own-signature pieces each skill drew on the empty field (same keys as _alone).
+var _alone_own := {}
 var _watched: Array = []
 var _hero: Hero
 var _focus := Vector3.ZERO
@@ -183,8 +190,15 @@ func _scenario(label: String, quality: int, pressure: int, hot: bool, classes: A
 			var key := "%s/%d/%d" % [skill.id, quality, pressure]
 			if not crowd:
 				_alone[key] = shown
+				_alone_own[key] = _own.size()
 			check(shown >= MIN_PIECES, "%s: %s's %s shows its effect to the hero (%d pieces; budget %s / limit %d)" % [label, cls, skill.id, shown, VfxBudget.counters(), VfxBudget.decoration_limit()])
-			if crowd and _alone.has(key):
+			if crowd and _alone.has(key) and SkillSignature.owns(skill):
+				# A skill with its own signature (combat/skill_art) draws its compact set piece
+				# from the hero's room: all of it in the crowd too. (The empty field's total
+				# also counts the free shared budget's extras and the target's own warnings,
+				# which is no measure of the hero's art.)
+				check(_own.size() * 4 >= int(_alone_own[key]) * 3, "%s: %s's %s draws its own signature in the crowd as on an empty field (%d of %d pieces)" % [label, cls, skill.id, _own.size(), int(_alone_own[key])])
+			elif crowd and _alone.has(key):
 				check(shown * 4 >= int(_alone[key]), "%s: %s's %s draws at least a quarter of what it draws on an empty field (%d of %d)" % [label, cls, skill.id, shown, int(_alone[key])])
 	print("hero_vfx_priority_test: %s: %d hero casts, %.1f visible pieces each, fewest %d" % [label, casts, float(total) / maxf(1.0, casts), fewest])
 	# Leaving the zone gives every reservation back, the hero's room too.
@@ -220,6 +234,8 @@ func _cast(zone: Zone, skill: Dictionary) -> int:
 	_hero.set_target(mob)
 	_focus = mob.global_position
 	_seen.clear()
+	_own.clear()
+	_own_prefix = "Skill_%s_" % skill.id if SkillSignature.owns(skill) else ""
 	_watched.clear()
 	for pool_holder in _pools():
 		for n in pool_holder.find_children("*", "GeometryInstance3D", true, false):
@@ -294,3 +310,5 @@ func _look() -> void:
 		var flat := Vector2(at.x, at.z)
 		if flat.distance_to(Vector2(hero_at.x, hero_at.z)) < NEAR or flat.distance_to(Vector2(_focus.x, _focus.z)) < NEAR:
 			_seen[id] = true
+			if _own_prefix != "" and g.get_parent() and String(g.get_parent().name).begins_with(_own_prefix):
+				_own[id] = true

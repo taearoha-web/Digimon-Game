@@ -56,7 +56,8 @@ func _ready() -> void:
 	var field := Node3D.new()
 	add_child(field)
 	var skills := _all_skills()
-	check(skills.size() > 300, "the catalogue holds every class's skills, stars and gods (%d)" % skills.size())
+	# Skill lines: every class has 8 lines (1..3 stages each) and 5 star skills.
+	check(skills.size() >= ClassData.IDS.size() * (8 + 5) + 80, "the catalogue holds every class's skills, stars and gods (%d)" % skills.size())
 	# --- every recipe gets the full stack at high quality ---
 	var recipe_ids := SkillArtDirection.RECIPES.keys()
 	var covered := 0
@@ -71,7 +72,10 @@ func _ready() -> void:
 			check(SkillLayers.KINDS.has(kind), "%s uses a known particle kind %s" % [id, kind])
 		if id in recipe_ids:
 			covered += 1
-	check(covered == recipe_ids.size(), "every recipe row is a real skill in a pool (%d / %d)" % [covered, recipe_ids.size()])
+		elif not skill.has("star"):
+			check(false, "%s has an art-direction recipe row" % id)
+	# Rows of skills the skill lines dropped may stay (HOWTO); every pool skill has one.
+	check(covered >= skills.size() - StarSkillData.IDS.size() * 5, "every class skill has a recipe row (%d / %d)" % [covered, recipe_ids.size()])
 	for palette in SkillArtDirection.PALETTES:
 		check(SkillLayers.PALETTE_ELEMENT.has(palette), "palette %s has an element flavour" % palette)
 	for recipe in SkillArtDirection.RECIPES.values():

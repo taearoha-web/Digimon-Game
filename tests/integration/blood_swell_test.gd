@@ -18,7 +18,7 @@ func check(ok: bool, message: String) -> void:
 func _ready() -> void:
 	WorldEvents.festival_enabled = false
 	var spec := ClassData.find_skill(&"defender", "brace")
-	check(String(spec.name) == "เบ่งเลือด" and int(spec.level) == 10 and String(spec.shape) == "self", "the Defender's Lv.10 self skill is เบ่งเลือด")
+	check(String(spec.name) == "เบ่งเลือด" and int(spec.level) == 5 and String(spec.shape) == "self" and ClassData.line_of(&"defender", "brace") == "brace", "the Defender's Lv.5 self skill is เบ่งเลือด, the first stage of its own line")
 	check(not BuffBook.is_self_only(spec.fx.buff), "it reaches the party")
 	var shared := BuffBook.party_part(spec.fx.buff)
 	check(shared.has("hp") and shared.has("secs") and not shared.has("guard"), "the party gets the max HP only, the damage cut stays the Defender's (%s)" % [shared])

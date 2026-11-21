@@ -45,7 +45,10 @@ static func skills(cls: StringName) -> Array:
 	var out := []
 	for skill in ClassData.pool(cls):
 		var level := int(skill.get("level", 1))
-		if not skill.has("star") and level >= 60 and level <= 100:
+		# Skill lines moved stages: the late class skills with their own signature art (a
+		# few now unlock from Lv.50; the Lv.60 stages that were early skills draw the class
+		# art). _ownership checks every Lv.64+ stage is one of them.
+		if not skill.has("star") and level <= 100 and SkillSignature.script_for(skill.id) != null:
 			out.append(skill)
 	return out
 
@@ -69,12 +72,17 @@ func _ready() -> void:
 	get_tree().quit(failures)
 
 
-## Every one of the 33 skills has its signature, which owns its show.
+## Every one of these skills has its signature, which owns its show.
 func _ownership() -> void:
 	var total := 0
 	for cls in CLASSES:
 		var list := skills(cls)
-		check(list.size() == 11, "%s has eleven Lv.60-100 skills (%d)" % [cls, list.size()])
+		for skill in ClassData.pool(cls):
+			# Lethal Sight (an early skill, now the Lv.90 stage of Elemental Shot) still draws
+			# the Archer's class art.
+			if not skill.has("star") and int(skill.level) >= 64 and String(skill.id) != "lethal_sight":
+				check(skill in list, "%s's Lv.%d stage %s has its own signature art" % [cls, int(skill.level), skill.id])
+		check(list.size() >= 8, "%s has its late skills with their own art (%d)" % [cls, list.size()])
 		for skill in list:
 			total += 1
 			var id := String(skill.id)
@@ -84,7 +92,7 @@ func _ownership() -> void:
 				check(own.has_method("anticipate") and own.has_method("play"), "%s draws its wind-up and its release" % id)
 			check(SkillSignature.owns(skill), "%s is owned by its signature" % id)
 			check(GodSkillArt.owns(skill), "%s keeps the shared class overlays out (GodSkillArt.owns)" % id)
-	check(total == 33, "33 skills in all")
+	check(total >= 24, "%d skills in all" % total)
 	check(SkillSignature.script_for("_sky") == null, "the team kit is never a skill's signature")
 	var star := {"id": "fierce_wind", "star": 50, "class": &"archer", "shape": "fan"}
 	check(not SkillSignature.owns(star), "a star lookalike borrowing the id keeps its own path")

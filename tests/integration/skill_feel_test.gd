@@ -408,9 +408,11 @@ func _marks() -> void:
 	var before := hub.marks_visible()
 	# (A skill whose own signature art draws its scar, GodSkillArt.owns, lays none here.)
 	var heavy := {}
-	for skill in ClassData.pool(&"mage"):
-		if String(skill.shape) == "blast" and not GodSkillArt.owns(skill) and SkillWeight.tier_of(skill) >= SkillWeight.MEDIUM:
-			heavy = skill
+	# (Skill lines left the mage's medium/heavy blasts all with their own art: any class's.)
+	for cls in ClassData.IDS:
+		for skill in ClassData.pool(cls):
+			if heavy.is_empty() and not skill.has("star") and String(skill.shape) == "blast" and not GodSkillArt.owns(skill) and SkillWeight.tier_of(skill) >= SkillWeight.MEDIUM:
+				heavy = skill
 	check(not heavy.is_empty(), "a heavy blast without its own signature art to test")
 	rig.hero._blast_damage(heavy, Vector3(5, 0, 5), 5.0, 1.0)
 	check(hub.marks_visible() == before + 1, "a heavy blast leaves a mark (%s)" % heavy.get("id", ""))
