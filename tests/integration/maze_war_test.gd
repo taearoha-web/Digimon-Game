@@ -385,8 +385,8 @@ func _chat() -> void:
 		for line in ChatThreads.make("world", [s, other], rng, {"topic": "maze", "t": t}):
 			for text in line.options:
 				said += 1
-				# (a voice's laugh, 555, is no claim)
-				var nums := _numbers(String(text).replace("555", ""))
+				# (a voice's laugh, 555, is no claim, nor the digits in a player's name)
+				var nums := _numbers(String(text).replace(String(s.name), "").replace(String(other.name), "").replace("555", ""))
 				var allowed := [int(board[0].kills)]
 				if v.has("%mzrank"):
 					allowed.append(int(v["%mzrank"]))

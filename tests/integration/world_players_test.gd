@@ -87,6 +87,7 @@ func _roster() -> void:
 	check(WorldPlayers.ROSTER.size() == 100 and WorldPlayers.size() == WorldPlayers.ROSTER.size(), "a hundred world players, no newcomers (%d)" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
+	var bodies := {}
 	var sizes := []
 	for g in WorldPlayers.GUILDS:
 		var members := WorldPlayers.members(g)
@@ -103,7 +104,11 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-		check(WorldPlayers.look(i).keys() == ["gender", "body", "style"] and int(WorldPlayers.look(i).body) == 0, "%s: the original body in a ready-made colouring, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
+		check(WorldPlayers.look(i).keys() == ["gender", "body", "style"] and int(WorldPlayers.look(i).body) == int(e.body) and FaceKit.hero_look(WorldPlayers.look(i)).body == int(e.body), "%s: its own body of its gender in a ready-made colouring, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
+		bodies["%d|%d" % [int(e.gender), int(e.body)]] = true
+	# Each picked its look at random among all the characters of its gender: all eight show up.
+	check(bodies.size() == 8 and bodies.size() == ChibiBodies.count(0) + ChibiBodies.count(1), "every chibi body of both genders is worn by someone (%s)" % [bodies.keys()])
+	check(WorldPlayers.ROSTER_ID != "" and WorldPlayers.ROSTER.all(func(r): return r.has("body")), "the roster carries its id and every player's body")
 	# Everyone picks a guild of its own (WorldPlayers.pick_guild): not even, but none is left small.
 	for i in WorldPlayers.size():
 		check(WorldPlayers.GUILDS.has(int(WorldPlayers.entry(i).guild)), "%s picked one of the four guilds" % WorldPlayers.entry(i).name)
