@@ -75,10 +75,12 @@ func _check_classes() -> void:
 			check(lv == 1 or not Game.skill_unlocked(skill), "%s: %s stays shut below Lv.%d" % [cls, skill.id, lv])
 		check(ordered, "%s: the skill pool is in unlock order" % cls)
 		# Lv.5: the second skill joins the bar on its own.
-		Game.profile["level"] = 1
+		# One point short of Lv.5, then one more: the evening EXP x2 (WorldEvents) can not
+		# carry it past Lv.5, whatever the time of day the test runs at.
+		Game.profile["level"] = 4
 		Game.profile["adv"] = 0
-		Game.profile["exp"] = 0
-		Game.add_exp(HeroStats.exp_to_next(1) + HeroStats.exp_to_next(2) + HeroStats.exp_to_next(3) + HeroStats.exp_to_next(4))
+		Game.profile["exp"] = HeroStats.exp_to_next(4) - 1
+		Game.add_exp(1)
 		check(int(Game.profile.level) == 5 and Game.loadout().filter(func(id): return String(id) != "").size() == 2, "%s: at Lv.5 the second skill is on the bar" % cls)
 		Game.delete_save()
 
