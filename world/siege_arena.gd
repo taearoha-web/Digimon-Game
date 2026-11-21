@@ -132,6 +132,8 @@ const GOLD := Color("e8c050")
 ## Deeper golds that SurfaceKit still reads as metal (a darkened GOLD would be drawn as wood).
 const GOLD_DEEP := Color("d9aa38")
 const GOLD_DARK := Color("cc9a2c")
+## The great keep's roofs: weathered copper over the grey tiles of the walls.
+const KEEP_ROOF := Color("3d7468")
 const LOOPHOLE := Color("2b2622")
 
 
@@ -336,6 +338,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	banner.vertex_color_use_as_albedo = true
 	zone.set_meta(BANNER_META, banner)
 	_flags = JapanKit.Batch.new()
+	_trim = JapanKit.Batch.new()
 	# The new scenery's own stream of numbers (the zone's is left to the stone and the pines).
 	var art := RandomNumberGenerator.new()
 	art.seed = 90417
@@ -351,6 +354,8 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	_horizon(root, rng, art)
 	masonry.commit(root)
 	_commit_flags(root, banner)
+	_commit(_trim, root, "CastleTrim", false)
+	_trim = null
 	_altar_beam(root)
 	_court_floor(root)
 	_flags = null
@@ -365,6 +370,9 @@ const AVENUE_Z0 := 32.0
 const AVENUE_Z1 := 68.0
 ## Every castle banner goes into this one batch while the castle is built (_flag).
 static var _flags: JapanKit.Batch
+## The castle's flat floor work (paving, bands, carpets, inlays) and small wall detail
+## (loopholes): one mesh that casts no shadow, so the shadow pass does not draw it again.
+static var _trim: JapanKit.Batch
 
 
 # ---------------------------------------------------------------------------
@@ -602,10 +610,11 @@ static func _parapet(b: JapanKit.Batch, a: Vector3, e: Vector3) -> void:
 		var p := a + dir * (1.3 + float(i) * 2.6)
 		for s in [-1.0, 1.0]:
 			var at: Vector3 = p + side * (0.51 * float(s)) + Vector3(0, 1.2, 0)
+			var t := _trim if _trim != null else b
 			if i % 2 == 0:
-				b.box(at, Vector3(0.36, 0.36, 0.06), LOOPHOLE, Vector3(0, yaw + 90.0, 45.0))
+				t.box(at, Vector3(0.36, 0.36, 0.06), LOOPHOLE, Vector3(0, yaw + 90.0, 45.0))
 			else:
-				b.box(at, Vector3(0.3, 0.42, 0.06), LOOPHOLE, Vector3(0, yaw + 90.0, 0))
+				t.box(at, Vector3(0.3, 0.42, 0.06), LOOPHOLE, Vector3(0, yaw + 90.0, 0))
 
 
 ## A turret (yagura) of `tiers` storeys on a dressed stone base at `at`, flying the
@@ -686,7 +695,7 @@ static func _gatehouse(b: JapanKit.Batch, m: Masonry, k: int, root: Node3D, gx :
 		for i in 3:
 			var x := gx + (float(i) - 1.0) * s2 * 0.3
 			for s in [-1.0, 1.0]:
-				g.box(Vector3(x, top + 5.5, z + float(s) * (d2 * 0.5 + 0.03)), Vector3(0.8, 0.9, 0.06), Color("ffe3a0"), Vector3.ZERO, true)
+				g.box(Vector3(x, top + 5.5, z + float(s) * (d2 * 0.5 + 0.03)), Vector3(0.8, 0.9, 0.06), Color("3a2c22"))
 		g.roof(Vector3(gx, top + 7.1, z), s2 + 2.8, d2 + 2.8, 1.5, TILE, 0.5)
 		_eaves(g, Vector3(gx, top + 6.45, z), s2 + 2.7, d2 + 2.7, 0.9)
 		ridge_y = top + 7.9
@@ -707,7 +716,7 @@ static func _gatehouse(b: JapanKit.Batch, m: Masonry, k: int, root: Node3D, gx :
 		g.cyl(Vector3(gx, GATE_H + 1.0 + lift * 0.5, z + 1.76), 0.9, 0.12, Color("c0392b"), Vector3(90, 0, 0), 16)
 	# Paper lanterns under the eaves at both ends, and the holder's long banners on the jambs.
 	for side in [-1.0, 1.0]:
-		JapanKit.chochin(g, Vector3(gx + float(side) * (span * 0.5 + 0.7), top + 2.4, z + depth * 0.5 + 0.9), Color("e8463a"), 1.5)
+		JapanKit.chochin(b, Vector3(gx + float(side) * (span * 0.5 + 0.7), top + 2.4, z + depth * 0.5 + 0.9), Color("e8463a"), 1.5)
 		var fh := 4.2 + float(k) * 1.2
 		_flag(Vector3(gx + float(side) * (GATE_HALF + 1.6), jamb - 0.3 - fh * 0.5, z + 2.45), Vector3(1.4 + float(k) * 0.3, fh, 0.08), 0.9 + float(k) * 0.15)
 	var mi := g.commit(root, "GateTop%d_%d" % [k, 0 if gx <= 0.0 else 1])
@@ -770,16 +779,16 @@ static func _castle(root: Node3D, m: Masonry) -> void:
 	for x in [-30.0, -20.0, 20.0, 30.0]:
 		_nobori(b, Vector3(x, wall_top + COURT_H, BACK_Z), 4.6)
 	# Paving in the yards, and the landing in front of the first gate.
-	b.box(Vector3(0, 0.03, (GATE_Z[0] + STAIR_Z0) * 0.5), Vector3(HALL_HALF * 2.0, 0.06, GATE_Z[0] - STAIR_Z0), PAVING)
-	b.box(Vector3(0, 0.02, (GATE_Z[2] + STAIR_Z0) * 0.5), Vector3(THRONE_HALF * 2.0, 0.04, GATE_Z[2] - STAIR_Z0), PAVING)
-	b.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 4.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
+	_trim.box(Vector3(0, 0.03, (GATE_Z[0] + STAIR_Z0) * 0.5), Vector3(HALL_HALF * 2.0, 0.06, GATE_Z[0] - STAIR_Z0), PAVING)
+	_trim.box(Vector3(0, 0.02, (GATE_Z[2] + STAIR_Z0) * 0.5), Vector3(THRONE_HALF * 2.0, 0.04, GATE_Z[2] - STAIR_Z0), PAVING)
+	_trim.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 4.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
 	for k in 2:
 		for f in [0.3, 0.5, 0.7]:
-			b.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
+			_trim.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
 		# A darker border round each yard and a paved band down each lane to the next gate.
 		for s in [-1.0, 1.0]:
-			b.box(Vector3(float(s) * (HALL_HALF - 5.2), 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.5, 0.04, GATE_GAP - 8.0), Color("8d8676"))
-			b.box(Vector3(float(s) * LANE_X, 0.07, GATE_Z[k] - GATE_GAP * 0.5), Vector3(6.0, 0.03, GATE_GAP - 5.0), PAVING.lightened(0.12))
+			_trim.box(Vector3(float(s) * (HALL_HALF - 5.2), 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.5, 0.04, GATE_GAP - 8.0), Color("8d8676"))
+			_trim.box(Vector3(float(s) * LANE_X, 0.07, GATE_Z[k] - GATE_GAP * 0.5), Vector3(6.0, 0.03, GATE_GAP - 5.0), PAVING.lightened(0.12))
 	# The yards: tall stone lanterns along the walls.
 	for k in 2:
 		for f in [0.15, 0.38, 0.62, 0.85]:
@@ -801,14 +810,15 @@ static func _stairs(b: JapanKit.Batch) -> void:
 		var zc := STAIR_Z0 - (float(i) + 0.5) * tread
 		var h := float(i + 1) * rise
 		b.box(Vector3(0, h * 0.5, zc), Vector3(width, h, tread), STONE if i % 2 == 0 else STONE.lightened(0.05))
-		b.box(Vector3(0, h - 0.025, zc + tread * 0.5 - 0.05), Vector3(width, 0.07, 0.14), PAVING.lightened(0.14))
+		_trim.box(Vector3(0, h - 0.025, zc + tread * 0.5 - 0.05), Vector3(width, 0.07, 0.14), PAVING.lightened(0.14))
+		_trim.box(Vector3(0, h - rise * 0.5 - 0.04, zc + tread * 0.5 + 0.01), Vector3(width, rise - 0.08, 0.03), STONE_CORE)
 	var slope := rad_to_deg(atan2(COURT_H, STAIR_RUN))
 	var length := sqrt(COURT_H * COURT_H + STAIR_RUN * STAIR_RUN)
 	var mid := Vector3(0, COURT_H * 0.5 + rise, (STAIR_Z0 + STAIR_Z1) * 0.5)
 	# The carpet laid over the steps' edges, gold along its sides.
-	b.box(mid + Vector3(0, 0.03, 0), Vector3(5.0, 0.05, length + 0.3), Color("a8322a"), Vector3(slope, 0, 0))
+	_trim.box(mid + Vector3(0, 0.03, 0), Vector3(5.0, 0.05, length + 0.3), Color("a8322a"), Vector3(slope, 0, 0))
 	for s in [-1.0, 1.0]:
-		b.box(mid + Vector3(float(s) * 2.6, 0.05, 0), Vector3(0.26, 0.06, length + 0.3), GOLD_DEEP, Vector3(slope, 0, 0))
+		_trim.box(mid + Vector3(float(s) * 2.6, 0.05, 0), Vector3(0.26, 0.06, length + 0.3), GOLD_DEEP, Vector3(slope, 0, 0))
 	for s in [-1.0, 1.0]:
 		var x: float = float(s) * (width * 0.5 - 1.0)
 		# The stone cheek along the wall, capped, a great lantern at its foot and its head.
@@ -842,15 +852,15 @@ static func _lion(b: JapanKit.Batch, at: Vector3, turn: float) -> void:
 static func _court(b: JapanKit.Batch) -> void:
 	var up := Vector3(0, COURT_H, 0)
 	var head := STAIR_Z1 + STAIR_LEAD
-	b.box(Vector3(0, COURT_H - 0.02, (STAIR_Z1 + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.1, STAIR_Z1 - BACK_Z), PAVING)
+	_trim.box(Vector3(0, COURT_H - 0.02, (STAIR_Z1 + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.1, STAIR_Z1 - BACK_Z), PAVING)
 	for i in 4:
-		b.box(Vector3(0, COURT_H + 0.05, head - 5.0 - float(i) * 8.4), Vector3(THRONE_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
+		_trim.box(Vector3(0, COURT_H + 0.05, head - 5.0 - float(i) * 8.4), Vector3(THRONE_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
 	for s in [-1.0, 1.0]:
-		b.box(Vector3(float(s) * (THRONE_HALF * 0.62 - 2.4), COURT_H + 0.05, (head + BACK_Z) * 0.5), Vector3(0.5, 0.04, head - BACK_Z - 6.0), Color("8d8676"))
+		_trim.box(Vector3(float(s) * (THRONE_HALF * 0.62 - 2.4), COURT_H + 0.05, (head + BACK_Z) * 0.5), Vector3(0.5, 0.04, head - BACK_Z - 6.0), Color("8d8676"))
 	# The carpet from the staircase's head to the altar, gold along its sides.
-	b.box(Vector3(0, COURT_H + 0.06, (head + ALTAR.z) * 0.5), Vector3(5.0, 0.05, head - ALTAR.z), Color("a8322a"))
+	_trim.box(Vector3(0, COURT_H + 0.06, (head + ALTAR.z) * 0.5), Vector3(5.0, 0.05, head - ALTAR.z), Color("a8322a"))
 	for s in [-1.0, 1.0]:
-		b.box(Vector3(float(s) * 2.6, COURT_H + 0.07, (head + ALTAR.z) * 0.5), Vector3(0.26, 0.05, head - ALTAR.z), GOLD_DEEP)
+		_trim.box(Vector3(float(s) * 2.6, COURT_H + 0.07, (head + ALTAR.z) * 0.5), Vector3(0.26, 0.05, head - ALTAR.z), GOLD_DEEP)
 	for i in 7:
 		var z := GATE_Z[2] - 5.0 - float(i) * (THRONE_DEPTH - 9.0) / 6.0
 		for x in [-THRONE_HALF * 0.62, THRONE_HALF * 0.62]:
@@ -864,18 +874,18 @@ static func _court(b: JapanKit.Batch) -> void:
 	# The altar: rings of stone and gold let into the floor (flat: fighters stand on it),
 	# eight golden lotus points round it.
 	var altar := ALTAR + up
-	b.cyl(altar + Vector3(0, 0.04, 0), ALTAR_RADIUS + 3.4, 0.08, STONE_CORE.lightened(0.12), Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.05, 0), ALTAR_RADIUS + 3.0, 0.1, PAVING.lightened(0.16), Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.06, 0), ALTAR_RADIUS + 1.2, 0.12, STONE, Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.07, 0), ALTAR_RADIUS + 0.5, 0.14, STONE.lightened(0.15), Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.08, 0), ALTAR_RADIUS, 0.16, GOLD_DEEP, Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.09, 0), ALTAR_RADIUS - 0.6, 0.18, Color("fff1c8"), Vector3.ZERO, 32)
-	b.cyl(altar + Vector3(0, 0.1, 0), ALTAR_RADIUS * 0.4, 0.2, GOLD, Vector3.ZERO, 16)
+	_trim.cyl(altar + Vector3(0, 0.04, 0), ALTAR_RADIUS + 3.4, 0.08, STONE_CORE.lightened(0.12), Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.05, 0), ALTAR_RADIUS + 3.0, 0.1, PAVING.lightened(0.16), Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.06, 0), ALTAR_RADIUS + 1.2, 0.12, STONE, Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.07, 0), ALTAR_RADIUS + 0.5, 0.14, STONE.lightened(0.15), Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.08, 0), ALTAR_RADIUS, 0.16, GOLD_DEEP, Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.09, 0), ALTAR_RADIUS - 0.6, 0.18, Color("fff1c8"), Vector3.ZERO, 32)
+	_trim.cyl(altar + Vector3(0, 0.1, 0), ALTAR_RADIUS * 0.4, 0.2, GOLD, Vector3.ZERO, 16)
 	for i in 8:
 		var angle := TAU * (float(i) + 0.5) / 8.0
 		var at := altar + Vector3(cos(angle) * (ALTAR_RADIUS + 2.1), 0, sin(angle) * (ALTAR_RADIUS + 2.1))
-		b.box(at + Vector3(0, 0.12, 0), Vector3(0.9, 0.08, 0.9), GOLD, Vector3(0, -rad_to_deg(angle) + 45.0, 0))
-		b.box(at + Vector3(0, 0.14, 0), Vector3(0.5, 0.1, 0.5), Color("c0392b"), Vector3(0, -rad_to_deg(angle) + 45.0, 0))
+		_trim.box(at + Vector3(0, 0.12, 0), Vector3(0.9, 0.08, 0.9), GOLD, Vector3(0, -rad_to_deg(angle) + 45.0, 0))
+		_trim.box(at + Vector3(0, 0.14, 0), Vector3(0.5, 0.1, 0.5), Color("c0392b"), Vector3(0, -rad_to_deg(angle) + 45.0, 0))
 	# Against the back wall behind the altar: a stepped dais, a tall gilded folding screen
 	# (byobu) of six panels, a tiled canopy on vermilion posts with the golden crest under
 	# it, the holder's two great banners either side, and great fire bowls.
@@ -948,7 +958,7 @@ static func _altar_beam(root: Node3D) -> void:
 ## A tiered keep (tenshu): white storeys under dark tiled roofs with sweeping gilded eaves
 ## and gables on alternate sides, lit windows, a balcony round the top storey and the
 ## golden ridge-fish (shachihoko) on top. Returns the height of its ridge above `at`.
-static func _tenshu(b: JapanKit.Batch, at: Vector3, tiers: int, width: float, storey: float, shrink := 0.15) -> float:
+static func _tenshu(b: JapanKit.Batch, at: Vector3, tiers: int, width: float, storey: float, shrink := 0.15, roof := TILE) -> float:
 	var y := 0.0
 	var s := width
 	for i in tiers:
@@ -971,7 +981,7 @@ static func _tenshu(b: JapanKit.Batch, at: Vector3, tiers: int, width: float, st
 				b.box(at + Vector3(float(e) * (s * 0.5 + 0.85), y + 1.2, 0), Vector3(0.12, 0.12, s + 1.8), JapanKit.VERMILION)
 		y += h + 0.4
 		var over := 3.4 + width * 0.06
-		b.roof(at + Vector3(0, y + 0.55, 0), s + over, s + over, 1.5, TILE, 0.25)
+		b.roof(at + Vector3(0, y + 0.55, 0), s + over, s + over, 1.5, roof, 0.25)
 		_eaves(b, at + Vector3(0, y - 0.1, 0), s + over - 0.1, s + over - 0.1, 0.7 + width * 0.03)
 		if i < tiers - 1:
 			# A gable on two sides, turning with each roof.
@@ -979,11 +989,11 @@ static func _tenshu(b: JapanKit.Batch, at: Vector3, tiers: int, width: float, st
 				var out: float = float(e) * (s * 0.5 + 0.8)
 				if i % 2 == 0:
 					b.box(at + Vector3(0, y + 1.2, out), Vector3(s * 0.4, 1.4, 0.5), PLASTER)
-					b.roof(at + Vector3(0, y + 2.1, out), s * 0.5, 1.6, 0.9, TILE, 0.6)
+					b.roof(at + Vector3(0, y + 2.1, out), s * 0.5, 1.6, 0.9, roof, 0.6)
 					b.box(at + Vector3(0, y + 1.3, out + float(e) * 0.28), Vector3(0.5, 0.5, 0.06), GOLD, Vector3(0, 0, 45))
 				else:
 					b.box(at + Vector3(out, y + 1.2, 0), Vector3(0.5, 1.4, s * 0.4), PLASTER)
-					b.roof(at + Vector3(out, y + 2.1, 0), s * 0.5, 1.6, 0.9, TILE, 0.6, 90.0)
+					b.roof(at + Vector3(out, y + 2.1, 0), s * 0.5, 1.6, 0.9, roof, 0.6, 90.0)
 					b.box(at + Vector3(out + float(e) * 0.28, y + 1.3, 0), Vector3(0.06, 0.5, 0.5), GOLD, Vector3(45, 0, 0))
 		y += 1.2
 	b.box(at + Vector3(0, y + 0.3, 0), Vector3(s * 0.45 + 0.6, 0.5, 0.6), TILE_EDGE)
@@ -1005,7 +1015,7 @@ static func _keeps(root: Node3D, m: Masonry) -> void:
 	for e in [-1.0, 1.0]:
 		_parapet(b, main + Vector3(float(e) * 18.0, 13.0, 14.0), main + Vector3(float(e) * 18.0, 13.0, -14.0))
 	_parapet(b, main + Vector3(-18.0, 13.0, 14.0), main + Vector3(18.0, 13.0, 14.0))
-	var keep_top := 22.0 + _tenshu(b, main + Vector3(0, 22.0, 0), 7, 24.0, 4.8, 0.115)
+	var keep_top := 22.0 + _tenshu(b, main + Vector3(0, 22.0, 0), 7, 24.0, 4.8, 0.115, KEEP_ROOF)
 	# The holder's great banners down the upper base, seen over the court's back wall.
 	for e in [-1.0, 1.0]:
 		_flag(main + Vector3(float(e) * 9.0, 18.6, 12.8), Vector3(4.0, 10.0, 0.1), 2.6)

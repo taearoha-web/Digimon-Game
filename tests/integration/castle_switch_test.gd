@@ -168,7 +168,7 @@ func _layout(hud: GuildWarHud, m: GuildWarMatch) -> void:
 		check(m.switch_contested and alphas.all(func(x: float): return x >= 0.999), "%s: the chip's text stays opaque while contested (%s)" % [size, alphas])
 		check(borders.any(func(c: Color): return not _same(c, borders[0])), "%s: the fought-over chip's border pulses instead" % size)
 	# The floating label: hidden while it would sit in the board's band, capped in size.
-	var at: Vector3 = SiegeArena.SWITCHES[L]
+	var at: Vector3 = SiegeArena.switch_top(L)
 	var cam := Camera3D.new()
 	add_child(cam)
 	cam.current = true
@@ -209,7 +209,7 @@ func _switch_and_barrier() -> void:
 	check(m.state == "fight", "the fight begins")
 	_hold_still(m)
 	check(zone.find_child("CastleSwitch", true, false) != null and zone.find_child("CastleSwitchRight", true, false) != null, "two switch pads stand in the castle")
-	check(zone.find_child("AltarBarrier", true, false) != null and (zone.find_child("AltarBarrier", true, false) as Node3D).position.is_equal_approx(SiegeArena.ALTAR), "the altar at the back has its barrier")
+	check(zone.find_child("AltarBarrier", true, false) != null and (zone.find_child("AltarBarrier", true, false) as Node3D).position.is_equal_approx(SiegeArena.altar_top()), "the altar at the back, on the raised court, has its barrier")
 	var lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): lines.append(text))
 	# Nobody on the switches: the barrier stands for both guilds, the switches look neutral.
