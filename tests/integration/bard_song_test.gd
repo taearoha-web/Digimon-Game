@@ -144,7 +144,7 @@ func _skill_rank() -> void:
 ## Four regular buffs and a song on the hero: five auras, no particles or lights, and
 ## the HUD shows the song in its own lane while self reads N/2 (friends: a count).
 func _auras_and_hud() -> void:
-	for id in ["zenith", "energy_shield"]:
+	for id in ["silraphim", "energy_shield"]:
 		var s := ClassData.find_skill(&"mage", id)
 		hero.receive_buff(s.fx.buff, s.color, s.name, false, id)
 	for id in ["holy_valor", "forest_blessing"]:

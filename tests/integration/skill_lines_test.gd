@@ -25,6 +25,36 @@ const PLANS := {
 		[["holy_valor", 40], ["drastic_spirit", 70], ["godly_shield", 90]],
 		[["rage_of_zecram", 50], ["gladiator", 100]],
 	],
+	&"archer": [
+		[["wind_arrow", 1], ["perforation", 60], ["lightning_arrow", 90]],
+		[["elemental_shot", 5], ["phoenix_shot", 60], ["lethal_sight", 90]],
+		[["arrow_of_rage", 10], ["fierce_wind", 60], ["dragon_shot", 90]],
+		[["avalanche", 15], ["tempest", 60], ["phoenix_rain", 90]],
+		[["ensnare", 20], ["hurricane", 70]],
+		[["scout_hawk", 30], ["dionic_sight", 60], ["spirit_of_wind", 90]],
+		[["golden_falcon", 40], ["recall_wolverine", 60], ["force_of_nature", 80]],
+		[["meteor_arrow", 50]],
+	],
+	&"mage": [
+		[["fire_bolt", 1], ["dead_ray", 60], ["judgment_ray", 90]],
+		[["agony", 5], ["slow_speed", 60]],
+		[["fire_ball", 10], ["meteo", 60], ["hell_meteor", 90]],
+		[["watornado", 15], ["ice_storm", 70]],
+		[["flame_wave", 20], ["spirit_burst", 80]],
+		[["enchant_weapon", 30], ["silraphim", 60], ["magic_overdrive", 90]],
+		[["energy_shield", 40], ["vague", 70]],
+		[["thunder_storm", 50], ["armageddon", 100]],
+	],
+	&"priest": [
+		[["holy_bolt", 1], ["judgement_light", 60], ["divine_judgment", 90]],
+		[["healing", 5], ["hand_of_god", 60], ["prayer", 90]],
+		[["multi_spark", 10], ["vigor_ball", 40], ["seraphim_wrath", 90]],
+		[["divine_lightning", 15], ["chain_lightning", 60]],
+		[["holy_mind", 20], ["glacial_spike", 60]],
+		[["holy_reflection", 30], ["blessing_aura", 64], ["miracle", 96]],
+		[["extinction", 40], ["heaven_light", 70], ["last_judgement", 100]],
+		[["summon_muspell", 50]],
+	],
 }
 
 
@@ -49,6 +79,7 @@ func _ready() -> void:
 		_check_hero(cls)
 		_check_ai(cls)
 	_check_warrior_migration()
+	_check_priest_migration()
 	_check_unconverted()
 	await _check_screens()
 	print("skill_lines_test: %d checks, %d failures" % [checks, failures])
@@ -173,6 +204,26 @@ func _check_warrior_migration() -> void:
 	# The whole save check passes too.
 	check(Game._valid_profile(data.duplicate(true)), "a moved old save passes the save check")
 
+
+## The priest: its heals stay the first stage of their line (AI_ALL_HEALS keeps them by
+## line id), merged passives carry their best rank, the dropped heals refund.
+func _check_priest_migration() -> void:
+	Game.new_profile(&"priest", "Old Priest", FaceKit.default_look())
+	var data: Dictionary = Game.profile.duplicate(true)
+	data.level = 90
+	data.adv = JobData.adv_for_level(90)
+	data.skill_points = 0
+	data.skills = {"healing": 2, "hand_of_god": 3, "grand_healing": 4, "faith": 3, "divine_grace": 2, "sanctity": 5, "holy_bolt": 1}
+	data.loadout = ["grand_healing", "hand_of_god", "holy_bolt", "virtual_life", "", "", "", ""]
+	Game._migrate_skills(data)
+	# healing max(2, 3), refund 1; grand_healing 3; divine_grace max(3, 2, 5), refund 1 + 2.
+	check(int(data.skill_points) == 7, "old priest save: 7 points refunded (got %d)" % int(data.skill_points))
+	check(data.skills == {"healing": 3, "divine_grace": 5, "holy_bolt": 1}, "old priest save: ranks moved to the lines %s" % data.skills)
+	check(String(data.loadout[1]) == "healing" and String(data.loadout[2]) == "holy_bolt", "old priest save: Hand of God became the heal line in place %s" % [data.loadout])
+	check(Game._valid_profile(data.duplicate(true)), "a moved old priest save passes the save check")
+	var kit := ClassData.ai_buff_kit(&"priest", 100, "Somchai")
+	check(kit.has("healing") and kit.has("holy_reflection"), "an AI Priest at Lv.100 keeps Prayer and Miracle (heals that buff) by line id %s" % [kit])
+	check(ClassData.current_stage(&"priest", "healing", 100, 5).id == "prayer", "the heal line ends in Prayer")
 
 func _check_unconverted() -> void:
 	for cls in ClassData.IDS:

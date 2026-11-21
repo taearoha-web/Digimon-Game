@@ -321,7 +321,7 @@ func _vagabond() -> void:
 	Game.add_exp(HeroStats.exp_to_next(1) + HeroStats.exp_to_next(2) + HeroStats.exp_to_next(3) + HeroStats.exp_to_next(4))
 	check(Game.profile.level == 5, "reached Lv.5 (Lv.%d)" % Game.profile.level)
 	bar = Game.loadout_skills()
-	check(String(bar[1].get("id", "")) == "perfect_aim", "the Lv.5 skill joins the bar")
+	check(String(bar[1].get("id", "")) == "elemental_shot", "the Lv.5 skill joins the bar")
 	# An old Vagabond save at Lv.10: gear, skill ranks and stat points come back with the class.
 	Game.delete_save()
 	Game.new_profile(ClassData.LEGACY, "ทดสอบ")
@@ -348,14 +348,14 @@ func _vagabond() -> void:
 	check(int(Game.profile.points) == 21 and int(Game.profile.attrs.str) == 0, "every stat point comes back (%d)" % int(Game.profile.points))
 	check(int(Game.profile.skill_points) == points_before + 2 and not Game.profile.skills.has("power_strike"), "the Vagabond's skill ranks come back as skill points")
 	bar = Game.loadout_skills()
-	check(String(bar[0].id) == "wind_arrow" and String(bar[1].id) == "perfect_aim", "bar holds the first archer skills")
+	check(String(bar[0].id) == "wind_arrow" and String(bar[1].id) == "elemental_shot", "bar holds the first archer skills")
 	check(not Game.change_class(&"mage"), "the class cannot be changed twice")
 	# Loadout: swap a skill into slot 4 once unlocked.
 	Game.profile["level"] = 20
 	Game.fill_loadout()
-	check(not Game.equip_skill("avalanche", 0), "Lv.20 skills stay locked until the advanced job")
-	check(Game.equip_skill("scout_hawk", 0) and String(Game.loadout()[0]) == "scout_hawk" and String(Game.loadout()[2]) == "wind_arrow", "a skill already on the bar swaps places")
-	check(not Game.equip_skill("phoenix_shot", 1), "locked skills cannot be equipped")
+	check(not Game.equip_skill("ensnare", 0), "Lv.20 skills stay locked until the advanced job")
+	check(Game.equip_skill("avalanche", 0) and String(Game.loadout()[0]) == "avalanche" and String(Game.loadout()[3]) == "wind_arrow", "a skill already on the bar swaps places")
+	check(not Game.equip_skill("golden_falcon", 1), "locked skills cannot be equipped")
 	Game.profile.gold = 5000
 	Game.profile.skill_points = 3
 	var skill := ClassData.find_skill(&"archer", "wind_arrow")
@@ -372,15 +372,15 @@ func _tiers() -> void:
 	Game.profile["level"] = 100
 	Game.fill_loadout()
 	var fire_bolt := ClassData.find_skill(&"mage", "fire_bolt")
-	var watornado := ClassData.find_skill(&"mage", "watornado")
-	var flame := ClassData.find_skill(&"mage", "flame_wave")
+	var watornado := ClassData.find_skill(&"mage", "flame_wave")
+	var flame := ClassData.find_skill(&"mage", "energy_shield")
 	var meteo := ClassData.find_skill(&"mage", "meteo")
 	var hell := ClassData.find_skill(&"mage", "hell_meteor")
 	var armageddon := ClassData.find_skill(&"mage", "armageddon")
 	check(Game.class_tier() == 1 and Game.skill_unlocked(fire_bolt), "line skills below Lv.20 need only the line")
 	check(not Game.skill_unlocked(watornado) and not Game.skill_unlocked(armageddon), "higher skills are locked without the advancement")
 	check(Game.skill_lock_reason(watornado).contains("นักเวทย์ขั้นสูง"), "lock reason names the advancement")
-	check(not Game.loadout().has("watornado"), "locked skills are kept off the bar")
+	check(not Game.loadout().has("flame_wave"), "locked skills are kept off the bar")
 	Game.profile.gold = 10000000
 	check(Game.advance() and Game.class_tier() == 2, "Lv.20 step reaches tier 2")
 	check(Game.skill_unlocked(watornado) and not Game.skill_unlocked(flame), "tier 2 opens Lv.20-39 skills only")
@@ -393,7 +393,7 @@ func _tiers() -> void:
 
 func _summons() -> void:
 	print("== Summoners")
-	for class_id in [&"archer", &"mage"]:
+	for class_id in [&"archer"]:
 		var summoners := 0
 		for skill in ClassData.pool(class_id):
 			if String(skill.shape) == "summon":
@@ -471,7 +471,7 @@ func _summons() -> void:
 		probe.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 120.0}, 1.0, 0, 1, stars)
 		check(absf(probe.size_mult - float(expected[stars])) < 0.002, "%d star(s) -> %d%% size" % [stars, int(round(float(expected[stars]) * 100.0))])
 		probe.free()
-	Game.profile.skills["recall_wolverine"] = 4
+	Game.profile.skills["golden_falcon"] = 4  # the rank of its line
 	hero.cooldowns.clear()
 	hero.use_skill(0)
 	await _wait(0.9)

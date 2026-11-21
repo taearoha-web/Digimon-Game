@@ -36,7 +36,7 @@ func _ready() -> void:
 			if not output.is_empty():
 				check(img.save_png(output.path_join(String(skill.id) + ".png")) == OK, "save preview: " + String(skill.id))
 			count += 1
-	check(count == 300, "all 300 active skills covered (250 class skills, 50 star skills: 40 up to 200 stars and ten 300-star god skills; %d. A class converted to skill lines drops the skills in no line)" % count)
+	check(count == 286, "all 286 active skills covered (236 class skills, 50 star skills: 40 up to 200 stars and ten 300-star god skills; %d. A class converted to skill lines drops the skills in no line)" % count)
 	check(SkillIcons.for_skill({}) == null, "empty slot safely returns null")
 	check(SkillIcons.for_id("../game") == null, "path is not an icon ID")
 	check(SkillIcons.for_id("future_skill") == null, "new skill can use the developer fallback")
@@ -44,7 +44,7 @@ func _ready() -> void:
 	bg.color = Color("111c32")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	var ids := ["zenith", "energy_shield", "magic_overdrive", "spirit_elemental", "dancing_sword", "ice_storm", "hell_meteor", "armageddon"]
+	var ids := ["silraphim", "energy_shield", "magic_overdrive", "vague", "flame_wave", "ice_storm", "hell_meteor", "armageddon"]
 	for row in 3:
 		for col in 8:
 			var skill: Dictionary = ClassData.pool(&"mage").filter(func(s): return s.id == ids[col])[0]
