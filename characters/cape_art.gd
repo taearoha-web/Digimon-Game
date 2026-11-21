@@ -254,17 +254,13 @@ func _make_boxer() -> void:
 	_knots()
 
 
-## The prajiad knots that tie the robe at the shoulders: red cloth bound in gold.
+## The prajiad knots that tie the robe at the shoulders, where the tails hang from
+## (one small piece a side, straight on the Fit node: the village counts every node).
 func _knots() -> void:
-	var root := Node3D.new()
-	root.name = "Clasps"
-	_fit.add_child(root)
-	var metal := MeshKit.toon(Color("f4c24e"), {"emission": 0.3 if star else 0.08})
-	var cloth := MeshKit.toon(Color("c81e24") if not star else Color("e0401a"), {"emission": 0.5 if star else 0.0})
+	var cloth := MeshKit.toon(Color("e0401a") if star else Color("c81e24"), {"emission": 0.5 if star else 0.05})
 	for side in [-1.0, 1.0]:
-		var at := Vector3(side * 0.2, TOP_Y - 0.03, BACK_Z + 0.08)
-		_piece(root, MeshKit.sphere_low(), cloth, at, Vector3(0.085, 0.07, 0.07))
-		_piece(root, MeshKit.cylinder(), metal, at, Vector3(0.05, 0.09, 0.05), Vector3(0, 0, 90))
+		var knot := _piece(_fit, MeshKit.sphere_low(), cloth, Vector3(side * 0.2, TOP_Y - 0.03, BACK_Z + 0.08), Vector3(0.085, 0.07, 0.07))
+		knot.name = "Knot" + ("L" if side < 0.0 else "R")
 
 
 ## Gem clasps where the cape meets the shoulders: rubies in gold for the Lv.100
