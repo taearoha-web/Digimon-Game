@@ -234,3 +234,14 @@ test('the one-off extra round (21 Nov 2026 13:00 Thai) was before the reopening:
   assert.ok(1795240800 < START_UNIX && !isSlot(1795240800));
   assert.ok(!isSlot(1795240800 + DAY) && !isSlot(1795240800 + 2 * DAY));
 });
+
+test('rounds kept from before the world reopened (START_UNIX) are never handed out again', async () => {
+  const h = harness();
+  const old = firstRound() - DAY;
+  h.DB.sqlite.prepare('INSERT INTO toon_league_rounds (at, result, created_at) VALUES (?, ?, ?)').run(old, JSON.stringify({...result(), at: old}), old);
+  assert.equal((await h.post({at: AT, result: result()})).status, 201);
+  const list = await h.get(`from=${old - DAY}&to=${AT + DAY}`);
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.body.rounds.map(r => r.at), [AT], 'only the reopened world\'s rounds');
+  assert.notEqual((await h.post({at: old, result: {...result(), at: old}})).status, 201, 'no round before the reopening can be posted');
+});
