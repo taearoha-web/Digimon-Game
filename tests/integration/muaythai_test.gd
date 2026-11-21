@@ -169,6 +169,12 @@ func _rings() -> void:
 # The ring robes: a cape in the wing slot, never wings
 # ---------------------------------------------------------------------------
 
+## A cape shader parameter (0 when the layer leaves it at the shader's default).
+func _param(sm: ShaderMaterial, key: String) -> float:
+	var value: Variant = sm.get_shader_parameter(key)
+	return 0.0 if value == null else float(value)
+
+
 func _robes() -> void:
 	check(CapeArt.wears_cape("muaythai") and CapeArt.wears_cape("darklord") and not CapeArt.wears_cape("lancer"), "the fighter and the Lord wear capes, the lancer wings")
 	check(String(ItemData.WING_INFO.muaythai.name) == "ผ้าคลุมนักมวย" and StarWingData.item_name("muaythai") == "ผ้าคลุมมนตราดารา", "the robes' names")
@@ -201,12 +207,10 @@ func _robes() -> void:
 				mats[m.material_override] = true
 				layers += 1
 				var sm := m.material_override as ShaderMaterial
-				check(float(sm.get_shader_parameter("boxer")) == (2.0 if star else 1.0) and float(sm.get_shader_parameter("kind")) != 1.0 and float(sm.get_shader_parameter("kind")) != 2.0, "%s: %s is a boxer layer (no capelet, no collar)" % [tier, m.name])
-				if float(sm.get_shader_parameter("ribbon")) > 0.5:
+				check(_param(sm, "boxer") == (2.0 if star else 1.0) and _param(sm, "kind") != 1.0 and _param(sm, "kind") != 2.0, "%s: %s is a boxer layer (no capelet, no collar)" % [tier, m.name])
+				if _param(sm, "ribbon") > 0.5:
 					tails.append(m)
-			if m.mesh is ArrayMesh:
-				for s in m.mesh.get_surface_count():
-					tris += m.mesh.surface_get_array_index_len(s) / 3
+				tris += m.mesh.surface_get_array_index_len(0) / 3
 		check(tails.size() == 4 and tails.all(func(t): return t.mesh == tails[0].mesh and t.material_override == tails[0].material_override), "%s: four prajiad tails share one mesh and one material" % tier)
 		check(mats.size() == (3 if star else 2) and layers == (6 if star else 5), "%s: robe, tails%s on %d materials" % [tier, " and the mantra ring" if star else "", mats.size()])
 		check((robe.find_child("MantraRing", true, false) != null) == star, "%s: %s" % [tier, "the mantra ring floats behind" if star else "no mantra ring"])
@@ -237,8 +241,8 @@ func _robes() -> void:
 			var sm := (mi as MeshInstance3D).material_override as ShaderMaterial
 			if sm == null or sm.shader != CapeArt.SHADER:
 				continue
-			kinds.append(float(sm.get_shader_parameter("kind")))
-			check(float(sm.get_shader_parameter("boxer")) == 0.0 and float(sm.get_shader_parameter("style")) == (1.0 if star else 0.0), "the Lord's %s cape layer keeps its style" % ("star" if star else "Lv.100"))
+			kinds.append(_param(sm, "kind"))
+			check(_param(sm, "boxer") == 0.0 and _param(sm, "style") == (1.0 if star else 0.0), "the Lord's %s cape layer keeps its style" % ("star" if star else "Lv.100"))
 		check(cape.cls == "darklord" and String(cape.name) == ("Wings_star_darklord" if star else "Wings_darklord") and kinds == [0.0, 1.0, 2.0] and cape.find_child("Clasps", true, false).get_child_count() == 4, "the Lord's %s cape: cape, capelet, collar and clasps" % ("star" if star else "Lv.100"))
 		cape.free()
 	holder.queue_free()

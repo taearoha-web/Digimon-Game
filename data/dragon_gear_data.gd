@@ -86,6 +86,9 @@ static func weapon_name(cls: String) -> String:
 static func wing_name(cls: String) -> String:
 	if cls == "darklord":
 		return "ผ้าคลุมจักรพรรดิ%s%s" % [TAG, String(EPITHETS[cls])]
+	# The Muay Thai fighter's is a ring robe too (DragonWingArt).
+	if cls == "muaythai":
+		return "ผ้าคลุมนักมวย%s%s" % [TAG, String(EPITHETS[cls])]
 	return "ปีก%s%s" % [TAG, String(EPITHETS.get(cls, ""))]
 
 
