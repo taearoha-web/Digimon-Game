@@ -64,7 +64,7 @@ const THINK_EVERY := 1.5
 ## Roles by class: where a fighter stands in the formation and how it picks targets.
 enum { ROLE_TANK, ROLE_MELEE, ROLE_ASSASSIN, ROLE_RANGED, ROLE_BARD, ROLE_HEALER, ROLE_LEADER }
 const ROLE_NAMES := ["แนวหน้า", "ประชิด", "นักฆ่า", "ระยะไกล", "บาร์ด", "ฮีลเลอร์", "หัวหน้า"]
-const TANK_CLASSES: Array[StringName] = [&"defender", &"warrior", &"lancer"]
+const TANK_CLASSES: Array[StringName] = [&"defender", &"warrior", &"lancer", &"muaythai"]
 const RANGED_CLASSES: Array[StringName] = [&"archer", &"mage", &"summoner"]
 ## Metres behind the formation's front line per role: tanks in front, healers last; the
 ## leader stands among its ranged and healers (LEADER_BACK when hurt).
@@ -279,7 +279,7 @@ func spread(n: int) -> void:
 # Roles
 # ---------------------------------------------------------------------------
 
-## A class's role: tanks (defender, warrior, lancer) in front, the priest heals, the bard
+## A class's role: tanks (defender, warrior, lancer, muaythai) in front, the priest heals, the bard
 ## sings, archers, mages and summoners hold the second line, the assassin dives; any other
 ## class (the Dark Lord) by its reach.
 static func role_of(class_id: StringName, ranged: bool) -> int:

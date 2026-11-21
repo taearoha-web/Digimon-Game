@@ -45,7 +45,7 @@ func _ready() -> void:
 
 
 func _check_classes() -> void:
-	check(not ClassData.IDS.has(ClassData.LEGACY) and ClassData.IDS.size() == 10, "ten playable classes, the Vagabond not among them")
+	check(not ClassData.IDS.has(ClassData.LEGACY) and ClassData.IDS.size() == 11, "eleven playable classes, the Vagabond not among them")
 	for cls in ClassData.IDS:
 		Game.new_profile(cls, "ทดสอบ", FaceKit.default_look())
 		check(Game.class_id() == cls and int(Game.profile.level) == 1 and Game.class_tier() == 1 and not Game.needs_class(), "%s: a new hero is a Lv.1 %s" % [cls, cls])

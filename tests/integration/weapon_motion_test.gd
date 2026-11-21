@@ -100,6 +100,10 @@ func grip(item: Node3D, kind: String) -> Vector3:
 	# unchanged source GLB, then use the actual held model's current bone pose.
 	# field_efficiency_test separately checks every triangle/material survives merging.
 	var look := String(item.name).trim_prefix("Held_")
+	if kind == "wraps":
+		# The Muay Thai fighter's hand wraps (HandWraps) are built round the fist with the
+		# grip at their origin: no source model to read.
+		return posed_transform(item.get_child(0).get_child(0).get_child(0) as Node3D).origin
 	if not _source_grips.has(look):
 		var source := (load(WeaponKit.MODEL_DIR + look + ".glb") as PackedScene).instantiate() as Node3D
 		_source_grips[look] = _source_grip(source, kind)
@@ -189,6 +193,14 @@ func _ready() -> void:
 					max_grip_error = maxf(max_grip_error, error)
 					note(body_tag, "grip", error)
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
+					if family == &"muaythai":
+						# The second wrap, on the left fist.
+						var left := hero._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).filter(func(n): return (n as BoneAttachment3D).bone_name == "handslot.l")
+						check(left.size() == 1, "%s tier%d a wrap on the left fist" % [tag, tier])
+						if left.size() == 1:
+							error = grip(left[0], "wraps").distance_to(palm(hero, "l"))
+							note(body_tag, "grip", error)
+							check(error < 0.015, "%s tier%d %s left wrap grip %.4fm" % [tag, tier, clip, error])
 					if family == &"warrior":
 						error = grip(held(hero, "shield"), "shield").distance_to(palm(hero, "l"))
 						note(body_tag, "grip", error)

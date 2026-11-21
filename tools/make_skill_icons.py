@@ -318,6 +318,18 @@ OBJECTS["drum"] = (path("M-58 -24 L58 -24 L52 54 Q0 70 -52 54Z", "url(#gold)")
                    + line("M-58 -76 L-30 -58 M58 -76 L30 -58", "#ffffff", 2.5)
                    + ellipse(-64, -80, 9, fill="url(#light)") + ellipse(64, -80, 9, fill="url(#light)"))
 
+# The Muay Thai fighter: a wrapped fist, a kicking leg, a mantra ring (ประเจียด) and a knee.
+OBJECTS["fist"] = (path("M-40 -30 Q-44 -62 -18 -64 L30 -64 Q52 -62 50 -36 L48 20 Q46 44 22 48 L-24 48 Q-46 44 -44 20Z", "url(#light)")
+                   + line("M-36 -36 L44 -36 M-38 -12 L46 -12", "url(#main)", 5)
+                   + line("M-18 -64 L-18 -36 M6 -64 L6 -36 M30 -64 L30 -36", "#151c35", 2.5)
+                   + path("M-30 48 L28 48 L24 84 L-26 84Z", "url(#main)") + line("M-28 62 L26 62 M-27 74 L25 74", "url(#gold)", 4))
+OBJECTS["kick"] = (path("M-70 -60 L-40 -72 L10 -8 L60 2 Q78 6 74 24 L70 36 L-2 30 Q-20 28 -28 14Z", "url(#light)")
+                   + line("M44 2 L40 34 M56 4 L52 34", "url(#main)", 5) + line("M-58 -62 L-6 2", "#ffffff", 3))
+OBJECTS["prajiad"] = (ellipse(0, 0, 70, 70, "none", "url(#gold)", 12) + ellipse(0, 0, 70, 70, "none", "url(#main)", 5)
+                      + "".join(group(line("M0 -78 L0 -62", "url(#light)", 4), rotate=i * 45) for i in range(8)))
+OBJECTS["knee"] = (path("M-60 70 L-30 -10 Q-22 -40 8 -44 L52 -40 L48 -14 L6 -14 L-18 76Z", "url(#light)")
+                   + line("M-28 -6 L10 -28", "url(#main)", 5) + ellipse(6, -30, 14, 12, "url(#gold)"))
+
 
 def o(name, x=0, y=0, s=1, a=0, opacity=1):
     return group(OBJECTS[name], x, y, s, a, opacity)
@@ -649,6 +661,31 @@ add("bard", [
     ("grand_finale", "melody", o("ground", y=60, s=.9) + o("ray", -50, -12, .5, -20) + o("ray", 50, -12, .5, 20) + o("lyre", 0, -4, .72) + star(0, -70, 12)),
 ])
 
+add("muaythai", [
+    ("jab_cross", "ember", o("fist", 0, 4, .8, -20) + o("slash", 34, -34, .5, 30) + star(-50, -46, 12)),
+    ("flame_hook", "ember", o("flame", 18, -10, .8) + o("fist", -10, 16, .66, -40)),
+    ("sun_fist", "god_holy", rays(12) + o("orb", 0, -40, .46) + o("fist", 0, 20, .7)),
+    ("back_elbow", "gold", o("hand", -6, 8, .8, 120) + o("crack", 40, -30, .5) + star(44, -48, 14)),
+    ("flying_knee", "ember", o("knee", 0, 4, .9) + o("slash", -40, -40, .45, 140)),
+    ("thunder_elbow", "storm", o("bolt", 30, -10, .8) + o("hand", -20, 20, .7, 150)),
+    ("ring_throw", "gold", o("prajiad", -22, 10, .6) + o("ray", 30, -28, .5, 40) + o("prajiad", 46, -40, .28)),
+    ("twin_rings", "ember", o("prajiad", -30, 6, .55) + o("prajiad", 30, -6, .55) + o("flame", 0, 40, .35)),
+    ("mantra_storm", "god_ember", o("vortex", s=.9, opacity=.6) + "".join(o("prajiad", 62 * (1 if i % 2 else -1) * (1 if i < 2 else .5), 50 * (1 if i < 2 else -1), .26) for i in range(4)) + o("prajiad", 0, 0, .4)),
+    ("push_kick", "gold", o("kick", 0, 0, .9) + line("M70 -20 L96 -30 M72 0 L100 0 M70 20 L96 30", "url(#light)", 4)),
+    ("body_throw", "earth", o("ground", y=56, s=.9) + o("crack", 0, 40, .6) + o("hand", -30, -30, .6, 30) + o("hand", 30, -30, .6, -30)),
+    ("earth_kick", "earth", o("ground", y=52, s=1.0) + o("crack", 0, 34, .9) + o("kick", 0, -30, .6)),
+    ("sweep_kick", "gold", ring(1.0, 20) + o("kick", 0, -6, .7, -15)),
+    ("flame_ring_spin", "ember", ring(1.0, 24) + o("prajiad", -40, -20, .3) + o("prajiad", 40, -20, .3) + o("flame", 0, 0, .7)),
+    ("fire_dragon_circle", "god_ember", ring(1.05, 20) + o("dragon", 0, -10, .7) + o("flame", -48, 30, .38) + o("flame", 48, 30, .38)),
+    ("wai_khru", "gold", rays(8) + o("prayer", 0, 10, .9)),
+    ("ram_muay", "ember", rays(10) + o("prayer", 0, 16, .7) + o("crown", 0, -52, .4)),
+    ("sacred_mongkhon", "god_holy", rays(14) + o("prajiad", 0, -30, .56) + o("prayer", 0, 34, .55)),
+    ("ring_guard", "gold", o("shield", 0, 8, .8) + o("prajiad", 0, 4, .78)),
+    ("iron_prajiad", "steel", o("prajiad", 0, 0, .95) + o("shield", 0, 4, .55) + rays(6)),
+    ("thousand_ring_fist", "ember", o("prajiad", 0, -6, .9) + o("fist", 0, 0, .55) + star(46, -50, 14)),
+    ("muay_king", "god_holy", rays(16) + o("crown", 0, -62, .4) + o("fist", 0, 6, .7) + o("prajiad", 0, 6, 1.0, 0, .7)),
+])
+
 # Star skills keep their own medallions beside the class catalogue (not part of its manifest).
 STAR_RECIPES = {
     "umbral_lacerate": ("night", o("moon",0,-10,.9)+o("slash",0,0,.9,30)+o("slash",0,0,.9,210)+o("twin",0,20,.6)),
@@ -662,6 +699,10 @@ STAR_RECIPES = {
     "starlight_overture": ("melody", rays(10) + star(-40, -32, 16) + star(36, -46, 12) + star(8, 18, 14) + o("note", -14, 36, .4) + o("note", 46, 10, .34)),
     "heartbreak_sonata": ("melody", o("heart", 0, 0, .8) + o("stave", 0, 0, .8) + o("crack", 0, 0, .5)),
     "celestial_stage": ("gold", o("wings", 0, -10, .9, 0, .5) + o("ground", y=58, s=.9) + o("lyre", 0, -10, .8)),
+    "naga_coil_fist": ("ember", o("vortex", s=.9, opacity=.6) + o("fist", 0, 0, .7) + o("flame", -46, 30, .4) + o("flame", 46, 30, .4)),
+    "solar_knee_barrage": ("god_holy", rays(12) + o("knee", 0, 6, .8) + star(-46, -46, 14) + star(46, 40, 12)),
+    "vow_of_the_ring": ("gold", o("wings", 0, -6, .9, 0, .5) + o("prajiad", 0, 0, .8) + o("prayer", 0, 6, .5)),
+    "heaven_ring_cataclysm": ("ember", o("ground", y=58, s=.85) + o("prajiad", 0, -30, .7) + o("prajiad", 0, -30, .45) + rain("bolt", 3, .4)),
     "cosmic_encore": ("dissonance", ring(.9, 40) + o("orb", -46, -46, .3) + o("orb", 52, 38, .22) + o("wings", 0, -6, .95) + o("lute", 0, -2, .58, -20)),
 }
 
@@ -676,6 +717,7 @@ GOD_RECIPES = {
     "pantheon_bastion": ("god_azure", o("wings", 0, -8, 1.12, 0, .6) + o("shield", 0, 8, .92) + o("crown", 0, -68, .34) + star(-56, 52, 12) + star(56, 52, 12)),
     "death_gods_eclipse": ("god_blood", rays(12) + o("orb", 6, -30, .56) + o("moon", -4, -30, .62) + o("twin", 0, 34, .72)),
     "abyssal_throne": ("god_abyss", o("flame", 0, 44, .62) + o("crown", 0, -50, .62) + o("scepter", -44, 14, .6, -16) + o("bolt", 46, 12, .5, 10)),
+    "three_realms_fist": ("god_ember", rays(16) + o("prajiad", 0, 4, 1.05) + o("fist", 0, 4, .62) + o("crown", 0, -70, .3)),
     "divine_symphony": ("god_rose", rays(16) + o("lyre", 0, 4, .8) + o("crown", 0, -70, .3) + o("note", -54, -36, .34, -15) + o("note", 54, -36, .34, 15)),
 }
 

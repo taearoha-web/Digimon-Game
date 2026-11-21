@@ -16,7 +16,7 @@ extends Node
 
 const DEFAULT_OUT := "res://hosting/accounts/tests/fixtures/game_profiles.json"
 const NAMES := {&"vagabond": "Assotix", &"warrior": "บราโว่", &"archer": "ลูน่า", &"mage": "มิกะ", &"priest": "นีน่า",
-	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix", &"assassin": "ยามิ", &"bard": "เมโลดี้"}
+	&"summoner": "ไลรา", &"lancer": "เรย์", &"defender": "Assotix", &"assassin": "ยามิ", &"bard": "เมโลดี้", &"muaythai": "สิงห์มวย"}
 
 var profiles := {}
 ## The shared storage fields of the account bundle after every hero was built.

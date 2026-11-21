@@ -84,11 +84,11 @@ test('a leader\'s best time a week is kept: a slower post changes nothing, a fas
   assert.equal(slower.status, 200);
   assert.equal(slower.body.stored, false);
   assert.deepEqual(slower.body.time, {...stored, at: NOW}, 'the stored (faster) time comes back unchanged');
-  const faster = await h.post(time({secs: 240, classes: ['bard', 'defender', 'priest', 'mage']}), {now: NOW + 120});
+  const faster = await h.post(time({secs: 240, classes: ['bard', 'defender', 'priest', 'muaythai']}), {now: NOW + 120});
   assert.equal(faster.status, 201);
   assert.equal(faster.body.stored, true);
   assert.equal(faster.body.time.secs, 240);
-  assert.deepEqual(faster.body.time.classes, ['bard', 'defender', 'priest', 'mage']);
+  assert.deepEqual(faster.body.time.classes, ['bard', 'defender', 'priest', 'muaythai']);
   assert.equal(faster.body.time.at, NOW + 120);
   assert.equal(h.DB.sqlite.prepare('SELECT count(*) AS n FROM toon_dungeon_times').get().n, 1, 'one row a leader a week');
   // Another leader and another week stand apart.

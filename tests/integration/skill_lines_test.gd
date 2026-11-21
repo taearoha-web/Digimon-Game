@@ -115,6 +115,16 @@ const PLANS := {
 		[["thorn_guard", 40], ["unbreakable", 76], ["aegis_of_ages", 88]],
 		[["meteor_shield", 50], ["world_bastion", 100]],
 	],
+	&"muaythai": [
+		[["jab_cross", 1], ["flame_hook", 60], ["sun_fist", 90]],
+		[["back_elbow", 5], ["flying_knee", 60], ["thunder_elbow", 90]],
+		[["ring_throw", 10], ["twin_rings", 60], ["mantra_storm", 90]],
+		[["push_kick", 15], ["body_throw", 70], ["earth_kick", 90]],
+		[["sweep_kick", 20], ["flame_ring_spin", 60], ["fire_dragon_circle", 80]],
+		[["wai_khru", 30], ["ram_muay", 60], ["sacred_mongkhon", 96]],
+		[["ring_guard", 40], ["iron_prajiad", 70]],
+		[["thousand_ring_fist", 50], ["muay_king", 100]],
+	],
 }
 
 

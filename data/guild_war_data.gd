@@ -109,7 +109,7 @@ static func make_fighter(class_id: StringName, grade: int, name: String, rng: Ra
 ## health and defence first (tank_star_alloc). No bonus on top, nothing it did not earn.
 ## Returns a copy of `info` (make_fighter / WorldPlayers.fighter) with that sheet.
 const TANK_MAIN := 0.25
-const TANK_CLASSES: Array[StringName] = [&"defender", &"warrior", &"lancer"]
+const TANK_CLASSES: Array[StringName] = [&"defender", &"warrior", &"lancer", &"muaythai"]
 
 
 static func tank_build(info: Dictionary) -> Dictionary:

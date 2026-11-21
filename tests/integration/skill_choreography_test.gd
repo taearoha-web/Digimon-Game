@@ -24,7 +24,7 @@ func _ready() -> void:
 			# The 50 star skills (ten of them 300-star god skills) sit in the pools too; StarSkillSequence choreographs those.
 			if not skill.has("star"):
 				count += 1
-	check(seen.size() == count and count == 197, "exactly the complete 197-skill catalogue (%d; a class converted to skill lines drops the skills in no line)" % count)
+	check(seen.size() == count and count == 220, "exactly the complete 220-skill catalogue (%d; a class converted to skill lines drops the skills in no line)" % count)
 	for rig in 3:
 		for family in SkillShow.FAMILY_COLORS:
 			var visual := HeroVisual.new()
@@ -55,7 +55,7 @@ func _ready() -> void:
 					check(visual.global_transform.is_equal_approx(origin), "motion must not move gameplay root")
 					visual._advance_skill_motion(float(cue.recovery) + 0.01)
 					check(visual._skill_pose.is_empty() and visual.model.transform.is_equal_approx(rest), "recovery restores pose: " + String(skill.id))
-					check(visual.current in ["Idle", "2H_Melee_Idle"], "locomotion resumes")
+					check(visual.current in ["Idle", "2H_Melee_Idle", "Unarmed_Idle"], "locomotion resumes")
 					check(skill == source, "animation never mutates skill data")
 					cases += 1
 				visual.skill_action(skill, float(skill.hit_delay))

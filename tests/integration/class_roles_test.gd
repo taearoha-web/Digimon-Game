@@ -51,9 +51,9 @@ func _data() -> void:
 		var v := float(t.value)
 		check(v > 0.0 and v <= 0.12, "%s's number is modest (%s)" % [cls, v])
 		check(ClassRoles.line(cls).contains(String(t.name)) and ClassRoles.tooltip(cls).contains(String(ClassData.get_class_data(cls).name)), "%s's role line and tooltip" % cls)
-	check(names.size() == ClassData.IDS.size(), "ten classes, ten different roles")
+	check(names.size() == ClassData.IDS.size(), "eleven classes, eleven different roles")
 	check(ClassRoles.trait_of(ClassData.LEGACY).is_empty(), "the old Vagabond has no role")
-	check(ClassRoles.summary([&"warrior", &"warrior", &"mage"]).contains("ขาดอีก 8"), "a summary counts each class once (%s)" % ClassRoles.summary([&"warrior", &"warrior", &"mage"]))
+	check(ClassRoles.summary([&"warrior", &"warrior", &"mage"]).contains("ขาดอีก 9"), "a summary counts each class once (%s)" % ClassRoles.summary([&"warrior", &"warrior", &"mage"]))
 
 
 # ---------------------------------------------------------------------------

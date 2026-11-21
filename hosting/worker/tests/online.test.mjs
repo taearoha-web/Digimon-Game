@@ -701,6 +701,10 @@ test('announce: a jackpot or a rare-dragon kill goes to everyone as fields only,
       assert.deepEqual(b.last('announce'), {...want, kind, what, cls: ''}, `${kind} / ${what || '(generic)'}`);
     }
   }
+  // The Muay Thai fighter (the eleventh class) is one of the game's.
+  pass(clock, Math.max(ANNOUNCE_RARE_GAP_MS, 60_000), a, b, c);
+  a.send({t: 'announce', kind: 'jackpot', what: 'weapon', cls: 'muaythai', zone: isle});
+  assert.deepEqual(b.last('announce'), {...want, cls: 'muaythai'}, 'the muaythai class passes');
   // Dropped silently: unknown or malformed kinds and words, the wrong zone, a zone without such news, too few stars.
   clearAll(a, b, c);
   for (const bad of [

@@ -162,6 +162,8 @@ func apply_look(raw: Variant, level := -1, stars := -1) -> void:
 		PlayerLook.redress(visual, look)
 		if visual.has_wings() and visual.wing_mode != int(look.wing_mode) and mount == null:
 			visual.set_wing_mode(int(look.wing_mode))
+	# The Muay Thai fighter's mantra rings: 2 / 4 / 6 by its level (MantraRings).
+	visual.set_mantra_level(int(clean.get("level", 1)))
 	# The reward shop's walk trail it wears (RewardShop), as its look says.
 	if WalkTrail.worn(self) != str(look.get("trail", "")):
 		WalkTrail.attach(self, str(look.get("trail", "")))
