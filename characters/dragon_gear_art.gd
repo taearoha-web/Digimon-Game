@@ -14,7 +14,7 @@ extends RefCounted
 
 const GLOW_SHADER := preload("res://shaders/dragon_glow.gdshader")
 const BREATH_SHADER := preload("res://shaders/dragon_breath.gdshader")
-const HELD := ["sword", "spear", "bow", "staff", "wand", "lantern", "greatshield", "shield", "dagger", "scepter", "lute", "book", "tome"]
+const HELD := ["sword", "spear", "bow", "staff", "wand", "lantern", "greatshield", "shield", "dagger", "scepter", "lute", "book", "tome", "wraps"]
 
 ## How the dragon lies on each kind (held units, before the kind's scale): the line its
 ## body follows ("path"), the coil's half-widths across and in depth ("rx", "rz"), its
@@ -47,6 +47,11 @@ const LAYOUT := {
 		"head": Vector3(0.04, 0.3, 0.17), "nose": Vector3(1, -0.2, 0.1), "crown": Vector3(0, 0.25, 1), "size": 0.2, "breath": [Vector3(0, -0.35, 0.1), Vector3(0.7, 0.85, 0.3)]},
 	"tome": {"ring": [Vector3(0, 0.08, 0.13), 0.2], "rx": 0.016, "rz": 0.012, "turns": 5.0, "thick": 0.03,
 		"head": Vector3(0.04, 0.3, 0.17), "nose": Vector3(1, -0.2, 0.1), "crown": Vector3(0, 0.25, 1), "size": 0.2, "breath": [Vector3(0, -0.35, 0.1), Vector3(0.7, 0.85, 0.3)]},
+	# The Muay Thai fighter's wraps (HandWraps' grip space: the hand along X, forearm to
+	# -X, back of the hand +Z): the dragon coils from the wrist round the hand and rears
+	# its head over the knuckles, looking where the punch goes; its breath wraps the fist.
+	"wraps": {"path": [Vector3(-0.17, -0.018, 0.03), Vector3(-0.005, -0.018, 0.03)], "rx": 0.098, "rz": 0.07, "turns": 1.5, "thick": 0.014,
+		"head": Vector3(0.03, -0.018, 0.1), "nose": Vector3(1, 0, 0.25), "crown": Vector3(0, 0, 1), "size": 0.06, "breath": [Vector3(-0.07, -0.17, 0.03), Vector3(0.32, 0.34, 0.3)]},
 	"lute": {"path": [Vector3(-0.02, -0.56, 0.03), Vector3(0.14, -0.5, 0.03), Vector3(0.205, -0.33, 0.03), Vector3(0.11, -0.17, 0.03), Vector3(0.036, -0.1, 0.0),
 			Vector3(0.03, 0.1, -0.03), Vector3(0.0, 0.3, -0.045), Vector3(0, 0.4, -0.085)], "rx": 0.01, "rz": 0.012, "turns": 3.0, "thick": 0.03,
 		"head": Vector3(0, 0.47, -0.1), "nose": Vector3(0, 1, 0.35), "crown": Vector3(0, -0.3, 1), "size": 0.16, "breath": [Vector3(0, -0.6, 0), Vector3(0.52, 1.1, 0.3)]},
@@ -74,8 +79,9 @@ static func _bits(look: String) -> Array[String]:
 
 ## "dragon_<kind>_<class>": a held weapon or off-hand (shield, book, tome, dagger).
 static func build(look: String) -> Node3D:
-	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
-	if HandWraps.is_look(look):
+	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every other look
+	# kind; the dragon's are built here, as a dragon weapon (_wraps).
+	if HandWraps.is_look(look) and not look.begins_with("dragon_"):
 		return HandWraps.build(look)
 	var bits := _bits(look)
 	var kind := bits[0]
@@ -98,6 +104,7 @@ static func build(look: String) -> Node3D:
 			"scepter": StarGearArt._scepter(b, p, 3)
 			"lute": StarGearArt._lute(b, p, 2)
 			"book", "tome": StarGearArt._book(b, p, 3)
+			"wraps": _wraps(b, p)
 		_dragon(b, p, kind)
 		_extras(b, p, kind)
 		StarGearArt._store(key, b)
@@ -393,6 +400,51 @@ static func _head(b: Dictionary, p: Dictionary, at: Vector3, nose: Vector3, crow
 	# The mane streams off the back of the skull.
 	for k in 4:
 		_spike(b, frame * Vector3(0, -0.2 - 0.14 * k, 0.3 - 0.07 * k), frame.basis * Vector3(0, -0.75, 0.6), s * (0.62 - 0.07 * k), s * 0.2, p.glow, true)
+
+
+## The dragon wraps under the dragon (the hand wraps' layout, HandWraps): dragon-scale
+## tape in two jades bound with gold round the hand and wrist, rows of jade scales over
+## the back of the hand, a gold knuckle guard set with four claws over studs of the
+## class's own glow (the fire of อัคนี), a mantra band of that glow at the wrist and the dragon pearl on the back of the hand.
+static func _wraps(b: Dictionary, p: Dictionary) -> void:
+	HandWraps._meshes()
+	var band: Mesh = HandWraps._band
+	var ry := HandWraps.HAND_RY
+	var rz := HandWraps.HAND_RZ
+	var deep: Color = DragonGearData.JADE_DEEP
+	var jade: Color = DragonGearData.JADE
+	var gold: Color = DragonGearData.GOLD
+	var wrist := Vector3(0, 0, 0.034)
+	for i in 4:
+		var x := -0.1 + 0.026 * i
+		_put(b, band, deep if i % 2 == 0 else jade.darkened(0.25), HandWraps._turn(x, ry, rz, 2.3))
+	for x in [-0.074, -0.022]:
+		_put(b, band, gold, HandWraps._turn(x, ry * 1.05, rz * 1.07, 0.9))
+	for x in [-0.128, -0.152]:
+		_put(b, band, deep, HandWraps._turn(x, HandWraps.WRIST_R, HandWraps.WRIST_R, 2.3, wrist))
+	# The mantra band of light at the wrist, between two gold edges.
+	_put(b, band, p.eye, HandWraps._turn(-0.14, HandWraps.WRIST_R * 1.1, HandWraps.WRIST_R * 1.1, 1.2, wrist), true)
+	for x in [-0.1205, -0.1595]:
+		_put(b, band, gold, HandWraps._turn(x, HandWraps.WRIST_R * 1.08, HandWraps.WRIST_R * 1.08, 0.5, wrist))
+	# Scales over the back of the hand, tips toward the knuckles, rows offset.
+	var c := HandWraps.HAND_CENTRE
+	for row in 3:
+		for k in 4:
+			var y := c.y + (float(k) - 1.5 + (0.5 if row % 2 == 1 else 0.0)) * 0.036
+			if absf(y - c.y) > ry * 0.85:
+				continue
+			var x := -0.095 + 0.03 * row
+			var bulge := sqrt(maxf(0.0, 1.0 - pow((y - c.y) / (ry * 1.05), 2.0)))
+			var at := Vector3(x, y, c.z + rz * 1.08 * bulge)
+			_spike(b, at, Vector3(1, 0, 0.35 * bulge), 0.032, 0.03, jade.lightened(0.12) if (row + k) % 2 == 0 else jade)
+	# The knuckle guard: a gold plate on the striking face with four dragon claws.
+	var face := HandWraps.KNUCKLES + Vector3(0.006, 0, 0)
+	_put(b, MeshKit.box(), gold, Transform3D(Basis.from_scale(Vector3(0.014, 0.13, 0.05)), face))
+	for k in 4:
+		var y := face.y + (float(k) - 1.5) * 0.04
+		_spike(b, Vector3(face.x + 0.008, y, face.z + 0.012), Vector3(1, 0, 0.3), 0.034, 0.02, DragonGearData.GOLD_LIGHT)
+		_put(b, MeshKit.sphere_low(), p.eye, Transform3D(Basis.from_scale(Vector3.ONE * 0.012), Vector3(face.x + 0.012, y, face.z - 0.014)), true)
+	_pearl(b, p, Vector3(-0.07, c.y, c.z + rz + 0.022), 0.022)
 
 
 ## What only this weapon has besides the dragon: the dragon pearl in the class's gem

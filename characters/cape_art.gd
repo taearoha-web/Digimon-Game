@@ -31,6 +31,11 @@ extends Node3D
 ##                                          off a smouldering hem, and a mantra ring of
 ##                                          light floating behind the shoulders (like the
 ##                                          class's orbiting MantraRings)
+##   Dragon God (ผ้าคลุมนักมวยเทพมังกรอัคนี, DragonWingArt: build_tinted with "boxer" 3)
+##                                          the star robe re-cut in jade dragon-scale satin
+##                                          whose scale rims smoulder in the class's fire,
+##                                          a gold dragon coiled round the mongkhon, embers
+##                                          and mantra ring in the same fire
 ##
 ## Model space is the chibi's (x side, y up, z front), like the wing GLBs.
 
@@ -61,7 +66,8 @@ var star := false
 ## Whose design: "darklord" or "muaythai".
 var cls := "darklord"
 ## Colour overrides of the star design (build_tinted): the cape shader's palette keys, plus
-## "capelet_color" / "capelet_deep" for the feather capelet and "gem" for the clasps.
+## "capelet_color" / "capelet_deep" for the feather capelet and "gem" for the clasps; on a
+## ring robe, "boxer" picks its paint (3: the Dragon God's).
 var tint := {}
 ## Everything is authored at TOP_Y / BACK_Z and fitted onto the chibi's back by this node.
 var _fit: Node3D
@@ -237,7 +243,7 @@ func _make_boxer() -> void:
 	if star:
 		palette.merge({"outer_color": Color("a80c1e"), "outer_deep": Color("4a0610"), "lining_color": Color("4a0a0c"),
 			"trim_color": Color("ffd36b"), "glow_color": Color("ff7a1a"), "boxer": 2.0}, true)
-	for key in ["outer_color", "outer_deep", "lining_color", "trim_color", "glow_color"]:
+	for key in ["outer_color", "outer_deep", "lining_color", "trim_color", "glow_color", "boxer"]:
 		if tint.has(key):
 			palette[key] = tint[key]
 	var length := BOXER_STAR_LENGTH if star else BOXER_LENGTH
