@@ -262,9 +262,7 @@ const CLASSES := {
 
 ## Passive skills: always on once the level is reached, +[per] per rank.
 ## Keys of [bonus]: atk, def, hp, mp (fractions), crit, speed, dodge (added).
-const PASSIVES := {
-	],
-}
+const PASSIVES := {}
 
 static var _pools: Dictionary = {}
 
@@ -727,9 +725,6 @@ static func _build_pools() -> void:
 		_sk(v, "round_slash", "Round Slash", "หมุนตัวฟันศัตรูรอบตัว", 4, 12, 8.0, "burst", 1.8, {"radius": 4.0, "special": "spin", "color": Color("ffc27a"), "icon": "spin"}),
 		_sk(v, "second_wind", "Second Wind", "ฟื้นฟู HP 35%", 7, 14, 16.0, "self", 0.0, {"fx": {"heal": 0.35}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
 	]
-	var pc := func(n: int, length: float, width := 1.3, keep := 0.7) -> Dictionary:
-		return {"n": n, "len": length, "w": width, "k": keep}
-
 	# The converted classes (LINE_FILES): their 8 skill lines from their own file.
 	for line_class in LINE_FILES:
 		_pools[line_class] = _line_pool(line_class)
