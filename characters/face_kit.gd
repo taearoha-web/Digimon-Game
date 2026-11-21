@@ -1,6 +1,7 @@
 class_name FaceKit
 extends RefCounted
-## The hero's customisable head: a skin-coloured head with ears, eyes, brows,
+## An NPC's built head (villagers on the KayKit bodies; heroes are chibis and are not
+## customised, see hero_look): a skin-coloured head with ears, eyes, brows,
 ## nose, mouth and a hair style, all built from primitives (the KayKit heads
 ## have their faces baked into a texture and cannot be changed). A "look" is
 ##   { gender, skin, hair, hair_color, eyes, eye_color, nose, mouth }
@@ -71,9 +72,21 @@ static var _skin_shader: Shader
 
 
 static func default_look() -> Dictionary:
-	var look := {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0}
-	look.merge(ChibiLook.defaults())
-	return look
+	return {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0, "style": 0}
+
+
+## A hero's look: only its body (0 boy, 1 girl) and ready-made character (ChibiLook
+## style). Players do not customise hair, eyes, skin or accessories, so every hero,
+## world player and remote player wears its style's own designed look; anything else an
+## old save or an old client sends (hair_tint, eye_tint, skin_tone, acc, hair,
+## hair_color, ...) is dropped here.
+static func hero_look(look: Variant) -> Dictionary:
+	var src: Dictionary = look if look is Dictionary else {}
+	return {"gender": clampi(_whole(src.get("gender", 0)), 0, 1), "style": clampi(_whole(src.get("style", 0)), 0, ChibiLook.count("style") - 1)}
+
+
+static func _whole(v: Variant) -> int:
+	return int(v) if (v is int or v is float) and is_finite(float(v)) else 0
 
 
 static func option_count(key: String, gender: int) -> int:
@@ -95,8 +108,8 @@ static func random_look(rng: RandomNumberGenerator) -> Dictionary:
 	look["gender"] = rng.randi() % 2
 	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		look[key] = rng.randi() % option_count(key, int(look["gender"]))
-	# Rivals and fighters wear one of the chibi styles, picked from the values above
-	# so the random sequence (and every seeded guild war) is unchanged.
+	# Rivals and fighters wear one of the ready-made chibi characters, picked from the
+	# values above so the random sequence (and every seeded guild war) is unchanged.
 	ChibiLook.apply_style(look, int(look["hair"]) % ChibiLook.count("style"))
 	return look
 
@@ -110,7 +123,7 @@ static func repair(look: Dictionary) -> Dictionary:
 	out["gender"] = clampi(int(out["gender"]), 0, 1)
 	for key in ["skin", "hair", "hair_color", "eyes", "eye_color", "nose", "mouth", "outfit"]:
 		out[key] = clampi(int(out[key]), 0, option_count(key, int(out["gender"])) - 1)
-	ChibiLook.repair_into(out, look)
+	out["style"] = clampi(int(out["style"]), 0, ChibiLook.count("style") - 1)
 	return out
 
 

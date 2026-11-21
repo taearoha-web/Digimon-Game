@@ -1,6 +1,7 @@
 extends Node3D
-## Hero looks (ChibiLook): six styles on the two chibi bodies, colour parts and
-## accessories; old saves keep their exact look.
+## Hero looks (ChibiLook): six ready-made characters (styles) on the two chibi bodies.
+## The look is not customised: a hero's look is {gender, style}; old saves' and old
+## clients' hair / eye / skin colours and accessory are dropped and never rendered.
 ##   godot --headless --path . res://tests/integration/chibi_look_test.tscn
 var failures := 0
 var checks := 0
@@ -44,47 +45,52 @@ func _ready() -> void:
 	# Three styles per body, the first the original texture.
 	for g in 2:
 		check((ChibiLook.STYLES[g] as Array).size() == 3, "three styles for body %d" % g)
-		var look := FaceKit.default_look()
-		look["gender"] = g
-		ChibiLook.apply_style(look, 0)
-		check(int(look.skin_tone) == 0 and int(look.hair_tint) == 0 and int(look.eye_tint) == 0 and int(look.acc) == 0, "style 0 of body %d is the original" % g)
+		var p0 := ChibiLook.paint({"gender": g, "style": 0})
+		check(int(p0.skin_tone) == 0 and int(p0.hair_tint) == 0 and int(p0.eye_tint) == 0 and int(p0.acc) == 0, "style 0 of body %d is the original" % g)
 		for s in range(1, 3):
+			var look := {"gender": g}
 			ChibiLook.apply_style(look, s)
-			check(int(look.style) == s and int(look.hair_tint) > 0 and int(look.eye_tint) > 0, "style %d of body %d recolours hair and eyes" % [s, g])
-			for key in ChibiLook.KEYS:
-				check(int(look[key]) >= 0 and int(look[key]) < ChibiLook.count(key), "style %d/%d %s in range" % [g, s, key])
-	var silver := FaceKit.default_look()
-	ChibiLook.apply_style(silver, 1)
-	check(ChibiLook.value_name("hair_tint", int(silver.hair_tint)) == "เงิน" and int(silver.acc) == 0, "the silver-haired boy wears no accessory")
+			var p := ChibiLook.paint(look)
+			check(int(look.style) == s and int(p.hair_tint) > 0 and int(p.eye_tint) > 0, "style %d of body %d recolours hair and eyes" % [s, g])
+			check(look.keys() == ["gender", "style"], "picking style %d writes only the style (%s)" % [s, look])
 
-	# Old saves: no look keys -> the original body, nothing else changes.
-	var old := {"gender": 1, "skin": 3, "hair": 2, "hair_color": 4, "eyes": 1, "eye_color": 2, "nose": 0, "mouth": 1, "outfit": 0}
-	var repaired := FaceKit.repair(old)
-	check(int(repaired.style) == 0 and int(repaired.skin_tone) == 0 and int(repaired.hair_tint) == 0 and int(repaired.eye_tint) == 0 and int(repaired.acc) == 0, "an old look repairs to the original body")
-	check(int(repaired.skin) == 3 and int(repaired.hair) == 2, "old keys are kept")
-	var wild := FaceKit.repair({"gender": 0, "skin_tone": 99, "hair_tint": -7, "eye_tint": 2.0, "acc": 40, "style": -3})
-	check(int(wild.skin_tone) == ChibiLook.count("skin_tone") - 1 and int(wild.hair_tint) == 0 and int(wild.eye_tint) == 2 and int(wild.acc) == ChibiLook.count("acc") - 1 and int(wild.style) == 0, "out-of-range values are clamped")
-	# Every value a player can pick passes the save validator (no negative numbers).
-	var every := FaceKit.default_look()
-	for key in ChibiLook.KEYS:
-		every[key] = ChibiLook.count(key) - 1
-	Game.new_profile(&"vagabond", "ค่าสูงสุด", every)
-	check(not Game.preview_import(Game.export_code()).is_empty(), "the highest look values pass the save validator")
-	Game.new_profile(&"vagabond", "ค่าเดิม", FaceKit.default_look())
-	check(Game.save_code_roundtrip(), "the original look round-trips through the save code")
+	# A hero's look is only its body and character.
+	check(FaceKit.hero_look({}) == {"gender": 0, "style": 0}, "a new hero has the default look")
+	var custom := {"gender": 1, "style": 2, "skin": 3, "hair": 2, "hair_color": 4, "eyes": 1, "eye_color": 2, "outfit": 3,
+		"skin_tone": 5, "hair_tint": 7, "eye_tint": 1, "acc": 3}
+	check(FaceKit.hero_look(custom) == {"gender": 1, "style": 2}, "custom colours, hair, eyes and accessory are dropped")
+	check(ChibiLook.paint(custom) == ChibiLook.paint({"gender": 1, "style": 2}), "old custom keys never change what the character shows")
+	var wild := FaceKit.hero_look({"gender": 9, "style": -3, "hair_tint": "x"})
+	check(wild == {"gender": 1, "style": 0}, "out-of-range values are clamped (%s)" % wild)
+	check(FaceKit.hero_look({"gender": "girl", "style": INF}) == {"gender": 0, "style": 0}, "non-numbers fall back")
+	check(FaceKit.hero_look(null) == {"gender": 0, "style": 0}, "a missing look is the default")
+	check(not "hair_tint" in FaceKit.default_look() and not "acc" in FaceKit.repair({"acc": 2}), "FaceKit looks carry no colour keys")
 
-	# Save round trip through the export code keeps the look.
-	var styled := FaceKit.default_look()
-	styled["gender"] = 1
-	ChibiLook.apply_style(styled, 2)
-	styled["eye_tint"] = 1
-	Game.new_profile(&"vagabond", "ทดสอบลุค", styled)
+	# A new hero created with an old-style look keeps only its body and character.
+	Game.new_profile(&"warrior", "ลุคเก่า", custom)
+	check(Game.profile.look == {"gender": 1, "style": 2}, "new_profile keeps only gender and style (%s)" % Game.profile.look)
+	Game.new_profile(&"warrior", "ค่าเดิม", FaceKit.default_look())
+	check(Game.profile.look == {"gender": 0, "style": 0}, "a default new hero has the default look")
+	check(Game.save_code_roundtrip(), "the default look round-trips through the save code")
+
+	# An old save with custom colours loads, renders its character's look, saves without them.
+	Game.new_profile(&"warrior", "ทดสอบลุค", FaceKit.default_look())
+	Game.profile["look"] = custom.duplicate()
 	var code := Game.export_code()
-	Game.new_profile(&"vagabond", "อื่น", FaceKit.default_look())
-	check(Game.import_code(code), "the save code imports")
+	Game.new_profile(&"warrior", "อื่น", FaceKit.default_look())
+	check(Game.import_code(code), "an old save with custom colours imports")
 	var back: Dictionary = Game.profile.get("look", {})
-	for key in ["gender", "style", "skin_tone", "hair_tint", "eye_tint", "acc"]:
-		check(int(back.get(key, -99)) == int(styled[key]), "look key %s survives the save code" % key)
+	check(back == {"gender": 1, "style": 2}, "the loaded look is stripped to gender and style (%s)" % back)
+	var again := Game.export_code()
+	Game.new_profile(&"warrior", "อื่นอีก", FaceKit.default_look())
+	check(Game.import_code(again) and not Game.profile.look.has("hair_tint") and not Game.profile.look.has("acc"), "it saves without the old keys")
+	check(not PlayerLook.of_profile(Game.profile).face.has("hair_tint"), "the online look sends no colours")
+
+	# Remote looks: without and with old fields, the default of the character applies.
+	check(PlayerLook.clean({"class": "mage"}).face == {"gender": 0, "style": 0}, "a remote look without a face is the default")
+	check(PlayerLook.clean({"class": "mage", "face": custom}).face == {"gender": 1, "style": 2}, "a remote look's old colours are dropped")
+	check(PlayerLook.clean({"class": "mage", "face": {"hair_tint": [1], "acc": {"x": 1}, "gender": "1"}}).face == {"gender": 0, "style": 0}, "a broken remote face does not crash and is the default")
+	check(PlayerLook.clean({"class": "mage", "face": "oops"}).face == {"gender": 0, "style": 0}, "a non-dictionary remote face is the default")
 
 	# The body material: original look sets nothing, a style sets the uniforms.
 	var plain := HeroVisual.new()
@@ -111,34 +117,36 @@ func _ready() -> void:
 	piece.material_overlay = null
 	for g in 2:
 		for s in range(1, 3):
-			var look := FaceKit.default_look()
-			look["gender"] = g
-			ChibiLook.apply_style(look, s)
+			var look := FaceKit.hero_look({"gender": g, "style": s})
+			var p := ChibiLook.paint(look)
 			var v := HeroVisual.new()
 			add_child(v)
 			v.setup(ClassData.LEGACY, "", false, {}, look)
 			var mat := _body_material(v)
 			check(mat != null and mat.get_shader_parameter("look_enabled") == true and mat.get_shader_parameter("look_mask") != null, "style %d/%d turns the look shader on" % [g, s])
-			check(float(mat.get_shader_parameter("hair_amount")) == 1.0 and (mat.get_shader_parameter("hair_color") as Color).is_equal_approx(ChibiLook.tint("hair_tint", int(look.hair_tint))), "style %d/%d hair colour" % [g, s])
-			check((_accessory(v) != null) == (int(look.acc) > 0), "style %d/%d accessory present only when chosen" % [g, s])
+			check(float(mat.get_shader_parameter("hair_amount")) == 1.0 and (mat.get_shader_parameter("hair_color") as Color).is_equal_approx(ChibiLook.tint("hair_tint", int(p.hair_tint))), "style %d/%d hair colour" % [g, s])
+			check((_accessory(v) != null) == (int(p.acc) > 0), "style %d/%d accessory present only with its character" % [g, s])
 			# Gear changes keep the look.
 			v.equip = {"armor": ItemData.generate(20, ClassData.LEGACY, Game.rng, 2, "armor")}
 			v.refresh()
 			var after := _body_material(v)
 			check(after != null and after.get_shader_parameter("look_enabled") == true, "style %d/%d survives an armour change" % [g, s])
 			v.queue_free()
-	# Every accessory builds on both bodies.
+	# Old custom keys on a hero's look are not rendered: the original body stays plain.
+	var old_look := HeroVisual.new()
+	add_child(old_look)
+	old_look.setup(ClassData.LEGACY, "", false, {}, {"gender": 0, "skin_tone": 5, "hair_tint": 7, "eye_tint": 1, "acc": 3})
+	var old_mat := _body_material(old_look)
+	check(old_mat != null and old_mat.get_shader_parameter("look_enabled") != true and _accessory(old_look) == null, "old hair / eye / skin colours and accessory are not rendered")
+	old_look.queue_free()
+	# The fairy guide (an NPC) keeps her own design.
 	for g in 2:
-		for acc in range(1, ChibiLook.count("acc")):
-			var look := FaceKit.default_look()
-			look["gender"] = g
-			look["acc"] = acc
-			var v := HeroVisual.new()
-			add_child(v)
-			v.setup(ClassData.LEGACY, "", false, {}, look)
-			var node := _accessory(v)
-			check(node != null and node.find_children("*", "MeshInstance3D", true, false).size() >= 1, "accessory %d builds on body %d" % [acc, g])
-			v.queue_free()
+		var npc := HeroVisual.new()
+		add_child(npc)
+		npc.setup(ClassData.LEGACY, "", false, {}, {"gender": g, ChibiLook.PAINT_KEY: {"hair_tint": 6, "eye_tint": 5, "skin_tone": 2, "acc": 2}})
+		var npc_mat := _body_material(npc)
+		check(npc_mat != null and npc_mat.get_shader_parameter("look_enabled") == true and _accessory(npc) != null, "an NPC paint renders on body %d" % g)
+		npc.queue_free()
 
 	# Rivals: random looks pick a style without drawing extra random numbers.
 	var a := RandomNumberGenerator.new()
@@ -155,26 +163,30 @@ func _ready() -> void:
 	check(a.randi() == b.randi(), "random_look draws the same numbers as before")
 	check(styles.size() == 3, "rivals wear all three styles")
 
-	# The creator: style buttons and part rows.
+	# The creator: gender and character buttons only; no colour / hair / eye / skin /
+	# accessory controls and no random look.
 	var screen := ClassSelect.new()
 	add_child(screen)
 	await get_tree().process_frame
-	check(screen._style_buttons.size() == 3, "the creator shows three style buttons")
+	check(screen._style_buttons.size() == 3, "the creator shows three character buttons")
+	check(screen._gender_buttons.size() == 2, "the creator shows the two bodies")
 	screen._set_gender(1)
 	screen._set_style(1)
-	check(screen._style_buttons[1].disabled and screen._style_buttons[1].text == ChibiLook.style_name(1, 1), "the chosen style is marked")
-	var before := int(screen.look.hair_tint)
-	screen._step("hair_tint", 1)
-	check(int(screen.look.hair_tint) == (before + 1) % ChibiLook.count("hair_tint"), "hair colour steps")
-	screen.look["hair_tint"] = ChibiLook.count("hair_tint") - 1
-	screen._step("hair_tint", 1)
-	check(int(screen.look.hair_tint) == 0, "hair colour wraps to the original")
-	screen._step("acc", -1)
-	screen._step("acc", -1)
-	check(int(screen.look.acc) >= 0 and int(screen.look.acc) < ChibiLook.count("acc"), "accessory stays in range")
-	for i in 8:
-		screen._randomize()
-		check(FaceKit.repair(screen.look) == screen.look, "a random look is already valid")
+	check(screen._style_buttons[1].disabled and screen._style_buttons[1].text == ChibiLook.style_name(1, 1), "the chosen character is marked")
+	check(screen.look == {"gender": 1, "style": 1}, "the creator's look is gender and character only (%s)" % screen.look)
+	var texts: PackedStringArray = []
+	for node in screen.find_children("*", "", true, false):
+		if node is Button or node is Label:
+			texts.append(String(node.text))
+	var joined := " | ".join(texts)
+	for banned in ["สีผม", "สีผิว", "สีตา", "ประดับ", "ทรงผม", "สุ่มลุค", "ปรับสี", "◀", "▶"]:
+		check(not banned in joined, "the creator has no %s control" % banned)
+	for method in ["_randomize", "_step", "_option_row", "_value_text"]:
+		check(not screen.has_method(method), "the creator has no %s" % method)
+	var got := []
+	screen.confirmed.connect(func(c, n, l): got.append(l))
+	screen._on_confirm()
+	check(got.size() == 1 and got[0] == {"gender": 1, "style": 1}, "the creator confirms gender and character only (%s)" % [got])
 	screen.queue_free()
 
 	print("chibi_look_test: %d checks, %d failures" % [checks, failures])

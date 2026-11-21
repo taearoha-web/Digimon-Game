@@ -284,7 +284,7 @@ func _refresh_chibi() -> void:
 		if _starish(helm): crown.add_child(_crafted_piece("helm", helm))
 		else: ChibiGear.headpiece(crown, ItemLook.tier_of(helm))
 		_glow_piece([crown.get_parent()], int(helm.get("plus", 0)), Vector3(0, 2.2, 0), 0.25)
-	var acc := int(look.get("acc", 0))
+	var acc := int(ChibiLook.paint(look).get("acc", 0))
 	if acc > 0:
 		ChibiLook.build_accessory(_chibi_attach("Head", "ChibiLook"), acc, int(look.get("gender", 0)))
 		_body_nodes[_body_nodes.size() - 1].set_meta("far_decor", true)

@@ -677,14 +677,16 @@ func _look() -> void:
 	Game.delete_save()
 	var chosen := FaceKit.default_look()
 	chosen["gender"] = 1
+	chosen["style"] = 2
 	chosen["hair"] = 2
 	chosen["skin"] = 5
+	chosen["hair_tint"] = 4
 	Game.new_profile(ClassData.DEFAULT, "ทดสอบ", chosen)
-	check(int(Game.profile.look.gender) == 1 and int(Game.profile.look.skin) == 5, "the chosen look is stored in the profile")
+	check(Game.profile.look == {"gender": 1, "style": 2}, "only the body and character are stored in the profile (%s)" % Game.profile.look)
 	var back := Game.export_code()
-	check(Game.import_code(back) and int(Game.profile.look.hair) == 2, "the look survives a save code round trip")
+	check(Game.import_code(back) and int(Game.profile.look.style) == 2 and int(Game.profile.look.gender) == 1, "the look survives a save code round trip")
 	await _wait_for_import_reload()
-	check(main.zone != null and int(main.zone.hero.visual.look.get("hair", -1)) == 2, "import reload rebuilds the restored character look")
+	check(main.zone != null and int(main.zone.hero.visual.look.get("style", -1)) == 2 and not main.zone.hero.visual.look.has("hair"), "import reload rebuilds the restored character look")
 	main.title_screen = null
 	main.hud.visible = true
 	main._traveling = false

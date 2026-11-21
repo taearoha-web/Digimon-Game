@@ -289,6 +289,17 @@ func _looks(_fake: FakeTransport) -> void:
 	Online._dispatch({"t": "look", "id": "p2", "look": look})
 	await get_tree().process_frame
 	check(r2.visual.class_id == &"mage", "a new class rebuilds the body")
+	# An old client still sends custom colours: they are dropped, the character's own look shows.
+	look = look.duplicate(true)
+	look["face"] = {"gender": 1, "style": 1, "hair_tint": 7, "eye_tint": 3, "skin_tone": 5, "acc": 3, "hair": 4, "hair_color": 9}
+	Online._dispatch({"t": "look", "id": "p2", "look": look})
+	await get_tree().process_frame
+	check(r2.visual.look == {"gender": 1, "style": 1}, "a remote look's old colours are dropped (%s)" % r2.visual.look)
+	look["face"] = {}
+	Online._dispatch({"t": "look", "id": "p2", "look": look})
+	await get_tree().process_frame
+	check(r2.visual.look == {"gender": 0, "style": 0}, "a remote look without a face is the default (%s)" % r2.visual.look)
+	check(not (Game.hero_look().face as Dictionary).has("hair_tint") and (Game.hero_look().face as Dictionary).keys() == ["gender", "style"], "the hero sends only its body and character")
 	# The same look code as a FieldPlayer: a world player's look dresses the same way.
 	var m := WorldPlayers.member(3, WorldPlayers.START_UNIX + 90 * 86400.0)
 	var wl := PlayerLook.of_member(m, 3)
