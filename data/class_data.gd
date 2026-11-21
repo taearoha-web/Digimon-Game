@@ -548,6 +548,11 @@ static func _line_pool(cls: StringName) -> Array:
 	for skill in skills:
 		assert(index.has(String(skill.id)), "%s: %s is in no line" % [cls, skill.id])
 	_line_index[cls] = index
+	# The pool stays in unlock order (stable: same-level stages keep the line order).
+	var order := {}
+	for i in skills.size():
+		order[skills[i].id] = i
+	skills.sort_custom(func(a, b): return int(a.level) < int(b.level) or (int(a.level) == int(b.level) and int(order[a.id]) < int(order[b.id])))
 	return skills
 
 
