@@ -232,7 +232,7 @@ func _vagabonds() -> void:
 		var e := WorldPlayers.entry(i)
 		check(ClassData.IDS.has(StringName(e["class"])), "%s: a playable class (%s)" % [e.name, e["class"]])
 		for day in [0.0, 0.05, 1.0, 5.0, 40.0]:
-			var t := float(WorldPlayers.START_UNIX) + day * 86400.0
+			var t: float = float(WorldPlayers.START_UNIX) + float(day) * 86400.0
 			var s := WorldPlayers.state(i, t)
 			never = never and StringName(s["class"]) == StringName(e["class"]) and StringName(s["class"]) != ClassData.LEGACY
 			var m := WorldPlayers.member(i, t)
