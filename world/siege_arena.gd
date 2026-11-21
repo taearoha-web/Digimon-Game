@@ -339,6 +339,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	zone.set_meta(BANNER_META, banner)
 	_flags = JapanKit.Batch.new()
 	_trim = JapanKit.Batch.new()
+	_banner = banner
 	# The new scenery's own stream of numbers (the zone's is left to the stone and the pines).
 	var art := RandomNumberGenerator.new()
 	art.seed = 90417
@@ -356,6 +357,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	_commit_flags(root, banner)
 	_commit(_trim, root, "CastleTrim", false)
 	_trim = null
+	_banner = null
 	_altar_beam(root)
 	_court_floor(root)
 	_flags = null
@@ -373,6 +375,8 @@ static var _flags: JapanKit.Batch
 ## The castle's flat floor work (paving, bands, carpets, inlays) and small wall detail
 ## (loopholes): one mesh that casts no shadow, so the shadow pass does not draw it again.
 static var _trim: JapanKit.Batch
+## The holder's banner material while the castle is built.
+static var _banner: StandardMaterial3D
 
 
 # ---------------------------------------------------------------------------
@@ -788,14 +792,25 @@ static func _castle(root: Node3D, m: Masonry) -> void:
 		# A darker border round each yard and a paved band down each lane to the next gate.
 		for s in [-1.0, 1.0]:
 			_trim.box(Vector3(float(s) * (HALL_HALF - 5.2), 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.5, 0.04, GATE_GAP - 8.0), Color("8d8676"))
-			_trim.box(Vector3(float(s) * LANE_X, 0.07, GATE_Z[k] - GATE_GAP * 0.5), Vector3(6.0, 0.03, GATE_GAP - 5.0), PAVING.lightened(0.12))
+			_trim.box(Vector3(float(s) * LANE_X, 0.07, GATE_Z[k] - GATE_GAP * 0.5), Vector3(6.0, 0.03, GATE_GAP - 5.0), PAVING.lightened(0.14))
+			for e in [-1.0, 1.0]:
+				_trim.box(Vector3(float(s) * LANE_X + float(e) * 3.2, 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.3, 0.03, GATE_GAP - 5.0), Color("8d8676"))
+			for i in 5:
+				_trim.box(Vector3(float(s) * LANE_X, 0.09, GATE_Z[k] - 6.0 - float(i) * 6.0), Vector3(1.5, 0.03, 1.5), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
+		# The yard's medallion between the lanes.
+		var heart := Vector3(0, 0, GATE_Z[k] - GATE_GAP * 0.5)
+		_trim.cyl(heart + Vector3(0, 0.07, 0), 4.6, 0.06, Color("8d8676"), Vector3.ZERO, 24)
+		_trim.cyl(heart + Vector3(0, 0.08, 0), 4.2, 0.08, PAVING.lightened(0.16), Vector3.ZERO, 24)
+		_trim.cyl(heart + Vector3(0, 0.09, 0), 2.6, 0.1, GOLD_DEEP, Vector3.ZERO, 24)
+		_trim.cyl(heart + Vector3(0, 0.1, 0), 2.0, 0.12, Color("c0392b"), Vector3.ZERO, 24)
+		_trim.cyl(heart + Vector3(0, 0.11, 0), 0.9, 0.14, GOLD, Vector3.ZERO, 12)
 	# The yards: tall stone lanterns along the walls.
 	for k in 2:
 		for f in [0.15, 0.38, 0.62, 0.85]:
 			for x in [-HALL_HALF + 3.0, HALL_HALF - 3.0]:
 				JapanKit.toro(b, Vector3(x, 0, GATE_Z[k] - GATE_GAP * f), 1.3)
 	_stairs(b)
-	_court(b)
+	_court(b, root)
 	_commit(b, root, "Castle")
 
 
@@ -849,7 +864,7 @@ static func _lion(b: JapanKit.Batch, at: Vector3, turn: float) -> void:
 ## The raised throne court: its paving, the carpet between two rows of vermilion pillars
 ## (open to the sky, so the camera above sees the fight), the altar's inlaid dais, and
 ## against the back wall the canopied throne screen between the holder's great banners.
-static func _court(b: JapanKit.Batch) -> void:
+static func _court(b: JapanKit.Batch, root: Node3D) -> void:
 	var up := Vector3(0, COURT_H, 0)
 	var head := STAIR_Z1 + STAIR_LEAD
 	_trim.box(Vector3(0, COURT_H - 0.02, (STAIR_Z1 + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.1, STAIR_Z1 - BACK_Z), PAVING)
@@ -857,6 +872,12 @@ static func _court(b: JapanKit.Batch) -> void:
 		_trim.box(Vector3(0, COURT_H + 0.05, head - 5.0 - float(i) * 8.4), Vector3(THRONE_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
 	for s in [-1.0, 1.0]:
 		_trim.box(Vector3(float(s) * (THRONE_HALF * 0.62 - 2.4), COURT_H + 0.05, (head + BACK_Z) * 0.5), Vector3(0.5, 0.04, head - BACK_Z - 6.0), Color("8d8676"))
+	for i in 4:
+		for s in [-1.0, 1.0]:
+			_trim.box(Vector3(float(s) * 5.4, COURT_H + 0.06, head - 3.0 - float(i) * 6.4), Vector3(1.3, 0.03, 1.3), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
+	for sw in SWITCHES:
+		_trim.cyl(Vector3(sw.x, COURT_H + 0.04, sw.z), SWITCH_RADIUS + 1.3, 0.04, Color("8d8676"), Vector3.ZERO, 24)
+		_trim.cyl(Vector3(sw.x, COURT_H + 0.045, sw.z), SWITCH_RADIUS + 0.9, 0.05, PAVING.lightened(0.16), Vector3.ZERO, 24)
 	# The carpet from the staircase's head to the altar, gold along its sides.
 	_trim.box(Vector3(0, COURT_H + 0.06, (head + ALTAR.z) * 0.5), Vector3(5.0, 0.05, head - ALTAR.z), Color("a8322a"))
 	for s in [-1.0, 1.0]:
@@ -890,29 +911,44 @@ static func _court(b: JapanKit.Batch) -> void:
 	# (byobu) of six panels, a tiled canopy on vermilion posts with the golden crest under
 	# it, the holder's two great banners either side, and great fire bowls.
 	var wall := BACK_Z + 2.4
-	b.box(up + Vector3(0, 0.2, wall + 1.2), Vector3(20.0, 0.4, 2.6), WOOD)
-	b.box(up + Vector3(0, 0.55, wall + 0.9), Vector3(16.0, 0.3, 1.8), JapanKit.VERMILION.darkened(0.15))
+	# All of it is one mesh of its own that fades out while the camera is at it or behind it
+	# (ThirdPersonCamera.FADE_GROUP): a view from the back wall is never filled by the screen.
+	var t := JapanKit.Batch.new()
+	var castle_flags := _flags
+	_flags = JapanKit.Batch.new()
+	t.box(up + Vector3(0, 0.2, wall + 1.2), Vector3(20.0, 0.4, 2.6), WOOD)
+	t.box(up + Vector3(0, 0.55, wall + 0.9), Vector3(16.0, 0.3, 1.8), JapanKit.VERMILION.darkened(0.15))
 	for i in 6:
 		var px := (float(i) - 2.5) * 2.3
 		var tilt := 8.0 if i % 2 == 0 else -8.0
-		b.box(up + Vector3(px, 3.4, wall + 0.5), Vector3(2.3, 5.4, 0.16), GOLD_DEEP, Vector3(0, tilt, 0))
-		b.box(up + Vector3(px, 6.15, wall + 0.5), Vector3(2.4, 0.16, 0.24), WOOD, Vector3(0, tilt, 0))
-		b.box(up + Vector3(px, 3.4, wall + 0.6), Vector3(1.5, 3.6, 0.1), Color("fff1c8"), Vector3(0, tilt, 0))
+		t.box(up + Vector3(px, 3.4, wall + 0.5), Vector3(2.3, 5.4, 0.16), GOLD_DEEP, Vector3(0, tilt, 0))
+		t.box(up + Vector3(px, 6.15, wall + 0.5), Vector3(2.4, 0.16, 0.24), WOOD, Vector3(0, tilt, 0))
+		t.box(up + Vector3(px, 3.4, wall + 0.6), Vector3(1.5, 3.6, 0.1), Color("fff1c8"), Vector3(0, tilt, 0))
 	for s in [-1.0, 1.0]:
-		b.cyl(up + Vector3(float(s) * 9.0, 4.0, wall + 2.0), 0.4, 8.0, JapanKit.VERMILION, Vector3.ZERO, 10)
-		b.cyl(up + Vector3(float(s) * 9.0, 0.5, wall + 2.0), 0.55, 0.5, GOLD, Vector3.ZERO, 10)
-		b.cyl(up + Vector3(float(s) * 9.0, 7.7, wall + 2.0), 0.5, 0.4, GOLD, Vector3.ZERO, 10)
+		t.cyl(up + Vector3(float(s) * 9.0, 4.0, wall + 2.0), 0.4, 8.0, JapanKit.VERMILION, Vector3.ZERO, 10)
+		t.cyl(up + Vector3(float(s) * 9.0, 0.5, wall + 2.0), 0.55, 0.5, GOLD, Vector3.ZERO, 10)
+		t.cyl(up + Vector3(float(s) * 9.0, 7.7, wall + 2.0), 0.5, 0.4, GOLD, Vector3.ZERO, 10)
 		_flag(up + Vector3(float(s) * 13.6, 5.2, wall + 0.2), Vector3(3.2, 8.4, 0.1), 2.0)
-		b.box(up + Vector3(float(s) * 13.6, 9.5, wall + 0.2), Vector3(3.8, 0.2, 0.2), WOOD)
+		t.box(up + Vector3(float(s) * 13.6, 9.5, wall + 0.2), Vector3(3.8, 0.2, 0.2), WOOD)
 		_brazier(b, up + Vector3(float(s) * (ALTAR_RADIUS + 5.5), 0, ALTAR.z - 1.0), 1.7)
 		_brazier(b, up + Vector3(float(s) * 17.5, 0, wall + 1.6), 1.5)
-	b.box(up + Vector3(0, 8.1, wall + 1.2), Vector3(19.4, 0.4, 2.6), WOOD)
-	b.roof(up + Vector3(0, 9.0, wall + 1.0), 22.0, 4.6, 1.5, TILE, 0.7)
-	_eaves(b, up + Vector3(0, 8.4, wall + 1.0), 21.8, 4.4, 1.0)
-	b.box(up + Vector3(0, 9.85, wall + 1.0), Vector3(15.0, 0.3, 0.5), TILE_EDGE)
-	_shachi(b, up + Vector3(0, 9.9, wall + 1.0), 14.6, 0.9)
-	b.cyl(up + Vector3(0, 6.9, wall + 0.75), 1.5, 0.14, GOLD, Vector3(90, 0, 0), 20)
-	b.cyl(up + Vector3(0, 6.9, wall + 0.83), 0.9, 0.14, Color("c0392b"), Vector3(90, 0, 0), 20)
+	t.box(up + Vector3(0, 8.1, wall + 1.2), Vector3(19.4, 0.4, 2.6), WOOD)
+	t.roof(up + Vector3(0, 9.0, wall + 1.0), 22.0, 4.6, 1.5, TILE, 0.7)
+	_eaves(t, up + Vector3(0, 8.4, wall + 1.0), 21.8, 4.4, 1.0)
+	t.box(up + Vector3(0, 9.85, wall + 1.0), Vector3(15.0, 0.3, 0.5), TILE_EDGE)
+	_shachi(t, up + Vector3(0, 9.9, wall + 1.0), 14.6, 0.9)
+	t.cyl(up + Vector3(0, 6.9, wall + 0.75), 1.5, 0.14, GOLD, Vector3(90, 0, 0), 20)
+	t.cyl(up + Vector3(0, 6.9, wall + 0.83), 0.9, 0.14, Color("c0392b"), Vector3(90, 0, 0), 20)
+	var screen := t.mesh()
+	if not _flags.is_empty() and _banner != null:
+		screen.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _flags.mesh().surface_get_arrays(0))
+		screen.surface_set_material(screen.get_surface_count() - 1, _banner)
+	_flags = castle_flags
+	var mi := MeshInstance3D.new()
+	mi.name = "ThroneScreen"
+	mi.mesh = screen
+	root.add_child(mi)
+	mi.add_to_group(ThirdPersonCamera.FADE_GROUP)
 	# Great hanging banners in the holder's colour along the throne court (over the stairs
 	# too, each over its own floor).
 	for f in [0.15, 0.4, 0.65, 0.9]:
