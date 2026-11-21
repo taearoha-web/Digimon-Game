@@ -32,9 +32,10 @@ func _ready() -> void:
 	Game.profile.loadout[0]="judgment_ray"
 	var skill:=ClassData.find_skill(&"mage","judgment_ray")
 	# Class balance scales the multiplier (ClassData.skill_tune); the base design stays 24.
-	var tune:=ClassData.skill_tune(&"mage",96,false,"single")
+	# Skill lines: Judgment Ray is the Lv.90 last stage of the Fire Bolt line (mana in step).
+	var tune:=ClassData.skill_tune(&"mage",int(skill.level),false,"single")
 	check(skill.shape=="single" and not skill.projectile,"one target; no travelling projectile")
-	check(skill.mp==130 and skill.cd==12.0 and is_equal_approx(skill.mult,24.0*ClassData.damage_curve(96)*tune),"unchanged mana, cooldown and damage curve")
+	check(ClassData.line_of(&"mage","judgment_ray")=="fire_bolt" and int(skill.level)==90 and int(skill.mp)>=100 and skill.cd==12.0 and is_equal_approx(skill.mult,24.0*ClassData.damage_curve(int(skill.level))*tune),"Lv.90 stage: its mana, cooldown and damage curve (mp %d)"%int(skill.mp))
 	var field:=Node3D.new()
 	add_child(field)
 	var hero:=Hero.new()
@@ -64,7 +65,7 @@ func _ready() -> void:
 	check(seq!=null,"real cast launches celestial sequence")
 	seq.set_process(false)
 	check(hero.use_skill(0)=="cooldown","cooldown blocks duplicate button")
-	check(int(Game.profile.mp)==mana-130,"MP charged once")
+	check(int(Game.profile.mp)==mana-int(skill.mp),"MP charged once")
 	seq._process(0.7)
 	check(mobs[0].hits==0 and mobs[1].hits==0,"opening and target rings do no damage")
 	mobs[0].position=Vector3(3,0,1)
@@ -117,7 +118,7 @@ func _ready() -> void:
 	seq=get_tree().get_first_node_in_group("judgment_ray_sequences") as JudgmentRaySequence
 	seq.set_process(false)
 	seq._process(1.05)
-	check(mobs[1].hits==1 and buddy.mp==870,"companion casts one hit and pays once")
+	check(mobs[1].hits==1 and buddy.mp==1000-int(skill.mp),"companion casts one hit and pays once")
 	seq.queue_free()
 	await seq.tree_exited
 	var rival:=RivalDummy.new()

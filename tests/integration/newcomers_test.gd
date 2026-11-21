@@ -1,10 +1,10 @@
 extends Node
-## New players every day (WorldPlayers newcomers): from the opening on, 2-3 new players log
-## in for the first time each Thai day, made from the date alone (the same names, classes,
-## faces and guilds on every device, worked out again from scratch), every name its own,
-## the classes and the guilds spread evenly; each starts at Lv.1 on its day and levels at
-## a hardcore player's pace from then on, joining its guild at Lv.100. The world chat
-## welcomes each once (rate-limited). Every player with a play schedule is hardcore and
+## New players (WorldPlayers): since the reopening of 22 Nov 2026 the daily newcomers are
+## off (NEWCOMER_MAX = 0): the world holds exactly the ROSTER's 100 players, worked out
+## again from scratch the same way. The roster players who log in for the first time some
+## days after the opening ("join") start at Lv.1 on their day and level at a hardcore
+## player's pace from then on, joining their guild at Lv.100; the world chat welcomes each
+## once (rate-limited). Every player with a play schedule is hardcore and
 ## they take turns resting: at any hour a good share of them is on, never all. The guild
 ## war fields each guild's best GUILD_SIDE. Timings printed.
 ##   godot --headless --path . res://tests/integration/newcomers_test.tscn
@@ -40,72 +40,30 @@ func _start() -> float:
 	return float(WorldPlayers.START_UNIX)
 
 
-## The newcomers made up to DAYS days after the opening, as plain rows.
-func _made() -> Array:
-	WorldPlayers.ensure_until(_start() + float(DAYS) * DAY)
-	var out := []
-	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers._all.size()):
-		var e := WorldPlayers.entry(i)
-		if int(e.day) > DAYS:
-			continue
-		out.append([String(e.name), String(e["class"]), int(e.gender), int(e.guild), float(e.join), int(e.day), WorldPlayers.look(i)])
+## The players who log in for the first time after the opening (ROSTER entries with a
+## "join" day), in the order they come.
+func _late() -> Array[int]:
+	var out: Array[int] = []
+	for i in WorldPlayers.ROSTER.size():
+		if float(WorldPlayers.entry(i).get("join", 0)) > 0.0:
+			out.append(i)
+	out.sort_custom(func(a, b): return WorldPlayers.joined_at(a) < WorldPlayers.joined_at(b))
 	return out
 
 
 func _daily() -> void:
-	var first := _made()
-	# Worked out again from nothing (another device, another day): the same people.
 	WorldPlayers.reset_roster()
-	check(WorldPlayers._all.is_empty() or WorldPlayers._all.size() == WorldPlayers.ROSTER.size(), "the roster starts over from the hand-made players")
-	var again := _made()
-	check(first == again, "the same newcomers come out again (%d and %d)" % [first.size(), again.size()])
-	var per_day := {}
-	var names := {}
-	var classes := {}
-	var guilds := {}
-	for e in WorldPlayers.ROSTER:
-		names[String(e.name)] = true
-	var dup := 0
-	var within := true
-	for row in first:
-		per_day[int(row[5])] = int(per_day.get(int(row[5]), 0)) + 1
-		dup += 1 if names.has(String(row[0])) else 0
-		names[String(row[0])] = true
-		classes[String(row[1])] = int(classes.get(String(row[1]), 0)) + 1
-		guilds[int(row[3])] = int(guilds.get(int(row[3]), 0)) + 1
-		var at := _start() + float(row[4]) * DAY
-		var thai_day := int(floor((at + WorldPlayers.TZ) / DAY)) - WorldPlayers._first_day()
-		within = within and at > _start() and thai_day == int(row[5]) and String(row[0]).length() >= 2 and String(row[0]).length() <= 16
-	var counts_ok := true
-	for d in DAYS + 1:
-		var n := int(per_day.get(d, 0))
-		counts_ok = counts_ok and n >= WorldPlayers.NEWCOMERS.x and n <= WorldPlayers.NEWCOMERS.y
-	check(counts_ok, "2-3 newcomers every day (%s)" % [per_day.values()])
-	check(first.size() >= 2 * (DAYS + 1) and first.size() <= 3 * (DAYS + 1), "%d newcomers in %d days" % [first.size(), DAYS + 1])
-	check(dup == 0, "no newcomer has a name already taken (%d)" % dup)
-	check(within, "each logs in on its own Thai day, after the opening, under a sensible name")
-	var lo := 999
-	var hi := 0
-	for c in classes:
-		lo = mini(lo, int(classes[c]))
-		hi = maxi(hi, int(classes[c]))
-	check(classes.size() == ClassData.IDS.size() and hi - lo <= 2, "every class among them, evenly (%s)" % [classes])
-	var gsizes: Array = guilds.values()
-	check(guilds.size() == WorldPlayers.GUILDS.size() and int(gsizes.min()) * 8 >= int(gsizes.reduce(func(a, b): return a + b, 0)), "they pick among the four guilds, each its own choice (%s)" % [guilds])
-	var looks_ok := true
-	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers._all.size()):
-		looks_ok = looks_ok and int(WorldPlayers.look(i).gender) == int(WorldPlayers.entry(i).gender) and WorldPlayers.is_newcomer(i)
-		looks_ok = looks_ok and WorldPlayers.index_of(String(WorldPlayers.entry(i).name)) == i
-	check(looks_ok, "each has a face of its gender, found by its name")
-	var samples := []
-	for row in first.slice(0, 6):
-		samples.append("%s (%s, %s)" % [row[0], row[1], WorldPlayers.guild_name(int(row[3]))])
-	print("first newcomers: %s" % ", ".join(samples))
-	# Growth stops at NEWCOMER_MAX.
+	check(WorldPlayers.NEWCOMER_MAX == 0, "the daily newcomers are off")
+	WorldPlayers.ensure_until(_start() + float(DAYS) * DAY)
+	check(WorldPlayers._all.size() == WorldPlayers.ROSTER.size() and WorldPlayers.ROSTER.size() == 100, "%d days on, the world holds the ROSTER's 100 players (%d)" % [DAYS, WorldPlayers._all.size()])
 	WorldPlayers.ensure_until(_start() + 400.0 * DAY)
-	check(WorldPlayers._all.size() == WorldPlayers.ROSTER.size() + WorldPlayers.NEWCOMER_MAX, "no more than %d newcomers in all (%d players)" % [WorldPlayers.NEWCOMER_MAX, WorldPlayers._all.size()])
-	var last := WorldPlayers.entry(WorldPlayers._all.size() - 1)
-	print("newcomer %d comes on day %d" % [WorldPlayers.NEWCOMER_MAX, int(last.day)])
+	check(WorldPlayers._all.size() == 100, "a year on, still 100 (%d)" % WorldPlayers._all.size())
+	var newcomer := false
+	for i in WorldPlayers._all.size():
+		newcomer = newcomer or WorldPlayers.is_newcomer(i)
+		check(WorldPlayers.index_of(String(WorldPlayers.entry(i).name)) == i, "%s found by its name" % WorldPlayers.entry(i).name)
+	check(not newcomer, "nobody is a made newcomer")
+	check(_late().size() >= 3, "a few roster players log in some days after the opening (%d)" % _late().size())
 
 
 ## Lv.1 on the day it joins, then a hardcore player's pace: no ★200 in four days, ★200
@@ -113,10 +71,8 @@ func _daily() -> void:
 func _pace() -> void:
 	var start := _start()
 	var tested := 0
-	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers._all.size(), 7):
+	for i in _late():
 		var e := WorldPlayers.entry(i)
-		if int(e.day) < 8 or int(e.day) > DAYS:
-			continue
 		tested += 1
 		var j := WorldPlayers.joined_at(i)
 		var before := WorldPlayers.state(i, j - 60.0)
@@ -143,7 +99,7 @@ func _pace() -> void:
 			last = point
 			t += 0.37 * DAY
 		check(steady, "%s: only ever goes up" % e.name)
-	check(tested >= 8, "newcomers checked for pace (%d)" % tested)
+	check(tested >= 3, "late joiners checked for pace (%d)" % tested)
 	check(start > 0.0, "the opening is set")
 
 
@@ -155,15 +111,12 @@ func _welcome() -> void:
 		if text.begins_with("ผู้เล่นใหม่"):
 			lines.append(text)
 	Game.world_chat.connect(listen)
-	var a := -1
-	for i in range(WorldPlayers.ROSTER.size(), WorldPlayers._all.size()):
-		if int(WorldPlayers.entry(i).day) == 12:
-			a = i
-			break
-	check(a >= 0, "a newcomer of day 12")
-	if a < 0:
+	var late := _late()
+	check(late.size() >= 3, "late joiners to welcome")
+	if late.size() < 3:
 		return
-	var b := a + 1
+	var a := late[1]
+	var b := late[2]
 	var presence := WorldPresence.new()
 	add_child(presence)
 	var j := WorldPlayers.joined_at(a)
@@ -189,7 +142,7 @@ func _welcome() -> void:
 		WorldPresence.welcome(String(WorldPlayers.entry(a).name))
 	check(lines.size() == 2, "each is welcomed only once (%d lines)" % lines.size())
 	# An old newcomer seen for the first time long after it joined: no welcome.
-	var old := WorldPlayers.ROSTER.size()
+	var old := late[0]
 	var t_old := WorldPlayers.joined_at(old) + 3.0 * DAY
 	presence._announce(WorldPlayers.state(old, t_old), t_old)
 	presence._flush_welcome(t_old + 1000.0)

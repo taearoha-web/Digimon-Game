@@ -262,7 +262,8 @@ static func _valid_backup_text(dir: String, slot: int) -> String:
 		return ""
 	var text := file.get_as_text()
 	var parsed: Variant = Game.parse_save_text(text)
-	if not parsed is Dictionary:
+	# A character from before the world reopened (Game.WORLD_EPOCH) never comes back.
+	if not parsed is Dictionary or Game.old_world(parsed as Dictionary):
 		return ""
 	if Game._valid_profile(parsed as Dictionary):
 		return text if JSON.new().parse(text) == OK else JSON.stringify(parsed)

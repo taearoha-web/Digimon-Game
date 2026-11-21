@@ -187,9 +187,10 @@ static func _is_int(v: Variant, lo: int, hi: int) -> bool:
 
 
 ## A well-formed copy of a round result for `at` with int numbers, {} when it is not one
-## (the server's checks, hosting/worker/league.mjs cleanResult).
+## (the server's checks, hosting/worker/league.mjs cleanResult). A round from before the
+## world (re)opened (WorldPlayers.START_UNIX) belongs to the old world: never one.
 static func clean(at: int, v: Variant) -> Dictionary:
-	if not v is Dictionary:
+	if not v is Dictionary or at < WorldPlayers.START_UNIX:
 		return {}
 	var d: Dictionary = v
 	for key in ["g", "k", "c"]:

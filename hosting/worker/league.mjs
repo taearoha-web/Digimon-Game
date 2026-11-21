@@ -29,7 +29,7 @@ export function slotSecond(day, k) {
 /** One-off extra league rounds (unix starts) on top of SLOTS: 21 Nov 2026 13:00 Thai (as the game: GuildLeague.EXTRA_ROUNDS). */
 export const EXTRA_ROUNDS = [1795240800];
 export const DURATION = 1200;
-export const START_UNIX = 1793274300;
+export const START_UNIX = 1795302000;
 export const GUILDS = [1, 2, 3, 4];
 /** A round may be posted this many seconds before its bell (device clocks drift). */
 export const END_MARGIN = 60;
@@ -150,7 +150,9 @@ async function getRounds(request, env, url, now) {
   if (to - from > MAX_RANGE) return failure(400, 'invalid_range', `At most ${MAX_RANGE} seconds a request.`);
   const busy = await limited(request, env, 'league_get', now);
   if (busy) return busy;
-  const rows = await env.DB.prepare('SELECT at, result FROM toon_league_rounds WHERE at >= ? AND at <= ? ORDER BY at LIMIT 200').bind(from, to).all();
+  // Rounds kept from before the world (re)opened (START_UNIX) belong to an old world and
+  // are never handed out again: the castle's chain starts fresh at firstRound().
+  const rows = await env.DB.prepare('SELECT at, result FROM toon_league_rounds WHERE at >= ? AND at <= ? ORDER BY at LIMIT 200').bind(Math.max(from, firstRound()), to).all();
   const rounds = (rows.results ?? []).map(rowOf).filter(Boolean);
   return json({rounds, now});
 }

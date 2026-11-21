@@ -5,8 +5,10 @@ class_name SharedStorage
 ## everyone but only a hero of that class takes it out (Game.withdraw_item, lock_reason);
 ## jewels, potions, gems and gear for any class go to anyone.
 ##
-## The file is {"version", "items", "migrated"}. The cloud bundle carries it as two
-## top-level fields, "storage" (the items) and "storageMigrated" (the record below).
+## The file is {"version", "epoch", "items", "migrated"}. The cloud bundle carries it as
+## three top-level fields, "storage" (the items), "storageMigrated" (the record below) and
+## "storageEpoch" (Game.WORLD_EPOCH: a storage from before the world reopened, without it,
+## is read as empty and removed by Game.reopen_world).
 ##
 ## Before this storage each hero had its own (profile.storage, at most LEGACY_SIZE).
 ## migrate_slots moves those items in, losing nothing: the shared list may then hold
@@ -103,6 +105,9 @@ static func read_file() -> bool:
 			DirAccess.copy_absolute(ProjectSettings.globalize_path(PATH), ProjectSettings.globalize_path(BAD_PATH))
 		push_warning("SharedStorage: %s failed the save check; kept as %s" % [PATH, BAD_PATH])
 		return false
+	# From before the world reopened (Game.WORLD_EPOCH): its items went with the old world.
+	if file_epoch_of(parsed) < Game.WORLD_EPOCH:
+		return true
 	_items = parsed.get("items", [])
 	for item in _items:
 		Game._repair_item(item)
@@ -111,6 +116,20 @@ static func read_file() -> bool:
 	_items_json = JSON.stringify(_items)
 	_migrated_json = JSON.stringify(_migrated)
 	return true
+
+
+## The world epoch the storage file was written in (0 when it has none or is unreadable).
+static func file_epoch() -> int:
+	if not FileAccess.file_exists(PATH):
+		return 0
+	var file := FileAccess.open(PATH, FileAccess.READ)
+	var parsed: Variant = JSON.parse_string(file.get_as_text()) if file != null else null
+	return file_epoch_of(parsed) if parsed is Dictionary else 0
+
+
+static func file_epoch_of(data: Dictionary) -> int:
+	var e: Variant = data.get("epoch")
+	return int(e) if e is int or e is float else 0
 
 
 ## The file holds a list of valid items (at most MAX_ITEMS) and a record of keys.
@@ -147,7 +166,7 @@ static func store() -> bool:
 	_ensure()
 	var items_text := JSON.stringify(_items)
 	var record_text := JSON.stringify(_migrated)
-	var text := "{\"version\":%d,\"items\":%s,\"migrated\":%s}" % [VERSION, items_text, record_text]
+	var text := "{\"version\":%d,\"epoch\":%d,\"items\":%s,\"migrated\":%s}" % [VERSION, Game.WORLD_EPOCH, items_text, record_text]
 	var file := FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
 	if file == null:
 		return false
@@ -163,16 +182,16 @@ static func store() -> bool:
 	return true
 
 
-## The two cloud bundle fields as JSON text: ,"storage":[...],"storageMigrated":{...}
+## The cloud bundle fields as JSON text: ,"storage":[...],"storageMigrated":{...},"storageEpoch":n
 static func bundle_fields_json() -> String:
 	_ensure()
-	return ",\"storage\":%s,\"storageMigrated\":%s" % [_items_json, _migrated_json]
+	return ",\"storage\":%s,\"storageMigrated\":%s,\"storageEpoch\":%d" % [_items_json, _migrated_json, Game.WORLD_EPOCH]
 
 
 ## The two cloud bundle fields (Game.build_cloud_bundle): the committed file's data.
 static func bundle_fields() -> Dictionary:
 	_ensure()
-	return {"storage": JSON.parse_string(_items_json), "storageMigrated": JSON.parse_string(_migrated_json)}
+	return {"storage": JSON.parse_string(_items_json), "storageMigrated": JSON.parse_string(_migrated_json), "storageEpoch": Game.WORLD_EPOCH}
 
 
 ## Adds a whole entry (stackables join their pile). False when there is no room.

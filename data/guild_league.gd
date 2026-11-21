@@ -203,8 +203,11 @@ static func guilds_at(_at: int) -> Array[int]:
 	return ids()
 
 
-## Whether a round starts at unix `at`.
+## Whether a round starts at unix `at` (never before the world (re)opened,
+## WorldPlayers.START_UNIX, as the server's league.mjs isSlot).
 static func is_round(at: int) -> bool:
+	if at < WorldPlayers.START_UNIX:
+		return false
 	var day := WorldEvents.day_of(float(at))
 	for k in day_slots(day).size():
 		if slot_start(day, k) == at:

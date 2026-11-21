@@ -32,6 +32,10 @@ var _backup: Button
 var _backup_screen: BackupScreen
 var _panel: PanelContainer
 var _building := false
+## The world reopened (Game.reopen_notice, shown once) and, until it opens, the countdown
+## (Game.reopen_countdown): a banner under the masthead.
+var reopen_label: Label
+var _countdown_left := 0.0
 
 
 func _ready() -> void:
@@ -60,6 +64,7 @@ func _ready() -> void:
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	safe.add_child(frame)
 	_build_masthead(frame)
+	_build_reopen(frame)
 	_build_panel(frame)
 	_selected = Game.last_slot()
 	_root.resized.connect(_layout)
@@ -108,6 +113,36 @@ func _build_masthead(frame: Control) -> void:
 	_counter.offset_right = 0
 	_counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(_counter)
+
+
+func _build_reopen(frame: Control) -> void:
+	reopen_label = UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	reopen_label.name = "ReopenNotice"
+	reopen_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	reopen_label.add_theme_color_override("font_color", TitleStage.GOLD)
+	_outline(reopen_label, 6)
+	reopen_label.anchor_left = 0.0
+	reopen_label.anchor_right = 1.0
+	reopen_label.offset_top = 40
+	reopen_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(reopen_label)
+	var notice := Game.reopen_notice()
+	if notice != "":
+		Game.mark_reopen_noticed()
+	reopen_label.set_meta("notice", notice)
+	_update_reopen()
+
+
+func _update_reopen() -> void:
+	var lines: PackedStringArray = []
+	var notice := String(reopen_label.get_meta("notice", ""))
+	if notice != "":
+		lines.append(notice)
+	var countdown := Game.reopen_countdown()
+	if countdown != "":
+		lines.append(countdown)
+	reopen_label.text = "\n".join(lines)
+	reopen_label.visible = not lines.is_empty()
 
 
 func _build_panel(frame: Control) -> void:
@@ -258,7 +293,11 @@ func _style_plates() -> void:
 		(_plates[slot] as PanelContainer).add_theme_stylebox_override("panel", sb)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_countdown_left -= delta
+	if _countdown_left <= 0.0 and reopen_label != null:
+		_countdown_left = 20.0
+		_update_reopen()
 	# Plates follow heads that grow in (arrival) and the layout; ten unprojections a frame.
 	if not _plates.is_empty():
 		_update_plates()

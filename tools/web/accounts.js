@@ -39,6 +39,13 @@
   const copy = value => JSON.parse(JSON.stringify(value));
   // Character slots per account (Game.SLOT_COUNT in the game, MAX_SLOTS on the server).
   const SLOT_COUNT = 10;
+  // The world reopened (Sunday 22 Nov 2026, 06:00 Thai time: Game.WORLD_EPOCH, the
+  // server's WORLD_EPOCH): every character and shared storage from before it was deleted.
+  // A character without this "world_epoch" (or an older one) and a storage without this
+  // "storageEpoch" are dropped wherever a bundle is read (bundleOf), so neither an old
+  // online save nor an old device save is ever installed, offered or uploaded again.
+  const WORLD_EPOCH = 1795302000;
+  const currentWorld = profile => Number.isFinite(Number(profile.world_epoch)) && Number(profile.world_epoch) >= WORLD_EPOCH;
   const blank = () => ({slots:{}, selectedSlot:1});
   const identity = user => user ? 'account:' + user.id : 'guest';
   const equal = (a,b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
@@ -55,15 +62,19 @@
       if (Object.prototype.hasOwnProperty.call(value.slots, String(n))) {
         const profile = value.slots[String(n)];
         if (!profile || typeof profile !== 'object' || Array.isArray(profile)) throw new Error('ข้อมูลตัวละครไม่ถูกต้อง');
-        bundle.slots[String(n)] = copy(profile);
+        if (currentWorld(profile)) bundle.slots[String(n)] = copy(profile);
       }
     }
     if (Number.isInteger(value.selectedSlot) && value.selectedSlot >= 1 && value.selectedSlot <= SLOT_COUNT) bundle.selectedSlot = value.selectedSlot;
     if (Object.prototype.hasOwnProperty.call(value,'storage')) {
       if (!Array.isArray(value.storage) || value.storage.some(item => !item || typeof item !== 'object' || Array.isArray(item))) throw new Error('ข้อมูลคลังไม่ถูกต้อง');
-      bundle.storage = copy(value.storage);
       const record = value.storageMigrated;
-      bundle.storageMigrated = record && typeof record === 'object' && !Array.isArray(record) ? copy(record) : {};
+      const current = Number(value.storageEpoch) >= WORLD_EPOCH;
+      // A storage from before the reopening is emptied (kept as a field so the empty one
+      // replaces it on the device and online).
+      bundle.storage = current ? copy(value.storage) : [];
+      bundle.storageMigrated = current && record && typeof record === 'object' && !Array.isArray(record) ? copy(record) : {};
+      bundle.storageEpoch = WORLD_EPOCH;
     }
     return bundle;
   }
@@ -127,7 +138,7 @@
     if (shared && shared.contents) {
       try {
         const file = JSON.parse(decoder.decode(shared.contents));
-        if (file && Array.isArray(file.items)) { bundle.storage = file.items; bundle.storageMigrated = file.migrated && typeof file.migrated === 'object' && !Array.isArray(file.migrated) ? file.migrated : {}; }
+        if (file && Array.isArray(file.items)) { bundle.storage = file.items; bundle.storageMigrated = file.migrated && typeof file.migrated === 'object' && !Array.isArray(file.migrated) ? file.migrated : {}; bundle.storageEpoch = Number(file.epoch) || 0; }
       } catch (_) { /* The game keeps an unreadable storage file aside itself. */ }
     }
     return bundleOf(bundle);
@@ -163,7 +174,7 @@
     store.delete(FILE_ROOT + '/toon_tale_save.json');
     // The shared storage goes with the characters it belongs to (or away with them).
     const storagePath = FILE_ROOT + '/' + STORAGE_FILE;
-    if (Array.isArray(bundle.storage)) store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({version:1,items:bundle.storage,migrated:bundle.storageMigrated || {}}))},storagePath);
+    if (Array.isArray(bundle.storage)) store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({version:1,epoch:WORLD_EPOCH,items:bundle.storage,migrated:bundle.storageMigrated || {}}))},storagePath);
     else store.delete(storagePath);
     store.delete(storagePath + '.tmp');
     store.put({timestamp:now,mode:33188,contents:encoder.encode(JSON.stringify({slot:bundle.selectedSlot}))},FILE_ROOT + '/toon_tale_meta.json');
@@ -276,6 +287,7 @@
     if (error.code === 'save_too_large') return 'เซฟมีขนาดเกินที่ระบบออนไลน์รองรับ เซฟในเครื่องยังอยู่' + serverDetail(error);
     if (error.code === 'invalid_save' || error.code === 'invalid_revision') return 'เซิร์ฟเวอร์ไม่รับเซฟนี้ เซฟในเครื่องยังอยู่ กรุณาแจ้งเจ้าของเกมพร้อมข้อความนี้' + serverDetail(error);
     if (error.code === 'save_conflict') return 'มีเซฟใหม่จากอีกเครื่อง เซฟในเครื่องยังอยู่' + serverDetail(error);
+    if (error.code === 'old_world') return 'โลกเปิดใหม่แล้ว ตัวละครเดิมทั้งหมดถูกรีเซ็ต กรุณาโหลดหน้าเกมใหม่เพื่ออัปเดต' + serverDetail(error);
     if (error.code === 'client_outdated') return 'เซฟออนไลน์มีคลังรวมของทุกตัวละคร ซึ่งเซฟชุดนี้ไม่มี (มาจากเกมรุ่นเก่า) เลือกเซฟออนไลน์ หรือโหลดหน้าเกมใหม่เพื่ออัปเดต' + serverDetail(error);
     if (error.status === 401) return 'ไอดีหรือรหัสผ่านไม่ถูกต้อง หรือหมดเวลาล็อกอินแล้ว';
     if (error.status === 409) return 'ไอดีนี้ถูกใช้แล้ว หรือมีเซฟใหม่จากอีกเครื่อง' + serverDetail(error);

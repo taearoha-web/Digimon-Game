@@ -8,9 +8,9 @@ extends RefCounted
 ## real player earns in the real minutes it played: the auto-hunt rates
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
 ## efficiency (deaths, trips to town, slower hands than the probe's). A roster entry may
-## start with a head start (vet, none at present), newcomers log in for the first
-## time some days after the opening (join; besides the ROSTER, 2-3 new players are made
-## for every Thai day from the date alone: size, ensure_until), stall keepers stay in the
+## start with a head start (vet, none at present), a few log in for the first time some
+## days after the opening (join; the daily newcomers made from the date alone are off
+## since the reopening, NEWCOMER_MAX = 0: the world is the ROSTER's hundred players), stall keepers stay in the
 ## village and everyone else plays hardcore, taking turns to rest. So levels,
 ## stars, whereabouts and who is online are the same for everyone at a given moment.
 ## A player with a play schedule spends its time online levelling: it hunts in the field
@@ -22,11 +22,15 @@ extends RefCounted
 ## players who sell the good things they found (StallStock).
 ## Everyone plays the roster's class from Lv.1 (no Vagabond start any more).
 
-## The world (re)opened here (unix seconds; 29 Oct 2026, 18:45 Thai time, the reopening
-## after the grey-village fix): every world player starts again at Lv.1 in its class
-## with no guild. Moving this resets them all (the party EXP kept on a device belongs to
-## one opening and is dropped with it).
-const START_UNIX := 1793274300
+## The world (re)opened here (unix seconds; Sunday 22 Nov 2026, 06:00 Thai time, the
+## owner's fresh start: every player's characters were deleted with it, Game.WORLD_EPOCH):
+## every world player starts again at Lv.1 in its class with no guild, and the guild
+## league, the maze war, the world bosses, world gear, stalls and chat all begin again
+## from here. Moving this resets them all (the party EXP kept on a device belongs to one
+## opening and is dropped with it). Before it the world is closed: nobody is online.
+## Mirrored in hosting/worker/league.mjs, dungeon.mjs and hosting/accounts/server/accounts.js
+## (WORLD_EPOCH); their tests read this line.
+const START_UNIX := 1795302000
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400
@@ -154,6 +158,7 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "Lily_New", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "early", "join": 11},
 	{"name": "Rookie_Ace", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "night_owl", "join": 18},
 	{"name": "TuneUp", "class": &"bard", "gender": 0, "style": "hardcore", "voice": "regular", "join": 30},
+	{"name": "DarkMoon_TH", "class": &"darklord", "gender": 1, "style": "hardcore", "voice": "night_owl"},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
@@ -237,10 +242,13 @@ static func entry(i: int) -> Dictionary:
 ## date alone (name, class, face, guild), so every device meets the same people at the
 ## same moment: they start at Lv.1 in their class on their day and play hardcore like
 ## everyone; on reaching Lv.100 they join the guild they picked (pick_guild). The classes go
-## round in shuffled rounds of every class. After NEWCOMER_MAX of them (about four months)
-## nobody new comes, so the world stays light enough for a phone.
+## round in shuffled rounds of every class. After NEWCOMER_MAX of them nobody new comes,
+## so the world stays light enough for a phone. NEWCOMER_MAX is 0 since the reopening of
+## 22 Nov 2026: nobody is made, the world holds exactly the ROSTER.
 const NEWCOMERS := Vector2i(2, 3)
-const NEWCOMER_MAX := 300
+## 0 since the reopening of 22 Nov 2026: the world holds exactly the ROSTER's hundred
+## players (the owner's order); raise it to bring daily newcomers back.
+const NEWCOMER_MAX := 0
 ## How a newcomer talks in the chats (a play style's voice: ChatThreads.voice, ChatBrain).
 const NEWCOMER_VOICES: Array[String] = ["hardcore", "regular", "student", "night_owl", "casual", "daytime", "early"]
 const _EN_HEAD: Array[String] = ["Storm", "Kira", "Neo", "Blaze", "Frost", "Pixel", "Nova", "Yuki", "Ace", "Rex",

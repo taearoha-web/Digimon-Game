@@ -325,7 +325,7 @@ func _damaged_slot() -> void:
 
 
 func _backup_lists_damaged() -> void:
-	_write_raw(8, JSON.stringify({"class": "darklord", "name": "สำรอง", "level": 100, "flags": {"bad": "x".repeat(200)}}))
+	_write_raw(8, JSON.stringify({"world_epoch": Game.WORLD_EPOCH, "class": "darklord", "name": "สำรอง", "level": 100, "flags": {"bad": "x".repeat(200)}}))
 	var dir := SaveBackup.backup_now("manual")
 	check(dir != "", "a backup is made")
 	var listed := false
@@ -362,10 +362,10 @@ func _non_finite() -> void:
 func _recover_hidden() -> void:
 	for i in range(1, Game.SLOT_COUNT + 1):
 		Game.delete_save(i)
-	var good: Dictionary = JSON.parse_string(JSON.stringify(Game.salvage_profile({"class": "summoner", "name": "ราชาวานร", "level": 100})))
+	var good: Dictionary = JSON.parse_string(JSON.stringify(Game.salvage_profile({"world_epoch": Game.WORLD_EPOCH, "class": "summoner", "name": "ราชาวานร", "level": 100})))
 	good["flags"] = {"tomb_open": "x".repeat(Game.FLAG_TEXT_MAX + 10), "tomb_runs": 1}
 	_write_raw(2, JSON.stringify(good))
-	_write_raw(1, JSON.stringify({"class": "darklord", "name": "ดากหลอด", "level": 100, "flags": {"ok": 1}}))
+	_write_raw(1, JSON.stringify({"world_epoch": Game.WORLD_EPOCH, "class": "darklord", "name": "ดากหลอด", "level": 100, "flags": {"ok": 1}}))
 	var dir := SaveBackup.backup_now("daily")
 	check(dir != "", "a daily backup holds the hidden hero")
 	# The old build left it out of the cloud bundle; the next page start deleted the file

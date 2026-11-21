@@ -294,10 +294,12 @@ func _live_sim() -> void:
 
 
 func _drive() -> void:
-	var t := float(MazeWar.OPEN_UNIX) + 6.0 * 86400.0
+	# The maze is open from the world's reopening (OPEN_UNIX = WorldPlayers.START_UNIX), when
+	# everyone is Lv.1: the keen players are those at Lv.100 a few days before t.
+	var t := float(MazeWar.OPEN_UNIX) + 12.0 * 86400.0
 	var keen: Array[int] = []
 	for i in MazeWar.candidates():
-		if MazeWar.ready_at(i, t) < float(MazeWar.OPEN_UNIX):
+		if MazeWar.ready_at(i, t) < t - 3.0 * 86400.0:
 			keen.append(i)
 		if keen.size() >= 8:
 			break
@@ -317,7 +319,7 @@ func _drive() -> void:
 		gems_off += int(WorldGear.gem_summary(i, WorldGear.state_at_work(i, WorldPlayers.work_at(i, t))).count)
 	MazeWar.drive_on = true
 	WorldGear.clear()
-	check(keen.size() >= 4, "keen world players at Lv.100 when the maze opened (%d)" % keen.size())
+	check(keen.size() >= 4, "keen world players at Lv.100 days before (%d)" % keen.size())
 	# Keen forgers (WorldGear.ZEAL) may already be at the top either way: never lower.
 	check(plus_on >= plus_off and plus_on > 0, "the maze race makes them forge at least as hard: their + adds up as high (%d >= %d)" % [plus_on, plus_off])
 	check(gems_on >= gems_off, "and they keep and socket at least as many gems (%d >= %d)" % [gems_on, gems_off])
