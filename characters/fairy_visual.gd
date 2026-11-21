@@ -16,11 +16,9 @@ var hero_visual: HeroVisual
 func setup_fairy(hover := 0.0) -> void:
 	hero_visual = HeroVisual.new()
 	add_child(hero_visual)
-	var look := FaceKit.default_look()
-	look["gender"] = 1
-	look["hair_color"] = 2
-	# Pink hair, violet eyes, rosy skin and a blossom clip (ChibiLook palette values).
-	look.merge({"hair_tint": 6, "eye_tint": 5, "skin_tone": 2, "acc": 2}, true)
+	# Her own design (an NPC, not a player look): pink hair, violet eyes, rosy skin and
+	# a blossom clip (ChibiLook palette values).
+	var look := {"gender": 1, ChibiLook.PAINT_KEY: {"hair_tint": 6, "eye_tint": 5, "skin_tone": 2, "acc": 2}}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	hero_visual.setup(&"summoner", "", false, {"wings": ItemData.wings(rng, "summoner", 0)}, look)

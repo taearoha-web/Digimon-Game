@@ -1211,7 +1211,7 @@ static func grade_of(_level: int, stars: int, divine: bool) -> int:
 
 # --- Looks and fighters ---------------------------------------------------------------
 
-## Player i's face and hair, always the same.
+## Player i's look: its body and one of the body's ready-made characters, always the same.
 static func look(i: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("look|%s" % entry(i).name)
@@ -1219,9 +1219,8 @@ static func look(i: int) -> Dictionary:
 	var gender := int(entry(i).gender)
 	if int(l.gender) != gender:
 		l["gender"] = gender
-		l["hair"] = rng.randi() % FaceKit.option_count("hair", gender)
-		ChibiLook.apply_style(l, int(l["hair"]) % ChibiLook.count("style"))
-	return l
+		ChibiLook.apply_style(l, (rng.randi() % FaceKit.option_count("hair", gender)) % ChibiLook.count("style"))
+	return FaceKit.hero_look(l)
 
 
 ## A party-member dictionary for the field (Companion reads class, name, level, stars;

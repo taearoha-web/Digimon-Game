@@ -219,7 +219,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 	world_party.clear()
 	_party_members.clear()
 	if not look.is_empty():
-		profile["look"] = FaceKit.repair(look)
+		profile["look"] = FaceKit.hero_look(look)
 	has_profile = true
 	var starter := ItemData.generate(1, class_id, rng, 0, "weapon")
 	starter["name"] = "%s ของมือใหม่" % ItemData.NAMES[starter.base][0]
@@ -1480,8 +1480,10 @@ func _repair(data: Dictionary) -> Dictionary:
 			data[GuildHallData.NOTICE_KEY] = String(data[GuildHallData.NOTICE_KEY]).left(GuildHallData.NOTICE_MAX)
 		else:
 			data.erase(GuildHallData.NOTICE_KEY)
+	# Only the body is kept: an old save's hair / eye / skin colours and accessory are
+	# dropped (heroes wear their body's own look).
 	if data.get("look") is Dictionary:
-		data["look"] = FaceKit.repair(data["look"])
+		data["look"] = FaceKit.hero_look(data["look"])
 	for key in ["attrs", "skills", "equip", "quests", "flags", "boss_kills", "boss_pity", "pvp"]:
 		if not data.get(key) is Dictionary:
 			data[key] = {}
@@ -1750,18 +1752,9 @@ func party_gender(member: Dictionary) -> int:
 	return int(member.get("gender", 0))
 
 
-## Colours a companion sheet may carry: hair, eye and skin colour from the chibi palette.
-const PARTY_LOOK_KEYS := ["hair_tint", "eye_tint", "skin_tone"]
-
-
-## What a companion sheet's chibi wears: the body and its colours.
+## What a companion sheet's chibi wears: its body, in the body's own look (no colours).
 func party_look(member: Dictionary) -> Dictionary:
-	var look := {"gender": party_gender(member)}
-	var rolled: Variant = member.get("look", {})
-	if rolled is Dictionary:
-		for key in PARTY_LOOK_KEYS:
-			look[key] = clampi(int(rolled.get(key, 0)), 0, ChibiLook.count(key) - 1)
-	return look
+	return {"gender": party_gender(member)}
 
 
 ## The hero as others see it (PlayerLook: class, job step, face, worn pieces with their

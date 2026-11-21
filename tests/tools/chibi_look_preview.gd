@@ -1,7 +1,7 @@
 extends Node3D
 ## Shots of the chibi hero looks (ChibiLook), one PNG per look:
 ##   godot --rendering-driver opengl3 --path . res://tests/tools/chibi_look_preview.tscn -- OUT_DIR SET [VIEW] [CLASS]
-## SET:  styles (3 styles x 2 bodies) | hair_tint | skin_tone | eye_tint | acc (every value, both bodies)
+## SET:  styles (3 styles x 2 bodies; the only set: the parts are not customised)
 ## VIEW: full | face | back (default full); CLASS: wear Lv.100 star gear of that class.
 ## Writes OUT_DIR/<set>_<view>_<i>.png and OUT_DIR/<set>_<view>.txt (one caption per line).
 func _ready() -> void:
@@ -18,16 +18,10 @@ func _ready() -> void:
 	var cls := StringName(args[3]) if args.size() > 3 else ClassData.LEGACY
 	var looks: Array = []
 	var captions: PackedStringArray = []
-	if set_name == "styles":
-		for gender in 2:
-			for s in 3:
-				var look := FaceKit.default_look(); look["gender"] = gender; ChibiLook.apply_style(look, s)
-				looks.append(look); captions.append(ChibiLook.style_name(gender, s))
-	else:
-		for gender in 2:
-			for v in ChibiLook.count(set_name):
-				var look := FaceKit.default_look(); look["gender"] = gender; look[set_name] = v
-				looks.append(look); captions.append(ChibiLook.value_name(set_name, v))
+	for gender in 2:
+		for s in ChibiLook.count("style"):
+			var look := FaceKit.hero_look({"gender": gender, "style": s})
+			looks.append(look); captions.append(ChibiLook.style_name(gender, s))
 	var equip := {}
 	if args.size() > 3:
 		for slot in ["weapon", "armor", "helm", "boots", "amulet", "ring"]:

@@ -31,7 +31,7 @@ static func of_profile(p: Dictionary) -> Dictionary:
 	return {
 		"class": String(p.get("class", ClassData.DEFAULT)),
 		"adv": int(p.get("adv", 0)),
-		"face": (p.get("look", {}) as Dictionary).duplicate() if p.get("look") is Dictionary else {},
+		"face": FaceKit.hero_look(p.look) if p.get("look") is Dictionary else {},
 		"equip": wire_equip(p.get("equip", {}) if p.get("equip") is Dictionary else {}),
 		"wing_mode": clampi(int((flags as Dictionary).get("wing_mode", 0)) if flags is Dictionary else 0, HeroVisual.WING_STAND, HeroVisual.WING_FOLD),
 		"level": int(p.get("level", 1)),
@@ -66,7 +66,7 @@ static func of_member(m: Dictionary, index: int) -> Dictionary:
 	return {
 		"class": String(m.get("class", ClassData.DEFAULT)),
 		"adv": JobData.adv_for(level, stars),
-		"face": WorldPlayers.look(index) if index >= 0 and index < WorldPlayers.size() else {"gender": int(m.get("gender", 0))},
+		"face": WorldPlayers.look(index) if index >= 0 and index < WorldPlayers.size() else FaceKit.hero_look({"gender": int(m.get("gender", 0))}),
 		"equip": wire_equip(WorldPlayers.equip(m)),
 		"wing_mode": HeroVisual.WING_STAND,
 		"level": level,
@@ -106,21 +106,14 @@ static func redress(visual: HeroVisual, look: Dictionary) -> void:
 	visual.set_equipment(look.get("equip", {}))
 
 
-## A look that came from somewhere else, made safe: a known class, the job step, the face
-## through FaceKit.repair, and only the pieces that pass the save game's own item check
+## A look that came from somewhere else, made safe: a known class, the job step, the body
+## only (FaceKit.hero_look: an old client's hair / eye / skin colours are dropped), and only the pieces that pass the save game's own item check
 ## (Game._valid_item) in the slot they claim. Anything else becomes the default.
 static func clean(raw: Variant) -> Dictionary:
 	var src: Dictionary = raw if raw is Dictionary else {}
 	var cls := StringName(str(src.get("class", ClassData.DEFAULT)))
 	if not ClassData.CLASSES.has(cls):
 		cls = ClassData.DEFAULT
-	var face_in: Dictionary = {}
-	var face_raw: Variant = src.get("face", {})
-	if face_raw is Dictionary:
-		for key in face_raw:
-			var v: Variant = face_raw[key]
-			if (v is int or v is float) and is_finite(float(v)):
-				face_in[str(key)] = int(v)
 	var equip := {}
 	var equip_raw: Variant = src.get("equip", {})
 	if equip_raw is Dictionary:
@@ -131,7 +124,7 @@ static func clean(raw: Variant) -> Dictionary:
 	return {
 		"class": String(cls),
 		"adv": clampi(_int(src.get("adv", 0)), 0, JobData.MAX_ADV),
-		"face": FaceKit.repair(face_in),
+		"face": FaceKit.hero_look(src.get("face", {})),
 		"equip": equip,
 		"wing_mode": clampi(_int(src.get("wing_mode", 0)), HeroVisual.WING_STAND, HeroVisual.WING_FOLD),
 		"level": clampi(_int(src.get("level", 1)), 1, Game.MAX_LEVEL),

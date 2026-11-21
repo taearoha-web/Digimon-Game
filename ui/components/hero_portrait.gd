@@ -90,7 +90,7 @@ func refresh_profile(profile: Dictionary) -> void:
 	_wanted_key = key
 	_generation += 1
 	_cancel_capture()
-	var look := FaceKit.repair(profile.get("look", {}))
+	var look := FaceKit.hero_look(profile.get("look", {}))
 	var equipment: Dictionary = profile.get("equip", {}).duplicate(true)
 	# The bust shows the outfit and head gear; wings and weapons stay out of frame.
 	equipment.erase("wings")
@@ -109,7 +109,7 @@ func refresh_profile(profile: Dictionary) -> void:
 
 
 static func appearance_key(profile: Dictionary) -> String:
-	var look := FaceKit.repair(profile.get("look", {}))
+	var look := FaceKit.hero_look(profile.get("look", {}))
 	var looks: PackedStringArray = []
 	for part in look:
 		looks.append("%s=%d" % [part, int(look[part])])
