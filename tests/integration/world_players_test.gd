@@ -100,7 +100,7 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-		check(WorldPlayers.look(i).keys() == ["gender", "style"], "%s: a ready-made character, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
+		check(WorldPlayers.look(i).keys() == ["gender", "body", "style"] and int(WorldPlayers.look(i).body) == 0, "%s: the original body in a ready-made colouring, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
 	# Everyone picks a guild of its own (WorldPlayers.pick_guild): not even, but none is left small.
 	for i in WorldPlayers.size():
 		check(WorldPlayers.GUILDS.has(int(WorldPlayers.entry(i).guild)), "%s picked one of the four guilds" % WorldPlayers.entry(i).name)

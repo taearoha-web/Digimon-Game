@@ -678,15 +678,17 @@ func _look() -> void:
 	var chosen := FaceKit.default_look()
 	chosen["gender"] = 1
 	chosen["style"] = 2
+	chosen["body"] = 3
 	chosen["hair"] = 2
 	chosen["skin"] = 5
 	chosen["hair_tint"] = 4
 	Game.new_profile(ClassData.DEFAULT, "ทดสอบ", chosen)
-	check(Game.profile.look == {"gender": 1, "style": 2}, "only the body and character are stored in the profile (%s)" % Game.profile.look)
+	check(Game.profile.look == {"gender": 1, "body": 3}, "only the gender and character body are stored in the profile (%s)" % Game.profile.look)
 	var back := Game.export_code()
-	check(Game.import_code(back) and int(Game.profile.look.style) == 2 and int(Game.profile.look.gender) == 1, "the look survives a save code round trip")
+	check(Game.import_code(back) and int(Game.profile.look.body) == 3 and int(Game.profile.look.gender) == 1, "the look survives a save code round trip")
 	await _wait_for_import_reload()
-	check(main.zone != null and int(main.zone.hero.visual.look.get("style", -1)) == 2 and not main.zone.hero.visual.look.has("hair"), "import reload rebuilds the restored character look")
+	check(main.zone != null and int(main.zone.hero.visual.look.get("body", -1)) == 3 and not main.zone.hero.visual.look.has("hair"), "import reload rebuilds the restored character look")
+	check(main.zone.hero.visual.model.scene_file_path == ChibiBodies.BODIES[1][3].path, "the hero wears its character body in game")
 	main.title_screen = null
 	main.hud.visible = true
 	main._traveling = false

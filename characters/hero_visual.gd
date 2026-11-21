@@ -189,10 +189,17 @@ func has_pumpkin() -> bool:
 
 func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 	var gender := clampi(int(look.get("gender", 0)), 0, 1)
-	model = (load(CHIBI_MODELS[gender]) as PackedScene).instantiate() as Node3D
+	# The body picked on the create screen (ChibiBodies); its clips are its gender's original's.
+	model = (load(ChibiBodies.path(look)) as PackedScene).instantiate() as Node3D
 	add_child(model)
 	_skeleton = model.find_child("Skeleton3D", true, false) as Skeleton3D
 	anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if anim == null:
+		anim = AnimationPlayer.new()
+		anim.name = "AnimationPlayer"
+		model.add_child(anim)
+		anim.add_animation_library("", ChibiBodies.clips(gender))
+	_head_scale = ChibiBodies.head_scale(look, _skeleton)
 	MartialClips.prepare(anim)
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
@@ -304,7 +311,7 @@ func _refresh_chibi() -> void:
 		var back := _chibi_attach("Chest", "Wings")
 		var chest := _skeleton.find_bone("Chest")
 		if chest >= 0:
-			back.transform = _skeleton.get_bone_global_rest(chest).affine_inverse()
+			back.transform = _model_frame(chest)
 		back.add_child(_wing_model(wings))
 		_glow_piece([back.get_parent()], int(wings.get("plus", 0)), WING_GLOW, 0.5)
 		_wing_flair(back.get_parent(), int(wings.get("plus", 0)))
@@ -428,9 +435,27 @@ func _chibi_attach(bone: String, node_name: String) -> Node3D:
 	var frame := Node3D.new()
 	var idx := _skeleton.find_bone(bone)
 	if idx >= 0:
-		frame.basis = _skeleton.get_bone_global_rest(idx).basis.orthonormalized().inverse()
+		frame.basis = _skeleton.get_bone_global_rest(idx).basis.orthonormalized().inverse().scaled(Vector3.ONE * _part_scale(bone))
 	attach.add_child(frame)
 	return frame
+
+
+## The head of another body (ChibiBodies) is smaller or larger than the original's.
+var _head_scale := 1.0
+
+
+func _part_scale(bone: String) -> float:
+	return _head_scale if chibi and bone == "Head" else 1.0
+
+
+## Undoes a bone's rest for art authored in the original chibi's model space: the
+## original's rest, so on another body the art follows the bone (and the head's size).
+func _model_frame(idx: int) -> Transform3D:
+	var bone := _skeleton.get_bone_name(idx)
+	if not chibi or ChibiBodies.index(look) == 0:
+		return _skeleton.get_bone_global_rest(idx).affine_inverse()
+	var rest := ChibiBodies.base_rest(int(look.get("gender", 0)), bone)
+	return Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * _part_scale(bone)), Vector3.ZERO) * rest.affine_inverse()
 
 
 func _star_piece(part: String, bone: String, item: Dictionary, side := 1.0) -> Node3D:
@@ -569,7 +594,7 @@ func _wear_costume() -> void:
 		var frame := _chibi_attach(bone, "ChibiCostume" if part == "head" else "ChibiCostume_" + part)
 		var idx := _skeleton.find_bone(bone)
 		if idx >= 0:
-			frame.transform = _skeleton.get_bone_global_rest(idx).affine_inverse()
+			frame.transform = _model_frame(idx)
 		frame.add_child(piece)
 	if decor_light:
 		return

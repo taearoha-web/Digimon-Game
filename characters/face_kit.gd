@@ -75,14 +75,17 @@ static func default_look() -> Dictionary:
 	return {"gender": 0, "skin": 1, "hair": 0, "hair_color": 1, "eyes": 0, "eye_color": 0, "nose": 0, "mouth": 0, "outfit": 0, "style": 0}
 
 
-## A hero's look: only its body (0 boy, 1 girl) and ready-made character (ChibiLook
-## style). Players do not customise hair, eyes, skin or accessories, so every hero,
-## world player and remote player wears its style's own designed look; anything else an
-## old save or an old client sends (hair_tint, eye_tint, skin_tone, acc, hair,
-## hair_color, ...) is dropped here.
+## A hero's look: only its gender (0 boy, 1 girl) and character body (ChibiBodies: 0 the
+## original chibi, 1-3 the other characters of that gender). Players do not customise
+## hair, eyes, skin or accessories, so every hero and remote player wears its body's own
+## designed look; anything else an old save or an old client sends (style, hair_tint,
+## eye_tint, skin_tone, acc, hair, hair_color, ...) is dropped here, and a body this game
+## does not know (a newer client's, a bad value) is the original.
 static func hero_look(look: Variant) -> Dictionary:
 	var src: Dictionary = look if look is Dictionary else {}
-	return {"gender": clampi(_whole(src.get("gender", 0)), 0, 1), "style": clampi(_whole(src.get("style", 0)), 0, ChibiLook.count("style") - 1)}
+	var gender := clampi(_whole(src.get("gender", 0)), 0, 1)
+	var body := _whole(src.get("body", 0))
+	return {"gender": gender, "body": body if body >= 0 and body < ChibiBodies.count(gender) else 0}
 
 
 static func _whole(v: Variant) -> int:
