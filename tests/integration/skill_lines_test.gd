@@ -79,6 +79,7 @@ func _ready() -> void:
 		_check_hero(cls)
 		_check_ai(cls)
 	_check_warrior_migration()
+	_check_priest_migration()
 	_check_unconverted()
 	await _check_screens()
 	print("skill_lines_test: %d checks, %d failures" % [checks, failures])
@@ -203,6 +204,26 @@ func _check_warrior_migration() -> void:
 	# The whole save check passes too.
 	check(Game._valid_profile(data.duplicate(true)), "a moved old save passes the save check")
 
+
+## The priest: its heals stay the first stage of their line (AI_ALL_HEALS keeps them by
+## line id), merged passives carry their best rank, the dropped heals refund.
+func _check_priest_migration() -> void:
+	Game.new_profile(&"priest", "Old Priest", FaceKit.default_look())
+	var data: Dictionary = Game.profile.duplicate(true)
+	data.level = 90
+	data.adv = JobData.adv_for_level(90)
+	data.skill_points = 0
+	data.skills = {"healing": 2, "hand_of_god": 3, "grand_healing": 4, "faith": 3, "divine_grace": 2, "sanctity": 5, "holy_bolt": 1}
+	data.loadout = ["grand_healing", "hand_of_god", "holy_bolt", "virtual_life", "", "", "", ""]
+	Game._migrate_skills(data)
+	# healing max(2, 3), refund 1; grand_healing 3; divine_grace max(3, 2, 5), refund 1 + 2.
+	check(int(data.skill_points) == 7, "old priest save: 7 points refunded (got %d)" % int(data.skill_points))
+	check(data.skills == {"healing": 3, "divine_grace": 5, "holy_bolt": 1}, "old priest save: ranks moved to the lines %s" % data.skills)
+	check(String(data.loadout[1]) == "healing" and String(data.loadout[2]) == "holy_bolt", "old priest save: Hand of God became the heal line in place %s" % [data.loadout])
+	check(Game._valid_profile(data.duplicate(true)), "a moved old priest save passes the save check")
+	var kit := ClassData.ai_buff_kit(&"priest", 100, "Somchai")
+	check(kit.has("healing") and kit.has("holy_reflection"), "an AI Priest at Lv.100 keeps Prayer and Miracle (heals that buff) by line id %s" % [kit])
+	check(ClassData.current_stage(&"priest", "healing", 100, 5).id == "prayer", "the heal line ends in Prayer")
 
 func _check_unconverted() -> void:
 	for cls in ClassData.IDS:
