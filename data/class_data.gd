@@ -271,7 +271,7 @@ const CLASSES := {
 		"sub": "vit",
 		"base": {"str": 11, "int": 3, "dex": 6, "vit": 12},
 		"gain": {"str": 2, "int": 0, "dex": 1, "vit": 3},
-		"hp_mult": 1.25,
+		"hp_mult": 1.4,
 		"mp_mult": 0.75,
 		"attack": {
 			"range": 2.3, "interval": 0.62, "mult": 0.62, "hit_delay": 0.18, "projectile": false, "vfx": &"impact",

@@ -1147,7 +1147,7 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	else:
 		item = WeaponKit.build(look)
 	var attach := BoneAttachment3D.new()
-	attach.name = "Held_" + look
+	attach.name = "Held_" + look + ("_l" if offhand and kind == HandWraps.KIND else "")
 	attach.bone_name = bone
 	attach.set_meta(&"held", true)
 	attach.visible = not held_stowed

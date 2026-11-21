@@ -15,7 +15,7 @@ extends RefCounted
 ## at Lv.1-35 / Lv.36-75 / Lv.76-100 (and the star skills). Measured with
 ## tests/tools/class_dps_probe.tscn at Lv.26 (snow), Lv.70 (storm) and Lv.100 ★200
 ## (lotus_sanctum): a bruiser a little below the warrior and the assassin.
-const TUNE := [[1.0, 1.4], [1.15, 0.9], [1.1, 1.1]]
+const TUNE := [[1.0, 1.15], [1.05, 0.82], [1.55, 1.15]]
 
 ## The 8 lines in bar order, each its stage ids, first stage first.
 const LINES := [

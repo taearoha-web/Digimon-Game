@@ -109,7 +109,7 @@ func _bodies() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	var weapons := [ItemData.generate(5, &"muaythai", rng, 1, "weapon"), ItemData.generate(95, &"muaythai", rng, 3, "weapon")]
-	var star := StarGearData.catalogue().filter(func(i): return String(i.class) == "muaythai" and String(i.slot) == "weapon" and int(i.star_tier) == 200)[0]
+	var star: Dictionary = StarGearData.catalogue().filter(func(i): return String(i.class) == "muaythai" and String(i.slot) == "weapon" and int(i.star_tier) == 200)[0]
 	weapons.append(star)
 	weapons.append(DivineGearData.item(&"muaythai", "weapon", rng))
 	var camera := Camera3D.new()
