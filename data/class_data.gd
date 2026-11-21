@@ -504,7 +504,9 @@ const TUNE := {
 	&"defender": [[1.395, 1.395], [1.647, 1.796], [1.8, 1.61]],
 	&"assassin": [[0.922, 0.922], [0.834, 0.834], [0.809, 0.809]],
 	&"darklord": [[0.95, 0.95], [0.85, 0.85], [0.95, 0.95]],
-	&"bard": [[1.05, 0.66], [0.55, 1.05], [0.92, 0.56]],
+	# ×1.7 (Nov 2026): the bard dealt about half the median at Lv.100 ★200; raised toward 0.75 of it
+	# (a support class stays below the damage dealers).
+	&"bard": [[1.785, 1.122], [0.935, 1.785], [1.564, 0.952]],
 }
 const AREA_SHAPES := ["burst", "blast", "fan", "chain"]
 
