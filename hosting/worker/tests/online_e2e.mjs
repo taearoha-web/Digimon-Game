@@ -13,7 +13,7 @@ import {mkdtempSync, writeFileSync, readFileSync, mkdirSync, rmSync} from 'node:
 import {tmpdir} from 'node:os';
 import {join, dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {firstRound} from '../league.mjs';
+import {firstRound, DURATION, END_MARGIN} from '../league.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const workerDir = resolve(here, '..');
@@ -124,7 +124,11 @@ try {
 
   assert.deepEqual(await (await fetch(`${BASE}/api/online/status`)).json(), {online: 0});
   // Guild league official results on the real D1 (migration 0001_league_rounds): first writer wins.
-  {
+  // Before the world's first round is over (a reopening scheduled ahead, WorldPlayers.START_UNIX)
+  // no round can be posted yet; the league's unit tests cover the logic either way.
+  if (Date.now() / 1000 < firstRound() + DURATION + END_MARGIN) {
+    console.log('league e2e skipped: the first round after the reopening is not over yet');
+  } else {
     const at = firstRound();
     const post = result => fetch(`${BASE}/api/league/round`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({at, result})});
     const first = await post({at, g: [1, 2], k: [3, 4], c: [1, 0], held: 1, own: 0});
