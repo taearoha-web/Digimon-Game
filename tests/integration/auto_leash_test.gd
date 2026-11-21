@@ -100,6 +100,19 @@ func _leash() -> void:
 	var outside := _mob(Vector3(Hero.AUTO_LEASH + 10.0, 0, 0))
 	hero.set_auto(true)
 	check(hero.auto, "auto turns on in a field")
+	# Under half HP auto drinks a potion by itself; above half it does not.
+	Game.add_item(ItemData.potion("hp_s", 2))
+	var potions := Game.total_potions("hp")
+	hero.potion_cd = 0.0
+	Game.profile.hp = int(hero.stats.max_hp * 0.6)
+	hero._auto_think()
+	check(Game.total_potions("hp") == potions, "auto keeps its potions at 60% HP")
+	Game.profile.hp = int(hero.stats.max_hp * 0.48)
+	hero.potion_cd = 0.0
+	hero._auto_think()
+	check(Game.total_potions("hp") == potions - 1, "auto drinks a potion under half HP (%d -> %d)" % [potions, Game.total_potions("hp")])
+	Game.profile.hp = int(hero.stats.max_hp)
+	hero.potion_cd = 0.0
 	check(_flat_dist(hero._auto_center, Vector3.ZERO) < 0.5 and is_equal_approx(hero._auto_radius, Hero.AUTO_LEASH), "the circle is centred where auto was switched on (r %.0f m)" % hero._auto_radius)
 	check(is_instance_valid(hero._auto_ring) and hero._auto_ring.visible and _flat_dist(hero._auto_ring.global_position, Vector3.ZERO) < 0.5, "a ring on the ground shows the circle")
 	await _run(2.0, func(): return hero.target == near)

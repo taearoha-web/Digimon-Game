@@ -1,8 +1,8 @@
-name: Remove every character of a game account (owner only)
+name: Remove characters of a game account (owner only)
 
 # Manual only, and only for people with write access to this repository.
 # A fresh start for one account: every character slot is emptied (the account, its password and
-# its recovery code stay). The save it replaces is kept as a snapshot (the last five revisions),
+# its recovery code stay); with "names", only those characters are removed (comma-separated, exact names). The save it replaces is kept as a snapshot (the last five revisions),
 # and nothing is written if the game saved in between. Close the game first; on the next start
 # pick "ใช้เซฟออนไลน์ล่าสุด" if the save screen asks.
 on:
@@ -11,6 +11,10 @@ on:
       username:
         description: Game ID (account) whose characters are removed
         required: true
+      names:
+        description: Only these characters (comma-separated, exact names); empty removes every character
+        default: ''
+        required: false
       confirm:
         description: Type WIPE to confirm
         required: true
@@ -36,6 +40,7 @@ jobs:
       DB_NAME: ${{ inputs.database_name }}
       TARGET_USER: ${{ inputs.username }}
       CONFIRM: ${{ inputs.confirm }}
+      NAMES: ${{ inputs.names }}
     steps:
       - name: Check the request
         run: |
@@ -51,7 +56,11 @@ jobs:
         run: |
           mkdir -p /tmp/wipe
           node hosting/worker/boost-character.mjs fetch "$TARGET_USER" /tmp/wipe
-      - name: Remove every character
+      - name: Remove the characters
         run: |
-          node hosting/worker/boost-character.mjs wipe /tmp/wipe
+          if [ -n "$NAMES" ]; then
+            node hosting/worker/boost-character.mjs remove /tmp/wipe "$NAMES"
+          else
+            node hosting/worker/boost-character.mjs wipe /tmp/wipe
+          fi
           rm -rf /tmp/wipe

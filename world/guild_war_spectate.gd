@@ -77,10 +77,8 @@ var _pinch_from := 0.0
 var _leaving := false
 
 var _layer: CanvasLayer
-## The board's column at the top centre (GuildWarHud.top_band: toasts and the switch's
-## floating label stay under it).
+## The board's column at the top centre (GuildWarHud.top_band: toasts stay under it).
 var _top_col: VBoxContainer
-var _chip_pulse := 0.0
 var _names: Array[Label] = []
 var _kills: Array[Label] = []
 var _swatches: Array[ColorRect] = []
@@ -88,9 +86,6 @@ var _clock: Label
 var _owner: Label
 var _status: Label
 var _plans: Label
-## The castle switches' chip (สวิตช์ซ้าย: <guild> · สวิตช์ขวา: <guild> · บาเรียเปิดให้ <guild>) in the colour of a guild holding both,
-## shown once the gates are down.
-var _switch_chip: PanelContainer
 var _banner: Label
 var _hint: Label
 var _feed: Label
@@ -324,7 +319,6 @@ func _process(delta: float) -> void:
 	center = center.lerp(want, 1.0 - exp(-delta * 2.6))
 	distance = lerpf(distance, _distance_goal, 1.0 - exp(-delta * 8.0))
 	_place_camera()
-	_pulse_chip(delta)
 	if _top_col != null:
 		GuildWarHud.top_band = _top_col.get_global_rect().end.y
 	_refresh -= delta
@@ -603,14 +597,6 @@ func _build_board() -> void:
 			row.add_child(node)
 	_owner = _outlined(UIUtil.label("", &"BoldLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	lines.add_child(_owner)
-	_switch_chip = UIUtil.chip(SiegeArena.SWITCH_NAME, Color("c9c9c9"), 18)
-	_switch_chip.name = "SwitchChip"
-	_switch_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_switch_chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_switch_chip.visible = false
-	_outlined(_switch_chip.get_child(0) as Label)
-	(_switch_chip.get_theme_stylebox("panel") as StyleBoxFlat).set_border_width_all(3)
-	lines.add_child(_switch_chip)
 	_status = _outlined(UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lines.add_child(_status)
@@ -773,38 +759,6 @@ func _update_board() -> void:
 	if _plans != null:
 		_plans.text = m.plans_line()
 		_plans.visible = _plans.text != ""
-	_update_switch_chip(m)
-
-
-## The switch's chip: who holds it, in that guild's colour, and whom the barrier is open for.
-func _update_switch_chip(m: GuildWarMatch) -> void:
-	if _switch_chip == null:
-		return
-	_switch_chip.visible = m.front_gate() == null and m.state in ["fight", "ending"]
-	var color := m.switch_color()
-	var label := _switch_chip.get_child(0) as Label
-	label.text = "%s · %s" % [m.switch_text(), m.barrier_open_text()]
-	label.add_theme_color_override("font_color", color.lerp(Color.WHITE, 0.6))
-	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
-	if sb != null:
-		sb.bg_color = Color(color.darkened(0.72), 0.92)
-		sb.border_color = color
-
-
-## Fought over: the chip's border and backing swing towards the challenger's colour (the
-## text stays opaque).
-func _pulse_chip(delta: float) -> void:
-	var m := match_node
-	if _switch_chip == null or not _switch_chip.visible or not (m.switch_contested and m.switch_challenger >= 0):
-		_chip_pulse = 0.0
-		return
-	_chip_pulse += delta
-	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
-	if sb == null:
-		return
-	var mix := m.switch_color().lerp(m.team_color(m.switch_challenger), 0.5 + 0.5 * sin(_chip_pulse * 7.0))
-	sb.border_color = mix
-	sb.bg_color = Color(mix.darkened(0.72), 0.92)
 
 
 func _exit_tree() -> void:
@@ -814,14 +768,6 @@ func _exit_tree() -> void:
 ## The board's column on screen (tests).
 func board_rect() -> Rect2:
 	return _top_col.get_global_rect() if _top_col != null else Rect2()
-
-
-## The switch chip now (tests): its text ("" while hidden) and colour.
-func switch_chip() -> Dictionary:
-	if _switch_chip == null:
-		return {}
-	var sb := _switch_chip.get_theme_stylebox("panel") as StyleBoxFlat
-	return {"text": (_switch_chip.get_child(0) as Label).text if _switch_chip.visible else "", "color": sb.border_color if sb != null else Color.BLACK}
 
 
 ## The clock as the board shows it: what is left of the war (m:ss), ต่อเวลา in sudden death.

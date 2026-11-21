@@ -234,7 +234,7 @@ func _use_potions() -> void:
 		return
 	if _potion_cd > 0.0 or Time.get_ticks_msec() < _cast_until:
 		return
-	var hp_threshold := 0.55 if String(member.get("trait", "")) == "careful" else 0.35
+	var hp_threshold := 0.55 if String(member.get("trait", "")) == "careful" else 0.5
 	# Potions are shared with the hero: the bag first, the companion's own free stock after.
 	var hp_left := int(member.get("potions", POTION_STOCK))
 	var mp_left := int(member.get("mp_potions", MP_POTION_STOCK))

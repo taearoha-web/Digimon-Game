@@ -14,7 +14,7 @@ extends RefCounted
 ## fields reuse StarRegionArt's shared batches instead (no new chunks there).
 ## Counts follow [method lush] (quality 0 minimal, 1 the phone default, 2 lush), and
 ## every placement keeps off the exclusion circles it is given (paths, camps, gates,
-## villagers, stalls, the switch circle and the altar).
+## villagers, stalls, the throne room's floor and the altar).
 
 ## Group of every MultiMeshInstance3D made here (tests read their instances).
 const GROUP := "prop_dressing"
@@ -614,7 +614,7 @@ static func clear_of_boxes(p: Vector2, margin: float, boxes: Array) -> bool:
 ## Grass, flowers and bushes over the siege field; torches, weapon racks and banners in
 ## each guild's colour along its camp road and round its curtain; torches along the
 ## castle yards' walls and the throne room. Off the camps, roads, the plaza, the moat,
-## the bridge, the gates' approaches, the switch circle and the altar.
+## the bridge, the gates' approaches, the throne room's floor and the altar.
 static func siege(root: Node3D, colors: Array, camps: int) -> void:
 	var S := SiegeArena
 	# Its own stream of numbers: the match's rng is left as it was.
@@ -695,7 +695,7 @@ static func siege(root: Node3D, colors: Array, camps: int) -> void:
 			torches.append(Transform3D(Basis(), S.on_floor(Vector3(s * S.THRONE_HALF * 0.62, 0, z))))
 	for s in [-1.0, 1.0]:
 		racks.append(Transform3D(Basis(Vector3.UP, -s * PI * 0.5), S.on_floor(Vector3(s * (S.THRONE_HALF - 2.2), 0, S.BACK_Z + 8.0))))
-	# Drop anything that landed in an exclusion circle (the gates' approaches, the switch,
+	# Drop anything that landed in an exclusion circle (the gates' approaches, the throne room's floor,
 	# the altar, the keep camp).
 	torches = _keep_free(torches, blocked, 0.4)
 	for i in torches.size():
@@ -715,7 +715,7 @@ static func _keep_free(list: Array[Transform3D], blocked: Array[Vector3], r: flo
 
 
 ## The guild war's no-prop circles (x, z, r): every camp and its road, the plaza, the
-## bridge foot, the gates' approaches (both sides), the keep camp, the switch circle
+## bridge foot, the gates' approaches (both sides), the keep camp, the throne room's floor
 ## and the altar.
 static func siege_exclusions(camps: int) -> Array[Vector3]:
 	var S := SiegeArena
@@ -740,8 +740,9 @@ static func siege_exclusions(camps: int) -> Array[Vector3]:
 			for dz in [-5.0, 0.0, 5.0]:
 				out.append(Vector3(x, S.GATE_Z[tier] + dz, S.GATE_HALF + 3.0))
 	out.append(Vector3(S.KEEP_CAMP.x, S.KEEP_CAMP.z, 10.0))
-	for sw in S.SWITCHES:
-		out.append(Vector3(sw.x, sw.z, S.SWITCH_RADIUS + 3.0))
+	# The throne room's floor either side of the carpet, where the guilds fight for the altar.
+	for x in [-17.0, 17.0]:
+		out.append(Vector3(x, -18.0 - S.GATE_GAP * 2.0 - 16.0, 7.2))
 	out.append(Vector3(0.0, S.BACK_Z + 1.6, 9.0))
 	out.append(Vector3(S.ALTAR.x, S.ALTAR.z, S.ALTAR_RADIUS + 5.0))
 	return out

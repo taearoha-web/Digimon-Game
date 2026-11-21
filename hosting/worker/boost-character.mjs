@@ -5,6 +5,7 @@
 //   node boost-character.mjs apply-slots <dir> <slots.json>  (slots.json = {slots} from tools/guild_setup.tscn: existing slots replaced)
 //   node boost-character.mjs apply-bundle <dir> <slots.json>  (slots.json = {slots, selectedSlot}: every slot replaced, tools/move_characters.tscn)
 //   node boost-character.mjs wipe <dir>                   every character of the fetched save removed (a fresh start)
+//   node boost-character.mjs remove <dir> <names>         only the named characters removed (names comma-separated, each must match one slot)
 // apply checks the save with the same rules as the game server, keeps a snapshot of the save it
 // replaces, and only writes if nobody saved in between (compare-and-swap on the revision).
 import {readFileSync, writeFileSync} from 'node:fs';
@@ -45,10 +46,10 @@ if (command === 'fetch') {
   writeFileSync(`${b}/meta.json`, JSON.stringify({userId: user.id, revision: save.revision, updatedAt: save.updated_at}));
   const slots = JSON.parse(save.bundle).slots ?? {};
   console.log(`Online save revision ${save.revision}: ` + Object.entries(slots).map(([slot, p]) => `slot ${slot} ${p.name} (${p.class} Lv.${p.level})`).join(', '));
-} else if (command === 'apply' || command === 'apply-slots' || command === 'apply-bundle' || command === 'wipe') {
+} else if (command === 'apply' || command === 'apply-slots' || command === 'apply-bundle' || command === 'wipe' || command === 'remove') {
   const meta = JSON.parse(readFileSync(`${a}/meta.json`, 'utf8'));
   const next = JSON.parse(readFileSync(`${a}/bundle.json`, 'utf8'));
-  const boosted = command !== 'wipe' ? JSON.parse(readFileSync(b, 'utf8')) : {};
+  const boosted = command !== 'wipe' && command !== 'remove' ? JSON.parse(readFileSync(b, 'utf8')) : {};
   if (command === 'apply-bundle') {
     if (!boosted.slots || typeof boosted.slots !== 'object') throw new Error('No slots to write');
     next.slots = boosted.slots;
@@ -57,6 +58,20 @@ if (command === 'fetch') {
     for (const [slot, profile] of Object.entries(boosted.slots ?? {})) {
       if (!next.slots?.[slot]) throw new Error(`Slot ${slot} is not in the fetched save`);
       next.slots[slot] = profile;
+    }
+  } else if (command === 'remove') {
+    // Only the named characters go; the others, the account and its shared storage stay.
+    const names = String(b || '').split(',').map((n) => n.trim()).filter(Boolean);
+    if (!names.length) throw new Error('Name the characters to remove');
+    for (const name of names) {
+      const hits = Object.entries(next.slots ?? {}).filter(([, p]) => p && p.name === name);
+      if (hits.length !== 1) throw new Error(`Expected exactly one character named ${name}, found ${hits.length}`);
+      delete next.slots[hits[0][0]];
+      console.log(`Removing slot ${hits[0][0]}: ${name}`);
+    }
+    if (!next.slots[String(next.selectedSlot)]) {
+      const left = Object.keys(next.slots).map(Number).sort((x, y) => x - y);
+      next.selectedSlot = left.length ? left[0] : 1;
     }
   } else if (command === 'wipe') {
     // A fresh start: no character left, slot 1 selected (the old save stays as a snapshot).
@@ -81,7 +96,7 @@ if (command === 'fetch') {
   await query(id, `INSERT OR IGNORE INTO toon_save_snapshots (user_id, revision, bundle, updated_at)
     SELECT user_id, revision, bundle, updated_at FROM toon_saves WHERE user_id = ? AND revision = ?`, [meta.userId, rows[0].revision]);
   await query(id, SNAPSHOT_PRUNE_SQL, [meta.userId, meta.userId, meta.userId]);
-  console.log(`Saved revision ${rows[0].revision} (was ${meta.revision})${command === 'wipe' ? ', every character removed' : boosted.created ? `, new character in slot ${boosted.slot}` : ''}. The previous save is kept as a snapshot.`);
+  console.log(`Saved revision ${rows[0].revision} (was ${meta.revision})${command === 'wipe' ? ', every character removed' : command === 'remove' ? `, removed ${b}` : boosted.created ? `, new character in slot ${boosted.slot}` : ''}. The previous save is kept as a snapshot.`);
 } else {
-  throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json> | apply-slots <dir> <slots.json> | apply-bundle <dir> <slots.json> | wipe <dir>');
+  throw new Error('usage: fetch <username> <dir> | apply <dir> <boosted.json> | apply-slots <dir> <slots.json> | apply-bundle <dir> <slots.json> | wipe <dir> | remove <dir> <names>');
 }

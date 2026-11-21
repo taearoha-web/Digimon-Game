@@ -14,7 +14,7 @@ extends RefCounted
 ## first two tiers have TWO gates each, a left and a right one (LANE_X), and either of them
 ## broken lets everyone through to the next tier; the third tier is one gate, the throne
 ## room's. Past it a grand staircase climbs to the raised throne court (COURT_H, floor_y),
-## where stand the two switches (left and right) and, against its
+## where stands, against its
 ## back wall, the altar a guild must hold to take the castle. The field and the yards are flat:
 ## the moat and the walls are colliders, and fighters find their way along the sections
 ## (route): the field, the bridge, the two yards and the throne room, joined at the bridge
@@ -39,8 +39,8 @@ const CAMP_RADIUS := 16.0
 ## The castle holder's camp inside the castle, in the second yard before the throne room's
 ## gate: a guild that holds the castle lines up and comes back there (facing the way in,
 ## rows of KEEP_ROW), and its own gates let it through (GuildWarMatch._gate_pass); from
-## there it is some forty-five metres to the altar at the back of the throne room (past both
-## switches), so its fallen are not back on it at once.
+## there it is some forty-five metres to the altar at the back of the throne room (across
+## the hall), so its fallen are not back on it at once.
 ## Safe from being chased only this close.
 const KEEP_CAMP := Vector3(0, 0, -82.0)
 const KEEP_ROW := 10
@@ -72,15 +72,15 @@ const PARAPET_H := 2.4
 const WALL_H := STONE_H + PARAPET_H
 ## The altar against the throne room's back wall (in the middle, ALTAR_BACK m off the
 ## wall: room to stand all round it) and how close one must stand to take it. From the
-## holder's camp (KEEP_CAMP) it is some forty-five metres, past both switches.
+## holder's camp (KEEP_CAMP) it is some forty-five metres.
 const ALTAR_BACK := 9.0
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH + ALTAR_BACK)
 const ALTAR_RADIUS := 2.8
 ## The throne court stands COURT_H above the yards: past the third gate a grand staircase
 ## as wide as the court climbs to it in two flights with a landing between (its foot
-## STAIR_Z0 just inside the gatehouse, its head STAIR_RUN further in, before the switches), so the altar, the switches and everything on
+## STAIR_Z0 just inside the gatehouse, its head STAIR_RUN further in), so the altar and everything on
 ## the court are that much higher than the field (floor_y: the floor's height at a point).
-## ALTAR, SWITCHES and every route point stay flat (y = 0): the fighters' brains work on the
+## ALTAR and every route point stay flat (y = 0): the fighters' brains work on the
 ## map (x, z) and gravity keeps their feet on the stairs' ramp and the court's floor.
 const COURT_H := 4.0
 const STAIR_Z0 := -18.0 - GATE_GAP * 2.0 - 3.0
@@ -94,21 +94,6 @@ const STAIR_STEPS := 16
 ## The ramps under the steps run through the middle of each tread (half a tread south of
 ## the steps' own line), so feet neither sink into a step nor float over it.
 const STAIR_LEAD := 0.2
-## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา), mirrored left (-x) and right (+x)
-## of the carpet halfway down the throne room (inside the pillars), as far from the door
-## and from the altar as each other, so no camp's way in is nearer to one. Each is held on
-## its own: the first guild to stand in its circle while it is free takes it and keeps it
-## while one living member of it is inside, however many others come in (the next guild
-## must clear it out of the circle). The altar's barrier falls only for a guild holding
-## BOTH (GuildWarMatch.barrier_up): with the switches split between guilds it stays up for
-## everyone and a count in progress waits, so an attacker must take both sides and a
-## defender need only win one back.
-const SWITCH_X := 17.0
-const SWITCH_Z := -18.0 - GATE_GAP * 2.0 - 16.0
-const SWITCHES: Array[Vector3] = [Vector3(-SWITCH_X, 0, SWITCH_Z), Vector3(SWITCH_X, 0, SWITCH_Z)]
-const SWITCH_RADIUS := 4.2
-const SWITCH_NAME := "สวิตช์"
-const SWITCH_NAMES: Array[String] = ["สวิตช์ซ้าย", "สวิตช์ขวา"]
 const LANE_NAMES: Array[String] = ["ซ้าย", "ขวา"]
 ## Where the sections join, each a list of openings: the bridge foot (one per lane), the
 ## first two tiers' two gates, the third tier's one.
@@ -287,36 +272,8 @@ static func altar_top() -> Vector3:
 	return ALTAR + Vector3(0, COURT_H, 0)
 
 
-## Switch `k`'s place on the raised court.
-static func switch_top(k: int) -> Vector3:
-	return SWITCHES[clampi(k, 0, SWITCHES.size() - 1)] + Vector3(0, COURT_H, 0)
-
-
 static func on_altar(p: Vector3) -> bool:
 	return Vector2(p.x - ALTAR.x, p.z - ALTAR.z).length() <= ALTAR_RADIUS
-
-
-## Whether `p` stands inside a switch's circle (`side` 0 the left, 1 the right, -1 either).
-static func on_switch(p: Vector3, side := -1) -> bool:
-	if side >= 0:
-		var c: Vector3 = SWITCHES[clampi(side, 0, SWITCHES.size() - 1)]
-		return Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS
-	return switch_at(p) >= 0
-
-
-## Which switch's circle `p` stands in (0 left, 1 right), -1 none.
-static func switch_at(p: Vector3) -> int:
-	for k in SWITCHES.size():
-		var c: Vector3 = SWITCHES[k]
-		if Vector2(p.x - c.x, p.z - c.z).length() <= SWITCH_RADIUS:
-			return k
-	return -1
-
-
-## The nearer switch to `p` (0 left, 1 right; a tie on the carpet goes left).
-static func nearer_switch(p: Vector3) -> int:
-	return 0 if p.x <= 0.0 else 1
-
 
 
 ## Builds the field, a camp per guild colour in `colors` (CAMPS order: team 0 first), the
@@ -925,9 +882,6 @@ static func _court(b: JapanKit.Batch, root: Node3D) -> void:
 	for i in 4:
 		for s in [-1.0, 1.0]:
 			_trim.box(Vector3(float(s) * 5.4, COURT_H + 0.06, head - 3.0 - float(i) * 6.4), Vector3(1.3, 0.03, 1.3), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
-	for sw in SWITCHES:
-		_trim.cyl(Vector3(sw.x, COURT_H + 0.04, sw.z), SWITCH_RADIUS + 1.3, 0.04, Color("8d8676"), Vector3.ZERO, 24)
-		_trim.cyl(Vector3(sw.x, COURT_H + 0.045, sw.z), SWITCH_RADIUS + 0.9, 0.05, PAVING.lightened(0.16), Vector3.ZERO, 24)
 	# The carpet from the staircase's head to the altar, gold along its sides.
 	_trim.box(Vector3(0, COURT_H + 0.06, (head + ALTAR.z) * 0.5), Vector3(5.0, 0.05, head - ALTAR.z), Color("a8322a"))
 	for s in [-1.0, 1.0]:

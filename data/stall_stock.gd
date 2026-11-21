@@ -320,8 +320,12 @@ static func plus_limits(equip: Dictionary) -> Dictionary:
 		if not EnhanceFx.can_enhance(piece) or SetGearData.is_item(piece):
 			continue
 		var plus := int(piece.get("plus", 0))
-		out[String(slot)] = plus
 		out.top = maxi(int(out.top), plus)
+		# The Dragon God's weapon / wings (WorldGear: dropped on the isle and put on at
+		# +0) outclass any spare of the slot, as the set pieces do: their + bounds only
+		# the best it has forged.
+		if not DragonGearData.is_item(piece):
+			out[String(slot)] = plus
 	return out
 
 

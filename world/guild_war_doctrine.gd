@@ -1,7 +1,7 @@
 class_name GuildWarDoctrine
 extends RefCounted
 ## One guild's war doctrine (หลักการรบของหัวหน้ากิลด์): the leader's plan over its commander
-## (GuildWarCommander, which still lays out the formation, the switch squad, the escort
+## (GuildWarCommander, which still lays out the formation, the escort
 ## and the focus). GuildWarMatch keeps one per guild that plays it (every guild in the
 ## game's own wars; GuildWarMatch.smart false: the old commander alone, for the
 ## old-vs-new measurement in tests/tools/guild_war_sim). Only the game running the war
@@ -11,15 +11,15 @@ extends RefCounted
 ## Every THINK_EVERY s (staggered between guilds) it reads the field as a leader standing
 ## at the front would (read_field): who of each guild stands within FRONT_RADIUS of its
 ## front, their health and strength, how many are down or still walking back from camp
-## (the enemy's respawn window), the gates, the switch, the altar, the points and the
+## (the enemy's respawn window), the gates, the altar, the points and the
 ## clock, and decides:
 ##   the PHASE (ขั้นของแผน: PHASES, phase_for): what the guild does now, attack
-##     (form, breach, exploit, wait, muster, switch, assault, capture, besiege), defence
+##     (form, breach, exploit, wait, muster, assault, capture, besiege), defence
 ##     (hold, guard, stop, counter, recover) or a war of four (vulture: let two others
 ##     trade first). A phase changes only after it is seen on two thinks running (or
 ##     PHASE_MIN s held), but at once for the urgent ones (settle_phase);
 ##   the WINDOW (respawn timing, pick_window), read at its objective (the gate it
-##     batters, else the switch, else the altar): `engage` while the guild it fights has
+##     batters, else the altar): `engage` while the guild it fights has
 ##     lost most of its front (EXPLOIT_SPENT down or walking back) and ours outweighs what
 ##     is left (it pushes at once instead of waiting at the rally point, and its leader
 ##     may go up to the altar sooner); `wait` (a war of two) while ours is outweighed there
@@ -27,22 +27,38 @@ extends RefCounted
 ##     (with the gates down a staging point in the last yard) and goes again as one wave
 ##     once WAVE_READY of it stands there (or WAIT_MAX s). Both with hysteresis;
 ##   the RACE (nobody holds the castle): the whole guild musters at the last gate as it is
-##     about to fall (pick_muster) and surges to the switches (left and right: the barrier
-##     opens only for a guild holding both) the moment it does;
+##     about to fall (pick_muster) and surges into the throne room the moment it does;
 ##   the SIEGE (a war of two): waves that keep losing the trades to a holder stop
 ##     feeding it and besiege from the last yard (pick_besiege) until its front is spent;
 ##   the LAST MINUTES (LAST_CALL s before the bell): the holder keeps everyone round the
-##     altar and the switch, every other guild goes all in (no falling back);
+##     altar, every other guild goes all in (no falling back);
 ##   the TARGETS (focus_extra): the guild leading on points or holding the castle, a
 ##     fighter busy with a third guild (third-party), the killable;
 ##   the SQUADS (assign_squads): every member in one squad by its class and the moment:
 ##     vanguard (tanks), breakers (melee), support (priest, bard), ranged (archer, mage,
-##     summoner), hunters (assassins), the switch squad (the commander's) and the leader's
+##     summoner), hunters (assassins) and the leader's
 ##     guard (its bodyguard), each with a squad leader (its strongest standing) and an
 ##     objective; the members follow their squad: the hurt fall back to the support squad
 ##     at the front (not the far camp) and come back, squishy ones a little earlier; a tank
 ##     peels for a healer under attack; area skills go where foes stand thick; everyone
 ##     leans harder on the called target.
+## The SECOND BRAIN (smart2, every guild in the game's own wars; `base` keeps the doctrine
+## as it stood before it, the measurement's baseline), from traced sim wars:
+##   the DEADLINE (last_call_at): a guild not holding the castle goes all in once the bell
+##     is nearer than its capture can still be won (the walk, the fight, CAPTURE_TIME), not
+##     at a fixed two minutes (it was still staging a wave with its count out of reach);
+##   the INTERCEPT (focus_extra, dive_override): the holder marks the enemy leader near the
+##     altar above all (the only one who can take it) and its assassins dive it; whoever
+##     strikes our leader on the altar is peeled off;
+##   the leader falls back to its healers at the front, and a little sooner;
+##   (trials, off in the game, see `trial`: WAVES, the fallen coming back meeting at a join
+##     point to go in four at a time - a third of all falls were of one walking in alone;
+##     WALKERS, those walking up from far behind turning only on what is on them; the hurt
+##     falling back to the guild's own body when no healer is at the front);
+##   the fighters' own (GuildFighter.smart2): focus fire without overkill,
+##     potions before a fall, the leader drinking and fighting back on the altar, idle
+##     heals, stuns kept for a priority foe, area skills not spent on one foe, no skills on a
+##     gate with foes near.
 ## It tells its orders in the war feed in a commander's voice (orders: ⚑ แผน ...), only
 ## when the phase or the war really changes, at most one every ORDER_GAP s and the same
 ## order not again within ORDER_REPEAT s; members acknowledge some of them. With the hero
@@ -54,8 +70,28 @@ extends RefCounted
 ## a pass over its own guild with the formation (every 0.5 s).
 
 ## Tools (the measurement's ablations, tests/tools/guild_war_sim SIM_OFF): rules switched
-## off by name ("muster", "besiege", "wait", "exploit", "squads"); empty in the game.
+## off by name ("muster", "besiege", "wait", "exploit", "squads"; the second brain's
+## "altar", "deadline", "intercept", "leader_reach"); empty in the game.
+## Trials: second-brain rules built, measured and kept OFF in the game (switched on by
+## name, tests/tools/guild_war_sim SIM_TRIAL, tests): "waves" (_waves), "walkers"
+## (_walkers), "bodyrear" (the hurt to the guild's body, back sooner). Waves cut the lone
+## falls (one walking in alone: 63 a guild a war against 71) but held members out of the
+## fight: with the three on the second brain won 12 of 22 wars against the first brain,
+## without them (the game's) 20 of 30 (tests/tools/guild_war_sim, both camps).
+static var trial: Dictionary = {}
+## (A leash, nobody chased farther than 20 m from its post, was measured and dropped: the
+## guild playing it lost the trades, K/D 0.86 against 1.11, tests/tools/guild_war_sim.)
 static var off: Dictionary = {}
+
+## The doctrine as it stood before its second brain (the measurement's baseline,
+## GuildWarMatch.next_base / tests/tools/guild_war_sim SIM_BASE): none of the rules marked
+## "v2" below (smart2) run for it. False in the game.
+var base := false
+
+
+## Whether the second brain's rules run (every guild in the game's own wars).
+func smart2() -> bool:
+	return not base
 
 const THINK_EVERY := 2.0
 ## What a leader at the front sees: fighters within this many metres of it.
@@ -95,7 +131,7 @@ static func pick_besiege(was: bool, held: float, r: Dictionary, trades: Dictiona
 	var owner := int(r.get("owner", -1))
 	if owner < 0 or bool(r.get("holding", false)) or bool(r.get("gates_up", true)) or engage or int(r.get("teams", 2)) > 2:
 		return false
-	if float(r.get("time_left", 9999.0)) <= LAST_CALL or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
+	if float(r.get("time_left", 9999.0)) <= float(r.get("last_at", LAST_CALL)) or bool(r.get("we_capturing", false)) or bool(r.get("enemy_capturing", false)):
 		return false
 	if was:
 		return held < BESIEGE_MAX
@@ -114,7 +150,7 @@ func _last_gate_share() -> float:
 ## Phase hysteresis: a calm phase is changed after two thinks or this long.
 const PHASE_MIN := 6.0
 ## The race: muster at the last gate under MUSTER_HP of its health (nobody holds the
-## castle), surge to the switch for SURGE_TIME s once it falls.
+## castle), surge into the throne room for SURGE_TIME s once it falls.
 const MUSTER_HP := 0.35
 ## Besieging: the waves lose the trades (falls taken at least BESIEGE_LOSSES, under
 ## BESIEGE_TRADE of them dealt back); it stays up to BESIEGE_MAX s (less in a window).
@@ -124,6 +160,18 @@ const BESIEGE_MAX := 90.0
 const SURGE_TIME := 20.0
 ## The last minutes of the war.
 const LAST_CALL := 120.0
+## Second brain: a guild not holding the castle goes all in once the bell is nearer than
+## its capture can still be won: CAPTURE_TIME on the altar, the walk there (its leader's
+## way to the altar at DEADLINE_PACE m/s) and DEADLINE_FIGHT s to clear it (last_call_at).
+const DEADLINE_PACE := 6.0
+const DEADLINE_FIGHT := 75.0
+## Second brain's focus: the enemy leader in the throne room (the only one who can take the
+## altar) for the castle's holder, and for anyone when it is this near the altar; whoever
+## strikes our own leader on the altar (peel).
+const INTERCEPT_BONUS := 40.0
+const INTERCEPT_RADIUS := 34.0
+const LEADER_IN_BONUS := 12.0
+const PEEL_BONUS := 20.0
 ## Orders: at most one every ORDER_GAP s, the same key not within ORDER_REPEAT s (urgent
 ## ones every URGENT_REPEAT s); a member answers ACK_CHANCE of them.
 const ORDER_GAP := 7.0
@@ -133,6 +181,8 @@ const ACK_CHANCE := 0.4
 ## Retreat thresholds by role (the old brain: GuildFighter.RETREAT_BELOW for all).
 const RETREAT_SQUISHY := 0.33
 const RETREAT_STURDY := 0.25
+## Second brain: the leader's own (GuildWarCommander.LEADER_RETREAT for the old rules).
+const LEADER_RETREAT2 := 0.42
 ## The called target: everyone's lean on it, on top of GuildFighter's own.
 const FOCUS_BONUS := 6.0
 ## A support member under attack: foes within this many metres of it.
@@ -142,7 +192,7 @@ const SUPPORT_REACH := 30.0
 
 const PHASES := {
 	"form": "จัดทัพ", "breach": "ทลายประตู", "exploit": "ฉวยจังหวะบุก", "wait": "ถอยรอกำลังเสริม",
-	"switch": "ชิงสวิตช์", "assault": "บุกแท่น", "capture": "คุ้มกันการยึดแท่น",
+	"assault": "บุกแท่น", "capture": "คุ้มกันการยึดแท่น",
 	"hold": "ตั้งรับจุดคอขวด", "guard": "เฝ้าปราสาท", "stop": "สกัดการยึด", "counter": "สวนกลับ",
 	"recover": "ถอยฟื้นพล", "vulture": "รอซ้ำเติม", "muster": "รวมพลหน้าประตูสุดท้าย", "besiege": "ล้อมรอจังหวะ",
 }
@@ -154,12 +204,11 @@ const SQUAD_BREAKERS := "breakers"
 const SQUAD_SUPPORT := "support"
 const SQUAD_RANGED := "ranged"
 const SQUAD_HUNTERS := "hunters"
-const SQUAD_SWITCH := "switch"
 const SQUAD_GUARD := "guard"
 const SQUAD_LEADER := "leader"
 const SQUAD_NAMES := {
 	"vanguard": "หน่วยแนวหน้า", "breakers": "หน่วยทำลาย", "support": "หน่วยสนับสนุน",
-	"ranged": "หน่วยระยะไกล", "hunters": "หน่วยนักฆ่า", "switch": "หน่วยสวิตช์",
+	"ranged": "หน่วยระยะไกล", "hunters": "หน่วยนักฆ่า",
 	"guard": "หน่วยคุ้มกันหัวกิล", "leader": "หัวหน้ากิลด์",
 }
 const ACKS: Array[String] = ["รับทราบ!", "รับทราบ หัวหน้า", "ได้เลย ลุย!", "ตามแผนเลย", "จัดไป!", "โอเค ไปพร้อมกัน", "ไปกัน!"]
@@ -178,6 +227,8 @@ var wait := false
 var _window_since := 0.0
 var _wait_ended := -1.0e9
 var last_call := false
+## When the last call comes (time left, s): LAST_CALL, or the second brain's deadline.
+var last_at := LAST_CALL
 ## The race for the castle: mustering at the last gate, surging through it (until when).
 var muster := false
 ## Besieging a holder that keeps beating the waves (see think), and since when.
@@ -345,18 +396,16 @@ func read_field() -> Dictionary:
 		"gates_up": war.front_gate() != null,
 		"enemy_capturing": not war.capture.is_empty() and int(war.capture.team) != team,
 		"we_capturing": not war.capture.is_empty() and int(war.capture.team) == team,
-		"switch": not war.barrier_up(team),
-		"switches_held": war.switches_held(team),
 		"tactic": c.tactic if c != null else "",
 		"plan": String(war.plans[team]) if team < war.plans.size() else "",
 		"waiting": c != null and c.waiting,
 		"leading": leading_team,
 		"teams": n,
+		"last_at": last_at,
 	}
 
 
-## Where the guild's fight is: the gate it batters (its front), else the switch it lacks
-## (its commander's secure_side) while the barrier is up for it, else the altar.
+## Where the guild's fight is: the gate it batters (its front), else the altar.
 func objective_point() -> Vector3:
 	var c := _cmd()
 	var g: CastleGate = c.target_gate() if c != null else null
@@ -367,24 +416,7 @@ func objective_point() -> Vector3:
 		return SiegeArena.ALTAR
 	if g != null:
 		return SiegeArena.gate_front(g.tier, g.lane)
-	if war.barrier_up(team):
-		var k := c.secure_side if c != null else maxi(0, war.switch_wanted(team))
-		if war.holds_switch(team, k):
-			k = 1 - k
-		return SiegeArena.SWITCHES[k]
 	return SiegeArena.ALTAR
-
-
-## How many of the guild's switch squad are posted to switch `k`.
-func _posted(k: int) -> int:
-	var c := _cmd()
-	if c == null:
-		return 0
-	var n := 0
-	for f in c.squad:
-		if c.side_of(f) == k:
-			n += 1
-	return n
 
 
 ## Where the guild stages a wave while waiting (with the gates down: the last yard, out of
@@ -436,7 +468,7 @@ static func pick_window(was_engage: bool, was_wait: bool, held: float, rested: f
 	var bal := float(r.get("balance", 1.0))
 	var spent := float(r.get("foe_spent", 0.0))
 	var attacking := not bool(r.get("holding", false)) and not bool(r.get("enemy_capturing", false))
-	var last := float(r.get("time_left", 9999.0)) <= LAST_CALL
+	var last := float(r.get("time_left", 9999.0)) <= float(r.get("last_at", LAST_CALL))
 	# Exploit: their front is spent and ours outweighs what is left.
 	var engage := false
 	if attacking and float(r.get("alive_share", 1.0)) >= 0.55:
@@ -448,7 +480,7 @@ static func pick_window(was_engage: bool, was_wait: bool, held: float, rested: f
 	# never while taking the altar or stopping a capture).
 	var wait := false
 	# (Only in a war of two: with three others on the field every falls dealt is a point
-	# and whoever stands back leaves the kills and the switch to the rest.)
+	# and whoever stands back leaves the kills and the altar to the rest.)
 	if attacking and not engage and not last and not bool(r.get("we_capturing", false)) and int(r.get("teams", 2)) <= 2:
 		if was_wait:
 			# The wave goes when most of the guild stands at the rally point (or after WAIT_MAX).
@@ -488,8 +520,6 @@ static func phase_for(r: Dictionary) -> String:
 	if bool(r.get("waiting", false)):
 		return "vulture"
 	match tactic:
-		GuildWarCommander.SECURE:
-			return "switch"
 		GuildWarCommander.ESCORT, GuildWarCommander.GUARD:
 			return "assault"
 		GuildWarCommander.DEFEND:
@@ -515,8 +545,8 @@ static func settle_phase(prev: String, held: float, candidate: String, next: Str
 ## The plan the doctrine fights instead of `plan` (GuildWarMatch.plan_for's) for a reading:
 ## in the last minutes the holder stays round the altar (defend, or its gates), the others
 ## never pull back to regroup.
-static func adjust_plan(plan: String, time_left: float, holding: bool, gates_up: bool) -> String:
-	if time_left > LAST_CALL:
+static func adjust_plan(plan: String, time_left: float, holding: bool, gates_up: bool, last := LAST_CALL) -> String:
+	if time_left > last:
 		return plan
 	if holding:
 		return "gates" if gates_up else "defend"
@@ -525,13 +555,11 @@ static func adjust_plan(plan: String, time_left: float, holding: bool, gates_up:
 	return plan
 
 
-## The squad for a fighter of commander role `role` (GuildWarCommander.ROLE_*), on the
-## switch post or the leader's bodyguard or the leader itself.
-static func squad_for(role: int, on_switch: bool, bodyguard: bool, is_lead: bool) -> String:
+## The squad for a fighter of commander role `role` (GuildWarCommander.ROLE_*), the
+## leader's bodyguard or the leader itself.
+static func squad_for(role: int, bodyguard: bool, is_lead: bool) -> String:
 	if is_lead:
 		return SQUAD_LEADER
-	if on_switch:
-		return SQUAD_SWITCH
 	if bodyguard:
 		return SQUAD_GUARD
 	match role:
@@ -571,9 +599,11 @@ func think() -> void:
 		_window_since = clock
 	engage = bool(win[0]) and not off.has("exploit")
 	wait = bool(win[1]) and not off.has("wait")
-	last_call = war.time_left <= LAST_CALL
+	last_at = last_call_at() if smart2() and not off.has("deadline") else LAST_CALL
+	r["last_at"] = last_at
+	last_call = war.time_left <= last_at
 	# The race for the castle (nobody holds it): the whole guild musters at the last gate
-	# as it is about to fall, and surges through to the switch the moment it does.
+	# as it is about to fall, and surges through to the throne room the moment it does.
 	muster = pick_muster(r, _last_gate_share()) and not off.has("muster")
 	if muster:
 		wait = false
@@ -613,6 +643,25 @@ func think() -> void:
 	_events(r)
 
 
+## Second brain: when the last call comes (s left on the clock). Holding the castle
+## LAST_CALL; else the time its capture still needs: CAPTURE_TIME, its leader's way to the
+## altar (from its camp while it is down) and DEADLINE_FIGHT s to clear the altar, at
+## least LAST_CALL.
+func last_call_at() -> float:
+	if war.castle_owner == team:
+		return LAST_CALL
+	var lead := war.ai_leader(team)
+	var from: Vector3 = SiegeArena.camp(team)
+	if lead != null and not lead.is_dead():
+		from = lead.global_position
+	elif team == GuildFighter.TEAM_ALLY and war.hero_leads() and war.hero_alive():
+		from = war.hero.global_position
+	var way := GuildWarCommander._flat(from, SiegeArena.ALTAR)
+	if SiegeArena.section(from) < 2:
+		way = GuildWarCommander._flat(from, SiegeArena.APPROACH) + GuildWarCommander._flat(SiegeArena.APPROACH, SiegeArena.ALTAR)
+	return maxf(LAST_CALL, GuildWarMatch.CAPTURE_TIME + way / DEADLINE_PACE + DEADLINE_FIGHT)
+
+
 ## Every member's squad, each squad's leader (its strongest standing) and count.
 func assign_squads() -> void:
 	var c := _cmd()
@@ -623,7 +672,7 @@ func assign_squads() -> void:
 	squad_counts.clear()
 	var best: Dictionary = {}
 	for f in war.side(team):
-		var key := squad_for(c._role(f, lead), c.post_of(f), f == guard, f == lead)
+		var key := squad_for(c._role(f, lead), f == guard, f == lead)
 		squad_of[f.get_instance_id()] = key
 		squad_counts[key] = int(squad_counts.get(key, 0)) + 1
 		if f.is_dead() or key == SQUAD_LEADER:
@@ -651,7 +700,47 @@ func focus_extra(f: GuildFighter) -> float:
 			extra += 5.0
 	if main_foe >= 0 and f.team == main_foe:
 		extra += 2.0
+	if smart2() and not off.has("intercept"):
+		extra += _intercept_extra(f)
 	return extra
+
+
+## Second brain: the enemy leader near the altar with every gate down is the one to stop
+## (INTERCEPT_BONUS for the castle's holder within INTERCEPT_RADIUS of the altar,
+## LEADER_IN_BONUS for anyone in the throne room); whoever strikes our leader taking the
+## altar is peeled off it (PEEL_BONUS).
+func _intercept_extra(f: GuildFighter) -> float:
+	var extra := 0.0
+	if f.is_leader and war.front_gate() == null:
+		var d := GuildWarCommander._flat(f.global_position, SiegeArena.ALTAR)
+		if war.castle_owner == team and d < INTERCEPT_RADIUS:
+			extra += INTERCEPT_BONUS
+		elif SiegeArena.section(f.global_position) == 4:
+			extra += LEADER_IN_BONUS
+	var lead := war.ai_leader(team)
+	if lead != null and not lead.is_dead() and (lead.capturing or lead.capture_role) and f._victim == lead:
+		extra += PEEL_BONUS
+	return extra
+
+
+## Second brain: the assassins' mark when holding the castle: the enemy leader near the
+## altar (null: the commander's own pick).
+func dive_override() -> GuildFighter:
+	if not smart2() or off.has("intercept") or war.castle_owner != team or war.front_gate() != null:
+		return null
+	var best: GuildFighter = null
+	var best_d := INTERCEPT_RADIUS
+	for t in war.team_count():
+		if t == team:
+			continue
+		var lead := war.ai_leader(t)
+		if lead == null or lead.is_dead() or lead.under_guard():
+			continue
+		var d := GuildWarCommander._flat(lead.global_position, SiegeArena.ALTAR)
+		if d < best_d:
+			best_d = d
+			best = lead
+	return best
 
 
 ## After the commander's layout (GuildWarCommander.apply, before the player's orders):
@@ -686,8 +775,11 @@ func _apply() -> void:
 				sum += f.global_position
 				n += 1
 	support_at = Vector3(sum.x / float(n), 0.0, sum.z / float(n)) if n > 0 else Vector3.INF
+	# Second brain: with no healer at the front the hurt fall back to the guild's own body
+	# (a step behind its middle), not alone across the field to the far camp.
+	var body_rear := _body_rear(side, lead, c) if smart2() and not support_at.is_finite() and trial.has("bodyrear") else Vector3.INF
 	# Supports with a foe on them: the nearest standing tank (not the leader's bodyguard on
-	# the altar run, not the switch squad) goes to them.
+	# the altar run) goes to them.
 	var threatened: Array[GuildFighter] = []
 	if not supports.is_empty():
 		var foes := war.foes_of(team)
@@ -701,7 +793,7 @@ func _apply() -> void:
 		var tank: GuildFighter = null
 		var best := 1.0e9
 		for f in side:
-			if f.is_dead() or f.switch_post or f.capture_role or f == lead or _peeled.has(f.get_instance_id()) or c._role(f, lead) != GuildWarCommander.ROLE_TANK:
+			if f.is_dead() or f.capture_role or f == lead or _peeled.has(f.get_instance_id()) or c._role(f, lead) != GuildWarCommander.ROLE_TANK:
 				continue
 			var d := Vector2(f.global_position.x - s.global_position.x, f.global_position.z - s.global_position.z).length()
 			if d < best and d < 16.0:
@@ -712,13 +804,180 @@ func _apply() -> void:
 			tank.guard_node = s
 	for f in side:
 		var r := c._role(f, lead)
-		f.retreat_below = retreat_for(r) if f != lead else GuildFighter.RETREAT_BELOW
+		f.retreat_below = retreat_for(r) if f != lead else GuildWarCommander.LEADER_RETREAT
+		if f == lead and smart2() and not f.capture_role:
+			# Second brain: the leader (the only one who can take the castle) falls back a
+			# little sooner, to its healers at the front rather than the far camp.
+			f.retreat_below = LEADER_RETREAT2
+			if support_at.is_finite() and not f.rear_point.is_finite():
+				f.rear_point = support_at
 		f.focus_bonus = FOCUS_BONUS
 		f.clump_aware = true
 		# The hurt fall back to the support squad at the front, not the far camp (the
 		# support squad itself, and the leader, as before).
 		if f != lead and support_at.is_finite() and r != GuildWarCommander.ROLE_HEALER and r != GuildWarCommander.ROLE_BARD and not f.rear_point.is_finite():
 			f.rear_point = support_at
+		if body_rear.is_finite() and not f.rear_point.is_finite() and GuildWarCommander._flat(f.global_position, body_rear) < GuildWarCommander._flat(f.global_position, war.home_of(team)):
+			f.rear_point = body_rear
+	if smart2() and trial.has("walkers"):
+		_walkers(side, front)
+	if smart2() and trial.has("waves"):
+		_waves(side, lead, front)
+
+
+## Second brain: the members walking back from far behind (farther than WALKER_FAR m from the
+## guild's objective, out of the camp, not falling back) fight only what is on them
+## (WALK_HOLD m) and keep walking: the old rule had them turn on anyone of the other guild
+## they met on the plaza (with no hold range, anyone within 48 m), and they fell there one
+## by one (traced: a holder's members dying on the plaza while its altar was being taken).
+const WALKER_FAR := 55.0
+const WALK_HOLD := 6.0
+
+
+func _walkers(side: Array[GuildFighter], front: Vector3) -> void:
+	var c := _cmd()
+	for f in side:
+		if f.is_dead() or f.capture_role or f.is_retreating() or f.keep_back:
+			continue
+		if GuildWarCommander._flat(f.global_position, front) < WALKER_FAR or c._in_camp(f):
+			continue
+		if f.hold_range <= 0.0 or f.hold_range > WALK_HOLD:
+			f.hold_range = WALK_HOLD
+
+
+## Second brain: waves, not a trickle. The members coming back from a fall (standing, out
+## of the fight: farther than STRAGGLE m from the guild's objective) meet at a join point
+## out of the fight (join_point) and go in together once WAVE_N of them are there, after
+## JOIN_MAX s, or at once while the guild holds the field there (WAVE_MAIN of its own at the
+## objective, at least as many as the foes; fewer than WAVE_FOES foes there) or while it
+## cannot wait (another guild's capture running, the last call). Only in a fight (the tactics push, escort, guard, defend): gathering and
+## falling back have their own rally point.
+const STRAGGLE := 42.0
+const MAIN_RADIUS := 24.0
+const WAVE_N := 4
+const WAVE_MAIN := 6
+## Fewer foes than this at the objective: no fight there to be fed, everyone goes on.
+const WAVE_FOES := 3
+const JOIN_RADIUS := 9.0
+const JOIN_MAX := 12.0
+const JOIN_BACK := 34.0
+const JOIN_CONTESTED := 2
+## The wave held at the join point (ids -> true), since when it waits, and the join point;
+## the members sent in with a wave (ids -> until when they are left to go on).
+var _joining: Dictionary = {}
+var _released: Dictionary = {}
+const RELEASE_TIME := 30.0
+var _join_since := -1.0
+var join_at := Vector3.INF
+## Waves sent in (the measurement, tests).
+var waves_sent := 0
+
+
+func _waves(side: Array[GuildFighter], lead: GuildFighter, front: Vector3) -> void:
+	var c := _cmd()
+	join_at = Vector3.INF
+	# (The holder behind its standing gates comes back from its keep right behind them.)
+	if not (c.tactic in [GuildWarCommander.PUSH, GuildWarCommander.ESCORT, GuildWarCommander.GUARD, GuildWarCommander.DEFEND]) or (war.castle_owner == team and war.front_gate() != null):
+		_joining.clear()
+		return
+	# The last call and another guild's capture running cannot wait (measured: waves of
+	# four held back while the count ran fed the capturer's whole guard all the same and
+	# lost the castle); ours running, the guild holds the field round its leader.
+	var urgent := last_call or (not war.capture.is_empty() and int(war.capture.get("team", -1)) != team)
+	var join_max := JOIN_MAX
+	var main := 0
+	var stragglers: Array[GuildFighter] = []
+	for f in side:
+		var id := f.get_instance_id()
+		if f.is_dead() or f.capture_role:
+			_released.erase(id)
+			continue
+		var d := GuildWarCommander._flat(f.global_position, front)
+		if _released.has(id) and (d < MAIN_RADIUS or clock > float(_released[id])):
+			_released.erase(id)
+		if d < MAIN_RADIUS:
+			main += 1
+		elif _released.has(id):
+			continue
+		elif d > STRAGGLE and not f.is_retreating() and not c._in_camp(f) or d > STRAGGLE and c._in_camp(f) and f.hp_ratio() > 0.95:
+			stragglers.append(f)
+	var foes := 0
+	for e in war.foes_of(team):
+		if not e.is_dead() and GuildWarCommander._flat(e.global_position, front) < MAIN_RADIUS:
+			foes += 1
+	if urgent or stragglers.is_empty() or foes < WAVE_FOES or (main >= WAVE_MAIN and main >= foes):
+		for f in stragglers:
+			_released[f.get_instance_id()] = clock + RELEASE_TIME
+		_joining.clear()
+		_join_since = -1.0
+		return
+	var at := join_point(front)
+	var contested := 0
+	for e in war.foes_of(team):
+		if not e.is_dead() and GuildWarCommander._flat(e.global_position, at) < JOIN_RADIUS + 5.0:
+			contested += 1
+	if contested >= JOIN_CONTESTED:
+		for f in stragglers:
+			_released[f.get_instance_id()] = clock + RELEASE_TIME
+		_joining.clear()
+		_join_since = -1.0
+		return
+	join_at = at
+	var there := 0
+	for f in stragglers:
+		if GuildWarCommander._flat(f.global_position, at) < JOIN_RADIUS:
+			there += 1
+	if there > 0 and _join_since < 0.0:
+		_join_since = clock
+	var go := there >= WAVE_N or (_join_since >= 0.0 and clock - _join_since >= join_max)
+	if go:
+		waves_sent += 1
+		for f in stragglers:
+			if GuildWarCommander._flat(f.global_position, at) < JOIN_RADIUS:
+				_released[f.get_instance_id()] = clock + RELEASE_TIME
+		_joining.clear()
+		_join_since = -1.0
+		order("wave", "ครบแล้ว! %d คนบุกพร้อมกัน ตามไปที่แนวหน้า" % there)
+		return
+	var k := 0
+	for f in stragglers:
+		_joining[f.get_instance_id()] = true
+		f.objective = null
+		f.keep_front = Vector3.INF
+		f.hold_range = JOIN_RADIUS
+		f.goal_point = GuildWarMatch._spot(at, k, 2.5)
+		k += 1
+
+
+## A step (BODY_BACK m) behind the middle of the guild's standing members out of the camp
+## (not falling back), INF with fewer than BODY_MIN of them.
+const BODY_MIN := 3
+const BODY_BACK := 6.0
+
+
+func _body_rear(side: Array[GuildFighter], lead: GuildFighter, c: GuildWarCommander) -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for f in side:
+		if f.is_dead() or f.is_retreating() or f.capture_role or c._in_camp(f):
+			continue
+		sum += f.global_position
+		n += 1
+	if n < BODY_MIN:
+		return Vector3.INF
+	var mid := Vector3(sum.x / float(n), 0.0, sum.z / float(n))
+	var front: Vector3 = field.get("front", mid)
+	return GuildWarCommander._in_bounds(c._back_along(mid, front, BODY_BACK))
+
+
+## Where a wave meets: outside the throne room's door for the altar, else JOIN_BACK m
+## back from the guild's objective along its way home.
+func join_point(front: Vector3) -> Vector3:
+	var c := _cmd()
+	var side_x: float = [-1.0, 1.0, -0.4, 0.4][team % 4] * 6.0
+	if GuildWarCommander._flat(front, SiegeArena.ALTAR) < 20.0:
+		return Vector3(side_x, 0.0, SiegeArena.GATE_Z[2] + 12.0)
+	return GuildWarCommander._in_bounds(c._back_along(front, front, JOIN_BACK))
 
 
 # ---------------------------------------------------------------------------
@@ -806,19 +1065,17 @@ func _announce_phase(_was: String, r: Dictionary) -> void:
 			order("exploit", "เปลี่ยนแผน! %s ล้มไป %d%% บุกเดี๋ยวนี้!" % [foe_name, int(float(r.get("foe_spent", 0.0)) * 100.0)])
 		"wait":
 			order("wait", "ถอยรอพล! หน้าแนว %d:%d รวมที่%s อย่าบุกทีละคน" % [int(r.get("near", 0)), int(r.get("foe_near", 0)), _place()])
-		"switch":
-			order("switch", "แผน: ชิงสวิตช์ซ้าย-ขวา หน่วยสวิตช์ %d คน (ซ้าย %d ขวา %d) ทัพหลักบุก%s หัวกิลรอหลังแนว" % [commander.squad.size(), _posted(0), _posted(1), SiegeArena.SWITCH_NAMES[commander.secure_side]])
 		"assault":
-			order("assault", "แผน: บุกแท่น แนวหน้าเคลียร์ ฮีลประกบหัวกิล")
+			order("assault", "แผน: บุกแท่น สายดาเมจนำ หัวกิลตามติด ฮีลประกบหัวกิล")
 		"capture":
-			order("capture", "หัวกิลยึดแท่น! ล้อมแท่น ขวางประตู ห้ามออกจากวงสวิตช์ทั้งซ้ายและขวา", true)
+			order("capture", "หัวกิลยึดแท่น! ล้อมแท่น ขวางประตูห้องบัลลังก์", true)
 		"stop":
 			var who := int(war.capture.get("team", -1))
-			order("stop", "ด่วน! %s ยึดแท่น สตันหัวกิลมัน ชิง%sคืน" % [war.team_name(who) if who >= 0 else "ศัตรู", SiegeArena.SWITCH_NAMES[commander.deny_side]], true)
+			order("stop", "ด่วน! %s ยึดแท่น สตันหัวกิลมัน ล้มให้ได้" % (war.team_name(who) if who >= 0 else "ศัตรู"), true)
 		"hold":
 			order("hold", "แผน: ตั้งรับที่%s แทงค์ขวางคอขวด คนเจ็บถอยหาฮีล" % _place())
 		"guard":
-			order("guard", "แผน: เฝ้าปราสาท หน่วยสวิตช์เฝ้าทั้งซ้าย %d ขวา %d ผลัดคนเจ็บ" % [_posted(0), _posted(1)])
+			order("guard", "แผน: เฝ้าปราสาท ล้อมแท่น ขวางประตูห้องบัลลังก์ ผลัดคนเจ็บ")
 		"counter":
 			order("counter", "สวนกลับ! %s หมดแรงแล้ว ไล่ตีแล้วกลับมา" % war.team_name(commander.counter_team if commander.counter_team >= 0 else foe))
 		"recover":
@@ -826,7 +1083,7 @@ func _announce_phase(_was: String, r: Dictionary) -> void:
 		"besiege":
 			order("besiege", "ล้อมรอจังหวะ! อย่าบุกทีละคน รวมที่ลานชั้นใน ดักคนของ %s ที่ออกมา" % foe_name)
 		"muster":
-			order("muster", "ประตูสุดท้ายใกล้พัง! รวมที่%s พังแล้วแยกเข้าสวิตช์ซ้ายและขวา" % _gate_text())
+			order("muster", "ประตูสุดท้ายใกล้พัง! รวมที่%s พังแล้วบุกแท่นพร้อมกัน" % _gate_text())
 		"vulture":
 			var pair := commander.busy_pair()
 			if pair.size() == 2:
@@ -844,7 +1101,7 @@ func _events(r: Dictionary) -> void:
 		_tiers_seen = open
 		if not bool(r.holding):
 			if open >= SiegeArena.GATE_Z.size():
-				order("tier", "ประตูสุดท้ายพัง! ชิงสวิตช์ซ้ายและขวาให้ครบก่อนแล้วบุกแท่นท้ายห้อง", true)
+				order("tier", "ประตูสุดท้ายพัง! บุกห้องบัลลังก์ สายดาเมจนำ หัวกิลตามติดขึ้นแท่น", true)
 			else:
 				order("tier", "ประตูชั้น %d พัง! เดินหน้ารวมที่%s" % [open, _place()], true)
 		else:
@@ -852,17 +1109,17 @@ func _events(r: Dictionary) -> void:
 	var lead := war.ai_leader(team)
 	var up := lead != null and not lead.is_dead()
 	if lead != null and _leader_was_up and not up and war.front_gate() == null and not bool(r.holding):
-		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล หน่วยสวิตช์เฝ้าวงทั้งสองฝั่ง", true)
+		order("lead_down", "หัวกิลล้ม! รวมพลรอหัวกิล อย่าบุกทีละคน", true)
 	_leader_was_up = up
 	if war.castle_owner != _owner_seen:
 		_owner_seen = war.castle_owner
 		if war.castle_owner == team:
-			order("owner", "ยึดปราสาทได้! แบ่งคนเฝ้าสวิตช์ซ้ายและขวา แทงค์คุมประตู", true)
+			order("owner", "ยึดปราสาทได้! ล้อมแท่นไว้ แทงค์คุมประตูห้องบัลลังก์", true)
 		elif war.castle_owner >= 0:
 			order("owner", "%s ยึดปราสาทไป! รวมพลแล้วชิงคืน" % war.team_name(war.castle_owner), true)
 	if last_call and not _order_at.has("last"):
 		if bool(r.holding):
-			order("last", "เหลือ 2 นาที! เฝ้าแท่นกับสวิตช์ทั้งสองฝั่งจนหมดเวลา", true)
+			order("last", "เหลือ 2 นาที! เฝ้าแท่นจนหมดเวลา", true)
 		elif war.castle_owner >= 0:
 			order("last", "เหลือ 2 นาที! ห้ามถอย บุกชิงปราสาท", true)
 		else:

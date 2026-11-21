@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Sums up tests/tools/guild_war_sim JSON lines (SIM_OUT): the doctrine ("new") against
-the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
-switch time, wins by camp, retakes, the doctrine's phases and orders, stuck fighters and the doctrine's cost.
+the doctrine as it stood before its second brain ("v1", SIM_BASE) or the old commander ("old") - wins, places, kills/deaths, captures and when, gate falls,
+wins by camp, retakes, where the leaders stand, the doctrine's phases and orders, stuck fighters and the doctrine's cost;
+per side leader falls (lead_D), lone falls (lone_D), captures begun (cap_go) and broken (cap_brk), idle-healer samples.
 usage: python3 tests/tools/gw_sim_report.py results.jsonl [more.jsonl ...]
 """
 import json
@@ -35,7 +36,8 @@ def main(paths):
             winner = r["winner"]
             places = {p["team"]: p["place"] for p in r.get("places", [])}
             for t in range(teams):
-                brain = "new" if int(r["smart"][t]) else "old"
+                base = r.get("base", [])
+                brain = ("v1" if t < len(base) and int(base[t]) else "new") if int(r["smart"][t]) else "old"
                 strong = r["mults"][t] > min(r["mults"]) if key[1] != "equal" else None
                 tag = brain if strong is None else "%s(%s)" % (brain, "strong" if strong else "weak")
                 s = stat[tag]
@@ -46,7 +48,12 @@ def main(paths):
                 s["deaths"] += r["deaths"][t]
                 s["captures"] += r["captures_n"][t]
                 s["holds_at_bell"] += 1 if r["owner"] == t else 0
-                s["switch_s"] += r["switch_s"][t]
+                s["switch_s"] += r["switch_s"][t] if "switch_s" in r else 0
+                for k2 in ("lone_deaths", "cap_start", "cap_broken", "heal_idle"):
+                    if k2 in r:
+                        s[k2] += r[k2][t]
+                if r.get("leaders"):
+                    s["lead_deaths"] += r["leaders"][t].get("lead_deaths", 0)
                 firsts = [c[0] for c in r["capture_log"] if c[1] == t]
                 if firsts:
                     s["first_cap"] += firsts[0]
@@ -64,6 +71,11 @@ def main(paths):
             print("%-14s %5d %5.0f%% %6.2f %6.1f %5.1f %6.2f %7.2f %9.0f %7.0f%%" % (
                 tag, n, 100.0 * s["wins"] / n, s["place"] / n, s["kills"] / n, s["deaths"] / n, kd,
                 s["captures"] / n, first, 100.0 * s["holds_at_bell"] / n))
+        print("%-14s %7s %7s %7s %7s %7s" % ("side", "lead_D", "lone_D", "cap_go", "cap_brk", "heal_id"))
+        for tag in sorted(stat):
+            s = stat[tag]
+            n = n_side[tag]
+            print("%-14s %7.2f %7.1f %7.2f %7.2f %7.1f" % (tag, s["lead_deaths"] / n, s["lone_deaths"] / n, s["cap_start"] / n, s["cap_broken"] / n, s["heal_idle"] / n))
         # Camp bias: wins by camp (team 0 west, 1 east, ...), whatever the brains.
         camps = Counter(r["winner"] for r in wars)
         print("wins by camp: " + ", ".join("t%d %d (%.0f%%)" % (t, camps[t], 100.0 * camps[t] / len(wars)) for t in range(teams)))
@@ -71,9 +83,19 @@ def main(paths):
         held = [r for r in wars if r.get("capture_log")]
         retaken = [r for r in held if len(r["capture_log"]) > 1]
         both = [r["first_both"] for r in wars if r.get("first_both", -1) is not None and r.get("first_both", -1) >= 0]
-        print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | rule %s" % (
+        print("captures per war %.2f | held castles retaken %d of %d | first both switches %s s | layout %s" % (
             sum(len(r.get("capture_log", [])) for r in wars) / len(wars), len(retaken), len(held),
             "%.0f" % (sum(both) / len(both)) if both else "-", ",".join(sorted(set(str(r.get("rule", "-")) for r in wars)))))
+        lead = defaultdict(float)
+        for r in wars:
+            for d in r.get("leaders", []):
+                for k, v in d.items():
+                    lead[k] += v
+        if lead["fight_s"]:
+            fs = lead["fight_s"]
+            print("leaders (share of the time its guild is out): camp %.0f%%, front (<=15 m) %.0f%%, far %.0f%%, down %.0f%%, ahead of its front %.0f%% | leader deaths per guild per war %.2f" % (
+                100 * lead["lead_camp_s"] / fs, 100 * lead["lead_front_s"] / fs, 100 * lead["lead_far_s"] / fs,
+                100 * lead["lead_dead_s"] / fs, 100 * lead["lead_ahead_s"] / fs, lead["lead_deaths"] / (len(wars) * teams)))
         tiers = [[r["tiers"][k] for r in wars if r["tiers"][k] >= 0] for k in range(3)]
         print("tier open (avg s): %s" % ", ".join("%.0f" % (sum(t) / len(t)) if t else "-" for t in tiers))
         stuck = max(r.get("stuck_max", 0) for r in wars)

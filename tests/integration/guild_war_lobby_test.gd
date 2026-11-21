@@ -3,7 +3,7 @@ extends Node
 ## GuildWarLobby): from five minutes before a league round (when registration closes) the
 ## registered hero in its guild's line-up may go into the arena early; before that the desk
 ## says when it opens; a hero who missed registration may still go in late. Inside, before the bell: the
-## hero at its camp with its line-up, nobody hurt, the gates unbreakable, the switch not
+## hero at its camp with its line-up, nobody hurt, the gates unbreakable, the altar not
 ## taken, the hero kept within LOBBY_RADIUS of its camp, the countdown banner (and 10-9-8...).
 ## At the bell the war runs its full DURATION from the round's real start. Leaving and
 ## coming back works; nothing is checkpointed before the start.
@@ -154,11 +154,12 @@ func _arena(at: int) -> void:
 	gate.take_damage(1.0e9, hero)
 	gate.take_hit(1000000000, false, Color.WHITE, hero)
 	check(gate.hp == gate_hp and not gate.is_dead(), "the front gate takes no harm")
-	# The switches: even standing on one nothing is taken (and the hero is pushed back).
-	foe.global_position = SiegeArena.SWITCHES[0]
-	hero.global_position = SiegeArena.SWITCHES[1] + Vector3(0, 0.3, 0)
+	# The altar: even standing on it nothing is taken (and the hero is pushed back).
+	var owner_before := m.castle_owner
+	foe.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	hero.global_position = SiegeArena.ALTAR + Vector3(1.0, 0.3, 0)
 	await _frames(5)
-	check(m.switch_owners == [-1, -1], "neither switch is taken before the start")
+	check(m.capture.is_empty() and m.castle_owner == owner_before, "the altar is not taken before the start (capture %s, owner %d -> %d)" % [m.capture, owner_before, m.castle_owner])
 	check(_flat(hero.global_position, home) <= GuildWarMatch.LOBBY_RADIUS + 0.5, "the hero is kept near its camp (%.1f m)" % _flat(hero.global_position, home))
 	hero.global_position = home + Vector3(40.0, 0.3, 30.0)
 	await _frames(3)

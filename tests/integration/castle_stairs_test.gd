@@ -1,10 +1,10 @@
 extends Node
 ## The guild war's grand staircase and raised throne court (headless). Past the third gate
-## a staircase as wide as the court climbs SiegeArena.COURT_H to the court where the two
-## switches and the altar stand:
+## a staircase as wide as the court climbs SiegeArena.COURT_H to the court where the
+## altar stands:
 ##   - the map: the floor is level in the field and the yards, rises up the stairs and is
-##     COURT_H on the court (floor_y); the altar and the switches are on the court; the
-##     map points the fighters' brains use (ALTAR, SWITCHES, the routes) stay flat; the
+##     COURT_H on the court (floor_y); the altar is on the court; the
+##     map points the fighters' brains use (ALTAR, the routes) stay flat; the
 ##     stairs are no narrower than the court and far wider than a gate
 ##   - the hero walking north from the third gate climbs the stairs, crosses the court and
 ##     stands on the altar at the court's height; so does a guild fighter sent to take the
@@ -13,7 +13,7 @@ extends Node
 ##     skill that moves it to a spot at the field's height) is set back on it (SiegeLift)
 ##   - an effect drawn for flat ground over the court (a danger circle) is lifted onto its
 ##     floor; one put at a body's real height is left alone
-##   - the altar's crystal, its barrier and the switch pads stand on the court
+##   - the altar's crystal stands on the court
 ##   - a guild's fallen come back standing on the floor where their camp is (the castle
 ##     holder's camp in the second yard included)
 ## godot --headless --path . res://tests/integration/castle_stairs_test.tscn
@@ -56,11 +56,8 @@ func _map() -> void:
 	check(S.COURT_H >= 4.0 and S.COURT_H <= 6.0, "the court stands 4 to 6 m over the yards (%.1f)" % S.COURT_H)
 	check(is_zero_approx(S.floor_y(S.PLAZA)) and is_zero_approx(S.floor_y(S.KEEP_CAMP)) and is_zero_approx(S.floor_y(S.gate_front(2))), "the field, the yards and the third gate's front are level ground")
 	check(is_equal_approx(S.floor_y(S.ALTAR), S.COURT_H) and is_equal_approx(S.altar_top().y, S.COURT_H), "the altar stands on the raised court")
-	for k in S.SWITCHES.size():
-		check(is_equal_approx(S.floor_y(S.SWITCHES[k]), S.COURT_H) and is_equal_approx(S.switch_top(k).y, S.COURT_H), "switch %d stands on the raised court" % k)
-		check(S.SWITCHES[k].z + S.SWITCH_RADIUS < S.STAIR_Z1, "switch %d's circle is clear of the stairs" % k)
-	check(is_zero_approx(S.ALTAR.y) and is_zero_approx(S.SWITCHES[0].y) and is_zero_approx(S.route(S.gate_front(2), S.ALTAR).y), "the map points and the routes stay flat")
-	# The stairs: between the third gate and the switches, rising all the way, walkable.
+	check(is_zero_approx(S.ALTAR.y) and is_zero_approx(S.route(S.gate_front(2), S.ALTAR).y), "the map points and the routes stay flat")
+	# The stairs: just past the third gate, rising all the way, walkable.
 	check(S.STAIR_Z0 < S.GATE_Z[2] - 2.2 and S.STAIR_Z1 < S.STAIR_Z0, "the stairs start inside the third gatehouse and run north")
 	var last := -1.0
 	var rising := true
@@ -121,8 +118,8 @@ func _walks() -> void:
 	m.set_physics_process(false)
 	var lift := zone.get_node_or_null("SiegeLift") as SiegeLift
 	check(lift != null, "the siege zone has its lift")
-	# The altar's crystal, the barrier and the switch pads stand on the court.
-	for node_name in ["AltarCrystal", "AltarBarrier", "CastleSwitch", "CastleSwitchRight"]:
+	# The altar's crystal stands on the court.
+	for node_name in ["AltarCrystal"]:
 		var node := zone.find_child(node_name, true, false) as Node3D
 		check(node != null and is_equal_approx(node.global_position.y, S.COURT_H), "%s stands on the raised court" % node_name)
 	# The hero walks north from the third gate: up the stairs, over the court, onto the altar.

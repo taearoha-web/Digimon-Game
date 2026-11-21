@@ -82,8 +82,8 @@ func _run() -> int:
 	var gear := _arg("gear").strip_edges()
 	if gear == "":
 		gear = "divine"
-	if not gear in ["divine", "set250", "keep"]:
-		return _fail("--gear must be divine, set250 or keep")
+	if not gear in ["divine", "set250", "keep", "gems"]:
+		return _fail("--gear must be divine, set250, keep or gems")
 	if gear == "set250" and stars < SetGearData.STARS:
 		return _fail("the 250-star set needs --stars %d or more" % SetGearData.STARS)
 	if _arg("mount-level") != "":
@@ -161,7 +161,10 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	_vault = bundle.storage if bundle.get("storage") is Array else []
 	_vault_used = false
 	# "keep": the worn gear stays as it is (only levels, stars and the mount change).
-	if gear != "keep":
+	# "gems": it stays too, and every socket of it gets a legendary gem (_socket_legend).
+	if gear == "gems":
+		_socket_legend()
+	elif gear != "keep":
 		_dress(accessory_plus, gear == "set250")
 	if mount != "":
 		var owned: Dictionary = Game.profile.get("mounts", {}) if Game.profile.get("mounts") is Dictionary else {}
@@ -180,6 +183,43 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 	if _vault_used:
 		bundle["storage"] = _vault
 	return {"slot": slot_key, "before": "new" if created else before, "created": created, "storage": _vault_used}
+
+
+## The owner's gem plan (--gear gems): every worn piece's sockets (at least MAX_SOCKETS, as
+## many as the piece may have) filled with legendary (GEM_MAX_SIZE) stat gems, one kind a
+## piece so the three resonate (GEM_RESONANCE): the weapon and the ring for damage (ruby,
+## sapphire for a caster), the armour, the boots and the amulet for defence (amethyst),
+## the helm and the wings for HP (emerald). The gems they held go to the bag (or the
+## shared storage); nothing is lost.
+const LEGEND_PLAN := {"weapon": "dmg", "ring": "dmg", "armor": "amethyst", "boots": "amethyst", "amulet": "amethyst", "helm": "emerald", "wings": "emerald"}
+
+
+static func _socket_legend() -> void:
+	var dmg := "sapphire" if WorldGear.gem_plan(String(Game.class_id())).main == "sapphire" else "ruby"
+	var equip: Dictionary = Game.profile.get("equip", {})
+	for slot in LEGEND_PLAN:
+		var piece: Variant = equip.get(slot)
+		if not piece is Dictionary:
+			continue
+		var kind := dmg if LEGEND_PLAN[slot] == "dmg" else String(LEGEND_PLAN[slot])
+		var room := maxi(ItemData.MAX_SOCKETS, mini(int(piece.get("sockets", 0)), ItemData.max_sockets(piece)))
+		for old in piece.get("gems", []):
+			var bits := String(old).split("_")
+			if bits.size() != 2:
+				continue
+			var back := ItemData.gem(bits[0], int(bits[1]))
+			if not Game.add_item(back):
+				if _vault.size() < SharedStorage.MAX_ITEMS:
+					_vault.append(back)
+					_vault_used = true
+				else:
+					Game.profile["inv"].append(back)
+		var gems: Array = []
+		for k in room:
+			gems.append("%s_%d" % [kind, ItemData.GEM_MAX_SIZE])
+		piece["sockets"] = room
+		piece["gems"] = gems
+		print("BOOST:   %s: %d × %s" % [slot, room, ItemData.gem_info({"id": gems[0]}).name])
 
 
 ## A new Vagabond named [param wanted] in the first free slot, stored as the

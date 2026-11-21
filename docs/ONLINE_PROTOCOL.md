@@ -369,7 +369,8 @@ jackpot, jade for the dragon, queued) and a system line in the world chat
 
 - What every game works out by itself, with nothing on the wire: the rare dragon's
   windows (`WorldEvents.rare_now`, read off the clock, the same on every device) and the
-  AI world players' jackpots (`IsleLuck`, also read off the clock). Their cheering in the
+  AI world players' jackpots (`IsleLuck`, also read off the clock; a weapon or wings
+  jackpot is a real drop of the winner's own forging, `WorldGear`). Their cheering in the
   world chat is ordinary `ai_chat` from the world host.
 - What is relayed: a real player's own jackpot (`SkyIsleLoot.announce` ->
   `Announcer.broadcast`) and a real player bringing the rare dragon down

@@ -17,8 +17,8 @@ const KIND_COLORS := {
 }
 
 var _stack: VBoxContainer
-## The bottom of the toasts on screen while any is up, 0 without (the guild war's switch
-## label keeps out of the lane: GuildWarMatch._fit_switch_label).
+## The bottom of the toasts on screen while any is up, 0 without (labels that float over
+## the field keep out of the lane).
 static var lane_bottom := 0.0
 
 

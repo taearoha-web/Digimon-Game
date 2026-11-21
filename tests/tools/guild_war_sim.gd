@@ -10,12 +10,24 @@ extends Node
 ## env: SIM_TEAMS=2|4, SIM_SEEDS=1,2,3, SIM_SMART=1,0[,0,0], SIM_MULT=1,1[,..],
 ##      SIM_SECONDS (default the whole war), SIM_SIZE (fighters a guild, 20), SIM_SWAP=0|1,
 ##      SIM_OUT=/path/results.jsonl (one JSON line a war), SIM_SPEED (Engine.time_scale, 4),
-##      SIM_OFF=muster,besiege,wait,exploit,squads (the doctrine's rules switched off),
-##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase),
-##      SIM_RULE=both|either (the two switches' rule, GuildWarMatch.switch_rule).
-## Each line also has switch_s (s each guild held BOTH switches), switch1_s (s it held
-## exactly one), retakes (captures of a castle another guild held) and barrier_s (s some
-## guild had the barrier open).
+##      SIM_OFF=muster,besiege,wait,exploit,squads,altar,deadline,intercept (the doctrine's
+##      rules switched off), SIM_TRIAL=waves,walkers,bodyrear (trial rules switched on),
+##      SIM_BASE=0,1[,..] (1: that guild plays the doctrine as it stood before its second
+##      brain, GuildWarDoctrine.base: SIM_SMART=1,1 SIM_BASE=0,1 is new against the
+##      current one; rotated with SIM_SMART by SIM_SWAP),
+##      SIM_TRACE=1 (the feed and every 20 s each guild's plan / tactic / phase and where
+##      its leader stands).
+## Leaders (lead_*, per guild, sampled each second of war time while at least a third of
+## its standing members are out of its camp, "fight_s"): lead_camp_s at its camp,
+## lead_front_s within 15 m of its front (the five of its members nearest a foe),
+## lead_far_s elsewhere, lead_dead_s down, lead_ahead_s nearer a foe than all its front,
+## lead_deaths (falls a war).
+## Each line also has retakes (captures of a castle another guild held), per guild
+## lone_deaths (falls with at most one of its own and three foes within 12 m: one who
+## walked in alone), cap_start / cap_broken (captures begun, and lost before done: the
+## leader fell or left), heal_idle (5 s samples of a healer with nobody to fight while one
+## of its own beside it is under 55%); with SIM_TRACE also each lone fall and each leader
+## fall with why.
 ## The physics step is 1/15 s of war time (time_scale 4 at 60 ticks, as the capture
 ## measurements in guild_war_capture_test / guild_war_4way_test); with --fixed-fps 15 the
 ## wars run as fast as the machine can (tools/gw_sim_report.py sums the JSON lines up).
@@ -57,22 +69,28 @@ func _ready() -> void:
 	for t in teams:
 		ones.append("1")
 	var mults := _floats(_env("SIM_MULT", ",".join(ones)))
+	var zeros: PackedStringArray = []
+	for t in teams:
+		zeros.append("0")
+	var bases := _ints(_env("SIM_BASE", ",".join(zeros)))
 	var seconds := float(_env("SIM_SECONDS", str(GuildWarData.DURATION)))
 	var size := int(_env("SIM_SIZE", str(GuildWarData.GUILD_SIDE)))
 	var swap := _env("SIM_SWAP", "1") == "1"
 	var out_path := _env("SIM_OUT", "")
 	var hook := Hook.new()
 	GuildWarSpectate.league_hook = hook
-	GuildWarMatch.switch_rule = _env("SIM_RULE", GuildWarMatch.RULE_BOTH)
+
 	for key in _env("SIM_OFF", "").split(",", false):
 		GuildWarDoctrine.off[key] = true
+	for key in _env("SIM_TRIAL", "").split(",", false):
+		GuildWarDoctrine.trial[key] = true
 	for s in seeds:
-		var setups: Array = [[smart, mults]]
+		var setups: Array = [[smart, mults, bases]]
 		if swap:
 			# The same war with the brains (and the strength) handed round by one guild.
-			setups.append([smart.slice(1) + smart.slice(0, 1), mults.slice(1) + mults.slice(0, 1)])
+			setups.append([smart.slice(1) + smart.slice(0, 1), mults.slice(1) + mults.slice(0, 1), bases.slice(1) + bases.slice(0, 1)])
 		for st in setups:
-			var r: Dictionary = await _war(int(s), teams, st[0], st[1], seconds, size, hook)
+			var r: Dictionary = await _war(int(s), teams, st[0], st[1], seconds, size, hook, st[2])
 			print("SIMRESULT ", JSON.stringify(r))
 			if out_path != "":
 				var fa := FileAccess.open(out_path, FileAccess.READ_WRITE if FileAccess.file_exists(out_path) else FileAccess.WRITE)
@@ -108,20 +126,27 @@ static func roster(war_seed: int, teams: int, size: int, mults: Array) -> Dictio
 	return {"sides": sides, "guilds": false, "owner": -1, "elapsed": 0.0, "slot_start": 1700000000 + war_seed}
 
 
-func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float, size: int, hook: Hook) -> Dictionary:
+## The war clock now (the trace's feed lines).
+var _clock_now := 0.0
+
+
+func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float, size: int, hook: Hook, bases: Array = []) -> Dictionary:
 	seed(war_seed)
 	hook.last = {}
 	var flags: Array[bool] = []
+	var base_flags: Array[bool] = []
 	for t in teams:
 		flags.append(t < smart.size() and int(smart[t]) != 0)
+		base_flags.append(t < bases.size() and int(bases[t]) != 0)
 	GuildWarMatch.next_smart = flags
+	GuildWarMatch.next_base = base_flags
 	GuildWarSpectate._pending = roster(war_seed, teams, size, mults)
 	var zone := Zone.new()
 	zone.zone_id = &"guildwar"
 	zone.layout_seed = 77
 	add_child(zone)
 	var m: GuildWarMatch = zone.gw_match
-	var out := {"seed": war_seed, "teams": teams, "smart": smart, "mults": mults, "off": GuildWarDoctrine.off.keys(), "rule": GuildWarMatch.switch_rule}
+	var out := {"seed": war_seed, "teams": teams, "smart": smart, "base": bases, "mults": mults, "off": GuildWarDoctrine.off.keys(), "trial": GuildWarDoctrine.trial.keys(), "rule": "altar"}
 	if m == null:
 		out["error"] = "no match"
 		return out
@@ -144,14 +169,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	for t in teams:
 		phase_time.append({})
 		plan_time.append({})
-	var switch_time := []
-	switch_time.resize(teams)
-	switch_time.fill(0.0)
-	var switch1_time := []
-	switch1_time.resize(teams)
-	switch1_time.fill(0.0)
-	var barrier_time := 0.0
-	var first_both := -1.0
+
 	var stuck_max := 0.0
 	var stuck := {}
 	var last_pos := {}
@@ -160,11 +178,59 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 			deaths[victim.team] += 1
 			if killer is GuildFighter and (killer as GuildFighter).team != victim.team:
 				kills[(killer as GuildFighter).team] += 1)
+	# Feeding (one walking into a fight alone): falls with at most one of its own and at
+	# least three foes within 12 m. Captures begun, completed and broken (the count lost).
+	var lone := []
+	lone.resize(teams)
+	lone.fill(0)
+	var cap_start := []
+	cap_start.resize(teams)
+	cap_start.fill(0)
+	var cap_broken := []
+	cap_broken.resize(teams)
+	cap_broken.fill(0)
+	var heal_idle := []
+	heal_idle.resize(teams)
+	heal_idle.fill(0)
+	for f in m.all_fighters():
+		f.fell.connect(func(victim: GuildFighter, _killer: Node) -> void:
+			var mates := 0
+			var foes := 0
+			for g in m.all_fighters():
+				if g == victim or g.is_dead() or _flat(g.global_position, victim.global_position) > 12.0:
+					continue
+				if g.team == victim.team:
+					mates += 1
+				else:
+					foes += 1
+			if mates <= 1 and foes >= 3:
+				lone[victim.team] += 1
+				if _env("SIM_TRACE", "") != "":
+					var mid := Vector3.ZERO
+					var up := 0
+					for g in m.side(victim.team):
+						if not g.is_dead() and g != victim:
+							mid += g.global_position
+							up += 1
+					mid /= float(maxi(1, up))
+					print("  LONE t%d %s%s at (%.0f,%.0f) sec %d ret %s hp-pot %d mid %.0f m goal %.0f m lead %s phase %s tactic %s" % [victim.team, victim.fighter_class(), " LEADER" if victim.is_leader else "", victim.global_position.x, victim.global_position.z, SiegeArena.section(victim.global_position), victim.is_retreating(), victim._potions, _flat(mid, victim.global_position), _flat(victim.goal_point, victim.global_position), str(victim.capture_role), m.phase_key(victim.team), m.commanders[victim.team].tactic]))
+	var cap_team := -1
+	var lead_stat: Array = []
+	for t in teams:
+		lead_stat.append({"fight_s": 0.0, "lead_camp_s": 0.0, "lead_front_s": 0.0, "lead_far_s": 0.0, "lead_dead_s": 0.0, "lead_ahead_s": 0.0, "lead_deaths": 0})
+	for f in m.all_fighters():
+		f.fell.connect(func(victim: GuildFighter, _killer: Node) -> void:
+			if victim.is_leader:
+				lead_stat[victim.team]["lead_deaths"] += 1
+				if _env("SIM_TRACE", "") != "":
+					var c: GuildWarCommander = m.commanders[victim.team]
+					print("  LEADER DOWN t%d pots %d at (%.0f,%.0f) tactic %s phase %s post %s covering %s cap %s go %s" % [victim.team, victim._potions, victim.global_position.x, victim.global_position.z, c.tactic, m.phase_key(victim.team), str(c.leader_post.round()), c.leader_covering, victim.capture_role, c.leader_go]))
+	var lead_sample := 0.0
 	var sample := 0.0
 	var stuck_who := ""
 	var trace := _env("SIM_TRACE", "") != ""
 	if trace:
-		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [clock, team, text]))
+		m.feed.connect(func(text: String, team: int): print("  [%.0f] %d %s" % [_clock_now, team, text]))
 	var frame_peak := 0.0
 	var frame_sum := 0.0
 	var frames := 0
@@ -181,6 +247,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		frame_sum += frame_ms
 		frame_peak = maxf(frame_peak, frame_ms)
 		clock += dt
+		_clock_now = clock
 		if seconds < GuildWarData.DURATION and clock >= seconds:
 			break
 		for gi in m.gates.size():
@@ -189,20 +256,17 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		for k in 3:
 			if float(tier_open[k]) < 0.0 and m.tier_open(k):
 				tier_open[k] = snappedf(clock, 1.0)
-		for t in teams:
-			if not m.barrier_up(t):
-				barrier_time += dt
-				break
+		var ct := int(m.capture.get("team", -1))
+		if ct != cap_team:
+			if cap_team >= 0 and m.castle_owner != cap_team:
+				cap_broken[cap_team] += 1
+			if ct >= 0:
+				cap_start[ct] += 1
+			cap_team = ct
 		if m.castle_owner != owner_now:
 			owner_now = m.castle_owner
 			captures.append([snappedf(clock, 1.0), owner_now])
 		for t in teams:
-			if m.holds_switch(t):
-				switch_time[t] += dt
-				if first_both < 0.0:
-					first_both = snappedf(clock, 1.0)
-			elif m.switches_held(t) == 1:
-				switch1_time[t] += dt
 			var ph := m.phase_key(t)
 			phase_time[t][ph] = float(phase_time[t].get(ph, 0.0)) + dt
 			var pl := String(m.plans[t])
@@ -220,13 +284,26 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 				if dd != null:
 					var fl: Dictionary = dd.field
 					extra = " bal %.2f spent %.2f gath %.2f" % [float(fl.get("balance", 0)), float(fl.get("foe_spent", 0)), float(fl.get("gathered", 0))]
-				rows.append("t%d %s/%s/%s up %d mid (%.0f,%.0f)%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), mid.x, mid.z, extra])
-			print("[%.0f] %s | sw %s own %d cap %s" % [clock, " | ".join(rows), str(m.switch_owners), m.castle_owner, str(m.capture.get("team", "-"))])
+				var lead: GuildFighter = m.ai_leader(t)
+				var lp := "down" if lead == null or lead.is_dead() else "(%.0f,%.0f) hp %.2f%s%s" % [lead.global_position.x, lead.global_position.z, lead.hp_ratio(), " camp" if m.commanders[t]._in_camp(lead) else "", " ret" if lead.is_retreating() else ""]
+				var ret := up.filter(func(f): return f.is_retreating()).size()
+				var joining := 0
+				if dd != null and dd.get("join_at") is Vector3 and (dd.join_at as Vector3).is_finite():
+					joining = up.filter(func(f): return _flat(f.goal_point, dd.join_at) < 9.0).size()
+				rows.append("t%d %s/%s/%s up %d ret %d join %d mid (%.0f,%.0f) lead %s%s" % [t, m.plans[t], m.commanders[t].tactic, m.phase_key(t), up.size(), ret, joining, mid.x, mid.z, lp, extra])
+			print("[%.0f] %s | own %d cap %s" % [clock, " | ".join(rows), m.castle_owner, str(m.capture.get("team", "-"))])
+		lead_sample += dt
+		if lead_sample >= 1.0:
+			_sample_leaders(m, teams, lead_sample, lead_stat)
+			lead_sample = 0.0
 		sample += dt
 		if sample >= 5.0:
 			sample = 0.0
 			# Stuck: standing, nobody to fight, far from its goal and hardly moved in 5 s.
 			for f in m.all_fighters():
+				# A healer with nobody to fight while one of its own near it is hurt.
+				if f.is_healer() and not f.is_dead() and (f._victim == null or not is_instance_valid(f._victim)) and f._lowest_near(1.0) < 0.55:
+					heal_idle[f.team] += 1
 				var id := f.get_instance_id()
 				var p := f.global_position
 				var idle := not f.is_dead() and not f.is_retreating() and (f._victim == null or not is_instance_valid(f._victim)) and Vector2(p.x - f.goal_point.x, p.z - f.goal_point.z).length() > 6.0
@@ -271,17 +348,74 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 	out.merge({
 		"clock": snappedf(clock, 1.0), "winner": int(r.get("winner", -2)), "score": Array(m.score), "captures_n": Array(m.captures),
 		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
-		"switch_s": switch_time.map(func(x): return int(x)), "switch1_s": switch1_time.map(func(x): return int(x)), "barrier_s": int(barrier_time), "first_both": first_both,
 		"retakes": captures.filter(func(c): return captures.find(c) > 0).size(), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
-		"points": points, "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
+		"points": points, "lone_deaths": lone, "cap_start": cap_start, "cap_broken": cap_broken, "heal_idle": heal_idle, "leaders": lead_stat.map(func(d): return _rounded(d)), "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
 		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks,
 		"doctrine_think_avg_us": int(float(total_us) / float(maxi(1, thinks))), "doctrine_apply_avg_us": int(float(apply_us) / float(maxi(1, applies))), "orders": orders,
 		"frame_avg_ms": snappedf(frame_sum / float(maxi(1, frames)), 0.01), "frame_peak_ms": snappedf(frame_peak, 0.1),
 		"wall_s": snappedf((Time.get_ticks_msec() - t0) / 1000.0, 0.1),
 	})
 	GuildWarMatch.next_smart = []
+	GuildWarMatch.next_base = []
 	zone.queue_free()
 	for i in 3:
 		await get_tree().process_frame
 	Game.guildwar_clear_checkpoint()
 	return out
+
+
+static func _rounded(d: Dictionary) -> Dictionary:
+	var o := {}
+	for k in d:
+		o[k] = snappedf(float(d[k]), 0.1) if d[k] is float else d[k]
+	return o
+
+
+static func _flat(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Where each guild's leader stands (see the header's lead_*), `dt` s of war time.
+func _sample_leaders(m: GuildWarMatch, teams: int, dt: float, stat: Array) -> void:
+	for t in teams:
+		var lead: GuildFighter = m.ai_leader(t)
+		var c: GuildWarCommander = m.commanders[t]
+		var up: Array = []
+		var out := 0
+		for f in m.side(t):
+			if f == lead or f.is_dead():
+				continue
+			up.append(f)
+			if not c._in_camp(f):
+				out += 1
+		if up.is_empty() or out * 3 < up.size():
+			continue
+		var st: Dictionary = stat[t]
+		st["fight_s"] += dt
+		if lead == null or lead.is_dead():
+			st["lead_dead_s"] += dt
+			continue
+		if c._in_camp(lead):
+			st["lead_camp_s"] += dt
+			continue
+		var foes := m.foes_of(t).filter(func(g): return not g.is_dead())
+		var near_foe := func(p: Vector3) -> float:
+			var best := INF
+			for g in foes:
+				best = minf(best, _flat(p, g.global_position))
+			return best
+		var ranked: Array = []
+		for f in up:
+			if not c._in_camp(f):
+				ranked.append([near_foe.call(f.global_position), f])
+		ranked.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+		var front := ranked.slice(0, 5)
+		var d := INF
+		for e in front:
+			d = minf(d, _flat(lead.global_position, (e[1] as GuildFighter).global_position))
+		if d <= 15.0:
+			st["lead_front_s"] += dt
+		else:
+			st["lead_far_s"] += dt
+		if not front.is_empty() and float(near_foe.call(lead.global_position)) + 1.0 < float(front[0][0]):
+			st["lead_ahead_s"] += dt
