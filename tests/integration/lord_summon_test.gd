@@ -2,7 +2,7 @@ extends Node
 ## The Dark Lord's Summon (recall the party) is never a reflex: the hero's auto-hunt
 ## never casts it, the player's own press does; an AI Dark Lord in the party casts it
 ## only on purpose, when a member has fallen far behind; a rival never does. Imperial
-## Judgment's repel throws monsters 3 m clear of the Lord.
+## Judgment pulls monsters in to 1.5 m of the Lord (a repel still throws 3 m clear).
 ##   godot --headless --path . res://tests/integration/lord_summon_test.tscn
 var failures := 0
 var checks := 0
@@ -168,5 +168,14 @@ func _ready() -> void:
 		var slide := Vector2(mob.velocity.x, mob.velocity.z).length_squared() / (2.0 * 12.0)
 		var lands := 1.0 + slide
 		check(absf(lands - (Mob.REPEL_DISTANCE + mob.body_radius())) < 0.05, "a repel throws a monster to 3 m from the Lord (lands %.2f m)" % lands)
+		# Imperial Judgment now PULLS: a monster 7 m off slides in to 1.5 m of the Lord.
+		mob.velocity = Vector3.ZERO
+		var lord := mob.global_position + Vector3(7.0, 0.0, 0.0)
+		mob.velocity = Vector3(-2.0, 0.0, 0.0)  # a knock-back of the same hit is replaced
+		mob.pull_in(lord, Mob.PULL_DISTANCE)
+		var pull := Vector2(mob.velocity.x, mob.velocity.z)
+		var travel := pull.length_squared() / (2.0 * 12.0)
+		check(pull.x > 0.0 and absf(pull.y) < 0.001 and absf(7.0 - travel - (Mob.PULL_DISTANCE + mob.body_radius())) < 0.05, "a pull draws a monster in to 1.5 m of the Lord (stops %.2f m off)" % (7.0 - travel))
+		check(ClassData.find_skill(&"darklord", "imperial_judgment").fx.has("pull"), "Imperial Judgment carries the pull")
 	print("LORD SUMMON: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAIL", checks, failures])
 	get_tree().quit(0 if failures == 0 else 1)

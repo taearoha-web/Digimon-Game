@@ -44,6 +44,9 @@ const TRAITS := {
 
 ## The Mage's mark on a target: meta {party key: until (ms)}.
 const MARK_META := &"role_arcane"
+## The Dark Lord's raven mark (Birds, Raven Storm) on a target: meta {party key:
+## [until (ms), bonus]}. The party that marked it deals +bonus to it until then.
+const RAVEN_META := &"raven_mark"
 
 ## Off only in tests that measure a skill's own numbers (armageddon_test).
 static var enabled := true
@@ -293,7 +296,31 @@ static func outgoing(attacker: Variant, target: Variant) -> float:
 		mult += value(&"mage")
 	if classes.has(&"assassin") and hp_ratio(target) < float(TRAITS[&"assassin"].below):
 		mult += value(&"assassin")
+	mult += raven_bonus(attacker, target)
 	return mult
+
+
+## The raven's mark: [param target] marked by [param attacker]'s party for
+## [param spec] = [bonus, seconds] (a fresh mark replaces the old one).
+static func raven_mark(attacker: Variant, target: Variant, spec: Array) -> void:
+	var key := party_key(attacker)
+	if key == "" or target == null or not is_instance_valid(target) or spec.size() < 2:
+		return
+	var obj := target as Object
+	var marks: Dictionary = obj.get_meta(RAVEN_META) if obj.has_meta(RAVEN_META) else {}
+	marks[key] = [Time.get_ticks_msec() + int(float(spec[1]) * 1000.0), float(spec[0])]
+	obj.set_meta(RAVEN_META, marks)
+
+
+## The extra share [param attacker]'s hits deal to [param target] under its party's
+## raven mark (0 without one).
+static func raven_bonus(attacker: Variant, target: Variant) -> float:
+	if target == null or not is_instance_valid(target) or not (target as Object).has_meta(RAVEN_META):
+		return 0.0
+	var mark: Variant = ((target as Object).get_meta(RAVEN_META) as Dictionary).get(party_key(attacker))
+	if mark is Array and int(mark[0]) > Time.get_ticks_msec():
+		return float(mark[1])
+	return 0.0
 
 
 ## Crit chance the party adds (ตาเหยี่ยว).

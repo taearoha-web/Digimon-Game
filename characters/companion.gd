@@ -782,6 +782,10 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		var fx: Dictionary = skill.get("fx", {})
 		if fx.has("repel"):
 			mob.shove_out(global_position, Mob.REPEL_DISTANCE)
+		if fx.has("pull"):
+			mob.pull_in(global_position, Mob.PULL_DISTANCE)
+		if fx.get("raven_mark") is Array:
+			ClassRoles.raven_mark(self, mob, fx.raven_mark)
 		if fx.has("stun"):
 			mob.apply_stun(float(fx.stun))
 		if fx.has("taunt") and mob.has_method("taunt"):
@@ -1100,8 +1104,10 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 			if alive:
 				list.erase(mob)
 				list.push_front(mob)
-			for i in mini(int(skill.hits), list.size()):
-				_shoot(list[i], mult, color, skill.vfx, skill)
+			# A converging fan (the Dark Lord's ravens) sends the shots left over to the target.
+			var shots := int(skill.hits) if alive and bool(skill.get("converge", false)) else mini(int(skill.hits), list.size())
+			for i in shots:
+				_shoot(list[i] if i < list.size() else mob, mult, color, skill.vfx, skill)
 		"chain":
 			var hit: Array[Mob] = []
 			var current: Mob = mob if alive else null

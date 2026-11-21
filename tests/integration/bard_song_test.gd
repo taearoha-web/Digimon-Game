@@ -37,6 +37,15 @@ func bard(id: String) -> Dictionary:
 	return ClassData.find_skill(&"bard", id)
 
 
+## A self-only stance (the Bard's old Virtuoso / Maestro's Fervor, dropped with the
+## skill lines): BuffBook still keeps "self_only" buffs on their caster, so the rules
+## stay covered with the two stances built here as they were.
+func old_stance(id: String) -> Dictionary:
+	if id == "maestro_fervor":
+		return ClassData._sk(&"bard", "maestro_fervor", "Maestro's Fervor", "stance", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.15, "speed": 0.12, "self_only": true, "secs": 60.0}}, "anim": "Spellcasting", "vfx": &"aura", "color": Color("f0c870"), "icon": "roar"})
+	return ClassData._sk(&"bard", "virtuoso", "Virtuoso", "stance", 43, 36, 32.0, "self", 0.0, {"fx": {"buff": {"atk": 0.25, "crit": 0.12, "self_only": true, "secs": 60.0}}, "anim": "Spellcasting", "vfx": &"aura", "color": Color("ff6fb5"), "icon": "roar"})
+
+
 func _ready() -> void:
 	Game.set_process(false)
 	GameSettings.load_settings()
@@ -109,7 +118,7 @@ func _song_slot() -> void:
 		elif skill.get("fx", {}).get("buff") is Dictionary and BuffBook.is_self_only(skill.fx.buff):
 			stances.append(String(skill.id))
 	check(songs == ["valor_march", "iron_ballad", "heroic_anthem", "sanctuary_serenade", "hymn_of_legends"], "the five songs are flagged (%s)" % str(songs))
-	check(stances == ["virtuoso", "maestro_fervor"], "the two stances are self-only (%s)" % str(stances))
+	check(stances.is_empty() and BuffBook.is_self_only(old_stance("virtuoso").fx.buff), "the Bard's stances were dropped with the skill lines (%s); a self-only buff still reads as one" % str(stances))
 	var boosted := BuffBook.boost_song(bard("valor_march").fx.buff, 1.15)
 	check(is_equal_approx(float(boosted.atk), 0.15 * 1.15) and float(boosted.secs) == 60.0 and boosted.song == true, "boost_song raises numbers, never the minute or the flag")
 
@@ -129,11 +138,9 @@ func _skill_rank() -> void:
 				grows = grows and absi(int(String(values[r]).replace("%", ""))) > absi(int(String(values[r - 1]).replace("%", "")))
 			check(grows, "%s %s grows every star %s" % [id, row[0], str(values)])
 		check(found == (2 if id in ["grand_dissonance", "grand_finale"] else 1), "%s shows its mark rows" % id)
-	var death := SkillRank.table(ClassData.find_skill(&"assassin", "death_mark"))
-	check(death.any(func(row): return String(row[0]).begins_with("ลดเกราะศัตรู")), "Death Mark shows its armour crack in the Skill Master")
 	var valor := SkillRank.scaled(bard("valor_march"), 5)
 	check(valor.fx.buff.song is bool and valor.fx.buff.song == true and float(valor.fx.buff.secs) == 60.0, "★5 song keeps its bool flag and its minute")
-	var stance := SkillRank.scaled(bard("virtuoso"), 5)
+	var stance := SkillRank.scaled(old_stance("virtuoso"), 5)
 	check(stance.fx.buff.self_only is bool and stance.fx.buff.self_only == true, "★5 stance keeps its bool flag")
 	var crack := SkillRank.scaled(bard("discord"), 5)
 	check(is_equal_approx(float(crack.fx.shred[0]), 0.15 * 1.24) and float(crack.fx.shred[1]) == 8.0, "★5 shred +24%%, seconds fixed")
@@ -227,7 +234,7 @@ func _stances() -> void:
 	for b in [buddy, singer, wolf]:
 		b._book.buffs.clear()
 	hero._buffs.clear()
-	hero._apply_self_fx(bard("virtuoso"))
+	hero._apply_self_fx(old_stance("virtuoso"))
 	check(BuffBook.contains(hero._buffs, "virtuoso", false), "the hero's stance is on the hero")
 	check(not BuffBook.contains(buddy._book.buffs, "virtuoso", true) and not BuffBook.contains(wolf._book.buffs, "virtuoso", true), "the hero's stance never reaches the party")
 	# Its heal stays on the caster too (a stance is "เฉพาะตัวเอง").
@@ -236,15 +243,15 @@ func _stances() -> void:
 	buddy.hp = buddy.max_hp / 2
 	var hero_hp: int = Game.profile.hp
 	Game.profile.hp = hero.stats.max_hp / 2
-	hero._apply_self_fx(bard("maestro_fervor"))
+	hero._apply_self_fx(old_stance("maestro_fervor"))
 	check(buddy.hp == buddy.max_hp / 2, "the hero's stance heal reaches nobody else")
 	Game.profile.hp = hero.stats.max_hp / 2
-	singer._apply_self(bard("maestro_fervor"))
+	singer._apply_self(old_stance("maestro_fervor"))
 	check(Game.profile.hp == hero.stats.max_hp / 2, "the AI Bard's stance heal reaches nobody else")
 	Game.profile.hp = hero_hp
 	buddy.global_position = buddy_spot
 	hero._buffs.clear()
-	hero._apply_self_fx(bard("virtuoso"))
+	hero._apply_self_fx(old_stance("virtuoso"))
 	check(BuffBook.contains(singer._book.buffs, "maestro_fervor", false), "the AI Bard's stance is on itself")
 	check(not BuffBook.contains(hero._buffs, "maestro_fervor", true) and not BuffBook.contains(buddy._book.buffs, "maestro_fervor", true), "the AI Bard's stance takes nobody else's slot")
 	check(BuffBook.group_count(hero._buffs, true) == 0 and BuffBook.group_count(hero._buffs, false) == 1, "the hero's slots are untouched by the AI stance")
@@ -260,7 +267,7 @@ func _star_set() -> void:
 	hero._buffs.clear()
 	buddy._book.buffs.clear()
 	hero._apply_self_fx(bard("valor_march"))
-	hero._apply_self_fx(bard("virtuoso"))
+	hero._apply_self_fx(old_stance("virtuoso"))
 	check(is_equal_approx(float(hero.song_entry().atk), 0.15 * Hero.SONG_SET_BOOST) and is_equal_approx(float(hero.song_entry().speed), 0.12 * Hero.SONG_SET_BOOST), "the set makes the hero's song 15% stronger")
 	check(is_equal_approx(float(BuffBook.song_of(buddy._book.buffs).atk), 0.15 * Hero.SONG_SET_BOOST), "the boosted song reaches the party")
 	var stance: Array = hero._buffs.filter(func(b): return BuffBook.identity(b) == "virtuoso")
@@ -344,11 +351,11 @@ func _monster_marks() -> void:
 	check(_labels("อ่อนแรง!") - words == 1, "next frame: a stronger mark speaks, but not twice in 1.2 s on one monster")
 	for m in pack:
 		m.queue_free()
-	# The Assassin's Death Mark now really cracks the armour (it carried shred for nothing before).
+	# A Bard discord really cracks the armour of the monster it hits.
 	var marked := _mob(&"forest_orc", 100, Vector3(-30, 0, -4))
 	var def0 := float(marked.stats.def)
-	hero._deal(marked, 0.001, Color.WHITE, &"impact", false, ClassData.find_skill(&"assassin", "death_mark"))
-	check(not marked.is_dead() and is_equal_approx(marked.debuff_left("shred"), 8.0) and is_equal_approx(float(marked.stats.def), def0 * 0.8), "Death Mark cracks the armour 20% for 8 s")
+	hero._deal(marked, 0.001, Color.WHITE, &"impact", false, bard("discord"))
+	check(not marked.is_dead() and is_equal_approx(marked.debuff_left("shred"), 8.0) and is_equal_approx(float(marked.stats.def), def0 * 0.85), "Discord cracks the armour 15% for 8 s")
 	hero._deal(marked, 0.001, Color.WHITE, &"impact", false, bard("sorrow_note"))
 	check(is_equal_approx(marked.debuff_left("weaken"), 6.0), "a Bard note saps the monster it hits")
 	marked.queue_free()
@@ -446,7 +453,7 @@ func _fighters() -> void:
 	check(String(hero.song_entry().get("skill_id", "")) == "valor_march", "an AI fighter never sings over the hero's own song")
 	mate._atk_boost = 1.0
 	mate._buff_until = 0.0
-	friend._resolve(bard("virtuoso"), null, Vector3.ZERO)
+	friend._resolve(old_stance("virtuoso"), null, Vector3.ZERO)
 	check(mate._atk_boost == 1.0 and not BuffBook.contains(hero._buffs, "virtuoso", true), "a fighter's stance stays its own")
 	friend.queue_free()
 	mate.queue_free()
@@ -601,7 +608,7 @@ func _companion_ai() -> void:
 	mob.is_boss = false
 	mob.apply_weaken(0.15, 6.0)
 	check(is_equal_approx(singer._score(note, 3.0, 1.0), maxf(0.5, plain - 2.0)), "a marked target makes it wait")
-	check(singer._score(bard("virtuoso"), 3.0, 1.0) == 6.0 and singer._score(bard("maestro_fervor"), 3.0, 1.0) == 6.0, "stances score like any own buff")
+	check(singer._score(old_stance("virtuoso"), 3.0, 1.0) == 6.0 and singer._score(old_stance("maestro_fervor"), 3.0, 1.0) == 6.0, "stances score like any own buff")
 	mob._tick_status(9.0)
 	# Live: the AI Bard sings, then marks.
 	singer.mp = 99999.0

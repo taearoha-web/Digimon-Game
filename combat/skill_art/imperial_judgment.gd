@@ -2,8 +2,8 @@ extends RefCounted
 ## Dark Lord Lv.100: Imperial Judgment (คำพิพากษาจักรพรรดิ), the Lord's greatest strike.
 ## Three orbs (void violet, hellfire, storm blue) wheel round the Lord over a great
 ## imperial seal while a ring of dark cloud gathers overhead. On the release the judgment
-## falls in three: a column of void erupts at the Lord and a violet shock throws the foes
-## back (the repel), a ring of hellfire races out, and a crown of lightning bolts crashes
+## falls in three: a column of void erupts at the Lord and a violet shock drags the foes
+## in (the pull), a ring of hellfire races out, and a crown of lightning bolts crashes
 ## down round the area; the ground splits gold, the three orbs fly apart, stones and sparks
 ## burst, and the imperial seal stays burnt into the ground as the smoke rolls away.
 ## Cosmetic only.
@@ -41,11 +41,11 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 	var c := M.release(parent, skill, center, origin)
 	c.fit = K.frame(parent, origin, origin, TALL, 0.0)
 	var r := M.radius(skill, 9.0) / c.fit
-	# The void: a column erupts and a violet shock throws the foes back.
+	# The void: a column erupts and a violet shock closes in, dragging the foes to the Lord.
 	var void_root := c.open(origin, 2.0, "Void", null)
 	if void_root:
 		K.put(void_root, K.VEIL, K.column("judgment_void", [Color(0.5, 0.25, 0.95, 0.65), Color(0.4, 0.18, 0.8, 0.5), Color(0.3, 0.12, 0.6, 0.25), Color(0.25, 0.1, 0.5, 0.0)], 1.3, 18), "JudgmentVoid", Vector3.ZERO, Vector3(1.1, TALL - 1.5, 1.1), Vector3.ZERO, 0.7, {"initial": 0.5, "grow_time": 0.2, "fade_in": 0.01, "decay": 0.35}, {"opacity": 0.5, "noise_amt": 0.7, "noise_scale": Vector2(5.0, 2.0), "flow": Vector2(0.3, -3.0), "bias": 0.15, "taper": 0.6, "fres": 0.4})
-		K.put(void_root, K.VEIL, K.shock(VIOLET, VIOLET_HI, VIOLET_DK), "JudgmentRepel", Vector3.UP * 0.1, Vector3.ONE * r, Vector3.ZERO, 0.6, {"initial": 0.1, "grow_time": 0.8, "fade_in": 0.01, "decay": 0.35}, {"opacity": 0.9})
+		K.put(void_root, K.VEIL, K.shock(VIOLET, VIOLET_HI, VIOLET_DK), "JudgmentPull", Vector3.UP * 0.1, Vector3.ONE * r * 0.15, Vector3.ZERO, 0.6, {"initial": 6.5, "grow_time": 0.6, "fade_in": 0.01, "decay": 0.35}, {"opacity": 0.9})
 		K.put(void_root, K.VEIL, M.scar("judgment_split", Color(0.3, 0.18, 0.06), ROYAL, 16), "JudgmentSplit", Vector3.UP * 0.04, Vector3.ONE * r * 0.85, Vector3.ZERO, 1.9, {"initial": 0.35, "grow_time": 0.12, "fade_in": 0.01, "decay": 0.6, "priority": -1})
 		K.put(void_root, K.SOLID, M.orbs("judgment_three", [VIOLET, FIRE, BOLT], 3, 0.2), "JudgmentOrbsFly", Vector3.UP * 1.6, Vector3.ONE * r * 0.6, Vector3.ZERO, 0.5, {"initial": 0.08, "grow_time": 0.9, "fade_in": 0.01, "spin": 3.0, "decay": 0.5}, M.GOLD_LOOK)
 		M.show(void_root)
