@@ -667,7 +667,7 @@ func refresh() -> void:
 		outfit_style = look.style
 		outfit_tint = look.tint
 		cape = look.cape
-	if armor == null and class_id == ClassData.START and not look.is_empty() and int(look.get("outfit", 0)) > 0:
+	if armor == null and class_id == ClassData.LEGACY and not look.is_empty() and int(look.get("outfit", 0)) > 0:
 		var starter: Array = FaceKit.OUTFITS[clampi(int(look.outfit), 0, FaceKit.OUTFITS.size() - 1)]
 		outfit_style = String(starter[1])
 		outfit_tint = starter[2]

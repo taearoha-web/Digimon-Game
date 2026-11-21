@@ -310,19 +310,34 @@ func equip_skill(skill_id: String, slot: int) -> bool:
 	return true
 
 
-## Vagabond -> one of the four lines (Lv.10, free). Vagabond weapons turn into
-## the new line's weapon type with the same level, rarity and enhancement.
+## An old save still a Vagabond (the starter class before the class was chosen on the
+## create screen) takes its class once, at any level (main.gd asks on load). Level, EXP
+## and items stay; Vagabond weapons turn into the new class's weapon type with the same
+## level, rarity and enhancement; the Vagabond's skill ranks and the stat points spent
+## come back to spend again.
 func change_class(new_class: StringName) -> bool:
-	if class_id() != ClassData.START or not ClassData.IDS.has(new_class) or int(profile["level"]) < ClassData.LINE_LEVEL:
+	if not needs_class() or not ClassData.IDS.has(new_class):
 		return false
 	profile["class"] = String(new_class)
+	profile["adv"] = 0
 	var local := RandomNumberGenerator.new()
 	local.randomize()
 	for slot in profile["equip"]:
 		_convert_weapon(profile["equip"][slot], new_class, local)
 	for item in profile["inv"]:
 		_convert_weapon(item, new_class, local)
-	profile["loadout"] = ["", "", "", ""]
+	# Every stat point back (the Vagabond spent them for its own build).
+	var attrs: Dictionary = profile.get("attrs", {})
+	var spent := 0
+	for key in attrs:
+		spent += maxi(0, int(attrs[key]))
+		attrs[key] = 0
+	profile["points"] = int(profile.get("points", 0)) + spent
+	# The Vagabond's skill ranks (not the new class's) are refunded as skill points.
+	profile["loadout"] = []
+	for i in ClassData.SLOTS:
+		profile["loadout"].append("")
+	_migrate_skills(profile)
 	fill_loadout()
 	var stats := stats_now()
 	profile["hp"] = stats.max_hp
@@ -336,8 +351,13 @@ func change_class(new_class: StringName) -> bool:
 	return true
 
 
+## True while the loaded hero is an old Vagabond save that has not picked its class.
+func needs_class() -> bool:
+	return has_profile and class_id() == ClassData.LEGACY
+
+
 func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberGenerator) -> void:
-	if item.get("kind", "") != "equip" or item.get("class", "") != String(ClassData.START):
+	if item.get("kind", "") != "equip" or item.get("class", "") != String(ClassData.LEGACY):
 		return
 	var fresh := ItemData.generate(int(item.level), new_class, rng, int(item.rarity), "weapon")
 	item["class"] = String(new_class)
@@ -356,9 +376,9 @@ func is_god() -> bool:
 	return has_profile and JobData.is_god(adv())
 
 
-## The next advancement step ({} when none is left or the hero is still a Vagabond).
+## The next advancement step ({} when none is left, or an old Vagabond save).
 func next_step() -> Dictionary:
-	if class_id() == ClassData.START or adv() >= JobData.MAX_ADV:
+	if class_id() == ClassData.LEGACY or adv() >= JobData.MAX_ADV:
 		return {}
 	return JobData.step(class_id(), adv())
 
@@ -624,7 +644,7 @@ func _damaged_summary(for_slot: int) -> Dictionary:
 	var parsed: Variant = _read_slot_json(for_slot)
 	var raw: Dictionary = parsed if parsed is Dictionary else {}
 	var cls := String(raw.get("class", "")) if raw.get("class") is String else ""
-	return {"damaged": true, "class": cls if ClassData.CLASSES.has(StringName(cls)) else String(ClassData.START),
+	return {"damaged": true, "class": cls if ClassData.CLASSES.has(StringName(cls)) else String(ClassData.DEFAULT),
 		"name": String(raw.get("name", "")).left(80) if raw.get("name") is String else "",
 		"level": clampi(int(raw.get("level", 1)), 1, MAX_LEVEL) if _valid_number(raw.get("level")) else 1,
 		"adv": 0, "zone": "town", "play_time": 0.0, "saved_at": 0, "rank": 0, "stars": 0, "look": {}, "equip": {}}
@@ -1450,7 +1470,7 @@ func _repair(data: Dictionary) -> Dictionary:
 		data[key] = int(data.get(key, 0))
 	data["level"] = maxi(1, int(data["level"]))
 	data["version"] = SAVE_VERSION
-	data["name"] = String(data.get("name", "นักเดินทาง")).strip_edges().left(80)
+	data["name"] = String(data.get("name", "ฮีโร่")).strip_edges().left(80)
 	data["play_time"] = float(data.get("play_time", 0.0))
 	var zone := StringName(data.get("zone", "town"))
 	data["zone"] = String(zone) if ZoneData.ZONES.has(zone) and zone not in [&"pvp", &"tower", &"guildwar"] else "town"
@@ -2209,7 +2229,7 @@ func skill_unlocked(skill: Dictionary) -> bool:
 	return profile["level"] >= int(skill.level) and class_tier() >= ClassData.skill_tier(skill) and int(paragon().level) >= int(skill.get("star", 0))
 
 
-## 0 Vagabond, 1 line (Lv.10), then 2..5 for the four advancements (Lv.20/40/60/80).
+## 1 the class, then 2..5 for the four advancements (Lv.20/40/60/80); 0 an old Vagabond save.
 func class_tier() -> int:
 	return ClassData.tier_of(class_id(), adv())
 
@@ -2222,7 +2242,7 @@ func skill_lock_reason(skill: Dictionary) -> String:
 		return "ปลดล็อกที่เลเวล %d" % int(skill.level)
 	var need := ClassData.skill_tier(skill)
 	if class_tier() < need:
-		return "ต้องเปลี่ยนเป็น%s (Lv.%d)" % [JobData.tier_name(class_id(), need), ClassData.LINE_LEVEL if need == 1 else JobData.tier_level(need)]
+		return "ต้องเปลี่ยนเป็น%s (Lv.%d)" % [JobData.tier_name(class_id(), need), JobData.tier_level(need)]
 	return ""
 
 
@@ -2692,7 +2712,7 @@ func set_divine_pick(slot: String, pick: Dictionary = {}) -> Dictionary:
 
 
 ## Why the forge cannot make a 250-star set piece for [param slot] now ("" when it can):
-## an unknown slot, a Vagabond, no fitting divine piece (+10 up) or too few Lotus
+## an unknown slot, an old Vagabond save, no fitting divine piece (+10 up) or too few Lotus
 ## Scales (SetGearData.recipe), the worn piece without [param allow_worn], missing
 ## core / jewels, or no room in the bag and storage.
 func set_piece_problem(slot: String, pick: Dictionary = {}, allow_worn := false) -> String:

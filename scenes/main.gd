@@ -201,7 +201,7 @@ func _ready() -> void:
 		Game.say("ได้แต้มพาราก้อน +1 (เมนูตัวละคร)", &"success")
 		AudioManager.play_sfx(&"level_up")
 		# ★300 opens the God promotion at the Job Master.
-		if level >= JobData.GOD_STARS and Game.adv() == JobData.GOD_ADV - 1 and Game.class_id() != ClassData.START:
+		if level >= JobData.GOD_STARS and Game.adv() == JobData.GOD_ADV - 1 and Game.class_id() != ClassData.LEGACY:
 			hud.show_banner("ถึงดาว %d! เปลี่ยนอาชีพขั้นเทพเจ้าได้แล้ว!" % JobData.GOD_STARS)
 			Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตา เพื่อเลื่อนขั้นเป็น \"%s\"" % JobData.god_name(Game.class_id()), &"quest"))
 	_show_title()
@@ -229,6 +229,12 @@ func _reload_imported_profile() -> void:
 	if class_screen:
 		class_screen.queue_free()
 		class_screen = null
+	if Game.needs_class():
+		_clear_zone()
+		hud.visible = false
+		Game.playing = false
+		_pick_class(Game.slot)
+		return
 	Game.playing = true
 	await go(Game.current_zone, false, true)
 
@@ -282,6 +288,33 @@ func _continue(slot: int) -> void:
 	if title_screen:
 		title_screen.queue_free()
 		title_screen = null
+	# An old save still a Vagabond picks its class once before it plays.
+	if Game.needs_class():
+		_pick_class(slot)
+		return
+	_enter_loaded()
+
+
+## The class picker of the create screen, alone, for an old Vagabond save (ClassData.LEGACY):
+## it blocks play until a class is chosen ("กลับ" goes back to the character select).
+func _pick_class(slot: int) -> void:
+	var screen := ClassSelect.new()
+	screen.pick_only = true
+	screen.hero_name_fixed = String(Game.profile.get("name", ""))
+	class_screen = screen
+	add_child(screen)
+	screen.cancelled.connect(func(): _show_title(slot))
+	screen.confirmed.connect(func(class_id: StringName, _hero_name: String, _look: Dictionary):
+		if not Game.change_class(class_id):
+			return
+		if class_screen:
+			class_screen.queue_free()
+			class_screen = null
+		Game.say("เลือกอาชีพ %s แล้ว! แต้มสถานะและแต้มสกิลที่คืนมา ไปแจกใหม่ได้ที่เมนู" % ClassData.get_class_data(class_id).name, &"success")
+		_enter_loaded())
+
+
+func _enter_loaded() -> void:
 	hud.visible = true
 	Game.playing = true
 	await go(Game.current_zone if Game.current_zone != &"" else &"town", true)
@@ -531,7 +564,7 @@ func _on_level_up(level: int) -> void:
 				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
 			else:
 				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
-	if Game.class_id() != ClassData.START and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
+	if Game.class_id() != ClassData.LEGACY and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
 		hud.show_banner("เปลี่ยนอาชีพขั้นต่อไปได้แล้ว!")
 		Game.say("สกิลเลเวล %d ขึ้นไปต้องเปลี่ยนอาชีพ ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % level, &"quest")
 
@@ -640,7 +673,7 @@ func _on_npc(role: String) -> void:
 			AudioManager.play_sfx(&"heal")
 			dialog.say("ซิสเตอร์เมตตา", "ขอแสงสว่างคุ้มครองเจ้า... HP และ MP ฟื้นเต็มแล้วจ้ะ ไม่ต้องเสียเงินเลย")
 		"guide":
-			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• เริ่มเป็นนักเดินทาง พอถึงเลเวล 10 ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลือกสาย ดาบ/ธนู/เวทย์/บวช\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า")
+			dialog.say("ครูฝึกใจดี", "• แตะปุ่มดาบใหญ่เพื่อล็อกเป้าและโจมตีอัตโนมัติ\n• อาชีพที่เลือกตอนสร้างตัวละครใช้สกิลได้ตั้งแต่เลเวล 1 พอถึงเลเวล %d ไปหาปรมาจารย์ผู้เปลี่ยนชะตาเพื่อเลื่อนขั้นอาชีพ\n• สกิลปลดล็อกตามเลเวล เลือกใส่ได้ 8 ช่องที่เมนูสกิล และอัปดาวสกิลที่ปรมาจารย์สกิล\n• เมนูมุมขวาบนใช้อัปแต้มสถานะ จัดแถบสกิล และสวมใส่ไอเทม\n• เสาวาปคริสตัลสีฟ้า (ในเมืองและทุกแมพ) พาไปแมพที่เลเวลถึงหรือกลับเมืองได้ฟรี\n• อยากมีเพื่อนร่วมทาง เดินเข้าไปหาผู้เล่นคนอื่นในแมพแล้วแตะที่ตัวเขาเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ 3 คนรวมคุณ แบ่ง EXP กัน) ส่วนปุ่มออนไลน์มุมขวาบนบอกว่าใครเล่นอยู่ที่แมพไหน\n• เข้าประตูแสงทางเหนือเพื่อไปล่ามอนสเตอร์ในทุ่งหญ้า" % JobData.TIER_LEVELS[0])
 
 
 ## The keeper of เขาวงกตหนึ่งในใต้หล้า: the rules, this week's board and the way in.
@@ -842,48 +875,14 @@ func _talk_daily() -> void:
 
 func _talk_job() -> void:
 	var speaker := "ปรมาจารย์ผู้เปลี่ยนชะตา"
-	if Game.class_id() == ClassData.START:
-		if int(Game.profile.level) < ClassData.LINE_LEVEL:
-			dialog.say(speaker, "เจ้ายังเป็นแค่นักเดินทางสินะ ฝึกฝนจนถึงเลเวล %d แล้วมาหาข้า จะได้เลือกสายที่เหมาะกับเจ้า: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร นักหอก สายโล่ นักฆ่ามีดคู่ ดาร์กลอร์ด หรือนักดนตรี" % ClassData.LINE_LEVEL)
-			return
-		var options: Array = []
-		for id in ClassData.IDS:
-			options.append({"label": String(ClassData.get_class_data(id).name), "action": func(): _show_line(id)})
-		options.append({"label": "ไว้ก่อน"})
-		dialog.say(speaker, "ถึงเวลาเลือกเส้นทางแล้ว! สายไหนที่ใจเจ้าเรียกหา? (เลือกแล้วเปลี่ยนไม่ได้ ไม่เสียค่าใช้จ่าย)", options)
+	# An old Vagabond save picks its class on load (_pick_class); it never gets here as one.
+	if Game.class_id() == ClassData.LEGACY:
+		dialog.say(speaker, "เจ้ายังไม่ได้เลือกอาชีพ กลับไปหน้าเลือกตัวละครแล้วเข้าเกมใหม่ จะได้เลือกอาชีพที่ใจเจ้าเรียกหา")
 		return
 	if Game.adv() >= JobData.MAX_ADV:
 		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านก้าวพ้นขั้นตำนานสู่ความเป็นเทพแล้ว ไม่มีสิ่งใดที่ข้าจะสอนได้อีก!" % [Game.class_data().name, Game.class_data().title])
 		return
 	_show_advance()
-
-
-func _show_line(id: StringName) -> void:
-	var data := ClassData.get_class_data(id)
-	var lines: PackedStringArray = [data.desc, "บทบาทในปาร์ตี้ — " + ClassRoles.line(id), "สกิลแรกที่จะได้:"]
-	var shown := 0
-	for skill in ClassData.pool(id):
-		if shown >= 4:
-			break
-		lines.append("• %s (Lv.%d)" % [skill.name, int(skill.level)])
-		shown += 1
-	var options: Array = [{"label": "เลือกสายนี้", "action": func(): _confirm_line(id)}]
-	for other in ClassData.IDS:
-		if other != id:
-			options.append({"label": "ดู%s" % ClassData.get_class_data(other).name, "action": func(): _show_line(other)})
-	options.append({"label": "ไว้ก่อน"})
-	dialog.say("ปรมาจารย์ผู้เปลี่ยนชะตา", "\n".join(lines), options)
-
-
-func _confirm_line(id: StringName) -> void:
-	if not Game.change_class(id):
-		return
-	AudioManager.play_sfx(&"quest_complete")
-	hud.show_banner("เลือกสาย: %s!" % ClassData.get_class_data(id).name)
-	Game.say("ได้สกิลของสายใหม่แล้ว! เปิดเมนูสกิลเพื่อจัดแถบ และไปหาปรมาจารย์สกิลเพื่ออัปสกิล", &"success")
-	await go(&"town", true)
-	if zone and zone.hero:
-		VfxKit.level_up(zone, zone.hero.global_position)
 
 
 func _show_advance() -> void:

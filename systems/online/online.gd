@@ -696,7 +696,7 @@ func _hello() -> Dictionary:
 	_look_sig = PlayerLook.signature(look) + "|" + Game.pet_id()
 	var data := {
 		"name": String(p.get("name", "")).strip_edges().left(NAME_MAX),
-		"cls": String(p.get("class", ClassData.START)),
+		"cls": String(p.get("class", ClassData.DEFAULT)),
 		"level": int(p.get("level", 1)),
 		"stars": int((p.get("paragon", {}) as Dictionary).get("level", 0)) if p.get("paragon") is Dictionary else 0,
 		"look": look,

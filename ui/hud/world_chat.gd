@@ -390,7 +390,7 @@ static func _clean(text: String) -> String:
 ## ChatThreads.news: %drop, %eslot / %efrom / %eto, %fslot / %fnext / %flost / %fails,
 ## %wingsnew, %mnew / %mupname / %muplv, %mywings, %mydplus...), the party it is really in
 ## and the game's rules. A line may start with conditions on the speaker
-## (ChatThreads.cond_ok, and "{room}" / "{noheal}" / "{newjob}" / "{near100}" here), and
+## (ChatThreads.cond_ok, and "{room}" / "{noheal}" / "{near100}" here), and
 ## one whose placeholder has no real value for it is never said.
 
 ## Lines anyone may say (no facts); the scheduled players are out levelling, never in
@@ -404,7 +404,7 @@ const NEWS_SHARE := 0.3
 const LOW := ["มีใครพาเก็บเลเวลไหมครับ", "{newbie}มือใหม่ครับ ฝากตัวด้วย", "{field}%zone มอนเยอะดีจัง", "เลเวลขึ้นช้าจัง ทำไงดี",
 	"อาชีพไหนเก่งสุดครับ", "ใครรู้ทางไปสนามถัดไปบ้าง", "ยาเลือดซื้อที่ไหนครับ", "{newbie}ยังใหม่อยู่ครับ",
 	"ใครแนะนำที่เก็บเลเวลหน่อย", "มอนตัวใหญ่ตีไม่ไหวเลย 555"]
-const JOB := ["{newjob}เพิ่งเปลี่ยนอาชีพเป็น%job แล้ว!", "%job สนุกกว่าที่คิด", "ใครเล่น%job บ้าง แนะนำสกิลหน่อย"]
+const JOB := ["%job สนุกกว่าที่คิด", "ใครเล่น%job บ้าง แนะนำสกิลหน่อย"]
 const MID := ["ใครไปหอคอยบ้าง ไปด้วยกันไหม", "{field}ใครไป %zone บ้าง ไปด้วยกัน", "{near100}อีกนิดจะถึง Lv.%maxlv แล้ว", "ตีบวกพลาด %fails รอบแล้ว เศร้า",
 	"{field}ได้%drop จาก %zone ด้วย!", "ใครมีเพชรชมพูขายบ้าง"]
 const HIGH := ["กิลด์ %guild รับสมาชิกตั้งแต่ Lv.%guildlv", "กิลด์วอรอบหน้า %wartime ใครว่างลงชื่อด้วย", "ได้%mywings แล้ว บินสบายเลย",
@@ -490,7 +490,7 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 		pool = HIGH
 	elif level >= 40:
 		pool = MID
-	elif level >= ClassData.LINE_LEVEL and level < 20 and rng.randf() < 0.4:
+	elif level < 20 and rng.randf() < 0.4:
 		pool = JOB
 	else:
 		pool = LOW
@@ -525,7 +525,7 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 	rep["%restock"] = str(int(StallStock.RESTOCK / 3600.0))
 	var field_id := place if place != &"" and place != &"town" else WorldPlayers.hunting_zone(level, stars)
 	rep["%field"] = String(ZoneData.get_zone(field_id).get("name", "สนาม"))
-	rep["%job"] = String(ClassData.get_class_data(StringName(s.get("class", ClassData.START))).get("name", ""))
+	rep["%job"] = String(ClassData.get_class_data(StringName(s.get("class", ClassData.DEFAULT))).get("name", ""))
 	if leader >= 0 and leader < WorldPlayers.size():
 		rep["%leader"] = String(WorldPlayers.entry(leader).name)
 		rep["%n"] = str(party_n)
@@ -565,8 +565,6 @@ static func _lines_that_hold(pool: Array, s: Dictionary, n: Dictionary, rep: Dic
 						ok = ok and rep.has("%room")
 					"noheal":
 						ok = ok and not members.is_empty() and not members.any(func(m): return int(m) >= 0 and int(m) < WorldPlayers.size() and String(WorldPlayers.entry(int(m))["class"]) == "priest")
-					"newjob":
-						ok = ok and level >= ClassData.LINE_LEVEL and level <= ClassData.LINE_LEVEL + 2
 					"near100":
 						ok = ok and level >= Game.MAX_LEVEL - 10 and level < Game.MAX_LEVEL
 					_:

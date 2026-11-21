@@ -425,14 +425,11 @@ func _line() -> void:
 	_level(10)
 	main._talk_job()
 	await _wait(0.6)
-	await _shot("line_choice")
-	main._show_line(&"mage")
-	await _wait(0.6)
-	await _shot("line_mage")
+	await _shot("job_master")
 	main.dialog.close()
 	main.menu.open_menu(&"skills")
 	await _wait(0.6)
-	await _shot("menu_skills_vagabond")
+	await _shot("menu_skills_lv10")
 
 
 ## Every field with the real combat camera, the widest view the player can

@@ -223,7 +223,7 @@ static func base_for(slot: String, class_id: StringName) -> String:
 
 
 ## The class a dropped piece is made for (OWN_CLASS_DROP): [param own] or, otherwise,
-## one of the other ClassData.IDS evenly (all ten for a Vagabond).
+## one of the other ClassData.IDS evenly.
 static func drop_class(own: StringName, rng: RandomNumberGenerator) -> StringName:
 	if rng.randf() < OWN_CLASS_DROP:
 		return own

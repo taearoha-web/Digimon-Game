@@ -357,7 +357,7 @@ static func _act(act: String, r: Dictionary, body: Dictionary, mine: Dictionary,
 			return {"reply": "ยังเข้ากิลด์ไม่ได้เลย ต้อง Lv.%d ก่อน" % Game.GUILD_LEVEL, "topic": act}
 		"strong":
 			var cls := String(p.get("class", ""))
-			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ ถึง Lv.%d ค่อยเลือกตามที่ชอบนะ" % ClassData.LINE_LEVEL, "topic": act}
+			return {"reply": "ทุกอาชีพเก่งคนละแบบ อยู่ที่ชอบเล่นแบบไหน อย่างเราเล่น%s %s" % [cls, ["สนุกดี", "ชอบมาก"][rng.randi() % 2]] if cls != "" else "ทุกอาชีพเก่งคนละแบบ เลือกตามที่ชอบได้เลยนะ", "topic": act}
 		"bosskill":
 			return {"reply": ChatFacts.boss_kills(t), "topic": act}
 		"life":
@@ -531,7 +531,7 @@ static func _about_hero(r: Dictionary, p: Dictionary, h: Dictionary, rng: Random
 		return {"reply": "คุณอยู่กิลด์ %s นี่" % guild if guild != "" else "คุณยังไม่มีกิลด์นะ ถึง Lv.%d ไปสมัครได้" % Game.GUILD_LEVEL, "topic": "hero"}
 	if _has(n, ["อาชีพ"]):
 		var cls := String(h.get("class", ""))
-		return {"reply": "คุณเล่น%sนี่" % cls if cls != "" else "ยังไม่ได้เลือกอาชีพเลยนี่ ถึง Lv.%d ไปเลือกได้" % ClassData.LINE_LEVEL, "topic": "hero"}
+		return {"reply": "คุณเล่น%sนี่" % cls if cls != "" else "ยังไม่ได้บอกเลยว่าเล่นอาชีพอะไร", "topic": "hero"}
 	return {"reply": "คุณ %s แล้ว %s" % [sheet, "ไวดีนะ" if lv >= mine_lv else "สู้ ๆ"], "topic": "hero"}
 
 

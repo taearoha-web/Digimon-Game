@@ -185,7 +185,7 @@ func _row(p: Dictionary) -> Control:
 		panel.modulate = Color(1.08, 1.08, 1.0)
 	var line := UIUtil.hbox(8)
 	panel.add_child(line)
-	var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.START)))
+	var cls := StringName(String(p.cls)) if String(p.cls) != "" else StringName(String((p.look as Dictionary).get("class", ClassData.DEFAULT)))
 	var data := ClassData.get_class_data(cls)
 	var badge := PanelContainer.new()
 	badge.custom_minimum_size = Vector2(CLASS_BADGE, CLASS_BADGE)

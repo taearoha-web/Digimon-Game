@@ -348,7 +348,7 @@ func _set_anim(a: String) -> void:
 		_attack_left = _attack_every
 		_attack_once()
 	elif a.begins_with("skill:"):
-		var skill := ClassData.find_skill(StringName(look.get("class", ClassData.START)), a.substr(6))
+		var skill := ClassData.find_skill(StringName(look.get("class", ClassData.DEFAULT)), a.substr(6))
 		if skill.is_empty():
 			visual.action("Spellcast_Shoot")
 		else:
@@ -422,7 +422,7 @@ func _update_label() -> void:
 		return
 	_label_key = key
 	var line := "%s Lv.%d%s" % [who, lv, " ★%d" % stars if stars > 0 else ""]
-	var god := WorldPlayers.god_title({"class": look.get("class", ClassData.START), "level": lv, "stars": stars})
+	var god := WorldPlayers.god_title({"class": look.get("class", ClassData.DEFAULT), "level": lv, "stars": stars})
 	if god != "" and JobData.is_god(int(look.get("adv", 0))):
 		line = "✦ %s ✦\n%s" % [god, line]
 	if anim == "dead":

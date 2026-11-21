@@ -33,7 +33,7 @@ static func rules() -> Dictionary:
 	ChatLexicon.ensure()
 	var levels := {}
 	var bands := {}
-	for v in [Game.GUILD_LEVEL, Game.MAX_LEVEL, ItemData.WING_DROP_LEVEL, ClassData.LINE_LEVEL, 1]:
+	for v in [Game.GUILD_LEVEL, Game.MAX_LEVEL, ItemData.WING_DROP_LEVEL, 1]:
 		levels[int(v)] = true
 	ZoneData.ensure()
 	for zid in ZoneData.ZONES:

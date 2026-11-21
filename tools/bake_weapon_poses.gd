@@ -9,7 +9,7 @@ func _initialize() -> void:
 
 func _bake() -> void:
 	WeaponPoses.authoring = true
-	var families: Array[StringName] = [ClassData.START]
+	var families: Array[StringName] = [ClassData.LEGACY]
 	families.append_array(ClassData.IDS)
 	var only := OS.get_cmdline_user_args()
 	if not only.is_empty():

@@ -63,7 +63,7 @@ const NONE := {}
 static var builds := 0
 
 
-## The trait of a class ({} for the Vagabond).
+## The trait of a class ({} for an unknown one or the old Vagabond).
 static func trait_of(cls: StringName) -> Dictionary:
 	return TRAITS.get(cls, {})
 

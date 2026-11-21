@@ -7,7 +7,7 @@ extends Node
 ## amulet at --accessory-plus). Runs the game's own levelling code, so stat
 ## points, skill points, ★ milestones and gold rewards are the ones the hero
 ## would earn. With --create, a name no character has yet becomes a new hero in
-## the first free slot (made as a Vagabond, then given --class the game's way).
+## the first free slot (made in its --class, as on the create screen).
 ##
 ##   godot --headless --path . res://tools/boost_character.tscn -- \
 ##     --in bundle.json --out boosted.json --name Assotix [--class defender] [--create] [--accessory-plus 0] \
@@ -122,8 +122,8 @@ func _run() -> int:
 
 ## Boosts the one character named [param wanted] (and of class [param cls] when
 ## given) inside [param bundle], in place. Returns {slot, before, created} or {error}.
-## A starter-class (vagabond) hero of that name also matches: it takes the class
-## through the game's own class change, as it would at the class trainer. With
+## An old Vagabond save of that name also matches: it takes the class through the
+## game's own class pick (Game.change_class), as it would on load. With
 ## [param create], a name nobody has is made into a new hero in the first free slot.
 static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create := false, accessory_plus := ItemData.MAX_PLUS, stars := BOOST_STARS, mount := "", mount_level := MountData.MAX_LEVEL, gear := "divine") -> Dictionary:
 	if not bundle.get("slots") is Dictionary:
@@ -133,7 +133,7 @@ static func boost_bundle(bundle: Dictionary, wanted: String, cls := "", create :
 		var hero: Variant = bundle.slots[key]
 		if hero is Dictionary and String(hero.get("name", "")).strip_edges().to_lower() == wanted.strip_edges().to_lower():
 			var has := String(hero.get("class", ""))
-			if cls == "" or has == cls or (has == String(ClassData.START) and ClassData.IDS.has(StringName(cls))):
+			if cls == "" or has == cls or (has == String(ClassData.LEGACY) and ClassData.IDS.has(StringName(cls))):
 				found.append(String(key))
 	var created := false
 	if found.is_empty() and create:
@@ -222,7 +222,7 @@ static func _socket_legend() -> void:
 		print("BOOST:   %s: %d × %s" % [slot, room, ItemData.gem_info({"id": gems[0]}).name])
 
 
-## A new Vagabond named [param wanted] in the first free slot, stored as the
+## A new hero of class [param cls] named [param wanted] in the first free slot, stored as the
 ## cloud save holds it. Returns {slot} or {error}; the bundle is untouched on error.
 static func _create(bundle: Dictionary, wanted: String, cls: String) -> Dictionary:
 	var name := wanted.strip_edges()
@@ -238,7 +238,7 @@ static func _create(bundle: Dictionary, wanted: String, cls: String) -> Dictiona
 	if free == "":
 		return {"error": "all %d character slots are taken" % Game.SLOT_COUNT}
 	var keep := [Game.profile, Game.has_profile]
-	Game.new_profile(ClassData.START, name, FaceKit.default_look())
+	Game.new_profile(StringName(cls), name, FaceKit.default_look())
 	bundle.slots[free] = JSON.parse_string(JSON.stringify(Game.profile))
 	Game.profile = keep[0]
 	Game.has_profile = keep[1]

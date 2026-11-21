@@ -184,7 +184,7 @@ func add_hero(slot: int, overview: Dictionary, arrival := false) -> void:
 	# The worn reward-shop costume shows here too, as in the world.
 	visual.costume = String(overview.get("costume", ""))
 	root.add_child(visual)
-	visual.setup(StringName(overview.get("class", ClassData.START)), "", true, overview.get("equip", {}), overview.get("look", {}))
+	visual.setup(StringName(overview.get("class", ClassData.DEFAULT)), "", true, overview.get("equip", {}), overview.get("look", {}))
 	var height := HeroVisual.CHIBI_HEIGHT if visual.chibi else HeroVisual.HEIGHT
 	# A Defender holds its great shield square in front of its body: here it carries
 	# it at its side instead (facing the viewer like everyone else).

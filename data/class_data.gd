@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
-## Hero classes: the Vagabond (Lv.1-9) and the lines chosen at Lv.10 (sword,
-## bow, mage, priest, summoner, spear, great shield, twin daggers, scepter and raven, lute). Each class has a pool of active skills modelled on
+## Hero classes, chosen when the hero is made (sword, bow, mage, priest, summoner,
+## spear, great shield, twin daggers, scepter and raven, lute). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -15,10 +15,14 @@ extends RefCounted
 ##           heal (fraction of max HP), buff {atk, def, speed, crit, secs}
 ##   vfx     BattleVfx preset id; color = main colour of projectiles and rings
 
-const START: StringName = &"vagabond"
-const LINE_LEVEL := 10
+## The old starter class (นักเดินทาง, Lv.1-9 before a line was taken at Lv.10). Nobody
+## is made one any more: an old save still holding it picks its class once on load
+## (Game.change_class); the entry stays so such saves, their items and old online data read.
+const LEGACY: StringName = &"vagabond"
+## The class used when a stored one is missing or unknown.
+const DEFAULT: StringName = &"warrior"
 const SLOTS := 8
-## The four lines picked at Lv.10 (also the AI companion classes).
+## The playable classes, chosen on the create screen (also the AI companion classes).
 const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
 
 const CLASSES := {
@@ -26,7 +30,7 @@ const CLASSES := {
 		"name": "นักเดินทาง",
 		"title": "ผู้ยังไม่เลือกเส้นทาง",
 		"badge": "V",
-		"desc": "นักเดินทางไร้สังกัด ถือดาบสั้นสู้ประชิดตัว พอถึงเลเวล 10 จะเลือกสายได้: สายดาบ สายธนู นักเวทย์ นักบวช ผู้เรียกอสูร นักหอก สายโล่ นักฆ่ามีดคู่ ดาร์กลอร์ด หรือนักดนตรี",
+		"desc": "อาชีพเริ่มต้นของเซฟเก่า เลือกอาชีพจริงได้ตอนเข้าเกม",
 		"model": "Rogue",
 		"weapon": "sword_1handed",
 		"offhand": "",
@@ -259,11 +263,8 @@ const CLASSES := {
 ## Passive skills: always on once the level is reached, +[per] per rank.
 ## Keys of [bonus]: atk, def, hp, mp (fractions), crit, speed, dodge (added).
 const PASSIVES := {
-	&"vagabond": [
-		{"id": "toughness", "name": "Toughness", "desc": "HP สูงสุด +3% ต่อดาว", "level": 3, "bonus": {"hp": 0.03}},
-	],
 	&"warrior": [
-		{"id": "melee_mastery", "name": "Melee Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "melee_mastery", "name": "Melee Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "physical_training", "name": "Physical Training", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
 		{"id": "holy_body", "name": "Holy Body", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 30, "bonus": {"def": 0.04}},
 		{"id": "weapon_mastery", "name": "Weapon Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 40, "bonus": {"atk": 0.025}},
@@ -271,7 +272,7 @@ const PASSIVES := {
 		{"id": "immortal_body", "name": "Immortal Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 80, "bonus": {"hp": 0.05}},
 	],
 	&"archer": [
-		{"id": "shooting_mastery", "name": "Shooting Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "shooting_mastery", "name": "Shooting Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "wind_step", "name": "Wind Step", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
 		{"id": "hawk_eye", "name": "Hawk Eye", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
 		{"id": "evasion_mastery", "name": "Evasion Mastery", "desc": "หลบหลีก +1% ต่อดาว", "level": 40, "bonus": {"dodge": 0.01}},
@@ -279,7 +280,7 @@ const PASSIVES := {
 		{"id": "wind_walker", "name": "Wind Walker", "desc": "ความเร็ว +3% ต่อดาว", "level": 80, "bonus": {"speed": 0.03}},
 	],
 	&"mage": [
-		{"id": "mental_mastery", "name": "Mental Mastery", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "mental_mastery", "name": "Mental Mastery", "desc": "MP สูงสุด +5% ต่อดาว", "level": 1, "bonus": {"mp": 0.05}},
 		{"id": "elemental_mastery", "name": "Elemental Mastery", "desc": "พลังโจมตี +2% ต่อดาว", "level": 20, "bonus": {"atk": 0.02}},
 		{"id": "arcane_barrier", "name": "Arcane Barrier", "desc": "HP สูงสุด +3% ต่อดาว", "level": 30, "bonus": {"hp": 0.03}},
 		{"id": "mana_pool", "name": "Mana Pool", "desc": "MP สูงสุด +5% ต่อดาว", "level": 40, "bonus": {"mp": 0.05}},
@@ -287,7 +288,7 @@ const PASSIVES := {
 		{"id": "archmage_will", "name": "Archmage's Will", "desc": "คริติคอล +1.5% ต่อดาว", "level": 80, "bonus": {"crit": 0.015}},
 	],
 	&"priest": [
-		{"id": "meditation", "name": "Meditation", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "meditation", "name": "Meditation", "desc": "MP สูงสุด +5% ต่อดาว", "level": 1, "bonus": {"mp": 0.05}},
 		{"id": "divine_grace", "name": "Divine Grace", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
 		{"id": "holy_aura", "name": "Holy Aura", "desc": "พลังโจมตี +2% และ MP +3% ต่อดาว", "level": 30, "bonus": {"atk": 0.02, "mp": 0.03}},
 		{"id": "faith", "name": "Faith", "desc": "HP สูงสุด +4% ต่อดาว", "level": 40, "bonus": {"hp": 0.04}},
@@ -295,7 +296,7 @@ const PASSIVES := {
 		{"id": "sanctity", "name": "Sanctity", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 80, "bonus": {"def": 0.04}},
 	],
 	&"summoner": [
-		{"id": "nature_bond", "name": "Nature Bond", "desc": "MP สูงสุด +5% ต่อดาว", "level": 10, "bonus": {"mp": 0.05}},
+		{"id": "nature_bond", "name": "Nature Bond", "desc": "MP สูงสุด +5% ต่อดาว", "level": 1, "bonus": {"mp": 0.05}},
 		{"id": "beast_tamer", "name": "Beast Tamer", "desc": "พลังโจมตี +2% ต่อดาว", "level": 20, "bonus": {"atk": 0.02}},
 		{"id": "wild_vitality", "name": "Wild Vitality", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
 		{"id": "spirit_ward", "name": "Spirit Ward", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
@@ -303,7 +304,7 @@ const PASSIVES := {
 		{"id": "gaia_heart", "name": "Gaia's Heart", "desc": "HP +4% และ MP +4% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "mp": 0.04}},
 	],
 	&"lancer": [
-		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "light_footwork", "name": "Light Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
 		{"id": "keen_point", "name": "Keen Point", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
 		{"id": "iron_stance", "name": "Iron Stance", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
@@ -311,7 +312,7 @@ const PASSIVES := {
 		{"id": "valkyrie_heart", "name": "Valkyrie's Heart", "desc": "HP +4% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "speed": 0.02}},
 	],
 	&"defender": [
-		{"id": "shield_mastery", "name": "Shield Mastery", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 10, "bonus": {"def": 0.04}},
+		{"id": "shield_mastery", "name": "Shield Mastery", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 1, "bonus": {"def": 0.04}},
 		{"id": "iron_body", "name": "Iron Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 20, "bonus": {"hp": 0.05}},
 		{"id": "bash_mastery", "name": "Bash Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 30, "bonus": {"atk": 0.025}},
 		{"id": "stalwart", "name": "Stalwart", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
@@ -319,7 +320,7 @@ const PASSIVES := {
 		{"id": "living_fortress", "name": "Living Fortress", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
 	],
 	&"assassin": [
-		{"id": "dagger_mastery", "name": "Dagger Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "dagger_mastery", "name": "Dagger Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "shadow_footwork", "name": "Shadow Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
 		{"id": "lethal_precision", "name": "Lethal Precision", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
 		{"id": "evasive_instinct", "name": "Evasive Instinct", "desc": "หลบหลีก +1% ต่อดาว", "level": 40, "bonus": {"dodge": 0.01}},
@@ -327,7 +328,7 @@ const PASSIVES := {
 		{"id": "night_stalker", "name": "Night Stalker", "desc": "คริติคอล +1% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"crit": 0.01, "speed": 0.02}},
 	],
 	&"darklord": [
-		{"id": "scepter_mastery", "name": "Scepter Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "scepter_mastery", "name": "Scepter Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "royal_vigor", "name": "Royal Vigor", "desc": "HP สูงสุด +4% ต่อดาว", "level": 20, "bonus": {"hp": 0.04}},
 		{"id": "command_presence", "name": "Command Presence", "desc": "พลังป้องกัน +3% และ MP +3% ต่อดาว", "level": 30, "bonus": {"def": 0.03, "mp": 0.03}},
 		{"id": "raven_bond", "name": "Raven Bond", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
@@ -335,7 +336,7 @@ const PASSIVES := {
 		{"id": "emperor_will", "name": "Emperor's Will", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
 	],
 	&"bard": [
-		{"id": "lute_mastery", "name": "Lute Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 10, "bonus": {"atk": 0.025}},
+		{"id": "lute_mastery", "name": "Lute Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "breath_control", "name": "Breath Control", "desc": "MP สูงสุด +5% ต่อดาว", "level": 20, "bonus": {"mp": 0.05}},
 		{"id": "stage_presence", "name": "Stage Presence", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
 		{"id": "perfect_pitch", "name": "Perfect Pitch", "desc": "คริติคอล +1.5% ต่อดาว", "level": 40, "bonus": {"crit": 0.015}},
@@ -440,14 +441,12 @@ static func find_skill(class_id: StringName, skill_id: String) -> Dictionary:
 	return {}
 
 
-## Advancement tier a skill needs: 1 = the chosen line (Lv.10), then the four
-## advancements at Lv.20 / 40 / 60 / 80 give tiers 2..5. Vagabond skills need none (0).
+## Advancement tier a skill needs: the class's own skills below Lv.20 need none (0),
+## then the four advancements at Lv.20 / 40 / 60 / 80 give tiers 2..5.
 static func skill_tier(skill: Dictionary) -> int:
 	var level := int(skill.get("level", 1))
-	if level < LINE_LEVEL:
-		return 0
 	if level < 20:
-		return 1
+		return 0
 	if level < 40:
 		return 2
 	if level < 60:
@@ -455,9 +454,9 @@ static func skill_tier(skill: Dictionary) -> int:
 	return 4 if level < 80 else 5
 
 
-## Current tier of a hero: 0 Vagabond, 1 line, 2..5 after each advancement.
+## Current tier of a hero: 1 its class, 2..5 after each advancement (0 an old Vagabond save).
 static func tier_of(class_id: StringName, adv: int) -> int:
-	if class_id == START:
+	if class_id == LEGACY:
 		return 0
 	return 1 + clampi(adv, 0, 4)
 
@@ -576,6 +575,7 @@ static func _sk(cls: StringName, id: String, name: String, desc: String, level: 
 
 
 static func _build_pools() -> void:
+	# The old starter's skills: only old data and the skill art still look them up.
 	var v := &"vagabond"
 	_pools[v] = [
 		_sk(v, "power_strike", "Power Strike", "ฟันหนักๆ ใส่ศัตรูตัวเดียว", 1, 6, 3.0, "single", 2.3, {"color": Color("ffb05a"), "icon": "sword"}),
@@ -584,8 +584,8 @@ static func _build_pools() -> void:
 	]
 	var w := &"warrior"
 	_pools[w] = [
-		_sk(w, "raving", "Raving", "ฟันรัวใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 10, 10, 3.0, "single", 3.0, {"color": Color("ffb05a"), "icon": "sword"}),
-		_sk(w, "impact", "Impact", "ฟันกระแทกหนักๆ ศัตรูมึนงง 1.5 วินาที", 10, 12, 6.0, "single", 3.4, {"fx": {"stun": 1.5}, "vfx": &"impact", "anim": "Block_Attack", "color": Color("ffe27a"), "icon": "shield"}),
+		_sk(w, "raving", "Raving", "ฟันรัวใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 1, 10, 3.0, "single", 3.0, {"color": Color("ffb05a"), "icon": "sword"}),
+		_sk(w, "impact", "Impact", "ฟันกระแทกหนักๆ ศัตรูมึนงง 1.5 วินาที", 5, 12, 6.0, "single", 3.4, {"fx": {"stun": 1.5}, "vfx": &"impact", "anim": "Block_Attack", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(w, "triple_impact", "Triple Impact", "ฟันต่อเนื่อง 3 ครั้งใส่เป้าหมายเดียว", 14, 16, 6.0, "single", 4.6, {"color": Color("ff9a5a"), "icon": "sword"}),
 		_sk(w, "brutal_swing", "Brutal Swing", "หมุนตัวฟันรอบทิศ", 17, 20, 9.0, "burst", 2.8, {"radius": 4.3, "special": "spin", "color": Color("ff9a5a"), "icon": "spin"}),
 		_sk(w, "roar", "Roar", "คำรามก้อง ศัตรูรอบตัวมึนงง 2.5 วินาที", 20, 20, 14.0, "burst", 1.4, {"radius": 6.0, "fx": {"stun": 2.5}, "vfx": &"impact", "anim": "Cheer", "color": Color("ffd27a"), "icon": "roar"}),
@@ -612,8 +612,8 @@ static func _build_pools() -> void:
 	]
 	var a := &"archer"
 	_pools[a] = [
-		_sk(a, "wind_arrow", "Wind Arrow", "ลูกศรลมพุ่งเร็วใส่ศัตรูตัวเดียว", 10, 9, 3.0, "single", 3.0, {"color": Color("8fff9a"), "vfx": &"leaf", "icon": "arrow"}),
-		_sk(a, "perfect_aim", "Perfect Aim", "เล็งแม่นยำ ยิงแรงจากระยะไกล", 10, 12, 5.0, "single", 3.8, {"range": 14.0, "color": Color("ffd84a"), "icon": "arrow"}),
+		_sk(a, "wind_arrow", "Wind Arrow", "ลูกศรลมพุ่งเร็วใส่ศัตรูตัวเดียว", 1, 9, 3.0, "single", 3.0, {"color": Color("8fff9a"), "vfx": &"leaf", "icon": "arrow"}),
+		_sk(a, "perfect_aim", "Perfect Aim", "เล็งแม่นยำ ยิงแรงจากระยะไกล", 5, 12, 5.0, "single", 3.8, {"range": 14.0, "color": Color("ffd84a"), "icon": "arrow"}),
 		_sk(a, "scout_hawk", "Scout Hawk", "เหยี่ยวสอดแนม ATK +20% คริติคอล +12% นาน 1 นาที", 13, 16, 28.0, "self", 0.0, {"fx": {"buff": {"atk": 0.2, "crit": 0.12, "secs": 60.0}}, "color": Color("ffd27a"), "icon": "boots"}),
 		_sk(a, "arrow_of_rage", "Arrow of Rage", "ยิง 3 ดอกพร้อมกัน", 16, 18, 7.0, "fan", 2.0, {"hits": 3, "color": Color("b8f07a"), "icon": "triple"}),
 		_sk(a, "avalanche", "Avalanche", "ห่าลูกศรถล่มพื้นที่เป้าหมาย", 20, 24, 10.0, "blast", 3.2, {"radius": 4.5, "special": "rain", "color": Color("b8f0a0"), "vfx": &"leaf", "icon": "rain"}),
@@ -639,8 +639,8 @@ static func _build_pools() -> void:
 	]
 	var m := &"mage"
 	_pools[m] = [
-		_sk(m, "agony", "Agony", "คำสาปทรมาน ทำร้ายศัตรูและทำให้ช้าลง 2 วินาที", 10, 10, 3.0, "single", 2.8, {"fx": {"slow": 2.0}, "color": Color("b79bff"), "icon": "light"}),
-		_sk(m, "fire_bolt", "Fire Bolt", "ลูกไฟพุ่งใส่ศัตรู ติดไฟต่อเนื่อง", 10, 12, 4.0, "single", 3.4, {"fx": {"burn": [0.3, 4.0]}, "vfx": &"fireball", "color": Color("ff7a2a"), "icon": "fire"}),
+		_sk(m, "agony", "Agony", "คำสาปทรมาน ทำร้ายศัตรูและทำให้ช้าลง 2 วินาที", 1, 10, 3.0, "single", 2.8, {"fx": {"slow": 2.0}, "color": Color("b79bff"), "icon": "light"}),
+		_sk(m, "fire_bolt", "Fire Bolt", "ลูกไฟพุ่งใส่ศัตรู ติดไฟต่อเนื่อง", 5, 12, 4.0, "single", 3.4, {"fx": {"burn": [0.3, 4.0]}, "vfx": &"fireball", "color": Color("ff7a2a"), "icon": "fire"}),
 		_sk(m, "zenith", "Zenith", "พลังป้องกัน +30% ATK +12% นาน 1 นาที", 13, 18, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.3, "atk": 0.12, "secs": 60.0}}, "color": Color("8ecbff"), "icon": "bless"}),
 		_sk(m, "fire_ball", "Fire Ball", "ลูกไฟยักษ์ระเบิดเป็นวง", 16, 22, 8.0, "blast", 3.6, {"radius": 3.8, "special": "boom", "fx": {"burn": [0.25, 4.0]}, "vfx": &"fireball", "color": Color("ff6a2a"), "icon": "fire"}),
 		_sk(m, "watornado", "Watornado", "พายุน้ำหมุนวนถล่มพื้นที่ ศัตรูช้าลง", 20, 26, 10.0, "blast", 3.6, {"radius": 5.2, "fx": {"slow": 3.5}, "vfx": &"frost", "color": Color("7fdcff"), "icon": "ice"}),
@@ -667,8 +667,8 @@ static func _build_pools() -> void:
 	]
 	var p := &"priest"
 	_pools[p] = [
-		_sk(p, "holy_bolt", "Holy Bolt", "ลำแสงศักดิ์สิทธิ์โจมตีศัตรูตัวเดียว", 10, 10, 3.0, "single", 3.2, {"color": Color("fff2a0"), "icon": "light"}),
-		_sk(p, "healing", "Healing", "ฟื้นฟู HP ของตัวเอง 40%", 10, 14, 9.0, "self", 0.0, {"fx": {"heal": 0.4}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
+		_sk(p, "holy_bolt", "Holy Bolt", "ลำแสงศักดิ์สิทธิ์โจมตีศัตรูตัวเดียว", 1, 10, 3.0, "single", 3.2, {"color": Color("fff2a0"), "icon": "light"}),
+		_sk(p, "healing", "Healing", "ฟื้นฟู HP ของตัวเอง 40%", 5, 14, 9.0, "self", 0.0, {"fx": {"heal": 0.4}, "vfx": &"heal", "anim": "Spellcast_Raise", "color": Color("6dff9a"), "icon": "heal"}),
 		_sk(p, "multi_spark", "Multi Spark", "ยิงลูกประกายสายฟ้า 4 ลูก", 14, 18, 7.0, "fan", 2.0, {"hits": 4, "vfx": &"thunder", "color": Color("fff06a"), "icon": "triple"}),
 		_sk(p, "holy_mind", "Holy Mind", "จิตศักดิ์สิทธิ์ ทำร้ายและทำให้ศัตรูช้าลง 4 วินาที", 17, 20, 10.0, "single", 3.4, {"fx": {"slow": 4.0}, "color": Color("ffe9a0"), "icon": "light"}),
 		_sk(p, "divine_lightning", "Divine Lightning", "สายฟ้าสวรรค์กระโดดไปหาศัตรูสูงสุด 5 ตัว", 20, 26, 9.0, "chain", 2.8, {"hits": 5, "color": Color("fff06a"), "icon": "bolt"}),
@@ -699,8 +699,8 @@ static func _build_pools() -> void:
 		spec.merge(extra.get("spec", {}))
 		return _sk(s, id, name, desc + " (นาน 2 นาทีหรือจนกว่าจะถูกสังหาร ใหญ่ขึ้นตามดาวสกิล)", level, mp, cd, "summon", mult, {"summon": spec, "color": color, "icon": "triple"})
 	_pools[s] = [
-		_sk(s, "thorn_shot", "Thorn Shot", "ยิงหนามธรรมชาติใส่ศัตรูตัวเดียว", 10, 9, 3.0, "single", 2.9, {"color": Color("a8f07a"), "icon": "arrow"}),
-		sm.call("spirit_cat", "Spirit Cat", "เรียกแมววิญญาณกระโจนข่วนศัตรู", 10, 14, 24.0, 2.2, "cat", 1, 0.8, Color("ffd8a0")),
+		_sk(s, "thorn_shot", "Thorn Shot", "ยิงหนามธรรมชาติใส่ศัตรูตัวเดียว", 1, 9, 3.0, "single", 2.9, {"color": Color("a8f07a"), "icon": "arrow"}),
+		sm.call("spirit_cat", "Spirit Cat", "เรียกแมววิญญาณกระโจนข่วนศัตรู", 5, 14, 24.0, 2.2, "cat", 1, 0.8, Color("ffd8a0")),
 		_sk(s, "forest_blessing", "Forest Blessing", "พลังป่าคุ้มครอง DEF +25% ATK +12% นาน 1 นาที (ส่งถึงทีมและอสูร)", 13, 18, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.25, "atk": 0.12, "secs": 60.0}}, "color": Color("7ddc6a"), "icon": "bless"}),
 		_sk(s, "vine_lash", "Vine Lash", "เถาวัลย์ฟาด 3 เส้นพร้อมกัน", 16, 18, 7.0, "fan", 2.0, {"hits": 3, "color": Color("6fe07a"), "icon": "triple"}),
 		_sk(s, "entangle", "Entangle", "รากไม้พันศัตรูในพื้นที่ ช้าลง 4 วินาที", 20, 24, 10.0, "blast", 3.4, {"radius": 4.8, "fx": {"slow": 4.0}, "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
@@ -729,8 +729,8 @@ static func _build_pools() -> void:
 	var pc := func(n: int, length: float, width := 1.3, keep := 0.7) -> Dictionary:
 		return {"n": n, "len": length, "w": width, "k": keep}
 	_pools[l] = [
-		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 10, 9, 4.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
-		_sk(l, "stagger", "Stagger", "ด้ามหอกกระแทก ศัตรูมึนงง 1.2 วินาที", 10, 12, 6.0, "single", 3.2, {"fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
+		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 1, 9, 4.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
+		_sk(l, "stagger", "Stagger", "ด้ามหอกกระแทก ศัตรูมึนงง 1.2 วินาที", 5, 12, 6.0, "single", 3.2, {"fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(l, "focus", "Focus", "จดจ่อ คริติคอล +15% ATK +10% นาน 1 นาที", 13, 16, 28.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.1, "secs": 60.0}}, "color": Color("ffd27a"), "icon": "roar"}),
 		_sk(l, "skewer", "Skewer", "แทงเสียบทะลุแนวตรง 3 ตัว", 16, 18, 6.0, "single", 4.2, {"pierce": pc.call(3, 7.5), "color": Color("8fd0ff"), "icon": "sword"}),
 		_sk(l, "whirl", "Whirl", "หมุนหอกฟาดรอบตัว", 20, 22, 8.0, "burst", 2.7, {"radius": 4.6, "special": "spin", "color": Color("9ad8ff"), "icon": "spin"}),
@@ -757,13 +757,13 @@ static func _build_pools() -> void:
 	]
 	var d := &"defender"
 	_pools[d] = [
-		_sk(d, "shield_bash", "Shield Bash", "ฟาดขอบโล่ใส่ศัตรูตัวเดียว", 10, 10, 3.0, "single", 2.6, {"anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "shield"}),
+		_sk(d, "shield_bash", "Shield Bash", "ฟาดขอบโล่ใส่ศัตรูตัวเดียว", 1, 10, 3.0, "single", 2.6, {"anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "shield"}),
 		# เบ่งเลือด (was Brace, same id so saves keep their stars): max HP +30% and damage taken
 		# -10% at ★1, up to +50% / -25% at ★5 (the buff's "grow", SkillRank.scaled_fx), 1 minute.
 		# The max HP is a ceiling for the whole party ("party": only "hp" is shared,
 		# BuffBook.party_part): it fills no HP. The damage cut is the Defender's own.
 		# A 25 s cooldown keeps it up all the time.
-		_sk(d, "brace", "เบ่งเลือด", "เพิ่มเพดาน HP สูงสุดของทุกคนในปาร์ตี้ +30% (ไม่เติมเลือด) และผู้พิทักษ์ลดความเสียหายที่ได้รับ 10% นาน 1 นาที (★5: HP สูงสุด +50% ลดดาเมจ 25%)", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "party": ["hp"], "grow": {"hp": 0.05, "guard": 0.0375}}}, "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
+		_sk(d, "brace", "เบ่งเลือด", "เพิ่มเพดาน HP สูงสุดของทุกคนในปาร์ตี้ +30% (ไม่เติมเลือด) และผู้พิทักษ์ลดความเสียหายที่ได้รับ 10% นาน 1 นาที (★5: HP สูงสุด +50% ลดดาเมจ 25%)", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "party": ["hp"], "grow": {"hp": 0.05, "guard": 0.0375}}}, "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
 		_sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 14, 16, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		_sk(d, "provoke", "Provoke", "เคาะโล่ท้าทาย ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 4 วินาที", 17, 18, 14.0, "burst", 1.5, {"radius": 7.0, "fx": {"taunt": 4.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff9a6a"), "icon": "roar"}),
 		_sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),
@@ -795,8 +795,8 @@ static func _build_pools() -> void:
 	var blood := Color("ff4f7b")
 	var venom := Color("8be260")
 	_pools[n] = [
-		_sk(n, "twin_fang", "Twin Fang", "ฟันมีดคู่ไขว้ใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 10, 8, 2.6, "single", 2.8, {"color": night, "icon": "sword"}),
-		_sk(n, "shadow_veil", "Shadow Veil", "ม่านเงาห่อตัว หลบ +10% วิ่งเร็ว +15% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"dodge": 0.1, "speed": 0.15, "secs": 60.0}}, "anim": "Dodge_Backward", "color": night, "icon": "boots"}),
+		_sk(n, "twin_fang", "Twin Fang", "ฟันมีดคู่ไขว้ใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 1, 8, 2.6, "single", 2.8, {"color": night, "icon": "sword"}),
+		_sk(n, "shadow_veil", "Shadow Veil", "ม่านเงาห่อตัว หลบ +10% วิ่งเร็ว +15% นาน 1 นาที", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"dodge": 0.1, "speed": 0.15, "secs": 60.0}}, "anim": "Dodge_Backward", "color": night, "icon": "boots"}),
 		_sk(n, "venom_edge", "Venom Edge", "แทงคมพิษ ศัตรูติดพิษเสียเลือดต่อเนื่อง 5 วินาที", 14, 14, 5.0, "single", 3.4, {"fx": {"burn": [0.3, 5.0]}, "anim": "1H_Melee_Attack_Stab", "color": venom, "icon": "sword"}),
 		_sk(n, "shadow_step", "Shadow Step", "ก้าวเงาวาร์ปไปหลังศัตรูไกลถึง 8 เมตรแล้วแทงซ้ำ", 17, 16, 7.0, "single", 4.0, {"range": 8.0, "anim": "1H_Melee_Attack_Stab", "color": night, "icon": "boots"}),
 		_sk(n, "blade_flurry", "Blade Flurry", "หมุนมีดคู่เป็นพายุใบมีดรอบตัว", 20, 20, 8.0, "burst", 2.4, {"radius": 4.2, "special": "spin", "color": night, "icon": "spin"}),
@@ -831,8 +831,8 @@ static func _build_pools() -> void:
 	var bolt := Color("8fd8ff")
 	var force := {"range": 9.0, "projectile": true, "anim": "Spellcast_Shoot", "hit_delay": 0.28}
 	_pools[k] = [
-		_sk(k, "force", "Force", "ปล่อยพลังมืดจากคทาพุ่งใส่ศัตรูตัวเดียว", 10, 8, 2.6, "single", 2.8, force.merged({"vfx": &"impact", "color": dark, "icon": "light"})),
-		_sk(k, "critical_damage", "Critical Damage", "บัญชาการ ทีมคริติคอล +12% ATK +15% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"crit": 0.12, "atk": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "roar"}),
+		_sk(k, "force", "Force", "ปล่อยพลังมืดจากคทาพุ่งใส่ศัตรูตัวเดียว", 1, 8, 2.6, "single", 2.8, force.merged({"vfx": &"impact", "color": dark, "icon": "light"})),
+		_sk(k, "critical_damage", "Critical Damage", "บัญชาการ ทีมคริติคอล +12% ATK +15% นาน 1 นาที", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"crit": 0.12, "atk": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "roar"}),
 		_sk(k, "fire_burst", "Fire Burst", "คทาจุดระเบิดเพลิงรอบศัตรูเป้าหมาย", 13, 14, 6.0, "blast", 2.6, {"radius": 3.6, "range": 9.0, "anim": "Spellcast_Shoot", "hit_delay": 0.4, "vfx": &"fireball", "color": fire, "icon": "fire"}),
 		_sk(k, "summon", "Summon", "วาร์ปเพื่อนทั้งปาร์ตี้มาอยู่ข้างตัวทันที ฟื้น HP ทีม 10%", 16, 20, 20.0, "self", 0.0, {"fx": {"recall": true, "heal": 0.1}, "anim": "Spellcast_Raise", "vfx": &"aura", "color": dark, "icon": "bless"}),
 		_sk(k, "earthshake", "Earthshake", "กระทืบคทาลงพื้น แผ่นดินสั่นรอบตัว ศัตรูมึนงง 1.2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.8, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": royal, "icon": "nova"}),
@@ -872,8 +872,8 @@ static func _build_pools() -> void:
 	var dream := Color("a8c8ff")  # the lullaby
 	var note := {"projectile": true, "anim": "Spellcast_Shoot"}  # no vfx here: merged() never overwrites
 	_pools[b] = [
-		_sk(b, "staccato_shot", "Staccato Shot", "ดีดพิณยิงโน้ตแหลมพุ่งใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 10, 8, 2.6, "single", 2.8, note.merged({"range": 10.0, "hit_delay": 0.28, "vfx": &"light", "color": tone, "icon": "light"})),
-		_sk(b, "valor_march", "Valor March", "เพลง: มาร์ชกล้าหาญ ทั้งปาร์ตี้ ATK +15% วิ่งเร็ว +12% นาน 1 นาที", 10, 12, 25.0, "self", 0.0, {"fx": {"buff": {"atk": 0.15, "speed": 0.12, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"aura", "color": rose, "icon": "bless"}),
+		_sk(b, "staccato_shot", "Staccato Shot", "ดีดพิณยิงโน้ตแหลมพุ่งใส่ศัตรูตัวเดียวอย่างรวดเร็ว", 1, 8, 2.6, "single", 2.8, note.merged({"range": 10.0, "hit_delay": 0.28, "vfx": &"light", "color": tone, "icon": "light"})),
+		_sk(b, "valor_march", "Valor March", "เพลง: มาร์ชกล้าหาญ ทั้งปาร์ตี้ ATK +15% วิ่งเร็ว +12% นาน 1 นาที", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"atk": 0.15, "speed": 0.12, "song": true, "secs": 60.0}}, "anim": "Cheer", "vfx": &"aura", "color": rose, "icon": "bless"}),
 		_sk(b, "resonance", "Resonance", "ดีดคอร์ดก้องกังวาน คลื่นเสียงระเบิดรอบศัตรูเป้าหมาย ช้าลง 2 วินาที", 13, 14, 6.0, "blast", 2.6, {"radius": 3.8, "range": 10.0, "hit_delay": 0.42, "anim": "Spellcast_Shoot", "fx": {"slow": 2.0}, "vfx": &"impact", "color": tone, "icon": "nova"}),
 		_sk(b, "sorrow_note", "Sorrow Note", "โน้ตเศร้าสร้อยพุ่งใส่ศัตรูตัวเดียว ศัตรูอ่อนแรง โจมตีเบาลง 15% นาน 6 วินาที", 16, 16, 8.0, "single", 1.9, note.merged({"range": 10.0, "hit_delay": 0.3, "fx": {"weaken": [0.15, 6.0]}, "vfx": &"debuff", "color": sorrow, "icon": "light"})),
 		_sk(b, "discord", "Discord", "ดีดเสียงไม่ประสาน คลื่นเสียงเพี้ยนระเบิดใส่ฝูงศัตรู เกราะแตก 15% นาน 8 วินาที", 20, 20, 9.0, "blast", 2.4, {"radius": 4.2, "range": 10.0, "hit_delay": 0.45, "anim": "Spellcast_Shoot", "fx": {"shred": [0.15, 8.0]}, "vfx": &"debuff", "color": disso, "icon": "nova"}),

@@ -95,7 +95,7 @@ func refresh_profile(profile: Dictionary) -> void:
 	# The bust shows the outfit and head gear; wings and weapons stay out of frame.
 	equipment.erase("wings")
 	equipment.erase("weapon")
-	_pending_profile = {"class": StringName(profile.get("class", ClassData.START)), "look": look, "equip": equipment, "costume": RewardShop.worn_of(profile)}
+	_pending_profile = {"class": StringName(profile.get("class", ClassData.DEFAULT)), "look": look, "equip": equipment, "costume": RewardShop.worn_of(profile)}
 	if _textures.has(key):
 		_show(_textures[key])
 		_shown_key = key
@@ -202,7 +202,7 @@ func _capture_pending(runner_id: int) -> void:
 	_visual = visual
 	visual.costume = String(profile.get("costume", ""))
 	viewport.add_child(visual)
-	visual.setup(profile.get("class", ClassData.START), "", false, profile.get("equip", {}), profile.get("look", {}))
+	visual.setup(profile.get("class", ClassData.DEFAULT), "", false, profile.get("equip", {}), profile.get("look", {}))
 	_isolate_bust(visual)
 	visual.anim.play("Idle")
 	visual.anim.seek(0.0, true)

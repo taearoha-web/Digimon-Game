@@ -38,7 +38,7 @@ func _run() -> void:
 		viewport.add_child(fill)
 		var hero := HeroVisual.new()
 		viewport.add_child(hero)
-		hero.setup(ClassData.START, "", false, {}, {"gender": gender})
+		hero.setup(ClassData.DEFAULT, "", false, {}, {"gender": gender})
 		_isolate_head(hero)
 		hero.anim.play("Idle")
 		hero.anim.seek(0.0, true)

@@ -906,7 +906,7 @@ func _villagers() -> Array:
 	var V := JapanVillage
 	return [
 		["elder", "ผู้ใหญ่บ้านโชคดี", &"warrior", "ผู้ให้เควสต์", V.ELDER_HOUSE + Vector3(0, 0, -7.4), "Mage", V.ELDER_HOUSE + Vector3(0, 0, -20)],
-		["job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลือกสาย (Lv.%d) / เลื่อนขั้น" % ClassData.LINE_LEVEL, V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20)],
+		["job", "ปรมาจารย์ผู้เปลี่ยนชะตา", &"warrior", "เลื่อนขั้นอาชีพ (Lv.%d)" % JobData.TIER_LEVELS[0], V.DOJO + Vector3(-2.5, 0, 9.0), "Knight", V.DOJO + Vector3(-2.5, 0, 20)],
 		["skill", "ปรมาจารย์สกิล", &"mage", "ฝึกและอัปสกิล", V.DOJO + Vector3(2.5, 0, 9.0), "Mage", V.DOJO + Vector3(2.5, 0, 20)],
 		["shop", "พ่อค้าเก่งกาจ", &"archer", "ร้านค้า", V.SHOP + Vector3(1.0, 0, 5.8), "Rogue", V.SHOP + Vector3(1.0, 0, 20)],
 		["forge", "ช่างตีเหล็กหนวดแดง", &"warrior", "ตีบวก / ใส่อัญมณี", V.FORGE + Vector3(0, 0, 5.8), "Barbarian", V.FORGE + Vector3(0, 0, 20)],

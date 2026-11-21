@@ -584,7 +584,7 @@ static func fill(line: String, me: Dictionary, to: Dictionary, vars: Dictionary,
 		line = line.substr(close + 1)
 	var level := int(me.get("level", 1))
 	var stars := int(me.get("stars", 0)) if level >= Game.MAX_LEVEL else 0
-	var cls := StringName(me.get("class", ClassData.START))
+	var cls := StringName(me.get("class", ClassData.DEFAULT))
 	var guild := int(me.get("guild", 0))
 	var rep := {}
 	rep.merge(vars, true)
@@ -592,7 +592,7 @@ static func fill(line: String, me: Dictionary, to: Dictionary, vars: Dictionary,
 	rep["%to"] = String(to.get("name", "เพื่อน"))
 	rep["%lv"] = "Lv.%d%s" % [level, " ★%d" % stars if stars > 0 else ""]
 	rep["%job"] = String(ClassData.get_class_data(cls).get("name", ""))
-	rep["%god"] = JobData.god_name(cls if cls != ClassData.START else &"warrior")
+	rep["%god"] = JobData.god_name(cls if cls != ClassData.LEGACY else ClassData.DEFAULT)
 	rep["%left"] = str(maxi(1, JobData.GOD_STARS - stars))
 	var mine_name := WorldPlayers.guild_name(guild)
 	rep["%guild"] = mine_name if mine_name != "" else "กิลด์เรา"

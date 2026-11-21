@@ -255,11 +255,9 @@ static func current(class_id: StringName, adv: int) -> Dictionary:
 	return step(class_id, adv - 1)
 
 
-## Name of tier 0..6 of a class: Vagabond, line, then the four steps and the God step.
+## Name of tier 1..6 of a class: the class, then the four steps and the God step.
 static func tier_name(class_id: StringName, tier: int) -> String:
-	if tier <= 0:
-		return String(ClassData.get_class_data(ClassData.START).name)
-	if tier == 1:
+	if tier <= 1:
 		return String(ClassData.get_class_data(class_id).name)
 	return String(step(class_id, tier - 2).get("name", "?"))
 

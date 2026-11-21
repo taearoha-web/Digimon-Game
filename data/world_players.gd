@@ -20,10 +20,10 @@ extends RefCounted
 ## (endgame_plan) and enhances the set once it has climbed to ★300 (Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
 ## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
 ## players who sell the good things they found (StallStock).
-## Below Lv.10 everyone is a Vagabond; the roster's class is the job taken at Lv.10.
+## Everyone plays the roster's class from Lv.1 (no Vagabond start any more).
 
 ## The world (re)opened here (unix seconds; 29 Oct 2026, 18:45 Thai time, the reopening
-## after the grey-village fix): every world player starts again at Lv.1 as a Vagabond
+## after the grey-village fix): every world player starts again at Lv.1 in its class
 ## with no guild. Moving this resets them all (the party EXP kept on a device belongs to
 ## one opening and is dropped with it).
 const START_UNIX := 1793274300
@@ -235,7 +235,7 @@ static func entry(i: int) -> Dictionary:
 ## Every Thai day from the opening on, NEWCOMERS (2 or 3, by the day) new players log in
 ## for the first time, each at a moment of that day of its own. They are made from the
 ## date alone (name, class, face, guild), so every device meets the same people at the
-## same moment: they start at Lv.1 as Vagabonds on their day and play hardcore like
+## same moment: they start at Lv.1 in their class on their day and play hardcore like
 ## everyone; on reaching Lv.100 they join the guild they picked (pick_guild). The classes go
 ## round in shuffled rounds of every class. After NEWCOMER_MAX of them (about four months)
 ## nobody new comes, so the world stays light enough for a phone.
@@ -807,7 +807,7 @@ static func _unlocks_between(i: int, a: float, b: float) -> bool:
 	var after := level_at(i, b)
 	if after <= before:
 		return false
-	var cls := StringName(entry(i)["class"]) if after >= ClassData.LINE_LEVEL else ClassData.START
+	var cls := StringName(entry(i)["class"])
 	if not _unlock_levels.has(cls):
 		var levels := {}
 		for skill in ClassData.pool(cls):
@@ -1088,10 +1088,9 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	var out := e.duplicate()
 	out.merge(p)
 	out["index"] = i
-	# Everyone starts as a Vagabond and takes the roster's class (its "job") at Lv.10,
-	# like a player at the Job Master.
+	# Everyone plays the roster's class (its "job") from Lv.1, like a new player.
 	out["job"] = String(e["class"])
-	out["class"] = String(e["class"]) if int(p.level) >= ClassData.LINE_LEVEL else String(ClassData.START)
+	out["class"] = String(e["class"])
 	out["joins"] = int(e.guild)
 	out["guild"] = guild_at(i, int(p.level))
 	out["online"] = not s.is_empty()
@@ -1319,7 +1318,7 @@ static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
 static func skill_summary(i: int, t: float) -> Dictionary:
 	var p := progress_at(i, t)
 	var level := int(p.level)
-	var cls := StringName(String(entry(i)["class"])) if level >= ClassData.LINE_LEVEL else ClassData.START
+	var cls := StringName(String(entry(i)["class"]))
 	var ranks := skill_ranks(cls, level, int(p.stars))
 	var stars := 0
 	for id in ranks:

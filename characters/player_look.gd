@@ -29,7 +29,7 @@ static func of_profile(p: Dictionary) -> Dictionary:
 	var flags: Variant = p.get("flags", {})
 	var paragon: Variant = p.get("paragon", {})
 	return {
-		"class": String(p.get("class", ClassData.START)),
+		"class": String(p.get("class", ClassData.DEFAULT)),
 		"adv": int(p.get("adv", 0)),
 		"face": (p.get("look", {}) as Dictionary).duplicate() if p.get("look") is Dictionary else {},
 		"equip": wire_equip(p.get("equip", {}) if p.get("equip") is Dictionary else {}),
@@ -64,7 +64,7 @@ static func of_member(m: Dictionary, index: int) -> Dictionary:
 	var stars := Game.party_stars(m)
 	var worn := RewardShop.world_cosmetics(index)
 	return {
-		"class": String(m.get("class", ClassData.START)),
+		"class": String(m.get("class", ClassData.DEFAULT)),
 		"adv": JobData.adv_for(level, stars),
 		"face": WorldPlayers.look(index) if index >= 0 and index < WorldPlayers.size() else {"gender": int(m.get("gender", 0))},
 		"equip": wire_equip(WorldPlayers.equip(m)),
@@ -94,7 +94,7 @@ static func wire_equip(equip: Dictionary) -> Dictionary:
 ## FieldPlayer go through, then the wing pose.
 static func dress(visual: HeroVisual, look: Dictionary) -> void:
 	visual.costume = str(look.get("cos", ""))
-	visual.setup(StringName(look.get("class", ClassData.START)), "", true, look.get("equip", {}), look.get("face", {}))
+	visual.setup(StringName(look.get("class", ClassData.DEFAULT)), "", true, look.get("equip", {}), look.get("face", {}))
 	var mode := int(look.get("wing_mode", HeroVisual.WING_STAND))
 	if mode != HeroVisual.WING_STAND and visual.has_wings():
 		visual.set_wing_mode(mode, true)
@@ -111,9 +111,9 @@ static func redress(visual: HeroVisual, look: Dictionary) -> void:
 ## (Game._valid_item) in the slot they claim. Anything else becomes the default.
 static func clean(raw: Variant) -> Dictionary:
 	var src: Dictionary = raw if raw is Dictionary else {}
-	var cls := StringName(str(src.get("class", ClassData.START)))
+	var cls := StringName(str(src.get("class", ClassData.DEFAULT)))
 	if not ClassData.CLASSES.has(cls):
-		cls = ClassData.START
+		cls = ClassData.DEFAULT
 	var face_in: Dictionary = {}
 	var face_raw: Variant = src.get("face", {})
 	if face_raw is Dictionary:

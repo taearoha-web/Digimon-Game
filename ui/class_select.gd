@@ -1,16 +1,32 @@
 class_name ClassSelect
 extends CanvasLayer
-## Character creator: every hero starts as a Vagabond in the stock outfit; the
-## player picks the body (boy or girl), one of its three styles (ChibiLook) and may
-## change the hair colour, skin tone, eye colour and accessory, then a name. The
-## line (one of the ten, sword to lute) is chosen later, at Lv.10.
+## Character creator: the player picks the class (one of the ten, sword to lute: it
+## plays from Lv.1), the body (boy or girl), one of its three styles (ChibiLook), may
+## change the hair colour, skin tone, eye colour and accessory, then a name.
+## With [member pick_only] it is only the class picker: an old save still a Vagabond
+## (ClassData.LEGACY) picks its class once on load (main.gd _pick_class).
 
 signal confirmed(class_id: StringName, hero_name: String, look: Dictionary)
 signal cancelled()
 
+const MAIN_NAMES := {"str": "STR พลัง", "int": "INT ปัญญา", "dex": "DEX ความคล่อง", "vit": "VIT ความทนทาน"}
 const ROWS := [["hair_tint", "สีผม"], ["skin_tone", "สีผิว"], ["eye_tint", "สีตา"], ["acc", "ประดับ"]]
 
 var look: Dictionary = FaceKit.default_look()
+## The class picked (one of ClassData.IDS).
+var picked: StringName = ClassData.DEFAULT
+## Only the class picker (an old Vagabond save on load): no look, no name.
+var pick_only := false
+## The name shown in pick_only mode (the hero's own).
+var hero_name_fixed := ""
+var _class_buttons: Dictionary = {}
+var _class_grid: GridContainer
+var _class_title: Label
+var _class_desc: Label
+var _class_role: Label
+var _class_main: Label
+var _class_skills: Label
+var _stage_title: Label
 var _preview: HeroVisual
 var _name_input: LineEdit
 var _pivot: Node3D
@@ -39,10 +55,12 @@ func _ready() -> void:
 	safe.add_child(layout)
 	var heading := UIUtil.hbox(12)
 	layout.add_child(heading)
-	var title := UIUtil.label("สร้างฮีโร่ของคุณ", &"HeaderLabel")
+	var title := UIUtil.label("เลือกอาชีพของ %s" % hero_name_fixed if pick_only else "สร้างฮีโร่ของคุณ", &"HeaderLabel")
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(title)
 	var back := UIUtil.button("กลับ", &"GhostButton", Vector2(110, 52))
+	back.name = "Back"
 	back.pressed.connect(func(): cancelled.emit())
 	heading.add_child(back)
 	_body = BoxContainer.new()
@@ -56,13 +74,16 @@ func _ready() -> void:
 	_body.add_child(showcase)
 	var stage_col := UIUtil.vbox(6)
 	showcase.add_child(stage_col)
-	stage_col.add_child(UIUtil.label("นักเดินทางตัวน้อย", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	_stage_title = UIUtil.label("", &"SubHeaderLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	stage_col.add_child(_stage_title)
 	_stage = HeroPreview.new(Vector2i(300, 300))
 	_stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage_col.add_child(_stage)
 	_pivot = _stage._pivot
-	stage_col.add_child(UIUtil.label("ลากเพื่อหมุน · เลือกตัวละคร แล้วปรับสีได้", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER))
+	var hint := UIUtil.label("ลากเพื่อหมุน · เลือกอาชีพ" if pick_only else "ลากเพื่อหมุน · เลือกอาชีพและตัวละคร แล้วปรับสีได้", &"SmallLabel", HORIZONTAL_ALIGNMENT_CENTER)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stage_col.add_child(hint)
 
 	var backing := UIUtil.panel(&"GlassPanel")
 	backing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -75,6 +96,23 @@ func _ready() -> void:
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(right)
 	_options = right
+	_build_class_picker(right)
+	if pick_only:
+		if Game.profile.get("look") is Dictionary:
+			look = Game.profile.look
+		var keep := UIUtil.label("เลเวล ค่าประสบการณ์ และไอเทมยังอยู่ครบ อาวุธนักเดินทางจะเปลี่ยนเป็นอาวุธของอาชีพที่เลือก แต้มสถานะและแต้มสกิลที่ใช้ไปได้คืนให้แจกใหม่ เลือกแล้วเปลี่ยนไม่ได้", &"SmallLabel")
+		keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		keep.custom_minimum_size = Vector2(120, 0)
+		right.add_child(keep)
+		var pick := UIUtil.button("เลือกอาชีพนี้!", &"PrimaryButton", Vector2(220, 62))
+		pick.name = "Confirm"
+		pick.pressed.connect(_on_confirm)
+		right.add_child(pick)
+		root.resized.connect(_layout)
+		right.resized.connect(_layout)
+		_layout()
+		_refresh()
+		return
 	var gender_row := UIUtil.hbox(8)
 	right.add_child(gender_row)
 	for g in 2:
@@ -104,9 +142,6 @@ func _ready() -> void:
 	right.add_child(_grid)
 	for row in ROWS:
 		_grid.add_child(_option_row(String(row[0]), String(row[1])))
-	var note := UIUtil.label("เริ่มเป็นนักเดินทาง แล้วเลือกสาย ดาบ / ธนู / เวทย์ / บวช / อสูร / หอก / โล่ / มีดคู่ / คทา / พิณ เมื่อเลเวล 10", &"SmallLabel")
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	right.add_child(note)
 	right.add_child(UIUtil.label("ชื่อฮีโร่", &"BoldLabel"))
 	_name_input = LineEdit.new()
 	_name_input.max_length = 14
@@ -116,6 +151,7 @@ func _ready() -> void:
 	right.add_child(_name_input)
 	# The hero then stands on its circle of the character select; play starts from there.
 	var go := UIUtil.button("สร้างฮีโร่!", &"PrimaryButton", Vector2(220, 62))
+	go.name = "Confirm"
 	go.pressed.connect(_on_confirm)
 	right.add_child(go)
 	root.resized.connect(_layout)
@@ -130,7 +166,65 @@ func _layout() -> void:
 	var portrait := get_viewport().get_visible_rect().size.x < 950.0
 	_body.vertical = portrait
 	_stage.custom_minimum_size = Vector2(270, 240 if portrait else 300)
-	_grid.columns = 1 if _options.size.x < 630.0 else 2
+	if _grid:
+		_grid.columns = 1 if _options.size.x < 630.0 else 2
+	_class_grid.columns = 2 if _options.size.x < 560.0 else 5
+
+
+## The ten classes as buttons, and what the picked one is (name, role, main stat, first skills).
+func _build_class_picker(parent: Control) -> void:
+	parent.add_child(UIUtil.label("อาชีพ", &"BoldLabel"))
+	_class_grid = GridContainer.new()
+	_class_grid.columns = 2
+	_class_grid.add_theme_constant_override("h_separation", 8)
+	_class_grid.add_theme_constant_override("v_separation", 8)
+	_class_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(_class_grid)
+	for id in ClassData.IDS:
+		var button := UIUtil.button(String(ClassData.get_class_data(id).name), &"ChoiceButton", Vector2(0, 50))
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.clip_text = true
+		button.name = "Class_%s" % id
+		button.pressed.connect(func(): set_class(id))
+		_class_grid.add_child(button)
+		_class_buttons[id] = button
+	var info := UIUtil.vbox(4)
+	parent.add_child(info)
+	_class_title = UIUtil.label("", &"BoldLabel")
+	_class_desc = UIUtil.label("", &"SmallLabel")
+	_class_role = UIUtil.label("", &"SmallLabel")
+	_class_main = UIUtil.label("", &"SmallLabel")
+	_class_skills = UIUtil.label("", &"SmallLabel")
+	for label in [_class_title, _class_desc, _class_role, _class_main, _class_skills]:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.custom_minimum_size = Vector2(120, 0)
+		info.add_child(label)
+
+
+func set_class(id: StringName) -> void:
+	if not ClassData.IDS.has(id):
+		return
+	picked = id
+	_refresh()
+
+
+## What the class plays like, in a few lines (the create screen and the old-save pick).
+static func class_lines(id: StringName) -> Dictionary:
+	var data := ClassData.get_class_data(id)
+	var skills: PackedStringArray = []
+	for skill in ClassData.pool(id):
+		if skills.size() >= 3 or skill.has("star"):
+			break
+		skills.append("%s (Lv.%d)" % [skill.name, int(skill.level)])
+	var role := ClassRoles.line(id)
+	return {
+		"title": "%s — %s" % [data.name, data.title],
+		"desc": String(data.desc),
+		"role": "บทบาทในปาร์ตี้: " + (role if role != "" else "-"),
+		"main": "ค่าหลัก: %s" % MAIN_NAMES.get(String(data.main), String(data.main).to_upper()),
+		"skills": "สกิลแรก: " + ", ".join(skills),
+	}
 
 
 func _option_row(key: String, title: String) -> Control:
@@ -202,6 +296,15 @@ func _value_text(key: String) -> String:
 
 func _refresh() -> void:
 	look = FaceKit.repair(look)
+	for id in _class_buttons:
+		(_class_buttons[id] as Button).disabled = id == picked
+	var lines := class_lines(picked)
+	_class_title.text = lines.title
+	_class_desc.text = lines.desc
+	_class_role.text = lines.role
+	_class_main.text = lines.main
+	_class_skills.text = lines.skills
+	_stage_title.text = String(ClassData.get_class_data(picked).name)
 	for g in _gender_buttons.size():
 		_gender_buttons[g].disabled = int(look.gender) == g
 	for i in _style_buttons.size():
@@ -215,7 +318,7 @@ func _refresh() -> void:
 		if color is Color:
 			tint = (color as Color).lerp(Color.WHITE, 0.3 if key == "skin_tone" else 0.45)
 		label.add_theme_color_override("font_color", tint)
-	_stage.show_hero(ClassData.START, {}, "", look)
+	_stage.show_hero(picked, {}, "", look)
 	_preview = _stage.visual
 
 
@@ -230,7 +333,10 @@ func _on_preview_input(event: InputEvent) -> void:
 
 
 func _on_confirm() -> void:
+	if pick_only:
+		confirmed.emit(picked, hero_name_fixed, look)
+		return
 	var hero_name := _name_input.text.strip_edges()
 	if hero_name == "":
 		hero_name = "ฮีโร่"
-	confirmed.emit(ClassData.START, hero_name, FaceKit.repair(look))
+	confirmed.emit(picked, hero_name, FaceKit.repair(look))

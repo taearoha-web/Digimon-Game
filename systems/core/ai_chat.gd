@@ -477,7 +477,7 @@ func request_body(i: int, text: String, channel: String) -> Dictionary:
 	if Game.in_party(i):
 		doing = "party"
 		place_name = String(ZoneData.get_zone(Game.current_zone).get("name", "")) if Game.current_zone != &"" else place_name
-	var hero_class := StringName(Game.profile.get("class", ClassData.START))
+	var hero_class := StringName(Game.profile.get("class", ClassData.DEFAULT))
 	return {
 		"text": text,
 		"channel": channel,

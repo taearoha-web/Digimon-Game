@@ -492,8 +492,7 @@ static func _item(i: int, slot: String, key: String) -> Dictionary:
 		item = StarProgression.item(job, int(key.substr(1)), slot, rng)
 	else:
 		var find: Dictionary = _sim(i, 0.0).find_info.get("%s|%s" % [slot, key], {})
-		var cls := job if float(find.get("at", 99.0)) >= float(ClassData.LINE_LEVEL) else ClassData.START
-		item = ItemData.generate(int(find.get("level", 1)), cls, rng, int(find.get("rarity", 0)), slot)
+		item = ItemData.generate(int(find.get("level", 1)), job, rng, int(find.get("rarity", 0)), slot)
 		if key == "b0" and slot == "weapon" and item.has("base"):
 			item["name"] = "%s ของมือใหม่" % ItemData.NAMES[item.base][0]
 	item["plus"] = 0
