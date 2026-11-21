@@ -67,7 +67,7 @@ func _ready() -> void:
 	subtitle.add_theme_color_override("font_shadow_color", Color("283540"))
 	subtitle.add_theme_constant_override("shadow_offset_y", 2)
 	layer.add_child(subtitle)
-	var selected: Array = ["staccato_shot", "valor_march", "slumber_lullaby", "heroic_anthem", "fortissimo", "grand_dissonance", "aria_of_ruin", "thunder_crescendo", "hymn_of_legends", "grand_finale", "starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore"]
+	var selected: Array = ["staccato_shot", "valor_march", "slumber_lullaby", "heroic_anthem", "shattering_rhapsody", "grand_dissonance", "aria_of_ruin", "thunder_crescendo", "hymn_of_legends", "grand_finale", "starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore"]
 	if args.size() > 1 and not args[1] in ["medium", "low", "rank1", "noflourish"]:
 		selected = Array(args[1].split(","))
 		if args[1] == "every":

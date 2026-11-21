@@ -370,6 +370,26 @@ func shove_out(center: Vector3, radius: float) -> void:
 		velocity += dir.normalized() * sqrt(2.0 * 12.0 * gap)
 
 
+## How close a pull (Imperial Judgment) draws monsters in: 1.5 m from the caster.
+const PULL_DISTANCE := 1.5
+
+
+## Draws the monster in toward `center` (the opposite of shove_out): it slides (walls
+## still stop it) until its edge stands `radius` from `center`. Replaces the monster's
+## sideways speed (a knock-back of the same hit included). Bosses hold their ground.
+func pull_in(center: Vector3, radius: float) -> void:
+	if is_boss:
+		return
+	var dir := center - global_position
+	dir.y = 0.0
+	var gap := dir.length() - radius - body_radius()
+	if gap > 0.0:
+		# The slide slows by 12 m/s each second (_physics_process): v0 = sqrt(2 a d).
+		var v := dir.normalized() * sqrt(2.0 * 12.0 * gap)
+		velocity.x = v.x
+		velocity.z = v.z
+
+
 func knock_back(from: Vector3, strength := 2.5) -> void:
 	if is_boss:
 		return

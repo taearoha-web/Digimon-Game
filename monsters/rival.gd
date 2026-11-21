@@ -674,6 +674,8 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	var hp_before := _hp_of(victim)
 	Mob.strike(victim, raw, self)
 	ClassRoles.after_hit(self, victim, hp_before - _hp_of(victim))
+	if fx.get("raven_mark") is Array and _alive(victim):
+		ClassRoles.raven_mark(self, victim, fx.raven_mark)
 	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):
 		return
 	for key in Mob.MARKS:

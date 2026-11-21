@@ -55,6 +55,36 @@ const PLANS := {
 		[["extinction", 40], ["heaven_light", 70], ["last_judgement", 100]],
 		[["summon_muspell", 50]],
 	],
+	&"assassin": [
+		[["twin_fang", 1], ["eclipse_fang", 80]],
+		[["venom_edge", 5], ["crimson_cut", 60]],
+		[["shadow_step", 10], ["throat_slit", 70]],
+		[["blade_flurry", 15], ["thousand_cuts", 60], ["abyss_vortex", 90]],
+		[["fan_of_knives", 20], ["phantom_legion", 90]],
+		[["smoke_bomb", 30], ["midnight_execution", 80]],
+		[["killing_focus", 40], ["night_lord", 76], ["shadow_sovereign", 96]],
+		[["shadow_dance", 50], ["oblivion_requiem", 100]],
+	],
+	&"darklord": [
+		[["force", 1], ["chaos_strike", 60], ["chaos_sovereign", 90]],
+		[["fire_burst", 5], ["fire_scream", 40], ["dark_comet", 80]],
+		[["earthshake", 10], ["earth_dominion", 90]],
+		[["electric_spike", 15], ["thunder_lord", 70]],
+		[["birds", 20], ["raven_storm", 88]],
+		[["commanders_aura", 30], ["lord_of_command", 76], ["emperors_command", 96]],
+		[["summon", 40]],
+		[["infernal_scream", 50], ["imperial_judgment", 100]],
+	],
+	&"bard": [
+		[["staccato_shot", 1], ["heartstring", 60], ["aria_of_ruin", 90]],
+		[["valor_march", 5], ["heroic_anthem", 60], ["hymn_of_legends", 96]],
+		[["discord", 10], ["shattering_rhapsody", 70], ["grand_dissonance", 90]],
+		[["sorrow_note", 15], ["lament", 60]],
+		[["echo_chain", 20], ["eternal_echo", 80]],
+		[["iron_ballad", 30], ["sanctuary_serenade", 64]],
+		[["slumber_lullaby", 40], ["thunder_crescendo", 92]],
+		[["grand_finale", 50]],
+	],
 }
 
 
@@ -80,6 +110,8 @@ func _ready() -> void:
 		_check_ai(cls)
 	_check_warrior_migration()
 	_check_priest_migration()
+	_check_bard_migration()
+	_check_darklord_redesign()
 	_check_unconverted()
 	await _check_screens()
 	print("skill_lines_test: %d checks, %d failures" % [checks, failures])
@@ -135,12 +167,14 @@ func _check_hero(cls: StringName) -> void:
 		var pool_ids := Game.skill_pool().filter(func(s): return not s.has("star")).map(func(s): return String(s.id))
 		check(pool_ids.size() == ClassData.SLOTS, "%s Lv.%d: the skill screens list 8 lines" % [cls, level])
 	# An evolution waits for the advancement its level needs.
+	# (the first line that evolves at Lv.60: line 1 for most classes)
+	var e := _evolves_at_60(plan)
 	Game.profile.level = 60
 	Game.profile.adv = 2
-	check(String(Game.loadout_skills()[0].id) == String(plan[0][0][0]), "%s: Lv.60 without the 3rd advancement keeps the first stage" % cls)
-	check(Game.evolution_note(Game.loadout_skills()[0]).contains("ต้องเปลี่ยนเป็น"), "%s: the screens say the advancement is missing" % cls)
+	check(String(Game.loadout_skills()[e].id) == String(plan[e][0][0]), "%s: Lv.60 without the 3rd advancement keeps the first stage" % cls)
+	check(Game.evolution_note(Game.loadout_skills()[e]).contains("ต้องเปลี่ยนเป็น"), "%s: the screens say the advancement is missing" % cls)
 	Game.profile.adv = 3
-	check(String(Game.loadout_skills()[0].id) == String(plan[0][1][0]), "%s: with it the line evolves" % cls)
+	check(String(Game.loadout_skills()[e].id) == String(plan[e][1][0]), "%s: with it the line evolves" % cls)
 	# Rank and bar slot belong to the line.
 	Game.profile.level = 30
 	Game.profile.adv = JobData.adv_for_level(30)
@@ -161,6 +195,14 @@ func _check_hero(cls: StringName) -> void:
 	check(Game.evolution_note(top).ends_with("ร่างสุดท้าย"), "%s: the last stage says so" % cls)
 
 
+## The index of the first line of [param plan] whose second stage comes at Lv.60.
+func _evolves_at_60(plan: Array) -> int:
+	for i in plan.size():
+		if plan[i].size() > 1 and int(plan[i][1][1]) == 60:
+			return i
+	return 0
+
+
 func _check_ai(cls: StringName) -> void:
 	for level in [26, 70, 100]:
 		var tier := _tier(level)
@@ -175,7 +217,7 @@ func _check_ai(cls: StringName) -> void:
 		var ranks := WorldPlayers.skill_ranks(cls, level, 0)
 		check(ranks.keys().all(func(id): return ClassData.is_line(cls, String(id)) or ClassData.find_skill(cls, String(id)).has("star")), "%s Lv.%d: world players rank lines %s" % [cls, level, ranks.keys()])
 	# A Lv.70 rival casts the evolved stage, not the first one.
-	var first: Dictionary = ClassData.find_skill(cls, ClassData.line_ids(cls)[0])
+	var first: Dictionary = ClassData.find_skill(cls, ClassData.line_ids(cls)[_evolves_at_60(PLANS[cls])])
 	check(not ClassData.knows(first, 70, _tier(70), 0) and ClassData.knows(first, 30, _tier(30), 0), "%s: the first stage is cast at Lv.30, replaced by Lv.70" % cls)
 
 
@@ -224,6 +266,55 @@ func _check_priest_migration() -> void:
 	var kit := ClassData.ai_buff_kit(&"priest", 100, "Somchai")
 	check(kit.has("healing") and kit.has("holy_reflection"), "an AI Priest at Lv.100 keeps Prayer and Miracle (heals that buff) by line id %s" % [kit])
 	check(ClassData.current_stage(&"priest", "healing", 100, 5).id == "prayer", "the heal line ends in Prayer")
+## The Bard: its songs are still their lines (the song slots and AI work by line id);
+## the self-only stances are gone and their points come back; merged passives keep
+## the higher rank.
+func _check_bard_migration() -> void:
+	for id in ["valor_march", "heroic_anthem", "hymn_of_legends", "iron_ballad", "sanctuary_serenade"]:
+		var song := ClassData.find_skill(&"bard", id)
+		check(BuffBook.is_song_skill(song), "bard: %s is a song" % id)
+	check(ClassData.line_of(&"bard", "hymn_of_legends") == "valor_march" and ClassData.line_of(&"bard", "sanctuary_serenade") == "iron_ballad", "bard: the songs keep their lines (attack / ward)")
+	check(ClassData.find_skill(&"bard", "virtuoso").is_empty() and ClassData.find_skill(&"bard", "maestro_fervor").is_empty(), "bard: the stances are gone")
+	Game.new_profile(&"bard", "Old Bard", FaceKit.default_look())
+	var data: Dictionary = Game.profile.duplicate(true)
+	data.level = 80
+	data.adv = JobData.adv_for_level(80)
+	data.skill_points = 0
+	data.skills = {"staccato_shot": 2, "heroic_anthem": 4, "virtuoso": 3, "maestro_fervor": 2, "lute_mastery": 1, "harmonic_power": 4}
+	data.loadout = ["virtuoso", "heroic_anthem", "staccato_shot", "maestro_fervor", "", "", "", ""]
+	Game._migrate_skills(data)
+	# heroic_anthem 4 -> valor_march; virtuoso 3 and maestro_fervor 2 refund 2 + 1;
+	# lute_mastery max(1, 4), the rank 1 refunds nothing.
+	check(int(data.skill_points) == 3, "old bard save: 3 points refunded (got %d)" % int(data.skill_points))
+	check(int(data.skills.get("valor_march", 0)) == 4 and int(data.skills.get("lute_mastery", 0)) == 4 and not data.skills.has("virtuoso") and not data.skills.has("maestro_fervor"), "old bard save: ranks moved to the lines %s" % data.skills)
+	check(not (data.loadout as Array).has("virtuoso") and (data.loadout as Array).has("valor_march"), "old bard save: the bar holds the song line, no stance %s" % [data.loadout])
+	check(Game._valid_profile(data.duplicate(true)), "a moved old bard save passes the save check")
+
+
+## The Dark Lord's redesigns: the raven marks its target for the party and a lone
+## target takes every raven; Imperial Judgment pulls monsters in instead of pushing.
+func _check_darklord_redesign() -> void:
+	for id in ["birds", "raven_storm"]:
+		var raven := ClassData.find_skill(&"darklord", id)
+		check(bool(raven.get("converge", false)) and raven.get("fx", {}).get("raven_mark") is Array, "darklord: %s converges and marks" % id)
+	var judgment := ClassData.find_skill(&"darklord", "imperial_judgment")
+	check(judgment.fx.has("pull") and not judgment.fx.has("repel"), "darklord: Imperial Judgment pulls, never pushes")
+	# The mark: the marking party deals +15% to the target for 5 s, nobody else does.
+	var target := Node3D.new()
+	add_child(target)
+	var hero := Hero.new()
+	var other := Node.new()
+	check(is_zero_approx(ClassRoles.raven_bonus(hero, target)), "an unmarked target takes no raven bonus")
+	ClassRoles.raven_mark(hero, target, ClassData.find_skill(&"darklord", "birds").fx.raven_mark)
+	check(is_equal_approx(ClassRoles.raven_bonus(hero, target), 0.15), "the raven's mark: +15%% from the marking party (got %.2f)" % ClassRoles.raven_bonus(hero, target))
+	check(is_zero_approx(ClassRoles.raven_bonus(other, target)), "the raven's mark does nothing for someone outside the party")
+	var marks: Dictionary = target.get_meta(ClassRoles.RAVEN_META)
+	marks["hero"] = [Time.get_ticks_msec() - 1, 0.15]
+	check(is_zero_approx(ClassRoles.raven_bonus(hero, target)), "the raven's mark wears off")
+	hero.free()
+	other.free()
+	target.queue_free()
+
 
 func _check_unconverted() -> void:
 	for cls in ClassData.IDS:

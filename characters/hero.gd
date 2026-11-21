@@ -1329,7 +1329,9 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 				list.erase(mob)
 				list.push_front(mob)
 			var count := int(skill.hits)
-			for i in mini(count, maxi(list.size(), 1)):
+			# A converging fan (the Dark Lord's ravens) sends the shots left over to the target.
+			var shots := count if bool(skill.get("converge", false)) else mini(count, maxi(list.size(), 1))
+			for i in shots:
 				var victim: Mob = list[i] if i < list.size() else mob
 				if _valid_target(victim):
 					_shoot(skill, victim, mult, origin, 1.0)
@@ -1734,6 +1736,10 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 	var fx: Dictionary = skill.get("fx", {})
 	if fx.has("repel"):
 		mob.shove_out(global_position, Mob.REPEL_DISTANCE)
+	if fx.has("pull"):
+		mob.pull_in(global_position, Mob.PULL_DISTANCE)
+	if fx.get("raven_mark") is Array:
+		ClassRoles.raven_mark(self, mob, fx.raven_mark)
 	if fx.has("stun"):
 		mob.apply_stun(float(fx.stun))
 	if fx.has("slow"):

@@ -9,7 +9,7 @@ extends Node3D
 const G := preload("res://combat/skill_art/_guard.gd")
 const IDS := {
 	&"defender": ["titan_quake", "bastion_crush", "rebound_storm", "grand_provoke", "unbreakable", "holy_rampart", "judgment_shield", "aegis_of_ages", "meteor_shield", "sanctuary_wall", "world_bastion"],
-	&"assassin": ["thousand_cuts", "throat_slit", "shadow_dance", "death_mark", "night_lord", "eclipse_fang", "abyss_vortex", "phantom_legion", "midnight_execution", "shadow_sovereign", "oblivion_requiem"],
+	&"assassin": ["thousand_cuts", "throat_slit", "shadow_dance", "night_lord", "eclipse_fang", "abyss_vortex", "phantom_legion", "midnight_execution", "shadow_sovereign", "oblivion_requiem"],
 }
 ## Roots of the shared class systems that a signature's skill must never open.
 const FOREIGN := ["ClassFlourish_", "ShadowArt_", "Signature_", "LordArt_", "CasterArt_", "EliteInvocation_", "SkillWindup_", "SkillContact_", "SkillLink_", "SkillFlight_", "Relief_", "FlourishLotus", "SpellContact", "StarWindup_"]

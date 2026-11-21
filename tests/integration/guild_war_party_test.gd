@@ -389,7 +389,8 @@ func _buffs(m: GuildWarMatch, hero: Hero) -> void:
 	check(String(hero.song_entry().get("skill_id", "")) == "valor_march", "song: still never over the hero's own")
 	# A stance stays on its caster.
 	_reset(everyone, hero)
-	a._resolve(_skill(&"bard", "virtuoso"), null, Vector3.ZERO)
+	# (The Bard's own stances went with the skill lines; a self-only buff still works so.)
+	a._resolve(ClassData._sk(&"bard", "virtuoso", "Virtuoso", "stance", 43, 36, 32.0, "self", 0.0, {"fx": {"buff": {"atk": 0.25, "crit": 0.12, "self_only": true, "secs": 60.0}}, "color": Color("ff6fb5"), "icon": "roar"}), null, Vector3.ZERO)
 	check(a2._atk_boost == 1.0 and not BuffBook.contains(hero._buffs, "virtuoso", true), "a stance stays its own")
 	# The AI: a buff is worth more with the party around than alone.
 	_reset(everyone, hero)
