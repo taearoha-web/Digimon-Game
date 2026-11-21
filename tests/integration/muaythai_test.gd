@@ -211,8 +211,13 @@ func _robes() -> void:
 				if _param(sm, "ribbon") > 0.5:
 					tails.append(m)
 				tris += m.mesh.surface_get_array_index_len(0) / 3
-		check(tails.size() == 4 and tails.all(func(t): return t.mesh == tails[0].mesh and t.material_override == tails[0].material_override), "%s: four prajiad tails share one mesh and one material" % tier)
-		check(mats.size() == (3 if star else 2) and layers == (6 if star else 5), "%s: robe, tails%s on %d materials" % [tier, " and the mantra ring" if star else "", mats.size()])
+		# The four prajiad tails are one mesh: four grids told apart by their vertex colour.
+		var tail_colors := {}
+		if tails.size() == 1:
+			for c in tails[0].mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]:
+				tail_colors[c] = true
+		check(tails.size() == 1 and tail_colors.size() == 4, "%s: the four prajiad tails are one mesh (%d tagged tails)" % [tier, tail_colors.size()])
+		check(mats.size() == (3 if star else 2) and layers == (3 if star else 2), "%s: robe, tails%s: %d layers on %d materials" % [tier, " and the mantra ring" if star else "", layers, mats.size()])
 		check((robe.find_child("MantraRing", true, false) != null) == star, "%s: %s" % [tier, "the mantra ring floats behind" if star else "no mantra ring"])
 		var meshes := robe.find_children("*", "MeshInstance3D", true, false).size()
 		check(meshes <= 10 and tris < 4000, "%s: phone-sized (%d meshes, %d triangles)" % [tier, meshes, tris])

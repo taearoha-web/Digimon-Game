@@ -163,39 +163,13 @@ func _clip(length: float, billow_keys: Array, fold_keys: Array, loop: bool) -> A
 
 ## One cloth layer: a UV grid (u across, v down) drawn both sides; the cape shader
 ## places every vertex, so the grid carries UVs and a rest shape close to the
-## cloth's (item icons frame the mesh by it).
-func _layer(params: Dictionary, cols: int, rows: int) -> MeshInstance3D:
-	var top_width: float = params.get("top_width", 0.4)
-	var hem_width: float = params.get("hem_width", 0.7)
-	var length: float = params.get("cape_length", LENGTH)
-	var collar: bool = float(params.get("kind", 0.0)) > 1.5
-	var ring: bool = float(params.get("kind", 0.0)) > 2.5
+## cloth's (item icons frame the mesh by it). [param copies]: the grid repeated once per
+## colour, the colour telling the shader which copy it is (the prajiad tails: side, which).
+func _layer(params: Dictionary, cols: int, rows: int, copies: Array[Color] = []) -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for r in rows + 1:
-		var v := float(r) / float(rows)
-		for c in cols + 1:
-			var u := float(c) / float(cols)
-			st.set_uv(Vector2(u, v))
-			st.set_normal(Vector3(0, 0, -1))
-			if ring:
-				var radius := lerpf(top_width, hem_width, v)
-				st.add_vertex(Vector3(cos(u * TAU) * radius, TOP_Y - length + sin(u * TAU) * radius, BACK_Z))
-			elif collar:
-				var a := (u * 2.0 - 1.0) * 1.45
-				st.add_vertex(Vector3(sin(a) * hem_width, TOP_Y + (1.0 - v) * length, BACK_Z + 0.1 - cos(a) * hem_width))
-			else:
-				var half := lerpf(top_width, hem_width, pow(v, 0.8)) * 0.5
-				st.add_vertex(Vector3((u * 2.0 - 1.0) * half, TOP_Y - v * length * 1.05, BACK_Z - v * 0.06))
-	for r in rows:
-		for c in cols:
-			var i := r * (cols + 1) + c
-			st.add_index(i)
-			st.add_index(i + cols + 1)
-			st.add_index(i + 1)
-			st.add_index(i + 1)
-			st.add_index(i + cols + 1)
-			st.add_index(i + cols + 2)
+	for g in maxi(copies.size(), 1):
+		_grid(st, params, cols, rows, g * (rows + 1) * (cols + 1), copies[g] if not copies.is_empty() else null)
 	var mesh := MeshInstance3D.new()
 	mesh.name = "CapeLayer"
 	mesh.mesh = st.commit()
@@ -217,8 +191,45 @@ func _layer(params: Dictionary, cols: int, rows: int) -> MeshInstance3D:
 	return mesh
 
 
+## One UV grid of a layer into [param st], its vertices numbered from [param base];
+## [param tag] (a Color, or null) colours every vertex.
+func _grid(st: SurfaceTool, params: Dictionary, cols: int, rows: int, base: int, tag: Variant) -> void:
+	var top_width: float = params.get("top_width", 0.4)
+	var hem_width: float = params.get("hem_width", 0.7)
+	var length: float = params.get("cape_length", LENGTH)
+	var collar: bool = float(params.get("kind", 0.0)) > 1.5
+	var ring: bool = float(params.get("kind", 0.0)) > 2.5
+	var shift := Vector3.ZERO if tag == null else Vector3(((tag as Color).r * 2.0 - 1.0) * 0.2, 0, 0)
+	for r in rows + 1:
+		var v := float(r) / float(rows)
+		for c in cols + 1:
+			var u := float(c) / float(cols)
+			st.set_uv(Vector2(u, v))
+			st.set_normal(Vector3(0, 0, -1))
+			if tag != null:
+				st.set_color(tag)
+			if ring:
+				var radius := lerpf(top_width, hem_width, v)
+				st.add_vertex(Vector3(cos(u * TAU) * radius, TOP_Y - length + sin(u * TAU) * radius, BACK_Z))
+			elif collar:
+				var a := (u * 2.0 - 1.0) * 1.45
+				st.add_vertex(Vector3(sin(a) * hem_width, TOP_Y + (1.0 - v) * length, BACK_Z + 0.1 - cos(a) * hem_width))
+			else:
+				var half := lerpf(top_width, hem_width, pow(v, 0.8)) * 0.5
+				st.add_vertex(shift + Vector3((u * 2.0 - 1.0) * half, TOP_Y - v * length * 1.05, BACK_Z - v * 0.06))
+	for r in rows:
+		for c in cols:
+			var i := base + r * (cols + 1) + c
+			st.add_index(i)
+			st.add_index(i + cols + 1)
+			st.add_index(i + 1)
+			st.add_index(i + 1)
+			st.add_index(i + cols + 1)
+			st.add_index(i + cols + 2)
+
+
 ## The Muay Thai robe: one short satin cape, two prajiad tails knotted at each
-## shoulder (one mesh and one material shared by all four) and, on the star robe, the
+## shoulder (all four one mesh) and, on the star robe, the
 ## mantra ring behind the shoulders.
 func _make_boxer() -> void:
 	var palette := {"outer_color": Color("d42a2a"), "outer_deep": Color("7a0c14"), "lining_color": Color("3a0a10"),
@@ -232,22 +243,12 @@ func _make_boxer() -> void:
 	var length := BOXER_STAR_LENGTH if star else BOXER_LENGTH
 	_layer(palette.merged({"kind": 0.0, "top_width": 0.3, "hem_width": 0.6 if star else 0.56, "cape_length": length,
 		"hem_curve": 0.05, "wrap": 0.2, "fold_depth": 0.035, "folds": 4.0, "crest": 0.0, "phase": 0.3}, true), 40, 24)
-	# The prajiad tails: one narrow band, hung twice from each shoulder knot.
-	var tail := _layer(palette.merged({"kind": 0.0, "ribbon": 1.0, "top_width": 0.05, "hem_width": 0.06, "cape_length": 0.3,
-		"hem_curve": 0.0, "wrap": 0.0, "fold_depth": 0.004, "folds": 1.0, "crest": 0.0, "phase": 1.7, "stiff": 0.8}, true), 2, 10)
-	tail.name = "PrajiadTail"
-	var top := Vector3(0, TOP_Y, BACK_Z)
-	var first := true
-	for side in [-1.0, 1.0]:
-		var knot := Vector3(side * 0.2, TOP_Y - 0.03, BACK_Z + 0.06)
-		for k in 2:
-			var piece: MeshInstance3D = tail if first else tail.duplicate() as MeshInstance3D
-			first = false
-			var turn := Basis.from_euler(Vector3(0, 0, deg_to_rad(side * (8.0 + 16.0 * k)))).scaled(Vector3.ONE * (1.0 - 0.22 * k))
-			piece.transform = Transform3D(turn, knot - turn * top)
-			if piece.get_parent() == null:
-				piece.name = "PrajiadTail%d" % (_fit.get_child_count())
-				_fit.add_child(piece)
+	# The prajiad tails: one narrow band, hung twice from each shoulder knot, all four
+	# in one mesh (the vertex colour tells the shader which tail: side, then which).
+	var tails := _layer(palette.merged({"kind": 0.0, "ribbon": 1.0, "top_width": 0.05, "hem_width": 0.06, "cape_length": 0.3,
+		"hem_curve": 0.0, "wrap": 0.0, "fold_depth": 0.004, "folds": 1.0, "crest": 0.0, "phase": 1.7, "stiff": 0.8}, true), 2, 10,
+		[Color(0, 0, 0), Color(0, 1, 0), Color(1, 0, 0), Color(1, 1, 0)])
+	tails.name = "PrajiadTails"
 	if star:
 		var ring := _layer(palette.merged({"kind": 3.0, "top_width": 0.34, "hem_width": 0.4, "cape_length": 0.1, "behind": 0.07}, true), 48, 2)
 		ring.name = "MantraRing"

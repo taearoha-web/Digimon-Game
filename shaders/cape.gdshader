@@ -114,11 +114,26 @@ vec3 shape(vec2 uv, float t) {
 	return p;
 }
 
+// A prajiad tail's turn (the Muay Thai robe's four tails share one mesh): the vertex
+// colour says which, red the side, green the outer, shorter one of the pair.
+vec3 tail_turn(vec3 d, vec4 tag) {
+	float side = tag.r * 2.0 - 1.0;
+	float a = side * radians(8.0 + 16.0 * tag.g);
+	return vec3(d.x * cos(a) - d.y * sin(a), d.x * sin(a) + d.y * cos(a), d.z) * (1.0 - 0.22 * tag.g);
+}
+
 void vertex() {
 	float t = TIME * (1.6 + billow * 2.4);
 	vec3 p = shape(UV, t);
 	vec3 pu = shape(UV + vec2(0.01, 0.0), t) - shape(UV - vec2(0.01, 0.0), t);
 	vec3 pv = shape(UV + vec2(0.0, 0.01), t) - shape(UV - vec2(0.0, 0.01), t);
+	if (ribbon > 0.5) {
+		// Hung from its shoulder knot.
+		vec3 knot = vec3((COLOR.r * 2.0 - 1.0) * 0.2, top_y - 0.03, back_z + 0.06);
+		p = knot + tail_turn(p - vec3(0.0, top_y, back_z), COLOR);
+		pu = tail_turn(pu, COLOR);
+		pv = tail_turn(pv, COLOR);
+	}
 	VERTEX = p;
 	vec3 n = cross(pu, pv);
 	NORMAL = dot(n, n) > 1e-12 ? normalize(n) : vec3(0.0, 0.0, -1.0);
