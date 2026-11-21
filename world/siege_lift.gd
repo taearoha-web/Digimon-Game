@@ -28,7 +28,8 @@ const FAR_UP := 520.0
 const TILT_UP := -30.0
 
 var zone: Node3D
-var _nodes: Array[Node3D] = []
+## Untyped: a freed node stays in the list until the next sweep takes it out.
+var _nodes: Array = []
 ## 0 not judged yet, 1 real height, 2 ground space.
 var _mode := PackedByteArray()
 var _last := PackedVector3Array()
@@ -129,8 +130,9 @@ func settle() -> void:
 	var edge := SiegeArena.STAIR_Z0 + SiegeArena.STAIR_LEAD
 	var i := _nodes.size() - 1
 	while i >= 0:
-		var node := _nodes[i]
-		if not is_instance_valid(node) or not node.is_inside_tree():
+		var item: Variant = _nodes[i]
+		var node := item as Node3D if is_instance_valid(item) else null
+		if node == null or not node.is_inside_tree():
 			var end := _nodes.size() - 1
 			_nodes[i] = _nodes[end]
 			_mode[i] = _mode[end]

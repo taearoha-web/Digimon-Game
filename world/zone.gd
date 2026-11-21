@@ -1039,7 +1039,7 @@ func _spawn_hero() -> void:
 			# The castle siege: the view may be tilted up to take in the walls, the keep and
 			# the kingdom behind them (the fighting view, tilted down, is as everywhere).
 			# (SiegeLift lengthens the camera's reach only while it is tilted up.)
-			camera_rig.max_pitch = -14.0
+			camera_rig.max_pitch = 0.0
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
 	camera_rig.set_yaw_behind(PI * 1.5 if not (is_town or is_hall) else 0.0)

@@ -71,8 +71,11 @@ func _map() -> void:
 	check(rising and is_equal_approx(last, S.COURT_H), "the floor rises all the way up the stairs to the court")
 	var mid := S.floor_y(Vector3(0, 0, (S.STAIR_Z0 + S.STAIR_Z1) * 0.5))
 	check(mid > S.COURT_H * 0.3 and mid < S.COURT_H * 0.7, "halfway up the stairs the floor is about half the court's height (%.2f)" % mid)
-	var slope := rad_to_deg(atan2(S.COURT_H, S.STAIR_RUN))
-	check(slope < 35.0, "the stairs are a walkable slope (%.1f degrees, a body's floor limit is 45)" % slope)
+	var slope := rad_to_deg(atan2(S.COURT_H * 0.5, S.STAIR_FLIGHT))
+	var land := Vector3(0, 0, S.STAIR_Z0 + S.STAIR_LEAD - S.STAIR_FLIGHT - S.STAIR_LANDING * 0.5)
+	check(is_equal_approx(S.floor_y(land), S.COURT_H * 0.5) and is_equal_approx(S.floor_y(land + Vector3(0, 0, 0.5)), S.COURT_H * 0.5) and is_equal_approx(S.STAIR_FLIGHT * 2.0 + S.STAIR_LANDING, S.STAIR_RUN),
+		"two flights with a level landing between them")
+	check(slope < 36.0, "the stairs are a walkable slope (%.1f degrees, a body's floor limit is 45)" % slope)
 	check(is_equal_approx(S.floor_y(Vector3(S.THRONE_HALF - 3.0, 0, S.STAIR_Z1 - 1.0)), S.COURT_H) and S.floor_y(Vector3(-S.THRONE_HALF + 3.0, 0, (S.STAIR_Z0 + S.STAIR_Z1) * 0.5)) > 1.0,
 		"the stairs and the court run the whole width between the walls (no way in narrower than before)")
 	check(S.THRONE_HALF * 2.0 - 3.4 > S.GATE_HALF * 2.0 * 3.0, "the stairs are far wider than the gate before them")

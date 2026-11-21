@@ -77,8 +77,8 @@ const ALTAR_BACK := 9.0
 const ALTAR := Vector3(0, 0, -18.0 - GATE_GAP * 2.0 - THRONE_DEPTH + ALTAR_BACK)
 const ALTAR_RADIUS := 2.8
 ## The throne court stands COURT_H above the yards: past the third gate a grand staircase
-## as wide as the court climbs to it (its foot STAIR_Z0 just inside the gatehouse, its head
-## STAIR_RUN further in, before the switches), so the altar, the switches and everything on
+## as wide as the court climbs to it in two flights with a landing between (its foot
+## STAIR_Z0 just inside the gatehouse, its head STAIR_RUN further in, before the switches), so the altar, the switches and everything on
 ## the court are that much higher than the field (floor_y: the floor's height at a point).
 ## ALTAR, SWITCHES and every route point stay flat (y = 0): the fighters' brains work on the
 ## map (x, z) and gravity keeps their feet on the stairs' ramp and the court's floor.
@@ -86,10 +86,14 @@ const COURT_H := 4.0
 const STAIR_Z0 := -18.0 - GATE_GAP * 2.0 - 3.0
 const STAIR_RUN := 8.0
 const STAIR_Z1 := STAIR_Z0 - STAIR_RUN
+## Two flights of STAIR_FLIGHT (half the height each) with a level landing STAIR_LANDING
+## deep between them (STAIR_RUN = 2 flights + the landing), STAIR_STEPS steps in all.
+const STAIR_FLIGHT := 3.25
+const STAIR_LANDING := 1.5
 const STAIR_STEPS := 16
-## The ramp under the steps runs through the middle of each tread (a quarter of a metre
-## south of the steps' own line), so feet neither sink into a step nor float over it.
-const STAIR_LEAD := 0.25
+## The ramps under the steps run through the middle of each tread (half a tread south of
+## the steps' own line), so feet neither sink into a step nor float over it.
+const STAIR_LEAD := 0.2
 ## The castle's two switches (สวิตช์ซ้าย / สวิตช์ขวา), mirrored left (-x) and right (+x)
 ## of the carpet halfway down the throne room (inside the pillars), as far from the door
 ## and from the altar as each other, so no camp's way in is nearer to one. Each is held on
@@ -264,7 +268,13 @@ static func hall_rect() -> Rect2:
 static func floor_y(p: Vector3) -> float:
 	if p.z > STAIR_Z0 + STAIR_LEAD or p.z < BACK_Z - 1.7 or absf(p.x) > THRONE_HALF - 1.7:
 		return 0.0
-	return COURT_H * clampf((STAIR_Z0 + STAIR_LEAD - p.z) / STAIR_RUN, 0.0, 1.0)
+	var t := STAIR_Z0 + STAIR_LEAD - p.z
+	var half := COURT_H * 0.5
+	if t <= STAIR_FLIGHT:
+		return half * clampf(t / STAIR_FLIGHT, 0.0, 1.0)
+	if t <= STAIR_FLIGHT + STAIR_LANDING:
+		return half
+	return half + half * clampf((t - STAIR_FLIGHT - STAIR_LANDING) / STAIR_FLIGHT, 0.0, 1.0)
 
 
 ## `p` put on the floor there (`above` metres over it).
@@ -368,8 +378,8 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 
 
 ## The torii avenue south of the plaza (decoration: no colliders), from z0 to z1.
-const AVENUE_Z0 := 32.0
-const AVENUE_Z1 := 68.0
+const AVENUE_Z0 := 40.0
+const AVENUE_Z1 := 72.0
 ## Every castle banner goes into this one batch while the castle is built (_flag).
 static var _flags: JapanKit.Batch
 ## The castle's flat floor work (paving, bands, carpets, inlays) and small wall detail
@@ -671,6 +681,17 @@ static func _gatehouse(b: JapanKit.Batch, m: Masonry, k: int, root: Node3D, gx :
 	# camera and the hero (ThirdPersonCamera.FADE_GROUP), so a fight in the gateway or on
 	# the stairs behind it is never hidden by the gatehouse.
 	var g := JapanKit.Batch.new()
+	if k >= 2:
+		# The tall jambs of the throne court's gate: a tiled ledge round each over a
+		# plastered band, a lantern and the holder's banner on the face to the stairs.
+		for side in [-1.0, 1.0]:
+			var jx: float = gx + float(side) * (GATE_HALF + 1.6)
+			b.box(Vector3(jx, GATE_H + 0.3, z), Vector3(3.7, 1.2, 4.9), PLASTER)
+			b.box(Vector3(jx, GATE_H - 0.4, z), Vector3(3.8, 0.3, 5.0), WOOD)
+			b.box(Vector3(jx, GATE_H + 1.05, z), Vector3(4.5, 0.3, 5.7), TILE)
+			b.box(Vector3(jx, GATE_H + 1.25, z), Vector3(3.9, 0.2, 5.1), TILE_EDGE)
+			_flag(Vector3(jx, 4.4, z - 2.45), Vector3(1.6, 5.2, 0.08), 1.0)
+			JapanKit.chochin(b, Vector3(jx - float(side) * 1.2, 6.6, z - 2.7), Color("e8463a"), 1.4)
 	g.box(Vector3(gx, GATE_H + 0.5, z), Vector3(GATE_HALF * 2.0 + 0.6, 1.0, 3.6), WOOD)
 	if lift > 0.0:
 		# The wall over the lintel: plaster between timber bands, the crest on it.
@@ -815,36 +836,65 @@ static func _castle(root: Node3D, m: Masonry) -> void:
 
 
 ## The grand staircase from the third gate up to the throne court: STAIR_STEPS stone steps
-## as wide as the court (the ramp fighters walk is _court_floor's), the red carpet up its
-## middle, stone cheeks with great lanterns by the walls and guardian lions at its head.
+## as wide as the court in two flights with a landing between (the ramps fighters walk are
+## _court_floor's), the red carpet up its middle, stone cheeks and great lanterns by the
+## walls, guardian lions, lamp posts and the holder's banners on the landing.
 static func _stairs(b: JapanKit.Batch) -> void:
 	var width := THRONE_HALF * 2.0 - 3.4
+	var per := STAIR_STEPS / 2
 	var rise := COURT_H / float(STAIR_STEPS)
-	var tread := STAIR_RUN / float(STAIR_STEPS)
-	for i in STAIR_STEPS:
-		var zc := STAIR_Z0 - (float(i) + 0.5) * tread
-		var h := float(i + 1) * rise
-		b.box(Vector3(0, h * 0.5, zc), Vector3(width, h, tread), STONE if i % 2 == 0 else STONE.lightened(0.05))
-		_trim.box(Vector3(0, h - 0.025, zc + tread * 0.5 - 0.05), Vector3(width, 0.07, 0.14), PAVING.lightened(0.14))
-		_trim.box(Vector3(0, h - rise * 0.5 - 0.04, zc + tread * 0.5 + 0.01), Vector3(width, rise - 0.08, 0.03), STONE_CORE)
-	var slope := rad_to_deg(atan2(COURT_H, STAIR_RUN))
-	var length := sqrt(COURT_H * COURT_H + STAIR_RUN * STAIR_RUN)
-	var mid := Vector3(0, COURT_H * 0.5 + rise, (STAIR_Z0 + STAIR_Z1) * 0.5)
-	# The carpet laid over the steps' edges, gold along its sides.
-	_trim.box(mid + Vector3(0, 0.03, 0), Vector3(5.0, 0.05, length + 0.3), Color("a8322a"), Vector3(slope, 0, 0))
+	var tread := STAIR_FLIGHT / float(per)
+	var half := COURT_H * 0.5
+	var land_z := STAIR_Z0 - STAIR_FLIGHT - STAIR_LANDING * 0.5
+	var slope := rad_to_deg(atan2(half, STAIR_FLIGHT))
+	var length := sqrt(half * half + STAIR_FLIGHT * STAIR_FLIGHT)
+	for flight in 2:
+		var z_from := STAIR_Z0 - float(flight) * (STAIR_FLIGHT + STAIR_LANDING)
+		var y_from := float(flight) * half
+		for i in per:
+			var zc := z_from - (float(i) + 0.5) * tread
+			var h := y_from + float(i + 1) * rise
+			b.box(Vector3(0, h * 0.5, zc), Vector3(width, h, tread), STONE if i % 2 == 0 else STONE.lightened(0.06))
+			_trim.box(Vector3(0, h - 0.025, zc + tread * 0.5 - 0.05), Vector3(width, 0.07, 0.14), PAVING.lightened(0.16))
+			_trim.box(Vector3(0, h - rise * 0.5 - 0.04, zc + tread * 0.5 + 0.01), Vector3(width, rise - 0.08, 0.03), STONE_CORE)
+		# The carpet laid over this flight's edges, gold along its sides.
+		var mid := Vector3(0, y_from + half * 0.5 + rise, z_from - STAIR_FLIGHT * 0.5)
+		_trim.box(mid + Vector3(0, 0.03, 0), Vector3(5.0, 0.05, length + 0.2), Color("a8322a"), Vector3(slope, 0, 0))
+		for s in [-1.0, 1.0]:
+			_trim.box(mid + Vector3(float(s) * 2.6, 0.05, 0), Vector3(0.26, 0.06, length + 0.2), GOLD_DEEP, Vector3(slope, 0, 0))
+			# The stone cheek along the wall, capped.
+			var x: float = float(s) * (width * 0.5 - 1.0)
+			b.box(Vector3(x, y_from + half * 0.5 + 0.6, z_from - STAIR_FLIGHT * 0.5), Vector3(1.8, 1.5, length), STONE_CORE, Vector3(slope, 0, 0))
+			b.box(Vector3(x, y_from + half * 0.5 + 1.42, z_from - STAIR_FLIGHT * 0.5 - 0.2), Vector3(2.1, 0.22, length), STONE.lightened(0.12), Vector3(slope, 0, 0))
+	# The landing between the flights: a paved band of its own, the carpet across it,
+	# inlaid diamonds, and at its ends and beside the carpet what makes a stair grand:
+	# gilded guardian lions on pedestals, lamp posts and the holder's tall banners (all
+	# thin or by the walls: nothing to walk round).
+	b.box(Vector3(0, half * 0.5, land_z), Vector3(width, half, STAIR_LANDING), STONE.lightened(0.1))
+	_trim.box(Vector3(0, half + 0.02, land_z), Vector3(width, 0.05, STAIR_LANDING - 0.1), PAVING.lightened(0.2))
+	_trim.box(Vector3(0, half + 0.05, land_z), Vector3(5.0, 0.05, STAIR_LANDING + 0.3), Color("a8322a"))
 	for s in [-1.0, 1.0]:
-		_trim.box(mid + Vector3(float(s) * 2.6, 0.05, 0), Vector3(0.26, 0.06, length + 0.3), GOLD_DEEP, Vector3(slope, 0, 0))
-	for s in [-1.0, 1.0]:
+		_trim.box(Vector3(float(s) * 2.6, half + 0.06, land_z), Vector3(0.26, 0.05, STAIR_LANDING + 0.3), GOLD_DEEP)
+		for i in 6:
+			_trim.box(Vector3(float(s) * (6.0 + float(i) * 5.2), half + 0.06, land_z), Vector3(0.8, 0.03, 0.8), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
 		var x: float = float(s) * (width * 0.5 - 1.0)
-		# The stone cheek along the wall, capped, a great lantern at its foot and its head.
-		b.box(Vector3(x, COURT_H * 0.5 + 0.55, (STAIR_Z0 + STAIR_Z1) * 0.5), Vector3(1.8, 1.5, length), STONE_CORE, Vector3(slope, 0, 0))
-		b.box(Vector3(x, COURT_H * 0.5 + 1.38, (STAIR_Z0 + STAIR_Z1) * 0.5 - 0.3), Vector3(2.1, 0.22, length), STONE.lightened(0.12), Vector3(slope, 0, 0))
-		b.box(Vector3(x, 0.9, STAIR_Z0 + 1.1), Vector3(2.4, 1.8, 2.2), STONE_CORE)
-		b.box(Vector3(x, 1.9, STAIR_Z0 + 1.1), Vector3(2.7, 0.24, 2.5), STONE.lightened(0.12))
-		JapanKit.toro(b, Vector3(x, 2.0, STAIR_Z0 + 1.1), 1.7)
-		b.box(Vector3(x, COURT_H + 0.8, STAIR_Z1 - 1.3), Vector3(2.4, 1.6, 2.2), STONE_CORE)
-		b.box(Vector3(x, COURT_H + 1.7, STAIR_Z1 - 1.3), Vector3(2.7, 0.24, 2.5), STONE.lightened(0.12))
-		_lion(b, Vector3(x, COURT_H + 1.82, STAIR_Z1 - 1.3), -float(s))
+		# By the wall: a pedestal with a great lantern at the foot, on the landing and at the head.
+		for spot in [Vector3(x, 0.0, STAIR_Z0 + 1.1), Vector3(x, half, land_z), Vector3(x, COURT_H, STAIR_Z1 - 1.3)]:
+			b.box(spot + Vector3(0, 0.9, 0), Vector3(2.4, 1.8, 2.0), STONE_CORE)
+			b.box(spot + Vector3(0, 1.9, 0), Vector3(2.7, 0.24, 2.3), STONE.lightened(0.12))
+			JapanKit.toro(b, spot + Vector3(0, 2.0, 0), 1.7)
+		# Guardian lions on the landing either side of the carpet, and at the stair's head.
+		for lion in [Vector3(float(s) * 9.0, half, land_z), Vector3(float(s) * 30.0, COURT_H, STAIR_Z1 - 1.3)]:
+			b.box(lion + Vector3(0, 0.55, 0), Vector3(1.5, 1.1, 1.4), STONE_CORE)
+			b.box(lion + Vector3(0, 1.16, 0), Vector3(1.8, 0.16, 1.7), STONE.lightened(0.12))
+			_lion(b, lion + Vector3(0, 1.22, 0), -float(s))
+		# Lamp posts beside the carpet at the foot, the landing and the head; tall banners
+		# in the holder's colour up both flights.
+		_lamp(b, Vector3(float(s) * 6.6, 0.0, STAIR_Z0 + 0.4), 3.6, Vector3(-float(s) * 0.6, 0, 0))
+		_lamp(b, Vector3(float(s) * 4.2, half, land_z), 3.6, Vector3(float(s) * 0.6, 0, 0))
+		_lamp(b, Vector3(float(s) * 4.2, COURT_H, STAIR_Z1 - 0.6), 3.6, Vector3(float(s) * 0.6, 0, 0))
+		for bx in [15.0, 21.5]:
+			_nobori(b, Vector3(float(s) * float(bx), half, land_z), 6.4)
 		_brazier(b, Vector3(float(s) * (width * 0.5 - 4.2), COURT_H, STAIR_Z1 - 1.3), 1.5)
 
 
@@ -962,13 +1012,23 @@ static func _court(b: JapanKit.Batch, root: Node3D) -> void:
 static func _court_floor(root: Node3D) -> void:
 	var z0 := STAIR_Z0 + STAIR_LEAD
 	var z1 := STAIR_Z1 + STAIR_LEAD
+	var half := COURT_H * 0.5
 	JapanKit.collider(root, Vector3(0, (COURT_H - 1.0) * 0.5, (z1 + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, COURT_H + 1.0, z1 - BACK_Z))
-	var angle := atan2(COURT_H, STAIR_RUN)
-	var length := sqrt(COURT_H * COURT_H + STAIR_RUN * STAIR_RUN)
+	# The landing between the flights (level), and a ramp under each flight.
+	JapanKit.collider(root, Vector3(0, (half - 1.0) * 0.5, z0 - STAIR_FLIGHT - STAIR_LANDING * 0.5), Vector3(THRONE_HALF * 2.0, half + 1.0, STAIR_LANDING))
+	_ramp(root, "StairRamp", z0, 0.0)
+	_ramp(root, "StairRampUpper", z0 - STAIR_FLIGHT - STAIR_LANDING, half)
+
+
+## One flight's ramp: from (z, y) rising half the court's height over STAIR_FLIGHT northwards.
+static func _ramp(root: Node3D, node_name: String, z: float, y: float) -> void:
+	var half := COURT_H * 0.5
+	var angle := atan2(half, STAIR_FLIGHT)
+	var length := sqrt(half * half + STAIR_FLIGHT * STAIR_FLIGHT)
 	var body := StaticBody3D.new()
-	body.name = "StairRamp"
+	body.name = node_name
 	body.collision_layer = 1
-	body.position = Vector3(0, COURT_H * 0.5, (z0 + z1) * 0.5) - Vector3(0, cos(angle), sin(angle)) * 0.5
+	body.position = Vector3(0, y + half * 0.5, z - STAIR_FLIGHT * 0.5) - Vector3(0, cos(angle), sin(angle)) * 0.5
 	body.rotation.x = angle
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -1222,13 +1282,18 @@ static func _plaza(root: Node3D) -> void:
 			continue
 		JapanKit.toro(b, PLAZA + Vector3(cos(angle) * 15.0, 0, sin(angle) * 15.0), 1.2)
 	# The avenue: great vermilion torii over the way from the south, lanterns between them.
-	var gates := 4
+	# Each torii is its own mesh that fades out while it stands between the camera and the
+	# hero (ThirdPersonCamera.FADE_GROUP): its beams never cover a fight under it.
+	var gates := 3
 	for i in gates:
 		var z := lerpf(AVENUE_Z0, AVENUE_Z1, float(i) / float(gates - 1))
-		b.xform = Transform3D(Basis(), Vector3(0, 0, z))
-		JapanKit.torii(b, 11.0, 8.6 + (1.4 if i == 0 else 0.0))
-		b.xform = Transform3D.IDENTITY
-		if i == 1:
+		var gate := JapanKit.Batch.new()
+		gate.xform = Transform3D(Basis(), Vector3(0, 0, z))
+		JapanKit.torii(gate, 11.0, 8.6 + (1.4 if i == 0 else 0.0))
+		var mi := gate.commit(root, "Torii%d" % i)
+		mi.visibility_range_end = 0.0
+		mi.add_to_group(ThirdPersonCamera.FADE_GROUP)
+		if i == 0:
 			for s in [-1.0, 1.0]:
 				JapanKit.toro(b, Vector3(float(s) * 7.0, 0, z + (AVENUE_Z1 - AVENUE_Z0) / float(gates - 1) * 0.5), 1.5)
 	_commit(b, root, "Plaza")
@@ -1291,7 +1356,7 @@ static func _pines(root: Node3D, rng: RandomNumberGenerator, camps := 2) -> void
 			spots.append(Vector3(float(s) * (BRIDGE_HALF + 17.0 + float(i) * 14.0), 0, MOAT_SOUTH + 4.6))
 	for i in 4:
 		for s in [-1.0, 1.0]:
-			spots.append(Vector3(float(s) * 11.5, 0, AVENUE_Z0 + 2.0 + float(i) * 11.0))
+			spots.append(Vector3(float(s) * 11.5, 0, AVENUE_Z0 - 4.0 + float(i) * 11.0))
 	for p in spots:
 		var clear := true
 		for team in camps:
