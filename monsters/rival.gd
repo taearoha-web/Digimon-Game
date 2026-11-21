@@ -120,6 +120,8 @@ func _make_visual() -> MonsterVisual:
 	_rv = RivalVisual.new()
 	add_child(_rv)
 	_rv.setup_rival(StringName(member["class"]), _equip, _look)
+	if _rv.hero_visual:
+		_rv.hero_visual.set_mantra_level(level)
 	return _rv
 
 
@@ -599,6 +601,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		ThunderStormSequence.launch(field, self, Vector3(aim.x, 0, aim.z), float(skill.radius), _victims, _storm_hit.bind(mult, color))
 		return
 	SkillShow.play(field, skill, center, global_position)
+	MuayThai.ring_show(self, skill, center)
 	var landing_sound := SkillSound.landing(skill)
 	if landing_sound != &"":
 		AudioManager.play_sfx_at(center, landing_sound, -8.0)
@@ -660,6 +663,7 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	var raw := float(rstats.atk) * _atk_boost * mult * randf_range(0.92, 1.08) * war_scale * (1.0 - _weaken_now())
 	# The party's roles (ClassRoles); ทะลวงเกราะ is applied where the victim takes the blow.
 	raw *= ClassRoles.outgoing(self, victim)
+	raw *= MuayThai.finisher(self, fx)
 	if randf() < float(rstats.crit) + ClassRoles.crit_bonus(self):
 		raw *= HeroStats.CRIT_DAMAGE
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
@@ -674,6 +678,10 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	var hp_before := _hp_of(victim)
 	Mob.strike(victim, raw, self)
 	ClassRoles.after_hit(self, victim, hp_before - _hp_of(victim))
+	# The Muay Thai fighter: extra combo, and its kick throws a fighter (or the hero leading
+	# a guild onto the altar) back (MuayThai.kick).
+	if not fx.is_empty() and _alive(victim):
+		MuayThai.skill_fx(self, victim, fx)
 	if fx.get("raven_mark") is Array and _alive(victim):
 		ClassRoles.raven_mark(self, victim, fx.raven_mark)
 	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):

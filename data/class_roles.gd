@@ -40,6 +40,8 @@ const TRAITS := {
 		"text": "ทั้งปาร์ตี้ดูดเลือด 4% ของดาเมจที่ทำ"},
 	&"bard": {"name": "ประสานเสียง", "value": 0.10,
 		"text": "ทั้งปาร์ตี้คูลดาวน์สกิลสั้นลง 10%"},
+	&"muaythai": {"name": "หมัดปลุกใจ", "value": 0.003, "every": 0.5,
+		"text": "ทั้งปาร์ตี้ตีโดนแล้วฟื้น HP 0.3% ของ HP สูงสุด (ไม่เกิน 2 ครั้ง/วิ)"},
 }
 
 ## The Mage's mark on a target: meta {party key: until (ms)}.
@@ -286,10 +288,12 @@ static func hp_ratio(unit: Variant) -> float:
 ## Damage multiplier of a hit by [param attacker] on [param target]: แนวหน้า (Warrior),
 ## ตราเวท (a Mage of the party marked the target), จุดตาย (target under 35% HP).
 static func outgoing(attacker: Variant, target: Variant) -> float:
+	# The Muay Thai fighter's own combo (MuayThai) counts with or without a party.
+	var combo := MuayThai.damage_mult(attacker)
 	var classes := party_classes(attacker)
 	if classes.is_empty():
-		return 1.0
-	var mult := 1.0
+		return combo
+	var mult := combo
 	if classes.has(&"warrior"):
 		mult += value(&"warrior")
 	if classes.has(&"mage") and marked(target, party_key(attacker)):
@@ -345,7 +349,8 @@ static func taken(victim: Variant) -> float:
 
 ## [param amount] of damage after the victim's party guard (never below 1).
 static func guard(victim: Variant, amount: int) -> int:
-	var m := taken(victim)
+	# The Muay Thai fighter's mantra rings (MuayThai.ring_guard) cut with or without a party.
+	var m := taken(victim) * MuayThai.ring_guard(victim)
 	return amount if m >= 1.0 else maxi(1, int(ceil(float(amount) * m)))
 
 
@@ -367,6 +372,8 @@ static func marked(target: Variant, key: String) -> bool:
 static func after_hit(attacker: Variant, target: Variant, dealt: int) -> void:
 	if dealt <= 0:
 		return
+	# The Muay Thai fighter's combo and hit-heal (its own, party or not).
+	MuayThai.after_hit(attacker, dealt)
 	var classes := party_classes(attacker)
 	if classes.is_empty():
 		return
@@ -379,6 +386,12 @@ static func after_hit(attacker: Variant, target: Variant, dealt: int) -> void:
 		obj.set_meta(MARK_META, marks)
 	if classes.has(&"darklord"):
 		_gain(attacker, &"role_leech", float(dealt) * value(&"darklord"), "hp")
+	# หมัดปลุกใจ: a hit heals the hitter a share of its maximum, at most every "every" s.
+	if classes.has(&"muaythai") and attacker is Object:
+		var now := Time.get_ticks_msec()
+		if now - int((attacker as Object).get_meta(&"role_rally", -100000)) >= int(float(TRAITS[&"muaythai"].every) * 1000.0):
+			(attacker as Object).set_meta(&"role_rally", now)
+			_gain(attacker, &"role_rally_hp", _max_of(attacker, "hp") * value(&"muaythai"), "hp")
 
 
 ## Over time: พรแห่งแสง (HP) and พันธะวิญญาณ (MP), for a living member.

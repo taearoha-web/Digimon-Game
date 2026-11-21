@@ -150,6 +150,7 @@ func refresh() -> void:
 		return
 	var pp := _party_profile()
 	stats = HeroStats.compute(pp)
+	visual.set_mantra_level(int(member.get("level", 1)))
 	data = JobData.resolve(StringName(member["class"]), int(pp.adv))
 	_label.text = _level_text()
 	var sig := _signature()
@@ -759,6 +760,7 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	var raw := _buffed_atk() * mult * randf_range(0.92, 1.08)
 	if skill is Dictionary and not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
+		raw *= MuayThai.finisher(self, skill.get("fx", {}))
 	raw *= ClassRoles.outgoing(self, mob)
 	var crit := randf() < float(stats.crit) * (1.0 + legend_aura()) + _book.total("crit") + ClassRoles.crit_bonus(self)
 	if crit:
@@ -774,6 +776,8 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	var killed := mob.take_hit(amount, crit, color, self)
 	BattleVfx.dealing_other = false
 	ClassRoles.after_hit(self, mob, amount)
+	if skill is Dictionary and not skill.is_empty():
+		MuayThai.skill_fx(self, mob, skill.get("fx", {}))
 	if killed:
 		return
 	if melee:
@@ -1080,6 +1084,7 @@ func _resolve(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		# resolve immediately. Share the art while respecting that real clock.
 		var landing := 0.5 if String(skill.shape) == "blast" and skill.vfx == &"fireball" else 0.0
 		SkillShow.play(field, skill, show_center, global_position, landing)
+	MuayThai.ring_show(self, skill, show_center)
 	var landing_sound := SkillSound.landing(skill)
 	if landing_sound != &"":
 		AudioManager.play_sfx(landing_sound, -8.0)

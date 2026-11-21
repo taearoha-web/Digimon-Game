@@ -116,7 +116,9 @@ static func set_gear_bonus(profile: Dictionary) -> Dictionary:
 
 ## Sum of the always-on passive skills (rank 1 once unlocked, up to 5 stars).
 static func passive_bonus(profile: Dictionary) -> Dictionary:
-	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "speed": 0.0, "dodge": 0.0}
+	# hit_heal / combo: the Muay Thai fighter's passives (MuayThai): a share of damage
+	# dealt healed back, seconds added to the combo window.
+	var total := {"atk": 0.0, "def": 0.0, "hp": 0.0, "mp": 0.0, "crit": 0.0, "speed": 0.0, "dodge": 0.0, "hit_heal": 0.0, "combo": 0.0}
 	var level: int = profile["level"]
 	for passive in ClassData.passives(StringName(profile["class"])):
 		if level < int(passive.level) or ClassData.skill_tier(passive) > ClassData.tier_of(StringName(profile["class"]), int(profile.get("adv", 0))):
@@ -188,6 +190,8 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
 		"gem_set": gem_set,
 		"attrs": attrs,
+		"hit_heal": float(passive.hit_heal),
+		"combo_secs": float(passive.combo),
 		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0))) * (1.0 + float(buffs.get("hp", 0.0))) * aura),
 		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0))) * aura),
 		"atk": atk,

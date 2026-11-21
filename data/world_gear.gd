@@ -137,7 +137,7 @@ const GEM_KEEN_ENDGAME := 0.015
 const GEM_FUSE_TOP := ItemData.GEM_MAX_SIZE
 ## The gem a class builds on, and the special gem it likes (one, in the ring).
 const GEM_MAIN := {"defender": "amethyst"}
-const GEM_SPECIAL := {"defender": "pearl", "priest": "opal", "bard": "opal"}
+const GEM_SPECIAL := {"defender": "pearl", "priest": "opal", "bard": "opal", "muaythai": "pearl"}
 ## Fuses a player gets round to in one stretch of play.
 const FUSES_PER_CHUNK := 40
 

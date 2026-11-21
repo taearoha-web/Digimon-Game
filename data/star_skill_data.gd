@@ -10,7 +10,7 @@ const GOD_STAR := 300
 ## strongest skill (Judgment Ray, Heartbreak Sonata) and stays its strongest.
 const GOD_MULT := {
 	&"warrior": 50.0, &"archer": 50.0, &"lancer": 50.0, &"mage": 62.0, &"priest": 50.0,
-	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 50.0, &"bard": 78.0,
+	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 50.0, &"bard": 78.0, &"muaythai": 50.0,
 }
 ## Contact beats of a god-tier cast (StarSkillSequence): four waves and the finale.
 const GOD_BEATS := [0.0, 0.32, 0.64, 0.96, 1.5]
@@ -25,6 +25,7 @@ const IDS := {
 	&"assassin": ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem", "death_gods_eclipse"],
 	&"darklord": ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm", "abyssal_throne"],
 	&"bard": ["starlight_overture", "heartbreak_sonata", "celestial_stage", "cosmic_encore", "divine_symphony"],
+	&"muaythai": ["naga_coil_fist", "solar_knee_barrage", "vow_of_the_ring", "heaven_ring_cataclysm", "three_realms_fist"],
 }
 const NAMES := {
 	&"warrior": ["Lionfang Cleave", "Crown Breaker", "Royal Vanguard", "Celestial Swordfall", "ดาบเทพประกาศิต"],
@@ -37,6 +38,7 @@ const NAMES := {
 	&"assassin": ["Umbral Lacerate", "Shadow Execution", "Veil of Night", "Eclipse Requiem", "สุริยคราสเทพมรณะ"],
 	&"darklord": ["Chaos Inferno", "Raven Sovereign", "Lord's Dominion", "Imperial Cataclysm", "บัลลังก์จักรพรรดิอเวจี"],
 	&"bard": ["Starlight Overture", "Heartbreak Sonata", "Celestial Stage", "Cosmic Encore", "ซิมโฟนีแห่งทวยเทพ"],
+	&"muaythai": ["นาคาพันหมัด", "เข่าสุริยะพันครั้ง", "ปฏิญาณวงประเจียด", "วงมนตราถล่มฟ้า", "หมัดเทพสะท้านสามภพ"],
 }
 const DESCS := {
 	&"warrior": ["คมเขี้ยวราชสีห์ • ฟันรูปพัดด้านหน้า 2 จังหวะ", "ดาบทำลายราชัน • 2 ฮิตเดี่ยว ลดเกราะ 20% นาน 6 วิ", "แนวหน้าราชัน • ทีมในระยะรับความเสียหายลด 22% ป้องกัน +60% นาน 1 นาที", "ฝนดาบราชันสวรรค์ • ต้องสวมปีก บินสูง 5 เมตร เรียกดาบที่ถือ 10 เล่มโจมตีพื้นที่", "สกิลเทพ • ดาบเทพยักษ์ลอยเหนือวงเทพ ห่าดาบฟันพื้นที่ 4 ระลอก ปิดด้วยดาบเทพปักกลางสนาม มึน 1.5 วิ เกราะแตก 25% นาน 8 วิ"],
@@ -49,18 +51,19 @@ const DESCS := {
 	&"assassin": ["คมเงาฉีกสะบั้น • ฟันมีดคู่ไขว้เป็นกากบาทรอบตัว 2 จังหวะ ศัตรูติดเลือดไหล 5 วิ", "ประหารเงา • ฟันเป้าหมายเดียวต่อเนื่อง 6 ฮิต ฮิตสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "ม่านราตรี • ทีมในระยะคริติคอล +20% หลบ +15% โจมตี +40% นาน 1 นาที", "บทเพลงสุริยคราส • ต้องสวมปีก บินขึ้นกลางฟ้ามืด โปรยมีดเงาลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ", "สกิลเทพ • สุริยคราสมืดเหนือรอบตัว คมเงาไขว้ฟัน 4 ระลอก ปิดด้วยจันทร์เสี้ยวมรณะ ศัตรูเลือดไหล 6 วิ"],
 	&"darklord": ["นรกโกลาหล • คทาปักพื้น เพลิงมืดปะทุเป็นวงรอบตัว 2 จังหวะ ศัตรูติดไฟ 5 วิ", "ราชันอีกา • อีกาเงายักษ์โฉบเป้าหมายเดียว 6 ครั้ง ครั้งสุดท้ายแรงสุด ลดเกราะ 20% นาน 6 วิ", "อาณาจักรแห่งลอร์ด • ทีมในระยะโจมตี +45% ป้องกัน +35% คริติคอล +10% นาน 1 นาที", "มหาวิบัติจักรพรรดิ • ต้องสวมผ้าคลุม ลอยขึ้นกลางฟ้า ฟาดสายฟ้าและเพลิงมืดลงพื้นที่ 5 ระลอก ศัตรูมึน 1.5 วิ", "สกิลเทพ • บัลลังก์อเวจีผุดขึ้น สายฟ้าและเพลิงมืด 4 ระลอก ปิดด้วยมงกุฎจักรพรรดิถล่มสนาม มึน 1.5 วิ ศัตรูติดไฟ 5 วิ"],
 	&"bard": ["โหมโรงแสงดาว • โน้ตดาวตกถล่มพื้นที่เป้าหมาย 3 จังหวะ ศัตรูอ่อนแรง 15% นาน 6 วิ", "โซนาตาสลายใจ • ยิงโน้ตใส่เป้าหมายเดียวต่อเนื่อง 6 จังหวะ จังหวะสุดท้ายแรงสุด เกราะแตก 25% นาน 8 วิ", "เวทีสรวงสวรรค์ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ ทีมในระยะโจมตี +45% ป้องกัน +35% คริ +10% ลดดาเมจ 8% นาน 1 นาที", "อังกอร์แห่งจักรวาล • ต้องสวมปีก บินขึ้นบรรเลงกลางฟ้า ห่าดาวโน้ต 5 ระลอกถล่มพื้นที่ มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ", "สกิลเทพ • ไม่ใช่เพลง ใช้คู่กับเพลงได้ วงดุริยางค์ทวยเทพบรรเลงเหนือสนาม คลื่นเสียง 5 ระลอก มึน 1.5 วิ ศัตรูอ่อนแรง 20% นาน 8 วิ"],
+	&"muaythai": ["นาคาพันหมัด • หมัดเพลิงพันรอบตัว 2 จังหวะ ศัตรูติดไฟ 5 วิ", "เข่าสุริยะพันครั้ง • เข่าและศอกใส่เป้าหมายเดียวต่อเนื่อง 6 ฮิต ฮิตสุดท้ายแรงสุด มึน 1.5 วิ", "ปฏิญาณวงประเจียด • ตัวเองและทีมในระยะ ATK +40% ลดความเสียหาย 15% ตีแล้วฟื้นเลือดเพิ่ม 4% ของดาเมจ นาน 1 นาที", "วงมนตราถล่มฟ้า • ต้องสวมปีก บินขึ้นแล้ววงประเจียดยักษ์ถล่มพื้นที่ 5 ระลอก มึน 1.5 วิ ศัตรูกระเด็น 4 เมตร", "หมัดเทพสะท้านสามภพ • วงมนตราทั้งหมดรวมเป็นหมัดเทพ ถล่มรอบตัว 4 ระลอกและหมัดปิดท้าย มึน 1.5 วิ ศัตรูติดไฟ 6 วิ"],
 }
 
 static func pool(cls: StringName) -> Array:
 	var out: Array = []
 	if not IDS.has(cls): return out
 	for i in IDS[cls].size():
-		var melee := cls in [&"warrior", &"lancer", &"defender", &"assassin", &"darklord"]
+		var melee := cls in [&"warrior", &"lancer", &"defender", &"assassin", &"darklord", &"muaythai"]
 		var s := {"id": IDS[cls][i], "name": NAMES[cls][i], "desc": DESCS[cls][i], "class": cls,
 			"level": 100, "star": (i + 1) * 50 if i < 4 else GOD_STAR, "mp": [100, 140, 170, 240, 300][i], "cd": [14.0, 19.0, 32.0, 48.0, 60.0][i],
 			"shape": "blast", "range": 12.0, "radius": 6.5 + i * 0.6, "mult": [15.0, 23.0, 25.0, 38.0, float(GOD_MULT[cls])][i],
-			"hit_delay": [0.48, 0.62, 0.8, 1.2, 1.5][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "Spellcast_Raise" if cls == &"bard" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
-			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("b58cff") if cls == &"assassin" else Color("e8b64a") if cls == &"darklord" else Color("ff9ad2") if cls == &"bard" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
+			"hit_delay": [0.48, 0.62, 0.8, 1.2, 1.5][i], "anim": "2H_Melee_Attack_Stab" if cls == &"lancer" else "Block_Attack" if cls == &"defender" else "Dualwield_Melee_Attack_Chop" if cls == &"assassin" else "Spellcast_Raise" if cls == &"darklord" else "Spellcast_Raise" if cls == &"bard" else "Unarmed_Melee_Attack_Punch_A" if cls == &"muaythai" else "1H_Melee_Attack_Chop" if melee else "2H_Ranged_Shoot" if cls == &"archer" else "Spellcast_Raise",
+			"vfx": &"light", "color": Color("ffd36b") if cls == &"warrior" else Color("a8d0ff") if cls == &"defender" else Color("b58cff") if cls == &"assassin" else Color("e8b64a") if cls == &"darklord" else Color("ff9ad2") if cls == &"bard" else Color("ffa040") if cls == &"muaythai" else Color("86e4ff") if cls in [&"archer", &"lancer"] else Color("c4a1ff") if cls == &"mage" else Color("fff0b0") if cls == &"priest" else Color("79dfce"),
 			"icon": "star", "gesture": "thrust" if cls == &"lancer" else "cleave" if melee else "aim" if cls == &"archer" else "raise"}
 		match String(s.id):
 			"lionfang_cleave": s.merge({"shape":"burst", "range":5.0, "radius":7.0, "gesture":"cross_cut"}, true)
@@ -104,6 +107,12 @@ static func pool(cls: StringName) -> Array:
 			"heartbreak_sonata": s.merge({"shape":"single", "range":12.0, "mult":27.0, "gesture":"strum", "fx":{"shred":[0.25,8.0]}}, true)
 			"celestial_stage": s.merge({"shape":"self", "mult":0.0, "gesture":"serenade", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.45, "def":0.35, "crit":0.1, "guard":0.08, "secs":60.0}}}, true)
 			"cosmic_encore": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":36.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
+			# The Muay Thai fighter: a burning coil of punches, a barrage of knees, the ring vow
+			# (its party's guard), the rings crashing from the sky, and the god fist.
+			"naga_coil_fist": s.merge({"shape":"burst", "range":5.0, "radius":6.5, "mult":7.5, "gesture":"storm_spin", "fx":{"burn":[0.4,5.0]}}, true)
+			"solar_knee_barrage": s.merge({"shape":"single", "range":3.6, "mult":27.0, "gesture":"dual_chop", "fx":{"stun":1.5, "combo":6}}, true)
+			"vow_of_the_ring": s.merge({"shape":"self", "mult":0.0, "gesture":"resolve", "radius":8.0, "anim":"Cheer", "fx":{"buff":{"atk":0.4, "guard":0.15, "hit_heal":0.04, "secs":60.0}}}, true)
+			"heaven_ring_cataclysm": s.merge({"shape":"blast", "requires_wings":true, "hit_delay":1.4, "radius":7.5, "mult":38.0, "gesture":"raise", "fx":{"stun":1.5, "kick":4.0}}, true)
 			"eclipse_sovereign": s.merge({"shape":"summon","gesture":"channel","mult":22.0,"summon":{"kind":"poseidon","count":1,"secs":120.0}},true)
 			# God-tier (GOD_STAR): each an area finale of five contacts (GOD_BEATS) and the
 			# strongest skill of its class; the Bard's is an attack, never a song.
@@ -116,6 +125,7 @@ static func pool(cls: StringName) -> Array:
 			"pantheon_bastion": s.merge({"shape":"burst", "range":5.0, "radius":10.0, "gesture":"ground_slam", "fx":{"stun":2.0, "taunt":4.0}}, true)
 			"death_gods_eclipse": s.merge({"shape":"burst", "range":5.0, "radius":9.0, "gesture":"raise", "fx":{"burn":[0.45,6.0]}}, true)
 			"abyssal_throne": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"raise", "fx":{"stun":1.5, "burn":[0.4,5.0]}}, true)
+			"three_realms_fist": s.merge({"shape":"burst", "range":5.0, "radius":9.0, "gesture":"ground_slam", "fx":{"stun":1.5, "burn":[0.45,6.0], "combo_power":0.02}}, true)
 			"divine_symphony": s.merge({"shape":"blast", "range":13.0, "radius":9.0, "gesture":"crescendo", "fx":{"stun":1.5, "weaken":[0.2,8.0]}}, true)
 		s["mult"] = float(s.mult) * ClassData.skill_tune(cls, 100, true, String(s.shape))
 		out.append(s)

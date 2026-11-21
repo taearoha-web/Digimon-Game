@@ -810,7 +810,7 @@ export const ANNOUNCE_ZONES = new Set(['sky_dragon_isle']);
 /** ... who has the stars to enter it (SkyIsleData.ENTRY_STAR). */
 export const ANNOUNCE_STARS = 300;
 /** The classes a gear piece may be of (ClassData.IDS in the game; a test keeps them the same). */
-export const ANNOUNCE_CLASSES = ['warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard'];
+export const ANNOUNCE_CLASSES = ['warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard', 'muaythai'];
 /** At most this many a player a minute, never two within ANNOUNCE_GAP_MS; a rare-dragon
  * kill at most once in ANNOUNCE_RARE_GAP_MS (its window is longer). The rest are dropped. */
 export const ANNOUNCE_PER_MINUTE = 4;

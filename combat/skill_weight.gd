@@ -34,7 +34,7 @@ const FLASH := {
 ## Star skills all use the "light" preset: their element comes from the class.
 const STAR_ELEMENT := {
 	&"warrior": "holy", &"archer": "holy", &"lancer": "thunder", &"mage": "arcane", &"priest": "holy",
-	&"summoner": "ice", &"defender": "holy", &"assassin": "dark", &"darklord": "dark", &"bard": "arcane",
+	&"summoner": "ice", &"defender": "holy", &"assassin": "dark", &"darklord": "dark", &"bard": "arcane", &"muaythai": "fire",
 }
 
 static var _cache: Dictionary = {}

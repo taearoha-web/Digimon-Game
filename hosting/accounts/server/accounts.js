@@ -20,7 +20,7 @@ const MAX_BUNDLE_BYTES = 1_800_000;
 const MAX_REQUEST_BYTES = MAX_BUNDLE_BYTES + 8192;
 const ENCODER = new TextEncoder();
 const EMPTY_BUNDLE = JSON.stringify({slots: {}, selectedSlot: 1});
-const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard']);
+const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard', 'muaythai']);
 // Game.PARAGON_MAX (the star cap) and JobData: four level advancements, then the
 // God promotion (adv 5, "เทพเจ้าแห่ง<อาชีพ>") that needs Lv.100 and 300 stars.
 const MAX_STARS = 300;
@@ -306,7 +306,7 @@ function validateProfile(profile) {
 // stars), mythic (4), of one class, +0 to +15, and never a star, divine, set or legend piece.
 const DRAGON_LEVEL = 400;
 const DRAGON_WEAPONS = {warrior: 'sword', archer: 'bow', lancer: 'spear', mage: 'staff', priest: 'wand', summoner: 'lantern',
-  defender: 'greatshield', assassin: 'dagger', darklord: 'scepter', bard: 'lute'};
+  defender: 'greatshield', assassin: 'dagger', darklord: 'scepter', bard: 'lute', muaythai: 'wraps'};
 const DRAGON_STATS = new Set(['atk', 'matk', 'def', 'hp', 'mp', 'crit']);
 const dragonGear = item => dictionary(item) && 'dragon' in item;
 function validDragonGear(item) {

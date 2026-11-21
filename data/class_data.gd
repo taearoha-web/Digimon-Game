@@ -1,7 +1,7 @@
 class_name ClassData
 extends RefCounted
 ## Hero classes, chosen when the hero is made (sword, bow, mage, priest, summoner,
-## spear, great shield, twin daggers, scepter and raven, lute). Each class has a pool of active skills modelled on
+## spear, great shield, twin daggers, scepter and raven, lute, wrapped fists). Each class has a pool of active skills modelled on
 ## Priston Tale 1 that unlock by level; four of them go on the skill bar.
 ##
 ## Skill fields:
@@ -23,7 +23,7 @@ const LEGACY: StringName = &"vagabond"
 const DEFAULT: StringName = &"warrior"
 const SLOTS := 8
 ## The playable classes, chosen on the create screen (also the AI companion classes).
-const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
+const IDS: Array[StringName] = [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard", &"muaythai"]
 
 const CLASSES := {
 	&"vagabond": {
@@ -256,6 +256,28 @@ const CLASSES := {
 			"color": Color("ffb3dc"), "anims": ["Spellcast_Shoot"],
 		},
 	},
+	&"muaythai": {
+		"name": "นักมวยประเจียด",
+		"short": "นักมวย",
+		"title": "นักชกแห่งวงมนตรา",
+		"badge": "T",
+		"desc": "นักมวยประเจียด — พันมือด้วยผ้าประเจียด ชกด้วยหมัด ศอก เข่า และเท้า ยิ่งชกติดคอมโบยิ่งแรงและยิ่งฟื้นเลือดจากการตี มีวงประเจียดมนตราลอยวนรอบตัว (2 วง เพิ่มเป็น 4 วงที่ Lv.60 และ 6 วงที่ Lv.90) ขว้างวงออกไปแล้วบินกลับ ถีบและทุ่มศัตรูกระเด็น ทนทานแนวหน้า (STR ตีแรง VIT เสริมเป็นรอง)",
+		"model": "Barbarian",
+		"weapon": "wraps",
+		"offhand": "wraps",
+		"weapon_kind": "wraps",
+		"color": Color("ff8a2a"),
+		"main": "str",
+		"sub": "vit",
+		"base": {"str": 11, "int": 3, "dex": 6, "vit": 12},
+		"gain": {"str": 2, "int": 0, "dex": 1, "vit": 3},
+		"hp_mult": 1.25,
+		"mp_mult": 0.75,
+		"attack": {
+			"range": 2.3, "interval": 0.62, "mult": 0.62, "hit_delay": 0.18, "projectile": false, "vfx": &"impact",
+			"anims": ["Unarmed_Melee_Attack_Punch_A", "1H_Melee_Attack_Stab", "Unarmed_Melee_Attack_Punch_A"],
+		},
+	},
 }
 
 
@@ -291,6 +313,7 @@ const LINE_FILES := {
 	&"summoner": "res://data/skill_lines/summoner.gd",
 	&"lancer": "res://data/skill_lines/lancer.gd",
 	&"defender": "res://data/skill_lines/defender.gd",
+	&"muaythai": "res://data/skill_lines/muaythai.gd",
 }
 static var _line_scripts := {}
 ## Per converted class: {stage id: line id}.
@@ -670,7 +693,7 @@ static func damage_curve(level: int) -> float:
 
 static func _sk(cls: StringName, id: String, name: String, desc: String, level: int, mp: int, cd: float, shape: String, mult: float, extra := {}) -> Dictionary:
 	mult *= damage_curve(level) * skill_tune(cls, level, false, shape)
-	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin" or cls == &"darklord"
+	var melee := cls == &"vagabond" or cls == &"warrior" or cls == &"lancer" or cls == &"defender" or cls == &"assassin" or cls == &"darklord" or cls == &"muaythai"
 	var caster := cls == &"mage" or cls == &"priest" or cls == &"summoner" or cls == &"bard"
 	var skill := {"id": id, "name": name, "desc": desc, "level": level, "mp": mp, "cd": cd, "shape": shape, "mult": mult}
 	match shape:

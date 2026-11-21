@@ -46,9 +46,9 @@ const SCALES := 5
 const PRICE := 600000
 
 const THEMES := {"warrior": "ราชันอัคนี", "archer": "พายุมรกต", "lancer": "มังกรอัสนี", "mage": "ดาราจักรอนันต์", "priest": "อรุณศักดิ์สิทธิ์",
-	"summoner": "ภูตจันทร์เงา", "defender": "ปราการธารน้ำแข็ง", "assassin": "เงาโลหิต", "darklord": "จักรพรรดิอเวจี", "bard": "คีตาแสงเหนือ"}
+	"summoner": "ภูตจันทร์เงา", "defender": "ปราการธารน้ำแข็ง", "assassin": "เงาโลหิต", "darklord": "จักรพรรดิอเวจี", "bard": "คีตาแสงเหนือ", "muaythai": "ราชันมวยเพลิง"}
 const ENGLISH := {"warrior": "Flame Sovereign", "archer": "Emerald Gale", "lancer": "Thunder Dragon", "mage": "Infinite Galaxy", "priest": "Holy Dawn",
-	"summoner": "Spectral Moon", "defender": "Glacier Bastion", "assassin": "Blood Shadow", "darklord": "Abyss Emperor", "bard": "Aurora Song"}
+	"summoner": "Spectral Moon", "defender": "Glacier Bastion", "assassin": "Blood Shadow", "darklord": "Abyss Emperor", "bard": "Aurora Song", "muaythai": "Blazing Mantra"}
 const PIECE_PREFIX := {"armor": "เกราะ", "helm": "มงกุฎ", "boots": "รองเท้า", "ring": "แหวน", "amulet": "สร้อย"}
 
 ## Worn pieces of one class's set: cumulative shares added by HeroStats.compute.
@@ -70,6 +70,7 @@ const PALETTES := {
 	"assassin": {"metal": Color("8c8c9c"), "edge": Color("ffd0d8"), "cloth": Color("1a1420"), "gem": Color("ff2a4a"), "dark": Color("0c0a10"), "glow": Color("ff3355")},
 	"darklord": {"metal": Color("55506a"), "edge": Color("c8ffb0"), "cloth": Color("1e1030"), "gem": Color("7aff6a"), "dark": Color("0e0818"), "glow": Color("8aff5a")},
 	"bard": {"metal": Color("f5b8d8"), "edge": Color("fff8ff"), "cloth": Color("b0307a"), "gem": Color("7affea"), "dark": Color("3a1a40"), "glow": Color("ff9ae8")},
+	"muaythai": {"metal": Color("f0b040"), "edge": Color("fff2c8"), "cloth": Color("a8300f"), "gem": Color("ffd84a"), "dark": Color("3a140a"), "glow": Color("ff8a2a")},
 }
 
 static var _stats_cache := {}

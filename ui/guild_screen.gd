@@ -25,7 +25,7 @@ static var sort_by := "level"
 ## quests and the guild points shop, GuildQuestData; members only).
 static var view := "roster"
 ## Class order when sorting by class: archers first, then priests, then the rest.
-const CLASS_ORDER: Array[StringName] = [&"archer", &"priest", &"warrior", &"mage", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]
+const CLASS_ORDER: Array[StringName] = [&"archer", &"priest", &"warrior", &"mage", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard", &"muaythai"]
 
 
 static func class_rank(cls: StringName) -> int:

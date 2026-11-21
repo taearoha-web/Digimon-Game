@@ -87,7 +87,7 @@ const KINDS := {
 ## Star skills (no recipe row): their class's element, with a few authored exceptions.
 const STAR_CLASS_ELEMENT := {
 	"warrior": "light", "archer": "wind", "lancer": "steel", "mage": "arcane", "priest": "light",
-	"summoner": "leaf", "defender": "light", "assassin": "shadow", "darklord": "shadow", "bard": "music",
+	"summoner": "leaf", "defender": "light", "assassin": "shadow", "darklord": "shadow", "bard": "music", "muaythai": "flame",
 }
 const STAR_ELEMENT := {
 	"lionfang_cleave": "flame", "divine_edict": "flame", "chaos_inferno": "flame", "crystal_prison": "frost",
@@ -96,7 +96,7 @@ const STAR_ELEMENT := {
 }
 ## Particle cards are sized for the chibi scale seen from the follow camera.
 const SIZE_GAIN := 1.6
-const MELEE := ["warrior", "lancer", "defender", "assassin", "darklord", "vagabond"]
+const MELEE := ["warrior", "lancer", "defender", "assassin", "darklord", "vagabond", "muaythai"]
 ## Light peak energy per family (the flash that lights the ground and fighters).
 const FLASH := {"ground": 3.0, "burst": 3.2, "strike": 3.6, "slash": 1.7, "swirl": 1.9, "shot": 1.3, "aura": 1.5}
 

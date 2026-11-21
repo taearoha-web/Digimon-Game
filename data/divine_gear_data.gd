@@ -8,8 +8,8 @@ const SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
 const PREMIUM := 1.4
 ## Mythic gear carries four bonus lines (spread over hp, mp, crit, atk, def).
 const MYTHIC_LINES := 4.0
-const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์", "assassin":"ราตรีสุริยคราส", "darklord":"จักรพรรดิอีกาทมิฬ", "bard":"คีตาสวรรค์"}
-const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา", "bard":"พิณ"}
+const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์", "assassin":"ราตรีสุริยคราส", "darklord":"จักรพรรดิอีกาทมิฬ", "bard":"คีตาสวรรค์", "muaythai":"มวยเทพอัคนี"}
+const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา", "bard":"พิณ", "muaythai":"นวม"}
 
 static func is_item(value: Variant) -> bool:
 	return value is Dictionary and value.get("collection", "") == COLLECTION
@@ -60,6 +60,7 @@ static func stats_for(cls: StringName, slot: String, roll: float) -> Dictionary:
 			&"priest": stats.hp += 1300; stats["mp"] = int(stats.get("mp", 0)) + 1000
 			&"summoner": stats["matk"] = int(stats.get("matk", 0)) + 200; stats.hp += 800
 			&"bard": stats["matk"] = int(stats.get("matk", 0)) + 200; stats.hp += 700
+			&"muaythai": stats["atk"] = int(stats.get("atk", 0)) + 180; stats.hp += 900
 	return stats
 
 static func item(cls: StringName, slot: String, rng: RandomNumberGenerator) -> Dictionary:

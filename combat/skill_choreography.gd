@@ -40,6 +40,9 @@ const GESTURES := {
 	"strum": ["Spellcasting", 0.30, 0.40, 0.04, 0.05, 0.0],
 	"serenade": ["Cheer", 0.50, 0.80, 0.06, 0.04, 0.0],
 	"crescendo": ["Spellcast_Long", 1.62, 0.62, -0.07, 0.22, 0.0],
+	# The Muay Thai fighter: a straight punch, a flying knee.
+	"jab": ["Unarmed_Melee_Attack_Punch_A", 0.42, 0.28, -0.12, 0.0, 0.18],
+	"knee": ["Jump_Full_Short", 0.45, 0.36, -0.14, 0.10, 0.26],
 }
 
 ## signature / gesture : explicit skill IDs, including support and summon skills.
@@ -47,14 +50,14 @@ const GROUPS := {
 	"cleave/cleave": "power_strike destroyer sword_of_justice chaos_strike chaos_sovereign",
 	"cross/cross_cut": "raving triple_impact grand_cross",
 	"cleave/draw_cut": "brandish",
-	"shield/shield": "impact stagger",
+	"shield/shield": "impact stagger push_kick",
 	"greatshield/shield": "shield_bash shield_slam aegis_strike",
 	"roar/resolve": "roar night_lord",
-	"focus/resolve": "concentration berserker killing_focus commanders_aura lord_of_command emperors_command",
+	"focus/resolve": "concentration berserker killing_focus commanders_aura lord_of_command emperors_command wai_khru ram_muay sacred_mongkhon",
 	"wind/weave": "wind_stance",
 	"fault/cleave": "bone_crash double_crash",
 	"blade/draw_cut": "sword_blast piercing divine_piercing",
-	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance brace iron_wall thorn_guard unbreakable",
+	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance brace iron_wall thorn_guard unbreakable ring_guard iron_prajiad",
 	"wings/resolve": "triumph_of_valhalla valkyrie_blessing shadow_sovereign summon",
 	"sword_court/cleave": "gladiator",
 	"arrow/aim": "wind_arrow elemental_shot perforation lethal_sight",
@@ -101,19 +104,19 @@ const GROUPS := {
 	"tree/invoke": "world_tree",
 	"elder_dragon/channel": "elder_dragon",
 	"lance/thrust": "thrust charge_dash spear_wave dragon_tooth vanguard_strike dragon_lance gungnir",
-	"cyclone/whirl": "round_slash brutal_swing rage_of_zecram cyclone_strike whirl blade_flurry thousand_cuts",
+	"cyclone/whirl": "round_slash brutal_swing rage_of_zecram cyclone_strike whirl blade_flurry thousand_cuts sweep_kick flame_ring_spin fire_dragon_circle",
 	"cleave/spear_sweep": "hook_strike",
 	"wind/spear_sweep": "typhoon_spear gale_cyclone",
 	"wings/thrust": "lancer_rush",
 	"lance/sky_spear": "sky_pierce",
 	"world_spear/sky_spear": "ragnarok_lance",
 	"challenge/shield": "provoke grand_provoke",
-	"shieldquake/ground_slam": "ground_quake titan_quake world_bastion earthshake earth_dominion",
+	"shieldquake/ground_slam": "ground_quake titan_quake world_bastion earthshake earth_dominion earth_kick",
 	"shieldquake/execution": "bastion_crush",
 	"wings/ward": "aegis_of_ages",
 	"sun/storm_spin": "holy_rampart",
 	"judgment/execution": "judgment_shield",
-	"meteor/ground_slam": "meteor_shield",
+	"meteor/ground_slam": "meteor_shield muay_king",
 	"cathedral/ward": "sanctuary_wall",
 	"cross/dual_chop": "twin_fang shadow_dance eclipse_fang",
 	"cleave/dual_chop": "crimson_cut",
@@ -121,7 +124,7 @@ const GROUPS := {
 	"lance/lunge": "shadow_step",
 	"blade/fling": "fan_of_knives phantom_legion birds raven_storm",
 	"wind/vanish": "smoke_bomb",
-	"vortex/whirl": "abyss_vortex",
+	"vortex/whirl": "abyss_vortex mantra_storm",
 	"fault/execution": "midnight_execution",
 	"cyclone/storm_spin": "oblivion_requiem",
 	# The Bard: notes struck off the strings, songs sung to the party, drums and the finale.
@@ -133,6 +136,12 @@ const GROUPS := {
 	"shield/serenade": "iron_ballad sanctuary_serenade",
 	"roar/ground_slam": "thunder_crescendo",
 	"cathedral/crescendo": "grand_finale",
+	# The Muay Thai fighter: punches, elbows and knees, the rings thrown, the throw.
+	"fire/jab": "jab_cross flame_hook sun_fist thousand_ring_fist",
+	"fault/dual_chop": "back_elbow body_throw",
+	"lightning/dual_chop": "thunder_elbow",
+	"fault/knee": "flying_knee",
+	"vortex/dual_chop": "ring_throw twin_rings",
 }
 
 ## Elite gestures add distinct weight transfer and controlled follow-through.
@@ -192,6 +201,10 @@ const ELITE_MOTION := {
 	"thunder_crescendo": ["ground_slam", .15, .04, .10, .10],
 	"hymn_of_legends": ["serenade", .12, .08, .00, .04],
 	"grand_finale": ["crescendo", .25, .16, .00, .06],
+	"sun_fist": ["jab", .22, .02, .30, .10],
+	"thunder_elbow": ["dual_chop", -.30, .10, .30, .14],
+	"fire_dragon_circle": ["storm_spin", .30, .03, .00, .10],
+	"muay_king": ["ground_slam", -.20, .30, .30, .16],
 }
 
 static var _cues: Dictionary = {}

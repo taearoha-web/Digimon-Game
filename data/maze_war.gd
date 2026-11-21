@@ -74,7 +74,7 @@ const COLOR := Color("ffd25a")
 const INTEREST := {"hardcore": 0.6, "night_owl": 0.55, "student": 0.5, "regular": 0.4, "overseas": 0.4,
 	"weekend": 0.35, "daytime": 0.35, "early": 0.35, "casual": 0.2}
 const CLASS_KEEN := {"assassin": 0.12, "warrior": 0.08, "lancer": 0.08, "archer": 0.04, "mage": 0.02,
-	"summoner": 0.0, "defender": -0.05, "bard": -0.08, "priest": -0.12}
+	"summoner": 0.0, "defender": -0.05, "bard": -0.08, "priest": -0.12, "muaythai": 0.1}
 ## Of a session, the share an interested player spends in the maze (by name, in between).
 const SHARE_MIN := 0.18
 const SHARE_MAX := 0.4

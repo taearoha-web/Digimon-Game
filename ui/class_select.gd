@@ -1,6 +1,6 @@
 class_name ClassSelect
 extends CanvasLayer
-## Character creator: the player picks the class (one of the ten, sword to lute: it
+## Character creator: the player picks the class (one of the eleven, sword to wraps: it
 ## plays from Lv.1), the gender (boy or girl), one of that gender's four characters
 ## (ChibiBodies: the original chibi and three more, shown as portrait cards), then a
 ## name. Hair, eyes, skin and accessories are not customised: the hero wears its
@@ -175,10 +175,12 @@ func _layout() -> void:
 	var portrait := get_viewport().get_visible_rect().size.x < 950.0
 	_body.vertical = portrait
 	_stage.custom_minimum_size = Vector2(270, 240 if portrait else 300)
-	_class_grid.columns = 2 if _options.size.x < 560.0 else 5
+	# Eleven classes: three across on a phone (two on the narrowest), six across when wide
+	# (two rows), so the picker stays short.
+	_class_grid.columns = (3 if _options.size.x >= 330.0 else 2) if _options.size.x < 560.0 else 6
 
 
-## The ten classes as buttons, and what the picked one is (name, role, main stat, first skills).
+## The eleven classes as buttons, and what the picked one is (name, role, main stat, first skills).
 func _build_class_picker(parent: Control) -> void:
 	parent.add_child(UIUtil.label("อาชีพ", &"BoldLabel"))
 	_class_grid = GridContainer.new()
@@ -188,7 +190,8 @@ func _build_class_picker(parent: Control) -> void:
 	_class_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(_class_grid)
 	for id in ClassData.IDS:
-		var button := UIUtil.button(String(ClassData.get_class_data(id).name), &"ChoiceButton", Vector2(0, 50))
+		# A long class name has a short label for its button (นักมวยประเจียด: นักมวย).
+		var button := UIUtil.button(String(ClassData.get_class_data(id).get("short", ClassData.get_class_data(id).name)), &"ChoiceButton", Vector2(0, 50))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.clip_text = true
 		button.name = "Class_%s" % id

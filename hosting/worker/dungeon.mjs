@@ -23,7 +23,7 @@ export const MAX_SECS = 3600;
 export const LEADER_MAX = 64;
 export const NAME_MAX = 32;
 export const TOP = 50;
-export const CLASSES = ['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard'];
+export const CLASSES = ['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard', 'muaythai'];
 /** The first week anyone could clear (the world opened, WorldPlayers.START_UNIX). */
 export const START_UNIX = 1793274300;
 export const MAX_BODY_BYTES = 2048;

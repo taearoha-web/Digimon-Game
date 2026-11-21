@@ -74,6 +74,9 @@ static func _bits(look: String) -> Array[String]:
 
 ## "dragon_<kind>_<class>": a held weapon or off-hand (shield, book, tome, dagger).
 static func build(look: String) -> Node3D:
+	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	if HandWraps.is_look(look):
+		return HandWraps.build(look)
 	var bits := _bits(look)
 	var kind := bits[0]
 	var cls := bits[1]

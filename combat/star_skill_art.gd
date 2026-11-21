@@ -27,13 +27,16 @@ const COLORS := {
 	"lords_dominion":["e8b64a","fff4d0","5a3a10"], "imperial_cataclysm":["ffc83a","fff6d8","3a1a6a"],
 	"starlight_overture":["ffc24a","fff2cc","7a4a8a"], "heartbreak_sonata":["ff5aa0","ffe0f0","3a0a28"],
 	"celestial_stage":["ffc24a","fff2cc","5a2a40"], "cosmic_encore":["c79bff","fff4ff","2a1050"],
+	"naga_coil_fist":["ff7a1a","ffe6a0","5a1a0a"], "solar_knee_barrage":["ffb020","fff4c0","6a2a08"],
+	"vow_of_the_ring":["ffc24a","fff6d0","6a3010"], "heaven_ring_cataclysm":["ff9a2a","fff0c0","4a1a30"],
 	# God-tier (300 stars, GodSkillArt): ten hues round the wheel, one per class.
 	# The accent carries most of each mesh, so it is a saturated tint, never white.
 	"divine_edict":["ff7a1f","ffc070","7a1010"], "sunfall_volley":["9ef03a","d8ff80","1a5a3a"],
 	"heavenrend_spear":["ff5a1a","ffb85a","5a0c0c"], "astral_apocalypse":["6a4cff","b49cff","140a4a"],
 	"seraphic_judgment":["f7b734","ffd877","8a3a66"], "celestial_dragon_emperor":["1ff0a0","90ffd8","0a4a4a"],
 	"pantheon_bastion":["3a7cff","9cc4ff","0e2060"], "death_gods_eclipse":["ff2a5a","ff8aa8","1a0420"],
-	"abyssal_throne":["9a30ff","c890ff","1a0630"], "divine_symphony":["ff4ad0","ff9ce8","3a0a4a"]
+	"abyssal_throne":["9a30ff","c890ff","1a0630"], "divine_symphony":["ff4ad0","ff9ce8","3a0a4a"],
+	"three_realms_fist":["ff8a1a","ffc870","5a1a08"]
 }
 const MOTIFS := {
 	"lionfang_cleave":"lion", "crown_breaker":"crown", "royal_vanguard":"banners", "celestial_swordfall":"celestial",
@@ -46,11 +49,13 @@ const MOTIFS := {
 	"umbral_lacerate":"fang", "shadow_execution":"moon", "veil_of_night":"constellation", "eclipse_requiem":"moon",
 	"chaos_inferno":"worldroot", "raven_sovereign":"moon", "lords_dominion":"banners", "imperial_cataclysm":"crown",
 	"starlight_overture":"constellation", "heartbreak_sonata":"heart", "celestial_stage":"lyre", "cosmic_encore":"planets",
+	"naga_coil_fist":"lion", "solar_knee_barrage":"crown", "vow_of_the_ring":"shield_ring", "heaven_ring_cataclysm":"celestial",
 	"divine_edict":"god_halo", "sunfall_volley":"god_halo", "heavenrend_spear":"god_halo", "astral_apocalypse":"god_halo",
 	"seraphic_judgment":"god_halo", "celestial_dragon_emperor":"god_halo", "pantheon_bastion":"god_halo",
-	"death_gods_eclipse":"god_halo", "abyssal_throne":"god_halo", "divine_symphony":"god_halo"
+	"death_gods_eclipse":"god_halo", "abyssal_throne":"god_halo", "divine_symphony":"god_halo",
+	"three_realms_fist":"god_halo"
 }
-const SUPPORT := ["celestial_stage", "lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
+const SUPPORT := ["vow_of_the_ring", "celestial_stage", "lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
 const ASSASSIN := ["umbral_lacerate", "shadow_execution", "veil_of_night", "eclipse_requiem"]
 const DARKLORD := ["chaos_inferno", "raven_sovereign", "lords_dominion", "imperial_cataclysm"]

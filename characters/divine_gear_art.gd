@@ -3,8 +3,8 @@ extends RefCounted
 ## The supplied 200-star wardrobe, with deformation transferred onto the existing
 ## boy/girl hero rigs. No per-frame script, lights, particles or mesh rebuilding.
 const DIR := "res://assets/models/divine_gear/"
-const KINDS := {"warrior":"sword", "archer":"bow", "lancer":"spear", "mage":"staff", "priest":"wand", "summoner":"lantern", "defender":"greatshield", "assassin":"dagger", "darklord":"scepter", "bard":"lute"}
-const COLORS := {"warrior":Color("eceaff"),"archer":Color("438954"),"lancer":Color("991f28"),"mage":Color("242b6b"),"priest":Color("eee7e0"),"summoner":Color("613965"),"defender":Color("2a3f74"),"assassin":Color("2e2448"),"darklord":Color("3a1020"),"bard":Color("6a1a4a")}
+const KINDS := {"warrior":"sword", "archer":"bow", "lancer":"spear", "mage":"staff", "priest":"wand", "summoner":"lantern", "defender":"greatshield", "assassin":"dagger", "darklord":"scepter", "bard":"lute", "muaythai":"wraps"}
+const COLORS := {"warrior":Color("eceaff"),"archer":Color("438954"),"lancer":Color("991f28"),"mage":Color("242b6b"),"priest":Color("eee7e0"),"summoner":Color("613965"),"defender":Color("2a3f74"),"assassin":Color("2e2448"),"darklord":Color("3a1020"),"bard":Color("6a1a4a"),"muaythai":Color("8a2a10")}
 const KAY_BONES := {"Hips":"hips","Spine":"spine","Chest":"chest","Neck":"head","Head":"head",
 	"LeftShoulder":"upperarm.l","RightShoulder":"upperarm.r","LeftUpperArm":"upperarm.l","RightUpperArm":"upperarm.r",
 	"LeftLowerArm":"lowerarm.l","RightLowerArm":"lowerarm.r","LeftHand":"wrist.l","RightHand":"wrist.r",
@@ -21,6 +21,8 @@ static func cloth(cls: String) -> Color:
 	return COLORS.get(cls, COLORS.warrior)
 
 static func build_weapon(cls: String) -> Node3D:
+	if cls == "muaythai":
+		return HandWraps.build("divine_wraps_muaythai_200")
 	return _held(cls, String(KINDS.get(cls,"sword")))
 
 static func offhand(cls: String) -> Node3D:
@@ -32,6 +34,9 @@ static func offhand(cls: String) -> Node3D:
 	return Node3D.new()
 
 static func build(look: String) -> Node3D:
+	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	if HandWraps.is_look(look):
+		return HandWraps.build(look)
 	var bits := look.split("_")
 	if bits.size() != 4:
 		return Node3D.new()

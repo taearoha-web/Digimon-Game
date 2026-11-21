@@ -238,7 +238,7 @@ static func charge(parent: Node3D, skill: Dictionary, origin: Vector3, duration:
 	var family := SkillShow.family_of(skill)
 	VfxArt.crest(parent, origin, c[0], family, 1.1 * s, duration + 0.15, randf() * TAU)
 	_motes(parent, origin, c[1], "light", int(8 + 10 * power(skill)), 0.9 * s, 0.2, duration + 0.35)
-	if family in ["warrior", "vagabond", "lancer"] and power(skill) >= 0.3:
+	if family in ["warrior", "vagabond", "lancer", "muaythai"] and power(skill) >= 0.3:
 		VfxKit.impact_ring(parent, origin + Vector3.UP * 0.2, c[0], 1.2 * s, duration, c[1], c[2])
 	elif family == "defender" and power(skill) >= 0.3:
 		_shield_wave(parent, origin, 0.0, c, 1.6 * s, duration + 0.1)
@@ -362,7 +362,7 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 			_motes(parent, at, c[1], "leaf", int(8 + 8 * p), 0.7 * s, 0.3, 0.8)
 		"leaf":
 			VfxArt.bloom(parent, ground, c[0], "leaf", 0.9 * s, 6, 0.7, randf() * TAU)
-	if family in ["warrior", "vagabond", "lancer"] and _room(2):
+	if family in ["warrior", "vagabond", "lancer", "muaythai"] and _room(2):
 		# A crossing pair of energy cuts stamped on the victim, across the blow.
 		var yaw := atan2(forward.x, forward.z) + PI * 0.5
 		_crescent(parent, at, yaw, 1.1, c[0], c[1], 1.3 * s * weight, 0.0, 0.6, c[2])
@@ -429,7 +429,7 @@ static func star_beat(parent: Node3D, skill: Dictionary, point: Vector3, index: 
 	_wave(parent, ground + Vector3.UP * 0.08, c[0], radius * 0.85, c[1], c[2])
 	_colour_column(parent, ground, c, (0.7 if god else 0.9) * s, 10.0 + 4.0 * float(star) / 200.0, (c[1] as Color).lerp(c[0], 0.25) if god else Color.WHITE)
 	match family:
-		"warrior":
+		"warrior", "muaythai":
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, -0.9, c[0], c[1], 2.4 * s, 0.0, 1.3, c[2])
 			_crescent(parent, ground + Vector3.UP, yaw + PI * 0.5, 0.9, c[2].lerp(c[0], 0.5), c[1], 2.2 * s, 0.06, -1.3, c[2])
 			_slam(parent, ground, c[0], radius * 0.7, c[1], c[2])
@@ -687,7 +687,7 @@ static func _whirl(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3,
 		# Expanding shield-outline rings instead of sword crescents.
 		for i in 3:
 			_shield_wave(parent, origin + Vector3.UP * 0.35 * i, TAU * float(i) / 3.0, c, r * (0.55 + 0.25 * i), 0.55 + 0.1 * i, i * 0.07)
-	elif family in ["warrior", "vagabond", "lancer", "assassin"] or String(skill.get("special", "")) == "spin":
+	elif family in ["warrior", "vagabond", "lancer", "assassin", "muaythai"] or String(skill.get("special", "")) == "spin":
 		var count := 3 + int(p * 3.0) + (2 if family == "assassin" else 0)
 		for i in count:
 			_crescent(parent, at + Vector3.UP * (0.15 * (i % 2)), TAU * float(i) / float(count), 0.15 * (1 if i % 2 == 0 else -1), c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], r * 0.62, i * 0.04, 2.2, c[2])
@@ -850,7 +850,7 @@ static func _ascend(parent: Node3D, skill: Dictionary, c: Array, origin: Vector3
 		# The Summon's portal is the show: a faint violet pop instead of a column of light.
 		_tinted_flash(parent, origin + Vector3.UP * 1.0, c, 1.3 * s, 0.2)
 	match family:
-		"warrior", "lancer":
+		"warrior", "lancer", "muaythai":
 			for i in 3:
 				_crescent(parent, origin + Vector3.UP * (0.5 + 0.55 * i), TAU * float(i) / 3.0, 0.2, c[0] if i % 2 == 0 else c[2].lerp(c[0], 0.4), c[1], (1.5 - 0.15 * i) * s, 0.05 * i, 2.4, c[2])
 		"defender":

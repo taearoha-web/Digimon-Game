@@ -547,6 +547,18 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				target.y += sway * out * arm_length * (0.04 if moving else 0.012)
 				var blade_basis := _along(Vector3(out * 0.32, -0.18, 1.0), Vector3.UP)
 				_hold(skeleton, local, arm, target, blade_basis, "dagger")
+		if family == &"muaythai" and carry:
+			# The Muay Thai guard: both wrapped fists up in front of the chin, elbows in,
+			# knuckles forward, bouncing lightly with the step (nothing is held: the wraps
+			# sit on the fists, WeaponKit / HandWraps).
+			global = _globals(skeleton, local)
+			for side in ["r", "l"]:
+				var arm: Dictionary = rig[side]
+				var out := -1.0 if side == "r" else 1.0
+				var shoulder: Vector3 = global[arm.upper].origin
+				var target := shoulder + Vector3(-out * 0.16, -0.12, 0.5) * arm_length
+				target.y += sway * out * arm_length * (0.04 if moving else 0.012)
+				_hold(skeleton, local, arm, target, _along(Vector3(out * 0.25, 1.0, 0.35), Vector3.FORWARD), "sword")
 		if family == &"archer":
 			global = _globals(skeleton, local)
 			var shoulder: Vector3 = global[rig.l.upper].origin

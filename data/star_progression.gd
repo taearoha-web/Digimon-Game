@@ -152,7 +152,8 @@ static func set_bonus_text(cls: String) -> String:
 		"defender":"4 ชิ้น: สกิลยั่วยุและสกิลทุบพื้นให้โล่ดูดซับ 5% ของ HP",
 		"assassin":"4 ชิ้น: คริติคอลแรงขึ้น 10%",
 		"darklord":"4 ชิ้น: อีกาคู่ใจโจมตีแรงขึ้น 30%",
-		"bard":"4 ชิ้น: เพลงบัฟแรงขึ้น 15%"}.get(cls,"")
+		"bard":"4 ชิ้น: เพลงบัฟแรงขึ้น 15%",
+		"muaythai":"4 ชิ้น: ตีแล้วฟื้นเลือดเพิ่ม 2% ของดาเมจ"}.get(cls,"")
 
 static func has_full_set(profile: Dictionary, cls: String) -> bool:
 	var counts := {}

@@ -142,7 +142,7 @@ static func ensure() -> void:
 		_add(JobData.god_name(id), "class", String(id), cname)
 	for alias in [["นักดาบ", "warrior"], ["นักรบ", "warrior"], ["อาเชอร์", "archer"], ["นักธนู", "archer"], ["เมจ", "mage"], ["จอมเวท", "mage"],
 			["พระ", "priest"], ["ฮีลเลอร์", "priest"], ["ซัมมอน", "summoner"], ["แทงค์", "defender"], ["แทงก์", "defender"], ["แอสซาซิน", "assassin"],
-			["บาร์ด", "bard"], ["หอก", "lancer"], ["ดาร์คลอร์ด", "darklord"]]:
+			["บาร์ด", "bard"], ["หอก", "lancer"], ["ดาร์คลอร์ด", "darklord"], ["นักมวย", "muaythai"], ["มวยไทย", "muaythai"], ["มวย", "muaythai"]]:
 		_add(String(alias[0]), "class", String(alias[1]), String(ClassData.get_class_data(StringName(alias[1])).get("name", "")))
 	_keys.sort_custom(func(a, b): return String(a.key).length() > String(b.key).length())
 	for k in _keys.size():

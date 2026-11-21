@@ -31,6 +31,9 @@ static func _palette(cls: String) -> Dictionary:
 
 ## "set_<kind>_<class>": a held weapon or off-hand (shield, book, tome, dagger).
 static func build(look: String) -> Node3D:
+	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	if HandWraps.is_look(look):
+		return HandWraps.build(look)
 	var bits := look.split("_")
 	var kind := String(bits[1]) if bits.size() >= 3 else "sword"
 	var cls := String(bits[2]) if bits.size() >= 3 else "warrior"
@@ -214,6 +217,10 @@ static func _sigil(b: Dictionary, p: Dictionary, cls: String, c: Vector3, s: flo
 				StarGearArt._feather(b, c + Vector3(side * s * 0.3, s * 0.6, s * 0.02), s * 1.1, s * 0.34, side * -0.35, p.glow, true)
 			StarGearArt._shape(b, [Vector2(-s * 0.5, 0), Vector2(0, s * 0.26), Vector2(s * 0.5, 0), Vector2(0, -s * 0.26)], c + Vector3(0, 0, s * 0.05), s * 0.1, p.gem, true)
 			StarGearArt._part(b, MeshKit.sphere_low(), p.dark, c + Vector3(0, 0, s * 0.1), Vector3(s * 0.16, s * 0.24, s * 0.08))
+		"muaythai":  # two blazing mantra rings crossed over a fist
+			for side in [-1.0, 1.0]:
+				StarGearArt._ring_at(b, c, s * 0.95, s * 0.11, p.glow if side > 0 else p.gem, Vector3(90, side * 30, 0), true)
+			StarGearArt._part(b, MeshKit.sphere_low(), p.metal, c + Vector3(0, 0, s * 0.05), Vector3(s * 0.5, s * 0.55, s * 0.3))
 		"bard":  # aurora ribbons under a note
 			var colors: Array[Color] = [p.glow, p.gem, p.edge]
 			for k in 3:
@@ -274,7 +281,7 @@ static func _pauldron_extras(b: Dictionary, p: Dictionary, cls: String, side: fl
 	for k in 3:
 		StarGearArt._feather(b, Vector3(side * (0.06 + k * 0.014), 0.05 + k * 0.016, -0.02 - k * 0.01), 0.07 + k * 0.012, 0.022, side * -(0.55 + k * 0.2), p.glow, true)
 	StarGearArt._ring_at(b, Vector3(side * 0.012, 0.012, 0.0), 0.06, 0.006, p.glow, Vector3(0, 0, side * -15), true)
-	if cls in ["warrior", "defender", "darklord", "lancer"]:
+	if cls in ["warrior", "defender", "darklord", "lancer", "muaythai"]:
 		StarGearArt._part(b, MeshKit.cone(), p.metal, Vector3(side * 0.05, 0.065, 0.0), Vector3(0.03, 0.07, 0.03), Vector3(0, 0, side * -35))
 
 
@@ -299,7 +306,7 @@ static func _boots_extras(b: Dictionary, p: Dictionary, cls: String) -> void:
 	StarGearArt._ring_at(b, Vector3(0, -0.006, 0), 0.068, 0.006, p.glow, Vector3.ZERO, true)
 	for side in [-1.0, 1.0]:
 		StarGearArt._feather(b, Vector3(side * 0.065, -0.01, -0.03), 0.07, 0.022, side * -1.15, p.glow, true)
-	if cls in ["warrior", "defender", "lancer", "darklord"]:
+	if cls in ["warrior", "defender", "lancer", "darklord", "muaythai"]:
 		StarGearArt._part(b, MeshKit.cone(), p.metal, Vector3(0, 0.03, 0.06), Vector3(0.022, 0.05, 0.022), Vector3(20, 0, 0))
 
 

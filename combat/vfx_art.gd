@@ -13,7 +13,7 @@ static var _spiral_meshes: Dictionary = {}
 ## With a `slicer` (the SceneTree) the work yields a frame every few items, so the first
 ## zone of a session does not stall the page in one go.
 static func warm_up(slicer: SceneTree = null) -> void:
-	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin", "crest_darklord", "crest_bard", "note"]:
+	for kind in ["rune", "star", "leaf", "snow", "diamond", "heart", "petal", "flame", "spark", "smoke", "flare", "crest_vagabond", "crest_warrior", "crest_archer", "crest_mage", "crest_priest", "crest_summoner", "crest_lancer", "crest_defender", "crest_assassin", "crest_darklord", "crest_bard", "crest_muaythai", "note"]:
 		texture(kind)
 		await FrameSlicer.pace(slicer)
 	for recipe in SkillArtDirection.RECIPES.values():
@@ -202,6 +202,14 @@ static func _crest_alpha(p: Vector2, family: String) -> float:
 	var line := 0.06
 	var fine := 0.05
 	match family:
+		"muaythai":
+			# Two mantra rings crossing round a wrapped fist (a rounded block with knuckle lines).
+			a = maxf(a, smoothstep(line, line * 0.4, absf(Vector2(p.x / 0.62, p.y / 0.3).length() - 1.0) * 0.3))
+			a = maxf(a, smoothstep(line, line * 0.4, absf(Vector2(p.x / 0.3, p.y / 0.62).length() - 1.0) * 0.3))
+			var fist := Vector2(absf(p.x) - 0.12, absf(p.y + 0.02) - 0.16)
+			a = maxf(a, smoothstep(0.06, 0.03, Vector2(maxf(fist.x, 0.0), maxf(fist.y, 0.0)).length() - 0.06))
+			for k in 3:
+				a = maxf(a, smoothstep(fine * 0.7, fine * 0.3, _seg_dist(p, Vector2(-0.16, -0.1 + 0.1 * float(k)), Vector2(0.16, -0.1 + 0.1 * float(k)))) * 0.6)
 		"warrior":
 			var vertices := [Vector2(-0.39, -0.42), Vector2(0.39, -0.42), Vector2(0.34, 0.15), Vector2(0, 0.56), Vector2(-0.34, 0.15)]
 			for i in vertices.size():

@@ -320,6 +320,9 @@ func refresh_stats() -> void:
 			totals[key] = float(totals[key]) + LegendWings.AURA
 	Game.live_hp_buff = float(totals.hp)
 	stats = Game.stats_now(totals)
+	# The Muay Thai fighter's mantra rings: 2 / 4 / 6 by level (MantraRings).
+	if is_instance_valid(visual):
+		visual.set_mantra_level(int(Game.profile.get("level", 1)))
 	# เบ่งเลือด ended: the HP above the normal maximum goes with it.
 	if Game.profile.has("hp") and int(Game.profile.hp) > int(stats.max_hp):
 		Game.profile.hp = int(stats.max_hp)
@@ -1302,6 +1305,7 @@ func _resolve_now(skill: Dictionary, mob: Mob, aim: Vector3) -> void:
 		show_center = Vector3(mob.global_position.x if _valid_target(mob) else aim.x, 0.0, mob.global_position.z if _valid_target(mob) else aim.z)
 	if String(skill.id) not in ["armageddon", "thunder_storm"]:
 		SkillShow.play(field, skill, show_center, global_position)
+	MuayThai.ring_show(self, skill, show_center)
 	var landing_sound := SkillSound.landing(skill)
 	if landing_sound != &"":
 		AudioManager.play_sfx(landing_sound, -2.0)
@@ -1692,6 +1696,8 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 	var raw := float(stats.atk) * mult * randf_range(0.92, 1.08) * (1.0 - _enemy_mark("weaken")) * gem_atk_mult()
 	if not skill.is_empty():
 		raw *= HeroStats.SKILL_POWER
+		# A Muay Thai ultimate grows with the combo it spends (MuayThai.finisher).
+		raw *= MuayThai.finisher(self, skill.get("fx", {}))
 	if _star_retaliation and not skill.is_empty() and StarProgression.has_full_set(Game.profile,"warrior"):
 		raw *= 1.2
 		_star_retaliation = false
@@ -1720,6 +1726,9 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 	BattleVfx.number_tint = Color(0, 0, 0, 0)
 	_leech(amount)
 	ClassRoles.after_hit(self, mob, amount)
+	# The Muay Thai fighter: a skill's extra combo and its kick (MuayThai).
+	if not skill.is_empty():
+		MuayThai.skill_fx(self, mob, skill.get("fx", {}))
 	AudioManager.play_sfx(&"crit" if crit else &"hit_physical", -3.0)
 	if skill.is_empty():
 		var stop := HitFeel.stop_for(crit, 0.0)

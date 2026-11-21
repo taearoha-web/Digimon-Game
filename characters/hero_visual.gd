@@ -119,6 +119,7 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 	look = p_look
 	for child in get_children():
 		child.queue_free()
+	_sync_rings()
 	var data := ClassData.get_class_data(class_id)
 	model_name = p_model if p_model != "" else String(data.model)
 	chibi = p_model == "" and look.has("gender")
@@ -147,6 +148,28 @@ func setup(p_class: StringName, p_model := "", armed := true, p_equip := {}, p_l
 	_armed = armed
 	refresh()
 	play("Idle")
+
+
+## The Muay Thai fighter's mantra rings (MantraRings), orbiting while the class is
+## muaythai; how many follows the owner's level (set_mantra_level, MuayThai.ring_count).
+var rings: MantraRings
+var mantra_level := 1
+
+
+func set_mantra_level(level: int) -> void:
+	mantra_level = level
+	if is_instance_valid(rings):
+		rings.set_count(MuayThai.ring_count(level))
+
+
+func _sync_rings() -> void:
+	if is_instance_valid(rings) and not rings.is_queued_for_deletion() and class_id == MuayThai.CLASS:
+		return
+	rings = null
+	if class_id == MuayThai.CLASS:
+		rings = MantraRings.new()
+		add_child(rings)
+		rings.setup(self, MuayThai.ring_count(mantra_level))
 
 
 var _armed := true
@@ -1041,6 +1064,10 @@ func _hold_gear() -> void:
 	var weapon_look := ItemLook.weapon_look(equip.get("weapon"), StringName(data.weapon_kind))
 	_hold(weapon_look, WeaponGrip.hand_for(String(data.weapon_kind)), int(equip.get("weapon", {}).get("plus", 0)))
 	var plus := int(equip.get("weapon", {}).get("plus", 0))
+	if String(data.weapon_kind) == "wraps":
+		# The hand wraps are worn on both fists (every look: tier, star, set, divine, dragon).
+		_hold(weapon_look, "handslot.l", plus, true)
+		return
 	if DivineGearData.is_item(equip.get("weapon")):
 		var offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if offhand != "": _hold("divine_%s_%s_200" % [offhand, class_id], "handslot.l", plus if offhand == "dagger" else 0, true)
@@ -1100,7 +1127,9 @@ func stow_held(on: bool) -> void:
 func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var item: Node3D
 	var kind := StarGearData.kind_from_look(look)
-	if look.begins_with("divine_"):
+	if kind == HandWraps.KIND:
+		item = HandWraps.build(look)
+	elif look.begins_with("divine_"):
 		item = DivineGearArt.build(look)
 	elif look.begins_with("star_"):
 		item = StarGearArt.build(look)
@@ -1292,6 +1321,9 @@ func play(clip: String, blend := 0.15, speed := 1.0) -> void:
 		blend = maxf(blend, 0.3)
 	if clip == "Idle" and class_id == &"lancer":
 		clip = "2H_Melee_Idle"
+	elif clip == "Idle" and class_id == MuayThai.CLASS:
+		# The Muay Thai fighter stands in its guard, fists up.
+		clip = "Unarmed_Idle"
 
 	if anim == null or not anim.has_animation(clip):
 		return

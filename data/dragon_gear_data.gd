@@ -51,11 +51,12 @@ const WING_PRICE := 900000
 
 ## The class epithet in the names (the 250★ set's element).
 const EPITHETS := {"warrior": "อัคนี", "archer": "วายุ", "lancer": "อัสนี", "mage": "ดารา", "priest": "อรุณ",
-	"summoner": "จันทรา", "defender": "ธารน้ำแข็ง", "assassin": "โลหิต", "darklord": "อเวจี", "bard": "แสงเหนือ"}
+	"summoner": "จันทรา", "defender": "ธารน้ำแข็ง", "assassin": "โลหิต", "darklord": "อเวจี", "bard": "แสงเหนือ", "muaythai": "อัคนี"}
 ## The Dragon God's line of each class's weapon: shares HeroStats.compute adds.
 const SIGNATURE := {
 	"warrior": {"crit_dmg": 0.12}, "archer": {"crit": 0.05}, "lancer": {"atk": 0.04}, "mage": {"cdr": 0.06}, "priest": {"hp": 0.08},
 	"summoner": {"cdr": 0.06}, "defender": {"def": 0.10}, "assassin": {"crit_dmg": 0.15}, "darklord": {"lifesteal": 0.02}, "bard": {"cdr": 0.06},
+	"muaythai": {"hp": 0.06},
 }
 const SIGNATURE_LABELS := {"crit_dmg": "ดาเมจคริติคอล", "crit": "คริติคอล", "atk": "พลังโจมตี", "cdr": "ลดคูลดาวน์", "hp": "HP สูงสุด", "def": "พลังป้องกัน", "lifesteal": "ดูดเลือด"}
 ## The dragon's own colours, shared by every class (the class adds its set glow).

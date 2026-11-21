@@ -25,7 +25,7 @@ static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> f
 	seq.center=Vector3(aim.x,0,aim.z)
 	seq.origin=hero.global_position
 	seq.forward=Vector3(sin(hero._facing),0,cos(hero._facing))
-	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm","cosmic_encore"]
+	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm","cosmic_encore","heaven_ring_cataclysm"]
 	seq._plan()
 	hero.add_child(seq)
 	return minf(seq.end,2.4) if String(data.id)=="sacred_sanctuary" else seq.end
@@ -50,6 +50,9 @@ func _plan() -> void:
 		"starlight_overture": beats=[0.0,0.30,0.60]
 		"heartbreak_sonata": beats=[0.0,0.14,0.28,0.42,0.56,0.94]
 		"cosmic_encore": beats=[0.0,0.32,0.64,0.96,1.36]
+		"naga_coil_fist": beats=[0.0,0.28]
+		"solar_knee_barrage": beats=[0.0,0.12,0.24,0.36,0.48,0.86]
+		"heaven_ring_cataclysm": beats=[0.0,0.32,0.64,0.96,1.36]
 		"crown_breaker": beats=[0.0,0.46]
 		"hunters_verdict": beats=[0.0,0.26,0.68]
 		"heartseeker": beats=[0.0,0.17,0.34,0.51,0.68,1.12]

@@ -17,6 +17,7 @@ const INFO := {
 	"darklord": {"name":"ผ้าคลุมจักรพรรดิอีกาทมิฬ", "stats":{"atk":[540,660],"hp":[2000,2500],"def":[200,250],"mp":[480,600],"crit":[0.07,0.085]}},
 	"summoner": {"name":"ปีกราชินีผีเสื้อวิญญาณ", "stats":{"matk":[550,670],"hp":[1850,2350],"def":[175,225],"mp":[900,1150],"crit":[0.065,0.08]}},
 	"bard": {"name":"ปีกซิมโฟนีดารา", "stats":{"matk":[540,650],"hp":[1800,2300],"def":[180,225],"mp":[820,1050],"crit":[0.07,0.085]}},
+	"muaythai": {"name":"ปีกเพลิงมนตราดารา", "stats":{"atk":[530,640],"hp":[2000,2500],"def":[200,240],"mp":[600,800],"crit":[0.06,0.075]}},
 }
 
 static func is_wing(item: Dictionary) -> bool:
@@ -68,7 +69,7 @@ static func build(cls: String) -> Node3D:
 	if not INFO.has(cls): cls="warrior"
 	# The Dark Lord's star "wings" are a floating imperial cape, built in code.
 	if cls=="darklord": return CapeArt.build(true)
-	var root:Node3D=(load(MODEL % cls) as PackedScene).instantiate()
+	var root:Node3D=(load(MODEL % String(GearKit.WING_ALIAS.get(cls, cls))) as PackedScene).instantiate()
 	root.name="Wings_star_"+cls
 	for mesh in root.find_children("*","MeshInstance3D",true,false):
 		mesh.set_meta("no_outline",true)

@@ -20,6 +20,9 @@ static func cloth(class_id: String, stars: int) -> Color:
 
 
 static func build(look: String) -> Node3D:
+	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	if HandWraps.is_look(look):
+		return HandWraps.build(look)
 	var kind := StarGearData.kind_from_look(look)
 	var stars := StarGearData.stars_from_look(look)
 	if kind == "wings":
@@ -766,6 +769,11 @@ static func _class_badge(b: Dictionary, center: Vector3, s: float, cls: String, 
 			for side in [-1.0, 1.0]:
 				_feather(b, center + Vector3(side * s * 0.5, s * 0.2, 0), s * 1.8, s * 0.5, side * -1.0, p.edge)
 			_part(b, MeshKit.sphere_low(), p.gem, center, Vector3(s * 0.6, s * 0.9, s * 0.4), Vector3.ZERO, true)
+		"muaythai":
+			# Two mantra rings crossing over a fist.
+			for side in [-1.0, 1.0]:
+				_ring_at(b, center, s * 0.95, s * 0.12, p.gem if side > 0 else p.metal, Vector3(90, side * 30, 0), true)
+			_part(b, MeshKit.sphere_low(), p.edge, center, Vector3(s * 0.55, s * 0.6, s * 0.35))
 		"bard":
 			# A beamed pair of eighth notes.
 			for k in 2:
