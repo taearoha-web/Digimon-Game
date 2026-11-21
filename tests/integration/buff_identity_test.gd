@@ -73,15 +73,15 @@ func _ready() -> void:
 	hero.field = field
 	field.add_child(hero)
 	hero.set_physics_process(false)
-	cast_buff(hero, "zenith")
+	cast_buff(hero, "silraphim")
 	cast_buff(hero, "energy_shield")
 	cast_buff(hero, "holy_valor", true)
 	cast_buff(hero, "forest_blessing", true)
 	check(hero._buffs.size() == 4 and hero._auras.size() == 4, "four actual buffs produce four skill-specific auras")
-	var old: BuffAura = hero._auras["zenith:false"]
+	var old: BuffAura = hero._auras["silraphim:false"]
 	cast_buff(hero, "magic_overdrive")
 	check(old.is_queued_for_deletion() and not old.visible, "old art hidden immediately on replacement")
-	check(not BuffBook.contains(hero._buffs, "zenith", false), "old self stat entry is removed")
+	check(not BuffBook.contains(hero._buffs, "silraphim", false), "old self stat entry is removed")
 	var expected := Game.stats_now({"atk": BuffBook.stack([0.9, 0.4, 0.12]), "def": BuffBook.stack([0.6, 0.3, 0.25]), "crit": 0.15, "speed": 0.0})
 	check(hero.stats.atk == expected.atk and hero.stats.def == expected.def, "real computed stats exclude replaced buff and preserve ally effects")
 	cast_buff(hero, "energy_shield", true)
@@ -93,9 +93,9 @@ func _ready() -> void:
 	buddy.hero = hero
 	buddy.field = field
 	buddy.stats = {"atk": 100.0}
-	for id in ["zenith", "energy_shield", "magic_overdrive"]:
+	for id in ["silraphim", "energy_shield", "magic_overdrive"]:
 		buddy._apply_self(ClassData.find_skill(&"mage", id))
-	check(buddy._book.buffs.size() == 2 and not BuffBook.contains(buddy._book.buffs, "zenith", false), "companion self casts also cap at two")
+	check(buddy._book.buffs.size() == 2 and not BuffBook.contains(buddy._book.buffs, "silraphim", false), "companion self casts also cap at two")
 	check(BuffBook.group_count(hero._buffs, true) >= 3 and BuffBook.group_count(hero._buffs, false) == 2, "companion casts preserve the hero's own two slots")
 	for id in ["forest_blessing", "beast_rage", "spirit_link"]:
 		var skill := ClassData.find_skill(&"summoner", id)

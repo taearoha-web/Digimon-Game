@@ -25,6 +25,36 @@ const PLANS := {
 		[["holy_valor", 40], ["drastic_spirit", 70], ["godly_shield", 90]],
 		[["rage_of_zecram", 50], ["gladiator", 100]],
 	],
+	&"archer": [
+		[["wind_arrow", 1], ["perforation", 60], ["lightning_arrow", 90]],
+		[["elemental_shot", 5], ["phoenix_shot", 60], ["lethal_sight", 90]],
+		[["arrow_of_rage", 10], ["fierce_wind", 60], ["dragon_shot", 90]],
+		[["avalanche", 15], ["tempest", 60], ["phoenix_rain", 90]],
+		[["ensnare", 20], ["hurricane", 70]],
+		[["scout_hawk", 30], ["dionic_sight", 60], ["spirit_of_wind", 90]],
+		[["golden_falcon", 40], ["recall_wolverine", 60], ["force_of_nature", 80]],
+		[["meteor_arrow", 50]],
+	],
+	&"mage": [
+		[["fire_bolt", 1], ["dead_ray", 60], ["judgment_ray", 90]],
+		[["agony", 5], ["slow_speed", 60]],
+		[["fire_ball", 10], ["meteo", 60], ["hell_meteor", 90]],
+		[["watornado", 15], ["ice_storm", 70]],
+		[["flame_wave", 20], ["spirit_burst", 80]],
+		[["enchant_weapon", 30], ["silraphim", 60], ["magic_overdrive", 90]],
+		[["energy_shield", 40], ["vague", 70]],
+		[["thunder_storm", 50], ["armageddon", 100]],
+	],
+	&"priest": [
+		[["holy_bolt", 1], ["judgement_light", 60], ["divine_judgment", 90]],
+		[["healing", 5], ["hand_of_god", 60], ["prayer", 90]],
+		[["multi_spark", 10], ["vigor_ball", 40], ["seraphim_wrath", 90]],
+		[["divine_lightning", 15], ["chain_lightning", 60]],
+		[["holy_mind", 20], ["glacial_spike", 60]],
+		[["holy_reflection", 30], ["blessing_aura", 64], ["miracle", 96]],
+		[["extinction", 40], ["heaven_light", 70], ["last_judgement", 100]],
+		[["summon_muspell", 50]],
+	],
 }
 
 
