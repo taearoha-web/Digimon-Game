@@ -1,18 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {handleAccountRequest, validateBundle} from '../server/accounts.js';
+import {handleAccountRequest, validateBundle, currentWorld, WORLD_EPOCH} from '../server/accounts.js';
 import {D1Sqlite} from './d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon-tale.example';
 const PASSWORD = 'CuteDragonPass2026!';
 const OTHER_PASSWORD = 'AnotherStrongPassword2026!';
-const sample = (level = 12, name = 'น้องแมว') => ({version: 1, class: 'mage', level, name,
+const sample = (level = 12, name = 'น้องแมว') => ({version: 1, world_epoch: WORLD_EPOCH, class: 'mage', level, name,
   hp: 500, mp: 320, gold: 2000, attrs: {int: 15}, skills: {fireball: 2}, equip: {}, inv: [], storage: [],
   loadout: ['fireball', '', '', '', '', '', '', ''], zone: 'meadow', quests: {}, flags: {daily_last: '2026-10-11'},
   look: {skin: 1}, party: [], paragon: {}, play_time: 3200, future_field: {preserve: true},
 });
-const bundle = (profile = sample()) => ({slots: {'1': profile}, selectedSlot: 1});
+const bundle = (profile = sample()) => ({slots: {'1': profile}, selectedSlot: 1, storageEpoch: WORLD_EPOCH});
 
 function harness(t) {
   const DB = new D1Sqlite();
@@ -476,7 +476,7 @@ test('the legendary guild wings are checked: fixed fields and stats, one pair a 
   const account = await register();
   const record = {done: 2968, hold: {'2967': {g: 1, n: '', s: 1}, '2968': {g: 1, n: 'Kaito', s: 2}}, hand: {'2968': 'Kaito'}};
   const worn = {...sample(), equip: {wings: legendPair(2967)}, legend_wings: record};
-  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2968, 2)]}}, selectedSlot: 1, storage: [legendPair(2969, 3)]}}});
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2968, 2)]}}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [legendPair(2969, 3)]}}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   // The game's fixed stats and models are the server's.
   const game = readFileSync(new URL('../../../data/legend_wings.gd', import.meta.url), 'utf8');
@@ -489,8 +489,8 @@ test('the legendary guild wings are checked: fixed fields and stats, one pair a 
   // a bag and the shared storage.
   assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}), /one pair a season/);
   assert.throws(() => validateBundle(bundle({...sample(), inv: [legendPair(2967)], equip: {wings: legendPair(2967)}})), /one pair a season/);
-  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2967)]}), /one pair a season/);
-  assert.doesNotThrow(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storage: [legendPair(2968)]}));
+  assert.throws(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [legendPair(2967)]}), /one pair a season/);
+  assert.doesNotThrow(() => validateBundle({slots: {'1': {...sample(), inv: [legendPair(2967)]}}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [legendPair(2968)]}));
   const rejected = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: {slots: {'1': worn, '2': {...sample(), inv: [legendPair(2967, 2)]}}, selectedSlot: 1}}});
   assert.equal(rejected.status, 400);
   assert.equal(rejected.body.error.code, 'invalid_save');
@@ -520,7 +520,7 @@ test('the Dragon God weapon and 300-star wings are checked: fixed fields, class 
   const account = await register();
   const hero = {...sample(100), paragon: {level: 300}, equip: {weapon: dragonWeapon({plus: 15, sockets: 4}), wings: dragonWings({plus: 7})},
     inv: [dragonWeapon({class: 'warrior', base: 'sword', uid: 'dg3'})], stall: {lots: [{lot: 1, price: 5000000, item: dragonWings({uid: 'dg4'})}], log: []}};
-  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': hero}, selectedSlot: 1, storage: [dragonWings({class: 'darklord', wing: 'darklord', uid: 'dg5'})]}}});
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: {slots: {'1': hero}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [dragonWings({class: 'darklord', wing: 'darklord', uid: 'dg5'})]}}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   // The server's weapon kinds are the game's (StarGearData.WEAPON_KIND), and the level is DragonGearData's.
   const kinds = readFileSync(new URL('../../../data/star_gear_data.gd', import.meta.url), 'utf8').match(/const WEAPON_KIND := (\{[^}]*\})/)[1];
@@ -648,7 +648,7 @@ test('reward-shop costumes are items: in the bag, the shared storage and the cos
   const one = {...sample(), inv: [{kind: 'costume', id: 'royal', rarity: 4}, {kind: 'jewel', id: 'purple', count: 2}],
     rshop: {lc: 10, ep: 0, own: ['kitsune', 'royal', 'sakura'], cos: 'kitsune', trail: '', ncol: ''}, flags: {cos_item_kitsune: 1, cos_item_royal: 1, cos_item_sakura: 1}};
   const two = {...sample(20, 'น้องหมา'), rshop: {lc: 0, ep: 0, own: [], cos: 'celestial'}};
-  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storage: [{kind: 'costume', id: 'sakura', rarity: 1}], storageMigrated: {}};
+  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [{kind: 'costume', id: 'sakura', rarity: 1}], storageMigrated: {}};
   const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: full}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   assert.doesNotThrow(() => validateBundle({...full, storage: [{kind: 'costume', id: 'sakura'}]}), 'a costume without its grade');
@@ -672,7 +672,7 @@ test('หนึ่งในใต้หล้า: the timed crown costume (expir
   // Hero 1 wears the crown; hero 2 has one in the bag (an old one, past its end: the game takes it on load).
   const one = {...sample(), mcrown, flags: {title: 39}, ach: {t_maze_crown: true}, rshop: {lc: 0, ep: 0, own: [], cos: 'maze_sovereign', cx: ends}};
   const two = {...sample(20, 'น้องหมา'), inv: [{...crown, expires: now - 86_400}], mcrown: {done: -1, until: 0, wins: 0, last: -1}};
-  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storage: [crown], storageMigrated: {}};
+  const full = {slots: {'1': one, '2': two}, selectedSlot: 1, storageEpoch: WORLD_EPOCH, storage: [crown], storageMigrated: {}};
   const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: full}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   assert.doesNotThrow(() => validateBundle(bundle({...sample(), mcrown: {}})));
@@ -829,7 +829,7 @@ test('real game-generated saves of every class pass validation and round-trip un
     const group = profiles.slice(i, i + 10);
     const full = {slots: Object.fromEntries(group.map(([, profile], n) => [String(n + 1), profile])), selectedSlot: group.length};
     // The shared storage the game wrote beside them (SharedStorage), when the fixture has it.
-    if (Array.isArray(fixtures.storage)) Object.assign(full, {storage: fixtures.storage, storageMigrated: fixtures.storageMigrated ?? {}});
+    if (Array.isArray(fixtures.storage)) Object.assign(full, {storage: fixtures.storage, storageMigrated: fixtures.storageMigrated ?? {}, storageEpoch: fixtures.storageEpoch});
     const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: revision, bundle: full}});
     assert.equal(saved.status, 200, `${group.map(([key]) => key).join(', ')}: ${JSON.stringify(saved.body)}`);
     revision = saved.body.revision;
@@ -869,4 +869,33 @@ test('the field boss record (bossw, BossWorld in the game) is accepted and check
     {['m'.repeat(60)]: {at: 1}}, {meadow: {at: 1, by: 'x'.repeat(65)}}]) {
     assert.throws(() => validateBundle(bundle({...sample(), bossw: bad})), /field boss record/, JSON.stringify(bad));
   }
+});
+
+test('the world reopening: characters and storage from before WORLD_EPOCH are refused, and never handed out', async t => {
+  const players = readFileSync(new URL('../../../data/world_players.gd', import.meta.url), 'utf8');
+  assert.equal(Number(players.match(/const START_UNIX := (\d+)/)[1]), WORLD_EPOCH, 'WORLD_EPOCH is the game\'s WorldPlayers.START_UNIX');
+  const old = {...sample()};
+  delete old.world_epoch;
+  assert.throws(() => validateBundle(bundle(old)), /before the world reopened/);
+  assert.throws(() => validateBundle(bundle({...sample(), world_epoch: WORLD_EPOCH - 1})), /before the world reopened/);
+  assert.throws(() => validateBundle({slots: {}, selectedSlot: 1, storage: [{kind: 'jewel', id: 'chaos', count: 2}], storageMigrated: {}}), /shared storage is from before/);
+  assert.doesNotThrow(() => validateBundle({slots: {}, selectedSlot: 1, storage: [], storageMigrated: {}}), 'an empty storage needs no epoch');
+  assert.doesNotThrow(() => validateBundle(bundle()));
+  // A save stored before the reopening is handed out without its old characters and storage.
+  const stored = {slots: {'1': old, '2': sample(30, 'ใหม่')}, selectedSlot: 1, storage: [{kind: 'jewel', id: 'chaos', count: 2}], storageMigrated: {k: 1}};
+  const cleaned = currentWorld(stored);
+  assert.ok(cleaned.changed);
+  assert.deepEqual(Object.keys(cleaned.bundle.slots), ['2']);
+  assert.equal(cleaned.bundle.selectedSlot, 2);
+  assert.deepEqual(cleaned.bundle.storage, []);
+  assert.deepEqual(cleaned.bundle.storageMigrated, {});
+  assert.equal(currentWorld(cleaned.bundle).changed, false, 'the cleaned save is current');
+  const {register, call} = harness(t);
+  const account = await register();
+  // An upload from an old game (no world_epoch) is refused; the account itself stays.
+  const refused = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(old)}});
+  assert.equal(refused.status, 400);
+  assert.equal(refused.body.error.code, 'old_world');
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle()}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
 });

@@ -59,8 +59,10 @@ test('round starts: 12:00, 18:00 and 20:30 Thai (21:30 before EARLY_FINAL_DAY) f
   const atDay = Math.floor((AT + TZ) / DAY);
   assert.ok(isSlot(AT - SLOTS[1] + SLOTS[0]) && isSlot(AT - SLOTS[1] + slotSecond(atDay, 2)));
   const late = EARLY_FINAL_DAY * DAY - TZ;
-  assert.ok(isSlot(late + 20 * 3600 + 1800) && !isSlot(late + 21 * 3600 + 1800), 'from EARLY_FINAL_DAY the last round is 20:30');
-  assert.ok(isSlot(late - DAY + 21 * 3600 + 1800) && !isSlot(late - DAY + 20 * 3600 + 1800), 'the day before it stays 21:30');
+  // EARLY_FINAL_DAY (11 Nov 2026) is before the world reopened (START_UNIX): every day of the
+  // reopened world ends at 20:30, and nothing before the reopening is a round any more.
+  assert.ok(late < START_UNIX && !isSlot(late + 20 * 3600 + 1800) && !isSlot(late - DAY + 21 * 3600 + 1800), 'no round before the reopening');
+  assert.ok(isSlot(AT - SLOTS[1] + 20 * 3600 + 1800) && !isSlot(AT - SLOTS[1] + 21 * 3600 + 1800), 'the last round is 20:30');
   assert.ok(!isSlot(AT + 60) && !isSlot(AT - 3600) && !isSlot(AT + 0.5) && !isSlot(String(AT)));
   assert.ok(firstRound() >= START_UNIX && isSlot(firstRound()) && !isSlot(firstRound() - DAY));
 });
@@ -227,8 +229,8 @@ test('wrangler config sends /api/league/* to the Worker', () => {
   assert.match(migration, /CREATE TABLE `toon_league_rounds`/);
 });
 
-test('the one-off extra round (21 Nov 2026 13:00 Thai) is a round; 13:00 on other days is not', () => {
+test('the one-off extra round (21 Nov 2026 13:00 Thai) was before the reopening: no longer a round; 13:00 on other days is not either', () => {
   assert.deepEqual(EXTRA_ROUNDS, [1795240800]);
-  assert.ok(isSlot(1795240800));
-  assert.ok(!isSlot(1795240800 + DAY) && !isSlot(1795240800 - DAY));
+  assert.ok(1795240800 < START_UNIX && !isSlot(1795240800));
+  assert.ok(!isSlot(1795240800 + DAY) && !isSlot(1795240800 + 2 * DAY));
 });

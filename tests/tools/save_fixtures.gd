@@ -38,6 +38,7 @@ func _ready() -> void:
 		"profiles": profiles,
 		"storage": shared.get("storage", []),
 		"storageMigrated": shared.get("storageMigrated", {}),
+		"storageEpoch": shared.get("storageEpoch", 0),
 	}
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out_path).get_base_dir())
 	var file := FileAccess.open(out_path, FileAccess.WRITE)
@@ -127,7 +128,7 @@ func _build_shared_storage() -> void:
 			_fail("shared storage: a deposit failed")
 			return
 	var bundle := Game.build_cloud_bundle()
-	shared = {"storage": bundle.storage, "storageMigrated": bundle.storageMigrated}
+	shared = {"storage": bundle.storage, "storageMigrated": bundle.storageMigrated, "storageEpoch": bundle.get("storageEpoch", 0)}
 	if not SharedStorage.valid({"items": shared.storage, "migrated": shared.storageMigrated}):
 		_fail("shared storage: the game refuses its own storage")
 	Game.delete_save(1)
