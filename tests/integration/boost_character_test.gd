@@ -52,8 +52,8 @@ func _ready() -> void:
 	check(old_weapon.is_empty() or kept, "the old weapon moves to the bag")
 	check(Game._valid_profile(hero), "the result passes the save check")
 	check(bundle.slots["1"] == untouched, "other characters are untouched")
-	# A hero still in the starter class takes the asked class the game's own way.
-	Game.new_profile(ClassData.START, "Assotix", FaceKit.default_look())
+	# An old save still a Vagabond takes the asked class the game's own way.
+	Game.new_profile(ClassData.LEGACY, "Assotix", FaceKit.default_look())
 	Game.add_exp(9000)
 	var starter: Dictionary = JSON.parse_string(JSON.stringify({"slots": {"1": Game.profile}, "selectedSlot": 1}))
 	var changed := Boost.boost_bundle(starter, "Assotix", "defender")

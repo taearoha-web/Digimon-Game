@@ -292,7 +292,8 @@ func sync_progress(s: Dictionary) -> void:
 	_label.text = _level_text() if not _dead else _label.text
 
 
-## Lv.10: the Vagabond takes its line (the body is rebuilt in Companion.refresh).
+## The member's class changed (the body is rebuilt in Companion.refresh; world players
+## play their class from Lv.1 now, so only a changed roster gets here).
 func _class_changed() -> void:
 	if visible and not _dead and is_instance_valid(field):
 		VfxKit.level_up(field, global_position)

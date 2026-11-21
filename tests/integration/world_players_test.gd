@@ -215,41 +215,34 @@ func _progress() -> void:
 	check(busy, "at least three players online every evening")
 
 
-## Everyone starts as a Vagabond and takes the roster's class at Lv.10, like a player at
-## the Job Master; a member sheet follows the change and says so.
+## Everyone plays the roster's class from Lv.1 (no Vagabond start any more), like a new
+## player who picks the class on the create screen; nobody is ever a Vagabond.
 func _vagabonds() -> void:
-	# A freshly reopened world: everyone a beginner, a Vagabond, in no guild.
+	# A freshly reopened world: everyone a beginner in its own class, in no guild.
 	var fresh := true
 	for i in WorldPlayers.size():
 		if WorldPlayers.entry(i).has("vet"):
 			continue
 		var f := WorldPlayers.state(i, float(WorldPlayers.START_UNIX) + 60.0)
-		fresh = fresh and int(f.level) <= 5 and int(f.stars) == 0 and StringName(f["class"]) == ClassData.START and int(f.guild) == 0
-	check(fresh, "when the world opens every new player is a beginner Vagabond with no guild")
+		fresh = fresh and int(f.level) <= 5 and int(f.stars) == 0 and StringName(f["class"]) == StringName(WorldPlayers.entry(i)["class"]) and int(f.guild) == 0
+	check(fresh, "when the world opens every new player is a beginner of its own class with no guild")
+	var never := true
+	var gear_ok := true
 	for i in WorldPlayers.size():
 		var e := WorldPlayers.entry(i)
-		if e.has("vet") and int(e.vet) >= ClassData.LINE_LEVEL:
-			continue
-		var before := {}
-		var after := {}
-		var t := float(WorldPlayers.START_UNIX)
-		while t < float(WorldPlayers.START_UNIX) + 40.0 * 86400.0:
+		check(ClassData.IDS.has(StringName(e["class"])), "%s: a playable class (%s)" % [e.name, e["class"]])
+		for day in [0.0, 0.05, 1.0, 5.0, 40.0]:
+			var t := float(WorldPlayers.START_UNIX) + day * 86400.0
 			var s := WorldPlayers.state(i, t)
-			if int(s.level) < ClassData.LINE_LEVEL:
-				before = s
-			else:
-				after = s
-				break
-			t += 600.0
-		if before.is_empty() or after.is_empty():
-			check(false, "%s: reaches Lv.%d within forty days" % [e.name, ClassData.LINE_LEVEL])
-			continue
-		check(StringName(before["class"]) == ClassData.START and StringName(before["job"]) == StringName(e["class"]), "%s: a Vagabond below Lv.%d, job %s kept" % [e.name, ClassData.LINE_LEVEL, e["class"]])
-		check(StringName(after["class"]) == StringName(e["class"]), "%s: takes the %s line at Lv.%d" % [e.name, e["class"], ClassData.LINE_LEVEL])
-		var m := WorldPlayers.member(i, t - 600.0)
-		check(StringName(m["class"]) == ClassData.START, "%s: the member sheet starts as a Vagabond" % e.name)
-		check(WorldPlayers.sync_member(m, after) and StringName(m["class"]) == StringName(e["class"]), "%s: the sheet follows the job change" % e.name)
-		check(not WorldPlayers.equip(m).is_empty(), "%s: dressed in its job's gear" % e.name)
+			never = never and StringName(s["class"]) == StringName(e["class"]) and StringName(s["class"]) != ClassData.LEGACY
+			var m := WorldPlayers.member(i, t)
+			never = never and StringName(m["class"]) == StringName(e["class"])
+			for slot in WorldPlayers.equip(m):
+				var piece: Variant = WorldPlayers.equip(m)[slot]
+				if piece is Dictionary and String((piece as Dictionary).get("class", "")) == String(ClassData.LEGACY):
+					gear_ok = false
+	check(never, "no world player is a Vagabond at any time; the member sheet keeps the roster class")
+	check(gear_ok, "no world player wears Vagabond gear")
 
 
 ## What they wear is what they found: piece by piece, not a new set at each level band.

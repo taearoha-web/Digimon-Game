@@ -61,11 +61,11 @@ func _ready() -> void:
 		selected = Array(args[1].split(","))
 	if args.size() > 1 and args[1] == "every":
 		selected = []
-		for family in [ClassData.START] + ClassData.IDS:
+		for family in [ClassData.LEGACY] + ClassData.IDS:
 			for skill in ClassData.pool(family):
 				selected.append(String(skill.id))
 	for id in selected:
-		for family in [ClassData.START] + ClassData.IDS:
+		for family in [ClassData.LEGACY] + ClassData.IDS:
 			var skill := ClassData.find_skill(family, id)
 			if not skill.is_empty():
 				await _case(family, skill)

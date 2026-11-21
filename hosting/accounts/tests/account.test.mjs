@@ -774,7 +774,9 @@ async function shippedClasses() {
   const {readFile} = await import('node:fs/promises');
   const source = await readFile(new URL('../../../data/class_data.gd', import.meta.url), 'utf8');
   const ids = [...source.match(/^const IDS: Array\[StringName\] = \[(.*)\]$/m)[1].matchAll(/&"([a-z_]+)"/g)].map(m => m[1]);
-  const start = source.match(/^const START(?:: StringName)? :?= &"([a-z_]+)"$/m)[1];
+  // The old starter class (ClassData.LEGACY): no new hero is one, but old saves still are
+  // and must keep saving online.
+  const start = source.match(/^const LEGACY(?:: StringName)? :?= &"([a-z_]+)"$/m)[1];
   assert.ok(ids.includes('defender') && ids.includes('assassin') && ids.length >= 8, ids.join(','));
   return [start, ...ids];
 }

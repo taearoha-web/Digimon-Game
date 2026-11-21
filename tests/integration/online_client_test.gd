@@ -476,7 +476,7 @@ func _malformed(fake: FakeTransport) -> void:
 	check(Online.is_online(), "still online after malformed frames")
 	var r2 := Online.remote_node("p2") as RemotePlayer
 	check(r2 != null and r2.position.is_finite(), "the RemotePlayer is still fine")
-	check(r2 != null and r2.visual.class_id == &"vagabond" and r2.visual.equip.is_empty(), "a broken look becomes the plain default (%s)" % [r2.visual.equip.keys() if r2 else []])
+	check(r2 != null and r2.visual.class_id == ClassData.DEFAULT and r2.visual.equip.is_empty(), "a broken look becomes the plain default (%s)" % [r2.visual.equip.keys() if r2 else []])
 	check(Online.players().size() == before, "no junk player was added, nobody lost")
 	# A full list of junk: nobody valid is online (the list replaces the old one).
 	Online._dispatch({"t": "players", "players": [1, "a", null, {"id": {}}]})

@@ -131,7 +131,7 @@ func _ready() -> void:
 	GameSettings.quality = 1
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 710
-	var families: Array[StringName] = [ClassData.START]
+	var families: Array[StringName] = [ClassData.LEGACY]
 	families.append_array(ClassData.IDS)
 	for rig in 3:
 		for family in families:

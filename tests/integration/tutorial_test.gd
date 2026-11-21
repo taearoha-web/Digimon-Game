@@ -47,7 +47,7 @@ func _ready() -> void:
 
 
 func _new_hero(level := 1) -> void:
-	Game.new_profile(ClassData.START, "มือใหม่", FaceKit.default_look())
+	Game.new_profile(ClassData.DEFAULT, "มือใหม่", FaceKit.default_look())
 	Game.profile.level = level
 	Game.profile.hp = Game.stats_now().max_hp
 	Game.playing = true
@@ -146,7 +146,7 @@ func _lv6_never_starts() -> void:
 
 func _done_never_starts() -> void:
 	toasts.clear()
-	Game.new_profile(ClassData.START, "มือเก่า", FaceKit.default_look())
+	Game.new_profile(ClassData.DEFAULT, "มือเก่า", FaceKit.default_look())
 	Game.profile.flags["tut"] = 99
 	Game.profile.hp = Game.stats_now().max_hp
 	main._traveling = false

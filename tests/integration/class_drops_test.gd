@@ -55,7 +55,7 @@ func _split() -> void:
 		counts[cls] = int(counts.get(cls, 0)) + 1
 	var own := float(counts.get(&"warrior", 0)) / n
 	check(absf(own - ItemData.OWN_CLASS_DROP) < 0.01, "own class ~30%% (%.3f)" % own)
-	check(counts.size() == ClassData.IDS.size() and not counts.has(ClassData.START), "every class drops, never the Vagabond's (%d kinds)" % counts.size())
+	check(counts.size() == ClassData.IDS.size() and not counts.has(ClassData.LEGACY), "every class drops, never the Vagabond's (%d kinds)" % counts.size())
 	for cls in ClassData.IDS:
 		if cls == &"warrior":
 			continue
@@ -63,9 +63,9 @@ func _split() -> void:
 		check(absf(share - 0.7 / 9.0) < 0.008, "%s ~7.8%% (%.3f)" % [cls, share])
 	counts.clear()
 	for i in 20000:
-		var cls := ItemData.drop_class(ClassData.START, rng)
+		var cls := ItemData.drop_class(ClassData.LEGACY, rng)
 		counts[cls] = int(counts.get(cls, 0)) + 1
-	check(absf(float(counts.get(ClassData.START, 0)) / 20000.0 - 0.3) < 0.015 and counts.size() == ClassData.IDS.size() + 1, "a Vagabond finds its own 30%% and every class's gear")
+	check(absf(float(counts.get(ClassData.LEGACY, 0)) / 20000.0 - 0.3) < 0.015 and counts.size() == ClassData.IDS.size() + 1, "a Vagabond finds its own 30%% and every class's gear")
 
 
 ## The real drop paths: field monsters, the field boss, a star region.

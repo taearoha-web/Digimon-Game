@@ -158,16 +158,16 @@ func _run() -> void:
 	await _systems()
 
 
-func _start(class_id: StringName) -> Zone:
+func _start(class_id: StringName, level := 10) -> Zone:
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null
 	Game.delete_save()
 	Game.new_profile(class_id, "ทดสอบ")
 	check(Game.party().is_empty(), "a new hero starts without a companion")
-	if class_id != ClassData.START:
-		# Lines start at Lv.10 in the real game; the tests jump straight there.
-		Game.profile["level"] = ClassData.LINE_LEVEL
+	if level > 1:
+		# Most flows below play a hero a little way in: they jump straight to [param level].
+		Game.profile["level"] = level
 		Game.fill_loadout()
 		var stats := Game.stats_now()
 		Game.profile.hp = stats.max_hp
@@ -308,36 +308,48 @@ func _jobs() -> void:
 		check(power_after > power_before, "passive skill ranks add stats")
 
 
+## A new hero plays the class picked on the create screen from Lv.1; an old save still a
+## Vagabond (ClassData.LEGACY) takes its class once (Game.change_class) and keeps its progress.
 func _vagabond() -> void:
-	print("== Vagabond")
-	var zone := await _start(ClassData.START)
-	check(Game.class_id() == ClassData.START and zone.hero != null, "new heroes start as a Vagabond")
+	print("== Class from Lv.1")
+	var zone := await _start(&"archer", 1)
+	check(Game.class_id() == &"archer" and int(Game.profile.level) == 1 and zone.hero != null, "a new hero starts Lv.1 in the class it picked")
 	var bar := Game.loadout_skills()
-	check(not bar[0].is_empty() and bar[1].is_empty(), "Lv.1 Vagabond has one skill on the bar")
-	check(not Game.change_class(&"warrior"), "cannot pick a line below Lv.%d" % ClassData.LINE_LEVEL)
-	Game.add_exp(HeroStats.exp_to_next(1) + HeroStats.exp_to_next(2) + HeroStats.exp_to_next(3) + HeroStats.exp_to_next(4) + HeroStats.exp_to_next(5) + HeroStats.exp_to_next(6) + HeroStats.exp_to_next(7) + HeroStats.exp_to_next(8) + HeroStats.exp_to_next(9))
-	check(Game.profile.level == 10, "reached Lv.10 (Lv.%d)" % Game.profile.level)
-	var filled := 0
-	for skill in Game.loadout_skills():
-		if not skill.is_empty():
-			filled += 1
-	check(filled == 3, "the three Vagabond skills fill the bar")
-	# Gear and the skill bar follow the new line.
+	check(not bar[0].is_empty() and String(bar[0].id) == "wind_arrow" and Game.skill_lock_reason(bar[0]) == "" and bar[1].is_empty(), "a Lv.1 archer has its first skill on the bar, usable")
+	check(String(Game.profile.equip.weapon["class"]) == "archer" and String(Game.profile.equip.weapon.base) == "bow", "and starts with a bow")
+	check(not Game.needs_class() and not Game.change_class(&"warrior"), "a hero made in its class never changes it")
+	Game.add_exp(HeroStats.exp_to_next(1) + HeroStats.exp_to_next(2) + HeroStats.exp_to_next(3) + HeroStats.exp_to_next(4))
+	check(Game.profile.level == 5, "reached Lv.5 (Lv.%d)" % Game.profile.level)
+	bar = Game.loadout_skills()
+	check(String(bar[1].get("id", "")) == "perfect_aim", "the Lv.5 skill joins the bar")
+	# An old Vagabond save at Lv.10: gear, skill ranks and stat points come back with the class.
+	Game.delete_save()
+	Game.new_profile(ClassData.LEGACY, "ทดสอบ")
+	Game.profile["level"] = 10
+	Game.profile["points"] = 3
+	Game.profile["attrs"] = {"str": 10, "int": 0, "dex": 2, "vit": 6}
+	Game.profile["skills"] = {"power_strike": 3}
+	var points_before := int(Game.profile.skill_points)
+	Game.fill_loadout()
+	check(Game.needs_class(), "an old Vagabond save asks for its class")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
-	var drop := ItemData.generate(8, ClassData.START, rng, 2, "weapon")
+	var drop := ItemData.generate(8, ClassData.LEGACY, rng, 2, "weapon")
 	Game.add_item(drop)
-	check(Game.change_class(&"archer"), "picked the archer line")
-	check(Game.class_id() == &"archer", "class is now the archer")
+	check(not Game.change_class(ClassData.LEGACY), "the Vagabond is not a class to pick")
+	check(Game.change_class(&"archer"), "picked the archer")
+	check(Game.class_id() == &"archer" and int(Game.profile.level) == 10 and not Game.needs_class(), "class is now the archer, still Lv.10")
 	check(String(Game.profile.equip.weapon["class"]) == "archer" and String(Game.profile.equip.weapon.base) == "bow", "worn weapon became a bow")
 	var kept := false
 	for item in Game.profile.inv:
 		if item.get("kind", "") == "equip" and String(item.get("class", "")) == "archer":
 			kept = true
-	check(kept, "bag weapon turned into the new line's weapon")
+	check(kept, "bag weapon turned into the new class's weapon")
+	check(int(Game.profile.points) == 21 and int(Game.profile.attrs.str) == 0, "every stat point comes back (%d)" % int(Game.profile.points))
+	check(int(Game.profile.skill_points) == points_before + 2 and not Game.profile.skills.has("power_strike"), "the Vagabond's skill ranks come back as skill points")
 	bar = Game.loadout_skills()
 	check(String(bar[0].id) == "wind_arrow" and String(bar[1].id) == "perfect_aim", "bar holds the first archer skills")
-	check(not Game.change_class(&"mage"), "the line cannot be changed twice")
+	check(not Game.change_class(&"mage"), "the class cannot be changed twice")
 	# Loadout: swap a skill into slot 4 once unlocked.
 	Game.profile["level"] = 20
 	Game.fill_loadout()
@@ -650,7 +662,7 @@ func _look() -> void:
 	starter_look["outfit"] = 3
 	var starter := HeroVisual.new()
 	main.add_child(starter)
-	starter.setup(ClassData.START, "", true, {}, starter_look)
+	starter.setup(ClassData.LEGACY, "", true, {}, starter_look)
 	var outlined := 0
 	for node in starter.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
@@ -667,7 +679,7 @@ func _look() -> void:
 	chosen["gender"] = 1
 	chosen["hair"] = 2
 	chosen["skin"] = 5
-	Game.new_profile(ClassData.START, "ทดสอบ", chosen)
+	Game.new_profile(ClassData.DEFAULT, "ทดสอบ", chosen)
 	check(int(Game.profile.look.gender) == 1 and int(Game.profile.look.skin) == 5, "the chosen look is stored in the profile")
 	var back := Game.export_code()
 	check(Game.import_code(back) and int(Game.profile.look.hair) == 2, "the look survives a save code round trip")
@@ -680,7 +692,7 @@ func _look() -> void:
 	await _wait(0.4)
 	var hero_visual: HeroVisual = main.zone.hero.visual
 	check(not hero_visual.look.is_empty() and hero_visual.chibi and hero_visual.anim.has_animation("1H_Melee_Attack_Chop"), "the hero wears the rigged chibi model with every game clip")
-	Game.profile.equip["helm"] = ItemData.generate(5, ClassData.START, rng, 1, "helm")
+	Game.profile.equip["helm"] = ItemData.generate(5, ClassData.DEFAULT, rng, 1, "helm")
 	hero_visual.set_equipment(Game.profile.equip)
 	await _wait(0.2)
 	check(hero_visual.find_child("Hair", true, false) == null, "hair is hidden under a helmet")
@@ -1491,7 +1503,7 @@ func _party() -> void:
 	await _wait(0.4)
 	check(zone.companions.is_empty() and Game.party().is_empty(), "dismissing leaves nobody")
 	# A party is five people: four world players walk with the hero, each in its own spot and look.
-	# (Weeks into the world, so they have taken their jobs: below Lv.10 everyone is a Vagabond.)
+	# (Weeks into the world, so they have levelled a while.)
 	var clock_was := WorldPresence.clock_offset
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 40.0 * 86400.0 - WorldPlayers.now()
 	for cls in [&"mage", &"archer", &"priest", &"warrior"]:

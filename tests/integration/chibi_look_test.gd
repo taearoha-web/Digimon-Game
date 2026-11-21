@@ -89,7 +89,7 @@ func _ready() -> void:
 	# The body material: original look sets nothing, a style sets the uniforms.
 	var plain := HeroVisual.new()
 	add_child(plain)
-	plain.setup(ClassData.START, "", false, {}, FaceKit.default_look())
+	plain.setup(ClassData.LEGACY, "", false, {}, FaceKit.default_look())
 	var plain_mat := _body_material(plain)
 	check(plain_mat != null and plain_mat.get_shader_parameter("look_enabled") != true, "the original look leaves the shader off")
 	check(_accessory(plain) == null, "the original look has no accessory")
@@ -116,13 +116,13 @@ func _ready() -> void:
 			ChibiLook.apply_style(look, s)
 			var v := HeroVisual.new()
 			add_child(v)
-			v.setup(ClassData.START, "", false, {}, look)
+			v.setup(ClassData.LEGACY, "", false, {}, look)
 			var mat := _body_material(v)
 			check(mat != null and mat.get_shader_parameter("look_enabled") == true and mat.get_shader_parameter("look_mask") != null, "style %d/%d turns the look shader on" % [g, s])
 			check(float(mat.get_shader_parameter("hair_amount")) == 1.0 and (mat.get_shader_parameter("hair_color") as Color).is_equal_approx(ChibiLook.tint("hair_tint", int(look.hair_tint))), "style %d/%d hair colour" % [g, s])
 			check((_accessory(v) != null) == (int(look.acc) > 0), "style %d/%d accessory present only when chosen" % [g, s])
 			# Gear changes keep the look.
-			v.equip = {"armor": ItemData.generate(20, ClassData.START, Game.rng, 2, "armor")}
+			v.equip = {"armor": ItemData.generate(20, ClassData.LEGACY, Game.rng, 2, "armor")}
 			v.refresh()
 			var after := _body_material(v)
 			check(after != null and after.get_shader_parameter("look_enabled") == true, "style %d/%d survives an armour change" % [g, s])
@@ -135,7 +135,7 @@ func _ready() -> void:
 			look["acc"] = acc
 			var v := HeroVisual.new()
 			add_child(v)
-			v.setup(ClassData.START, "", false, {}, look)
+			v.setup(ClassData.LEGACY, "", false, {}, look)
 			var node := _accessory(v)
 			check(node != null and node.find_children("*", "MeshInstance3D", true, false).size() >= 1, "accessory %d builds on body %d" % [acc, g])
 			v.queue_free()

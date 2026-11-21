@@ -52,7 +52,7 @@ func _data() -> void:
 		check(v > 0.0 and v <= 0.12, "%s's number is modest (%s)" % [cls, v])
 		check(ClassRoles.line(cls).contains(String(t.name)) and ClassRoles.tooltip(cls).contains(String(ClassData.get_class_data(cls).name)), "%s's role line and tooltip" % cls)
 	check(names.size() == ClassData.IDS.size(), "ten classes, ten different roles")
-	check(ClassRoles.trait_of(ClassData.START).is_empty(), "the Vagabond has no role yet")
+	check(ClassRoles.trait_of(ClassData.LEGACY).is_empty(), "the old Vagabond has no role")
 	check(ClassRoles.summary([&"warrior", &"warrior", &"mage"]).contains("ขาดอีก 8"), "a summary counts each class once (%s)" % ClassRoles.summary([&"warrior", &"warrior", &"mage"]))
 
 
@@ -183,7 +183,7 @@ func _field() -> void:
 	if main.title_screen:
 		main.title_screen.queue_free()
 		main.title_screen = null
-	Game.new_profile(ClassData.START, "Role QA", FaceKit.default_look())
+	Game.new_profile(ClassData.LEGACY, "Role QA", FaceKit.default_look())
 	Game.profile.level = 30
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 40.0 * 86400.0 - WorldPlayers.now()
 	main.hud.visible = true
@@ -326,4 +326,4 @@ func _field() -> void:
 	var role := menu.find_child("ClassRole", true, false) as Label
 	check(role != null and role.text.contains("ตราเวท"), "the character screen shows the class's party role (%s)" % (role.text if role else "none"))
 	menu.queue_free()
-	Game.profile["class"] = String(ClassData.START)
+	Game.profile["class"] = String(ClassData.LEGACY)

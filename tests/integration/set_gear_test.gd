@@ -246,7 +246,7 @@ func _craft() -> void:
 	var full := Game.craft_set_piece("amulet", 0.0)
 	check(full != "ok" and full != "fail" and _jewels() == before, "no room anywhere: refused, nothing spent (%s)" % full)
 	# A Vagabond has no set.
-	Game.new_profile(ClassData.START, "Set QA", FaceKit.default_look())
+	Game.new_profile(ClassData.LEGACY, "Set QA", FaceKit.default_look())
 	stock()
 	check(Game.craft_set_piece("weapon", 0.0) != "ok" and Game.jewel_count("set_core") == 1, "a Vagabond cannot craft a set piece")
 	# Each class gets its own pieces from the same material.

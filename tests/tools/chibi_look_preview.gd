@@ -15,7 +15,7 @@ func _ready() -> void:
 	var out_dir := args[0]
 	var set_name := args[1] if args.size() > 1 else "styles"
 	var view := args[2] if args.size() > 2 else "full"
-	var cls := StringName(args[3]) if args.size() > 3 else ClassData.START
+	var cls := StringName(args[3]) if args.size() > 3 else ClassData.LEGACY
 	var looks: Array = []
 	var captions: PackedStringArray = []
 	if set_name == "styles":

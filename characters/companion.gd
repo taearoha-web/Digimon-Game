@@ -154,7 +154,7 @@ func refresh() -> void:
 	_label.text = _level_text()
 	var sig := _signature()
 	if StringName(member["class"]) != _built_class:
-		# The Lv.10 job change of a world player: the new body, weapon and companion pet.
+		# A class change (rare now: world players play their class from Lv.1): the new body, weapon and pet.
 		_built_class = StringName(member["class"])
 		_equip_sig = sig
 		visual.setup(_built_class, "", true, _party_equip(), _visual_look())

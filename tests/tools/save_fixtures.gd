@@ -1,7 +1,7 @@
 extends Node
 ## Writes real game-generated character saves for the account backend's tests.
-## Every class the game ships, built the way a player gets there (a Vagabond
-## who changes class at Lv.10, levels, hires a companion, wears gear, gems,
+## Every class the game ships, built the way a player gets there (made in its class
+## on the create screen, levels, hires a companion, wears gear, gems,
 ## wings, star gear, spends ★ points, plays dailies, duels, the tower, a guild
 ## war...), then saved by Game.save() and read back exactly as
 ## Game.build_cloud_bundle() would send it to the account server.
@@ -34,7 +34,7 @@ func _ready() -> void:
 	var payload := {
 		"generatedBy": "tests/tools/save_fixtures.gd",
 		"saveVersion": Game.SAVE_VERSION,
-		"classes": [String(ClassData.START)] + Array(ClassData.IDS).map(func(id): return String(id)),
+		"classes": [String(ClassData.LEGACY)] + Array(ClassData.IDS).map(func(id): return String(id)),
 		"profiles": profiles,
 		"storage": shared.get("storage", []),
 		"storageMigrated": shared.get("storageMigrated", {}),
@@ -94,8 +94,9 @@ func _first_zone() -> StringName:
 
 
 func _build_all() -> void:
-	# A fresh Vagabond with a little progress, as saved after the first fights.
-	Game.new_profile(ClassData.START, NAMES[ClassData.START], FaceKit.default_look())
+	# An old save: a Vagabond (the starter class before the class was picked on the create
+	# screen) with a little progress, as such a save still reaches the server.
+	Game.new_profile(ClassData.LEGACY, NAMES[ClassData.LEGACY], FaceKit.default_look())
 	Game.playing = true
 	Game.add_exp(900)
 	Game.set_quest("slimes", "active", 3)
@@ -132,16 +133,13 @@ func _build_shared_storage() -> void:
 	Game.delete_save(1)
 
 
-## A Vagabond who takes the class at the trainer, then plays to Lv.23 and beyond.
+## A hero made in its class, played to Lv.23 and beyond.
 func _build_line(cls: StringName) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(String(cls))
-	Game.new_profile(ClassData.START, NAMES.get(cls, "Hero"), FaceKit.random_look(rng))
+	Game.new_profile(cls, NAMES.get(cls, "Hero"), FaceKit.random_look(rng))
 	Game.current_zone = _first_zone()
 	Game.playing = true
-	_level_to(ClassData.LINE_LEVEL)
-	if not Game.change_class(cls):
-		_fail("%s: change_class refused" % cls)
 	_level_to(23)
 	Game.spend_point("str", 4)
 	Game.spend_point("vit", 2)

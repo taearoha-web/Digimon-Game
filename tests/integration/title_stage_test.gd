@@ -208,7 +208,7 @@ func _check_flow() -> void:
 	await frames(2)
 	check(main.class_screen != null and main.title_screen == null, "create opens the hero creator")
 	var look := FaceKit.default_look()
-	main.class_screen.confirmed.emit(ClassData.START, "ใหม่", look)
+	main.class_screen.confirmed.emit(ClassData.DEFAULT, "ใหม่", look)
 	await frames(4)
 	check(main.class_screen == null and main.title_screen != null, "after creating, the platform comes back")
 	check(Game.has_save(free) and Game.slot_info(free).name == "ใหม่", "the new hero is saved in slot %d" % free)

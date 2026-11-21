@@ -124,7 +124,7 @@ func _pace() -> void:
 		var at_join := WorldPlayers.state(i, j)
 		var first := WorldPlayers.state(i, j + 300.0)
 		check(int(at_join.level) == 1 and int(at_join.stars) == 0, "%s: Lv.1 when it logs in (Lv.%d)" % [e.name, int(at_join.level)])
-		check(int(first.level) < ClassData.LINE_LEVEL and String(first["class"]) == String(ClassData.START), "%s: a Lv.%d Vagabond on its first minutes" % [e.name, int(first.level)])
+		check(int(first.level) < 10 and String(first["class"]) == String(e["class"]) and ClassData.IDS.has(StringName(first["class"])), "%s: a Lv.%d %s on its first minutes, never a Vagabond" % [e.name, int(first.level), first["class"]])
 		check(String(e.style) == "hardcore", "%s plays hardcore" % e.name)
 		var d4 := WorldPlayers.state(i, j + 4.0 * DAY)
 		var d8 := WorldPlayers.state(i, j + 8.0 * DAY)

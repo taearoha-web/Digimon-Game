@@ -101,11 +101,11 @@ const DOING_TEXT = {
 export function userTurn(chat) {
   const {player: p, hero: h} = chat;
   const you = [
-    `You are ${p.name}, a ${p.gender === 1 ? 'girl' : 'boy'} ${p.class || 'vagabond'} player, Lv.${p.level}${p.stars ? ` ★${p.stars}` : ''}${p.divine ? ', divine set complete' : ''}.`,
+    `You are ${p.name}, a ${p.gender === 1 ? 'girl' : 'boy'} ${p.class || 'warrior'} player, Lv.${p.level}${p.stars ? ` ★${p.stars}` : ''}${p.divine ? ', divine set complete' : ''}.`,
     `Guild: ${p.guild || 'none'}. Play style: ${p.style || 'casual'}.`,
     `Right now you are ${DOING_TEXT[p.doing] ?? 'around'}${p.place ? ` in ${p.place}` : ''}.`,
     p.inParty ? "You are in the hero's party." : "You are not in the hero's party.",
-    `The hero is ${h.name || 'a player'}, a ${h.class || 'vagabond'} Lv.${h.level}${h.stars ? ` ★${h.stars}` : ''}${h.guild ? ` of guild ${h.guild}` : ''}.`,
+    `The hero is ${h.name || 'a player'}, a ${h.class || 'warrior'} Lv.${h.level}${h.stars ? ` ★${h.stars}` : ''}${h.guild ? ` of guild ${h.guild}` : ''}.`,
     chat.channel === 'world' ? 'The hero wrote in the public world chat; you answer there.' : 'The hero is talking to you directly.',
   ];
   const talk = chat.history.map(entry => `${entry.who === 'player' ? p.name : h.name || 'hero'}: ${entry.text}`);

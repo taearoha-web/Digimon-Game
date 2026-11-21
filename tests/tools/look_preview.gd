@@ -18,12 +18,12 @@ func _ready() -> void:
 			for i in FaceKit.option_count("hair", gender):
 				var look := FaceKit.default_look()
 				look["gender"] = gender; look["hair"] = i; look["hair_color"] = (i * 3 + 1) % FaceKit.HAIR_COLORS.size(); look["skin"] = i % 4
-				looks.append(look); cls.append(ClassData.START)
+				looks.append(look); cls.append(ClassData.LEGACY)
 		"outfits":
 			for i in FaceKit.OUTFITS.size():
 				var look := FaceKit.default_look()
 				look["gender"] = i % 2; look["hair"] = i % 5; look["hair_color"] = i % 8; look["outfit"] = i
-				looks.append(look); cls.append(ClassData.START)
+				looks.append(look); cls.append(ClassData.LEGACY)
 		_:
 			var rng := RandomNumberGenerator.new(); rng.seed = 3
 			for c in ClassData.IDS:

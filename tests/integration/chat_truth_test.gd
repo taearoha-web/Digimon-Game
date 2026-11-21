@@ -275,7 +275,7 @@ func _verify(text: String, people: Array, t: float, ctx: Dictionary) -> void:
 	for word in BANNED:
 		check(not text.contains(word), "a made-up phrase is gone (%s)" % tag)
 	var stall := String(me.doing) == "stall"
-	var rule_lv := [Game.GUILD_LEVEL, Game.MAX_LEVEL, ItemData.WING_DROP_LEVEL, ClassData.LINE_LEVEL]
+	var rule_lv := [Game.GUILD_LEVEL, Game.MAX_LEVEL, ItemData.WING_DROP_LEVEL]
 	for m in (_rx.lv as RegEx).search_all(text):
 		_count("Lv")
 		var lv := int(m.get_string(1))

@@ -14,7 +14,7 @@ func _ready() -> void:
 	cam.fov = 34; cam.position = Vector3(0, 2.2, 7.4); cam.rotation_degrees = Vector3(0, 0, 0)
 	for gender in 2:
 		var look := FaceKit.default_look(); look["gender"] = gender
-		var h := HeroVisual.new(); add_child(h); h.setup(ClassData.START, "", false, {}, look)
+		var h := HeroVisual.new(); add_child(h); h.setup(ClassData.LEGACY, "", false, {}, look)
 		h.rotation_degrees.y = 16
 		h.set_pumpkin(true)
 		await get_tree().create_timer(0.8).timeout
