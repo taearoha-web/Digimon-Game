@@ -190,7 +190,7 @@ func _remotes() -> Array:
 func _players(fake: FakeTransport) -> void:
 	var at := hero.global_position
 	Online._dispatch({"t": "welcome", "you": {"id": "me1", "user": "luna"}, "party": null,
-		"players": [_player("p2", "TorTor_W", "town", at + Vector3(3, 0, 0)), _player("p3", "Mira", "meadow", Vector3(5, 0, 5), "priest")]})
+		"players": [_player("p2", "Tor_Warrior", "town", at + Vector3(3, 0, 0)), _player("p3", "Mira", "meadow", Vector3(5, 0, 5), "priest")]})
 	check(Online.my_id() == "me1", "welcome: my id")
 	check(Online.players().size() == 2 and Online.players().has("p2") and Online.players().has("p3"), "welcome: the players")
 	check(Online.players_in_zone(&"town").size() == 1 and Online.players_in_zone(&"meadow").size() == 1, "players_in_zone")
@@ -205,7 +205,7 @@ func _players(fake: FakeTransport) -> void:
 	check(not (r2 as Node is Mob) and not (r2 as Node is FieldPlayer), "the hero's attacks (mobs only) never reach it")
 	check(r2.position.distance_to(at + Vector3(3, 0, 0)) < 0.01, "it stands where its player is")
 	check(r2.visual != null and r2.visual.class_id == &"warrior" and r2.visual.equip.has("weapon"), "dressed from its look: class and gear")
-	check(r2._label.text.contains("TorTor_W") and r2._tag.text == "ผู้เล่นจริง", "name tag and the ผู้เล่นจริง mark")
+	check(r2._label.text.contains("Tor_Warrior") and r2._tag.text == "ผู้เล่นจริง", "name tag and the ผู้เล่นจริง mark")
 	check(r2._bar.visible and r2.hp == 900, "HP bar (hurt)")
 	# join: in the zone it comes, elsewhere not.
 	Online._dispatch({"t": "join", "player": _player("p4", "Nok", "town", at + Vector3(-3, 0, 2), "archer")})
@@ -326,9 +326,9 @@ func _chat(fake: FakeTransport) -> void:
 	add_child(chat)
 	chat.set_process(false)
 	(chat.transport as ChatBrain.LocalTransport).delay = Vector2.ZERO
-	Online._dispatch({"t": "chat", "ch": "world", "from": "p2", "user": "u_p2", "name": "TorTor_W", "text": "สวัสดีชาวโลก [b]x[/b]"})
+	Online._dispatch({"t": "chat", "ch": "world", "from": "p2", "user": "u_p2", "name": "Tor_Warrior", "text": "สวัสดีชาวโลก [b]x[/b]"})
 	var line := String(box.lines()[box.lines().size() - 1]) if box.lines().size() > 0 else ""
-	check(line.contains("TorTor_W") and line.contains("ผู้เล่นจริง") and line.contains("rp:p2") and line.contains("สวัสดีชาวโลก"), "a real player's world line, with the mark and a link")
+	check(line.contains("Tor_Warrior") and line.contains("ผู้เล่นจริง") and line.contains("rp:p2") and line.contains("สวัสดีชาวโลก"), "a real player's world line, with the mark and a link")
 	check(not line.contains("[b]"), "brackets in a line never open a tag")
 	var tapped := []
 	box.real_name_tapped.connect(func(id: String): tapped.append(id))
@@ -346,11 +346,11 @@ func _chat(fake: FakeTransport) -> void:
 	check(box.history().size() == count, "the server's copy of the hero's world line is not shown twice")
 	# The hero types.
 	fake.sent.clear()
-	var why := chat.submit("/w TorTor_W ไปล่าบอสไหม", {"index": -1, "channel": "world"})
+	var why := chat.submit("/w Tor_Warrior ไปล่าบอสไหม", {"index": -1, "channel": "world"})
 	var whispers := fake.frames("chat")
 	check(why == "" and whispers.size() == 1 and whispers[0].ch == "whisper" and whispers[0].to == "p2" and whispers[0].text == "ไปล่าบอสไหม", "\"/w name text\" whispers to that real player")
 	Online._dispatch({"t": "chat", "ch": "whisper", "from": "me1", "name": "ลูน่าออนไลน์", "to": "p2", "text": "ไปล่าบอสไหม"})
-	check(String(box.lines()[box.lines().size() - 1]).contains("(ถึง TorTor_W)"), "the hero's whisper shows when it comes back")
+	check(String(box.lines()[box.lines().size() - 1]).contains("(ถึง Tor_Warrior)"), "the hero's whisper shows when it comes back")
 	fake.sent.clear()
 	chat.submit("ไม่มีใครชื่อนี้", {"index": -1, "channel": "whisper", "to": "nobody", "name": "ใครสักคน"})
 	check(fake.frames("chat").is_empty(), "no whisper to someone not online")
@@ -389,7 +389,7 @@ func _party(fake: FakeTransport) -> void:
 	hud._update_party()
 	hud.update_online()
 	var shown: Array = hud._online_cards.filter(func(e): return (e.card as Control).visible)
-	check(shown.size() == 2 and String((shown[0].title as Label).text).contains("TorTor_W"), "the HUD shows the real party's cards")
+	check(shown.size() == 2 and String((shown[0].title as Label).text).contains("Tor_Warrior"), "the HUD shows the real party's cards")
 	var all_cards := shown.size() + hud._party_cards.filter(func(e): return (e.card as Control).visible).size()
 	check(all_cards <= Game.PARTY_MAX, "never more party cards than the phone layout holds (%d)" % all_cards)
 	check(String(hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1 + Online.players().size()), "the online count has the real players")
@@ -430,20 +430,20 @@ func _party(fake: FakeTransport) -> void:
 	check(toasts.any(func(t): return String(t).contains("Mira") and String(t).contains("ออก")), "a member leaving: a toast")
 	toasts.clear()
 	Online._dispatch({"t": "leave", "id": "p2"})
-	check(toasts.any(func(t): return String(t).contains("TorTor_W")), "a party member logging off: a toast")
-	Online._dispatch({"t": "join", "player": _player("p2", "TorTor_W", "town", hero.global_position + Vector3(2, 0, 0))})
+	check(toasts.any(func(t): return String(t).contains("Tor_Warrior")), "a party member logging off: a toast")
+	Online._dispatch({"t": "join", "player": _player("p2", "Tor_Warrior", "town", hero.global_position + Vector3(2, 0, 0))})
 	# A member whose connection drops keeps its place (the server's grace): away, then back.
 	toasts.clear()
 	Online._dispatch({"t": "party", "party": {"id": "pt9", "leader": "me1", "members": ["me1", "p2"], "away": ["p2"]}})
 	check(Online.in_party() and Online.party_away() == ["p2"] and (Online.party().members as Array).has("p2"), "a dropped member is away, still in the party")
-	check(toasts.any(func(t): return String(t).contains("TorTor_W") and String(t).contains("หลุด")), "a toast says it dropped and may come back (%s)" % [toasts])
+	check(toasts.any(func(t): return String(t).contains("Tor_Warrior") and String(t).contains("หลุด")), "a toast says it dropped and may come back (%s)" % [toasts])
 	toasts.clear()
 	Online._dispatch({"t": "leave", "id": "p2"})
 	check(not toasts.any(func(t): return String(t).contains("ออกจากเกม")), "no second 'logged off' toast for an away member")
-	check(Online.display_name(Online.player("p2")) == "TorTor_W", "its name is remembered while it is away")
-	Online._dispatch({"t": "join", "player": _player("p2", "TorTor_W", "town", hero.global_position + Vector3(2, 0, 0))})
+	check(Online.display_name(Online.player("p2")) == "Tor_Warrior", "its name is remembered while it is away")
+	Online._dispatch({"t": "join", "player": _player("p2", "Tor_Warrior", "town", hero.global_position + Vector3(2, 0, 0))})
 	Online._dispatch({"t": "party", "party": {"id": "pt9", "leader": "me1", "members": ["me1", "p2"], "away": []}})
-	check(Online.party_away().is_empty() and toasts.any(func(t): return String(t).contains("TorTor_W") and String(t).contains("กลับมา")), "back: a toast")
+	check(Online.party_away().is_empty() and toasts.any(func(t): return String(t).contains("Tor_Warrior") and String(t).contains("กลับมา")), "back: a toast")
 	Online._dispatch({"t": "host", "zone": "guildwar", "id": "p2"})
 	Online._dispatch({"t": "party", "party": null})
 	check(not Online.in_party() and Online.party().is_empty() and Online.zone_host(&"guildwar") == "", "party null: no party, no party-scoped (instanced) host")
@@ -452,9 +452,9 @@ func _party(fake: FakeTransport) -> void:
 	var prompt := OnlinePrompt.new()
 	add_child(prompt)
 	toasts.clear()
-	Online._dispatch({"t": "party_invite", "from": "p2", "name": "TorTor_W"})
+	Online._dispatch({"t": "party_invite", "from": "p2", "name": "Tor_Warrior"})
 	check(Online.pending_invite().get("from") == "p2" and toasts.any(func(t): return String(t).contains("ชวน")), "an invitation waits, with a toast")
-	check(prompt.is_showing() and prompt._text.text.contains("TorTor_W"), "the invitation card shows")
+	check(prompt.is_showing() and prompt._text.text.contains("Tor_Warrior"), "the invitation card shows")
 	fake.sent.clear()
 	prompt.answer(true)
 	check(not prompt.is_showing(), "answered: the card goes")
@@ -499,7 +499,7 @@ func _malformed(fake: FakeTransport) -> void:
 	# A full list of junk: nobody valid is online (the list replaces the old one).
 	Online._dispatch({"t": "players", "players": [1, "a", null, {"id": {}}]})
 	check(Online.players().is_empty() and Online.is_online(), "a list of junk: no players, still online")
-	Online._dispatch({"t": "join", "player": _player("p2", "TorTor_W", "town", hero.global_position + Vector3(2, 0, 0))})
+	Online._dispatch({"t": "join", "player": _player("p2", "Tor_Warrior", "town", hero.global_position + Vector3(2, 0, 0))})
 	Online._dispatch({"t": "join", "player": _player("p3", "Mira", "town", hero.global_position + Vector3(-2, 0, 0), "priest")})
 
 
@@ -517,7 +517,7 @@ func _reconnect(fake: FakeTransport) -> FakeTransport:
 	Online.use_transport(fake2)
 	check(Online.is_online() and fake2.frames("hello").size() == 1, "reconnected: hello again")
 	Online._dispatch({"t": "welcome", "you": {"id": "me1", "user": "luna"}, "party": null,
-		"players": [_player("p2", "TorTor_W", "town", hero.global_position + Vector3(3, 0, 0))]})
+		"players": [_player("p2", "Tor_Warrior", "town", hero.global_position + Vector3(3, 0, 0))]})
 	check(_remotes().size() == 1 and Online.remote_node("p2") != null, "after the welcome the players are back")
 	# Kicked (another tab took over): gone, and no automatic return.
 	var fake3 := FakeTransport.new()
@@ -527,7 +527,7 @@ func _reconnect(fake: FakeTransport) -> FakeTransport:
 	check(not Online.is_online() and Online._kicked and toasts.any(func(t): return String(t).contains("ที่อื่น")), "kicked: offline, told why, no reconnecting")
 	Online.use_transport(fake2)
 	Online._dispatch({"t": "welcome", "you": {"id": "me1", "user": "luna"}, "party": null,
-		"players": [_player("p2", "TorTor_W", "town", hero.global_position + Vector3(3, 0, 0))]})
+		"players": [_player("p2", "Tor_Warrior", "town", hero.global_position + Vector3(3, 0, 0))]})
 	return fake2
 
 

@@ -63,7 +63,7 @@ const ROSTER_ID := "reborn_20261122b"
 const ROSTER: Array[Dictionary] = [
 	# Players with a play schedule (everyone plays hardcore; voice: the tone they talk in).
 	{"name": "เวทมนตร์คนจน", "class": &"mage", "gender": 0, "body": 0, "style": "hardcore", "voice": "student"},
-	{"name": "TorTor_W", "class": &"warrior", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
+	{"name": "Tor_Warrior", "class": &"warrior", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
 	{"name": "Ohm_TH", "class": &"summoner", "gender": 0, "body": 0, "style": "hardcore", "voice": "regular"},
 	{"name": "มวยวัดสายดุ", "class": &"muaythai", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
 	{"name": "คุณหนูปีศาจ", "class": &"summoner", "gender": 1, "body": 3, "style": "hardcore", "voice": "weekend"},

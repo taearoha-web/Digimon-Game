@@ -120,7 +120,7 @@ func _ready() -> void:
 	var world: Dictionary = fake.sent[-1]
 	check(String(world.channel) == "world", "a world line goes out as one")
 	# The game's own answers read what a line is after.
-	var hunter := {"name": "TorTor_W", "class": "สายดาบ", "level": 20, "stars": 0, "doing": "hunt", "place": "ป่าเงาม่วง", "guild": "", "inParty": false}
+	var hunter := {"name": "Tor_Warrior", "class": "สายดาบ", "level": 20, "stars": 0, "doing": "hunt", "place": "ป่าเงาม่วง", "guild": "", "inParty": false}
 	var seller := hunter.duplicate()
 	seller["doing"] = "stall"
 	var hero := {"name": "แชทQA", "class": "นักเวทย์", "level": 9, "stars": 0}

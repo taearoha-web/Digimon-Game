@@ -318,6 +318,11 @@ func _full_bag() -> void:
 
 ## The stall screen: the + on the icon and the ของเด่น badge, the best lot first.
 func _screen() -> void:
+	# The keepers forge their stock as they play: before the world has run a few days
+	# (the 22 Nov reopening) the screen is read at a moment three and a half days in.
+	var opened := float(WorldPlayers.START_UNIX) + 3.5 * 86400.0
+	if WorldPlayers.now() < opened:
+		WorldPresence.clock_offset = opened - WorldPlayers.now()
 	var t := WorldPresence.clock()
 	var shop := ShopScreen.new()
 	add_child(shop)
@@ -344,6 +349,7 @@ func _screen() -> void:
 				check(((badge as Control).get_child(0) as Label).text == "+%d" % plus, "the badge reads +%d" % plus)
 			check((rows[k].find_child("HotBadge", true, false) != null) == bool(lots[k].hot), "the ของเด่น badge on a showpiece only")
 	shop.close_shop()
+	WorldPresence.clock_offset = 0.0
 	shop.queue_free()
 
 

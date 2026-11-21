@@ -371,7 +371,7 @@ func _migration() -> void:
 	var old: Dictionary = Game.profile.duplicate(true)
 	old.flags.erase(Game.GUILD4_FLAG)
 	old.flags[Game.GUILD_FLAG] = WorldPlayers.NEVERDIE
-	old["guild_leaders"] = {"2": "", "1": "TorTor_W"}
+	old["guild_leaders"] = {"2": "", "1": "Tor_Warrior"}
 	old["league"] = {"week": 1, "wars": [], "reg": 1800000000}
 	old.gold = 123456
 	var json: Variant = JSON.parse_string(JSON.stringify(old))

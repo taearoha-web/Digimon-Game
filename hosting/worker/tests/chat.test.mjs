@@ -7,7 +7,7 @@ import {handleChat, chatRequest, readChat, readReply, userTurn, LIMITS, DEFAULT_
 
 const ORIGIN = 'https://toon-tale.example';
 const PASSWORD = 'CuteDragonPass2026!';
-const PLAYER = {name: 'TorTor_W', class: 'warrior', level: 34, stars: 0, style: 'ว่างกลางวัน', doing: 'hunt', place: 'ป่าเห็ด', guild: '', gender: 0, inParty: false, divine: false};
+const PLAYER = {name: 'Tor_Warrior', class: 'warrior', level: 34, stars: 0, style: 'ว่างกลางวัน', doing: 'hunt', place: 'ป่าเห็ด', guild: '', gender: 0, inParty: false, divine: false};
 const HERO = {name: 'น้องแมว', class: 'mage', level: 30, stars: 0, guild: ''};
 
 /** A stand-in for the Claude client: records each request, answers with `answer`. */
@@ -64,7 +64,7 @@ test('a signed-in hero gets the player\'s reply and action', async t => {
   assert.deepEqual(request.betas, ['server-side-fallback-2026-07-01']);
   assert.equal(request.fallbacks, 'default');
   assert.equal(request.system[0].cache_control.type, 'ephemeral');
-  assert.match(request.messages[0].content, /You are TorTor_W, a boy warrior player, Lv\.34/);
+  assert.match(request.messages[0].content, /You are Tor_Warrior, a boy warrior player, Lv\.34/);
   assert.match(request.messages[0].content, /<hero_message>\nไปปาร์ตี้กันไหม\n<\/hero_message>/);
 });
 
@@ -148,17 +148,17 @@ test('replies are read from the JSON answer and cut to size', () => {
 });
 
 test('the game\'s facts and its own answer reach the model as data, cut to size', () => {
-  const chat = readChat({text: 'เหงาจัง', player: {name: 'TorTor_W', level: 100, stars: 250}, hero: {name: 'ฮีโร่', stars: 300},
-    facts: ['TorTor_W Lv.100 ★250 นักดาบ', 'ก'.repeat(400), ...Array.from({length: 30}, (_, i) => `fact ${i}`)], gameAnswer: 'ไม่เป็นไรนะ'});
+  const chat = readChat({text: 'เหงาจัง', player: {name: 'Tor_Warrior', level: 100, stars: 250}, hero: {name: 'ฮีโร่', stars: 300},
+    facts: ['Tor_Warrior Lv.100 ★250 นักดาบ', 'ก'.repeat(400), ...Array.from({length: 30}, (_, i) => `fact ${i}`)], gameAnswer: 'ไม่เป็นไรนะ'});
   assert.equal(chat.player.stars, 250, 'stars go up to 300');
   assert.equal(chat.hero.stars, 300);
   assert.equal(chat.facts.length, 16);
   assert.equal([...chat.facts[1]].length, 160);
   const turn = userTurn(chat);
-  assert.match(turn, /<facts>\n- TorTor_W Lv\.100 ★250 นักดาบ/);
+  assert.match(turn, /<facts>\n- Tor_Warrior Lv\.100 ★250 นักดาบ/);
   assert.match(turn, /<game_answer>\nไม่เป็นไรนะ\n<\/game_answer>/);
   assert.ok(turn.indexOf('</facts>') < turn.indexOf('<hero_message>'));
-  const plain = userTurn(readChat({text: 'สวัสดี', player: {name: 'TorTor_W'}}));
+  const plain = userTurn(readChat({text: 'สวัสดี', player: {name: 'Tor_Warrior'}}));
   assert.doesNotMatch(plain, /<facts>|<game_answer>/);
   assert.match(chatRequest(chat).system[0].text, /must be true in the game right now/);
 });

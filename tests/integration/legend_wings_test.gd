@@ -13,7 +13,7 @@ extends Node
 var failures := 0
 var checks := 0
 var awarded: Array = []
-const W0 := LegendWings.FROM_WEEK
+const W0 := LegendWings.FROM_WEEK + 2
 
 
 func check(ok: bool, message: String) -> void:
@@ -150,7 +150,7 @@ func _validation() -> void:
 	Game.new_profile(&"archer", "Valid QA", FaceKit.default_look())
 	var pair := LegendWings.item(W0 + 2, WorldPlayers.TITAN)
 	check(Game._valid_item(pair) and LegendWings.valid_item(pair), "a minted pair validates")
-	for bad in [{"stats": {"atk": 9999}}, {"class": "mage"}, {"level": 100}, {"rarity": 3}, {"legend_week": W0 - 1}, {"legend_guild": 5}, {"wing": "darklord"}, {"star_tier": 100}, {"stats": {"speed": 1.0}}]:
+	for bad in [{"stats": {"atk": 9999}}, {"class": "mage"}, {"level": 100}, {"rarity": 3}, {"legend_week": LegendWings.FROM_WEEK - 1}, {"legend_guild": 5}, {"wing": "darklord"}, {"star_tier": 100}, {"stats": {"speed": 1.0}}]:
 		var copy := pair.duplicate(true)
 		for key in bad:
 			if key == "stats":
@@ -160,7 +160,7 @@ func _validation() -> void:
 		check(not Game._valid_item(copy), "a tampered pair is refused (%s)" % [bad])
 	Game.profile.inv.append(pair)
 	Game.profile.equip["wings"] = LegendWings.item(W0, WorldPlayers.ALPHA)
-	Game.profile[LegendWings.KEY] = {"done": W0 + 1, "hold": {str(W0): {"g": 1, "n": "", "s": 1}, str(W0 + 1): {"g": 1, "n": "TorTor_W", "s": 2}}, "hand": {str(W0 + 1): "TorTor_W"}}
+	Game.profile[LegendWings.KEY] = {"done": W0 + 1, "hold": {str(W0): {"g": 1, "n": "", "s": 1}, str(W0 + 1): {"g": 1, "n": "Tor_Warrior", "s": 2}}, "hand": {str(W0 + 1): "Tor_Warrior"}}
 	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with pairs and the record is valid")
 	var json: Variant = JSON.parse_string(JSON.stringify(Game.profile))
 	check(json is Dictionary and Game._valid_profile(json), "and after a JSON round trip")

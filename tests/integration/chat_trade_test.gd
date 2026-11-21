@@ -280,7 +280,7 @@ func _threads() -> void:
 	for n in 200:
 		people.shuffle()
 		var group := people.slice(0, 4)
-		var lines := ChatThreads.make("world", group, rng, {"online": people.size(), "names": ["TorTor_W"]})
+		var lines := ChatThreads.make("world", group, rng, {"online": people.size(), "names": ["Tor_Warrior"]})
 		check(lines.size() >= 2 and int(lines[0].who) == 0, "a conversation has an opener and answers")
 		var answers := 0
 		for k in range(1, lines.size()):
