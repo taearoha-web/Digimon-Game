@@ -6,8 +6,10 @@
     "chibi_silver": {"src": "stylized", "base": "boy", "shoulder": [0.115, 0.655, -0.01], "fingertip": [0.195, 0.33, 0.015], "crotch": 0.31, "chin": 0.73, "ankle": [0.11, 0.07, -0.01], "hip_x": 0.065},
     "chibi_ninja": {"src": "ninja", "base": "boy", "shoulder": [0.115, 0.665, 0.0], "fingertip": [0.177, 0.332, 0.015], "crotch": 0.32, "chin": 0.745, "ankle": [0.11, 0.07, -0.01], "hip_x": 0.065},
     "chibi_curly": {"src": "char", "base": "boy", "shoulder": [0.12, 0.645, 0.0], "fingertip": [0.225, 0.32, 0.025], "crotch": 0.32, "chin": 0.72, "ankle": [0.11, 0.07, -0.01], "hip_x": 0.07},
-    "chibi_lavender": {"src": "chibi_girl", "base": "girl", "shoulder": [0.11, 0.655, -0.01], "fingertip": [0.23, 0.36, 0.03], "crotch": 0.32, "chin": 0.73, "ankle": [0.10, 0.07, -0.01], "hip_x": 0.06},
+    "chibi_lavender": {"src": "chibi_girl", "base": "girl", "shoulder": [0.11, 0.655, -0.01], "fingertip": [0.23, 0.36, 0.03], "crotch": 0.32, "chin": 0.73, "ankle": [0.10, 0.07, -0.01], "hip_x": 0.06,
+      "skirt": {"top": 0.42, "fade": 0.04, "hem": 0.28, "bottom": 0.24, "hem_thigh": 0.25, "seam": 0.03, "leg_r": 0.035, "leg_fade": 0.015, "arm_r": 0.035, "smooth": 4}},
     "chibi_braid": {"src": "char_girl", "base": "girl", "shoulder": [0.12, 0.66, -0.01], "fingertip": [0.20, 0.34, 0.025], "crotch": 0.36, "chin": 0.73, "ankle": [0.11, 0.07, -0.01], "hip_x": 0.06},
-    "chibi_bun": {"src": "cartoon_girl", "base": "girl", "shoulder": [0.115, 0.645, -0.005], "fingertip": [0.27, 0.355, 0.01], "crotch": 0.33, "chin": 0.72, "ankle": [0.115, 0.07, -0.01], "hip_x": 0.065}
+    "chibi_bun": {"src": "cartoon_girl", "base": "girl", "shoulder": [0.115, 0.645, -0.005], "fingertip": [0.27, 0.355, 0.01], "crotch": 0.33, "chin": 0.72, "ankle": [0.115, 0.07, -0.01], "hip_x": 0.065,
+      "skirt": {"top": 0.42, "fade": 0.04, "hem": 0.29, "bottom": 0.26, "hem_thigh": 0.6, "seam": 0.03, "leg_r": 0.04, "leg_fade": 0.015, "arm_r": 0.05, "smooth": 4}}
   }
 }

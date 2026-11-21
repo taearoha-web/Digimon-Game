@@ -4,11 +4,18 @@ extends Node3D
 ## three-quarter and side.
 ##   godot --rendering-driver opengl3 --resolution 1600x900 --path . res://tests/tools/chibi_body_sheet.tscn -- OUT.png GENDER BODY [VIEW]
 ## VIEW: front | side | back (default front). Gear: Lv.100 star gear with wings on the last row.
+## VIEW skirt / skirt_side: no gear, the clips that swing the legs widest (dress and
+## shorts check, tools/chibi_models.json "skirt").
 const CELLS := [
 	["warrior", "Idle", 0.3], ["warrior", "Walking_A", 0.25], ["warrior", "Walking_A", 0.75], ["warrior", "Running_A", 0.25], ["warrior", "Running_A", 0.75],
 	["warrior", "1H_Melee_Attack_Chop", 0.25], ["warrior", "1H_Melee_Attack_Chop", 0.5], ["warrior", "2H_Melee_Attack_Spin", 0.4], ["mage", "Spellcast_Shoot", 0.3], ["mage", "Spellcast_Long", 0.5],
 	["archer", "2H_Ranged_Shoot", 0.2], ["archer", "2H_Ranged_Shoot", 0.5], ["warrior", "Hit_A", 0.3], ["warrior", "Death_A", 0.35], ["warrior", "Death_A", 1.0],
 	["warrior", "Jump_Full_Short", 0.4], ["warrior", "Dodge_Backward", 0.3], ["priest", "Cheer", 0.4], ["lancer", "2H_Melee_Attack_Stab", 0.4], ["bard", "Idle", 0.3],
+]
+const SKIRT_CELLS := [
+	["warrior", "Idle", 0.3], ["warrior", "Walking_A", 0.25], ["warrior", "Walking_A", 0.75], ["warrior", "Running_A", 0.25], ["warrior", "Running_A", 0.75],
+	["warrior", "2H_Melee_Attack_Spin", 0.4], ["warrior", "2H_Melee_Attack_Slice", 0.4], ["warrior", "1H_Melee_Attack_Slice_Horizontal", 0.5], ["warrior", "Dodge_Backward", 0.3], ["warrior", "Jump_Full_Short", 0.4],
+	["warrior", "Sit_Floor_Idle", 0.5], ["warrior", "Death_A", 0.35], ["warrior", "Death_A", 1.0], ["mage", "Spellcast_Long", 0.5], ["warrior", "Unarmed_Melee_Attack_Punch_A", 0.4],
 ]
 var COLS := 5
 var CELL := Vector2i(320, 300)
@@ -29,24 +36,30 @@ func _ready() -> void:
 		cells = [CELLS[0], CELLS[3], CELLS[6]]
 		CELL = Vector2i(700, 900)
 		COLS = 3
+	var skirt := view.begins_with("skirt")
+	if skirt:
+		cells = SKIRT_CELLS
+		CELL = Vector2i(400, 440)
 	get_viewport().size = CELL
 	var cam := Camera3D.new(); add_child(cam)
 	cam.fov = 40; cam.position = Vector3(0, 1.35, 4.6); cam.rotation_degrees = Vector3(-5, 0, 0)
 	if view == "big":
 		cam.fov = 30; cam.position = Vector3(0, 1.3, 5.0)
+	if skirt:
+		cam.fov = 24; cam.position = Vector3(0, 0.85, 4.6); cam.rotation_degrees = Vector3(-3, 0, 0)
 	var sheet := Image.create(CELL.x * COLS, CELL.y * ceili(cells.size() / float(COLS)), false, Image.FORMAT_RGBA8)
 	var look := FaceKit.default_look(); look["gender"] = gender; look["body"] = body
 	for i in cells.size():
 		var cell: Array = cells[i]
 		var equip := {}
-		if view != "big" and i >= cells.size() - COLS:
+		if view != "big" and not skirt and i >= cells.size() - COLS:
 			for slot in ["weapon", "armor", "helm", "wings"]:
 				var item: Variant = StarProgression.item(StringName(cell[0]), 100, slot, RandomNumberGenerator.new()) if slot != "wings" else null
 				if item != null:
 					equip[slot] = item
 		var h := HeroVisual.new(); add_child(h)
 		h.setup(StringName(cell[0]), "", true, equip, look)
-		h.rotation_degrees.y = {"front": 25.0, "side": 90.0, "back": 180.0, "big": 20.0}.get(view, 25.0)
+		h.rotation_degrees.y = {"front": 25.0, "side": 90.0, "back": 180.0, "big": 20.0, "skirt": 25.0, "skirt_side": 70.0}.get(view, 25.0)
 		var clip := String(cell[1])
 		if h.anim.has_animation(clip):
 			h.anim.play(clip, 0.0)
