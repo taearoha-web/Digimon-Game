@@ -211,7 +211,7 @@ func _setup_chibi(armed: bool, p_equip: Dictionary) -> void:
 	model.scale = Vector3.ONE * (CHIBI_HEIGHT / maxf(height, 0.1))
 	_gear_scale = (HEIGHT / 2.2) / model.scale.x
 	if armed:
-		WeaponPoses.install(anim, _skeleton, class_id, CHIBI_MODELS[gender], {"r": _slot_fix("handslot.r"), "l": _slot_fix("handslot.l")}, _gear_scale)
+		WeaponPoses.install(anim, _skeleton, class_id, ChibiBodies.path(look), {"r": _slot_fix("handslot.r"), "l": _slot_fix("handslot.l")}, _gear_scale)
 	_head_bone = -1
 	set_process(false)
 	equip = p_equip

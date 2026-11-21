@@ -3,11 +3,23 @@ extends Node3D
 ## equipment tiers and all three rigs. Uses an isolated test data directory.
 var checks := 0
 var failures: Array[String] = []
+## The strumming hand's palm from the lute's strumming line, in metres.
+const STRUM_TOLERANCE := 0.03
 var max_grip_error := 0.0
 var max_support_error := 0.0
 var min_torso_clearance := 9.0
 var min_pole_up := 1.0
 var _source_grips: Dictionary = {}
+## Worst errors per body (every chibi body of both genders, and the KayKit rig):
+## main-hand grip, support hand (spear shaft, bow string, lute strings), spear clearance.
+var per_body: Dictionary = {}
+
+
+func note(body: String, key: String, value: float, worse_is_lower := false) -> void:
+	if not per_body.has(body):
+		per_body[body] = {"grip": 0.0, "shaft": 0.0, "string": 0.0, "strum": 0.0, "clear": 9.0}
+	var stats: Dictionary = per_body[body]
+	stats[key] = minf(stats[key], value) if worse_is_lower else maxf(stats[key], value)
 
 
 func check(ok: bool, message: String) -> void:
@@ -133,14 +145,28 @@ func _ready() -> void:
 	rng.seed = 710
 	var families: Array[StringName] = [ClassData.LEGACY]
 	families.append_array(ClassData.IDS)
-	for rig in 3:
+	# Every body (ChibiBodies) of both genders: they share their original's skeleton
+	# and clips but have their own bone lengths, so each holds its weapons with its
+	# own baked poses. WEAPON_MOTION_ONLY="g:b" limits a run to one body (development).
+	var bodies: Array = []
+	for gender in 2:
+		for body in ChibiBodies.count(gender):
+			bodies.append([gender, body])
+	bodies.append([2, 0])
+	var only := OS.get_environment("WEAPON_MOTION_ONLY")
+	if only != "":
+		bodies = bodies.filter(func(b: Array) -> bool: return "%d:%d" % [b[0], b[1]] in only.split(","))
+	for entry in bodies:
+		var rig: int = entry[0]
+		var look := {} if rig == 2 else {"gender": rig, "body": entry[1]}
+		var body_tag := "kaykit" if rig == 2 else ChibiBodies.path(look).get_file().get_basename()
 		for family in families:
 			var hero := HeroVisual.new()
 			add_child(hero)
-			hero.setup(family, "", true, {}, {} if rig == 2 else {"gender": rig})
+			hero.setup(family, "", true, {}, look)
 			hero.set_process(false)
 			var kind := String(ClassData.get_class_data(family).weapon_kind)
-			var tag := "rig%d %s" % [rig, family]
+			var tag := "%s %s" % [body_tag, family]
 			var attack := String(ClassData.get_class_data(family).attack.anims[0])
 			for tier in 10:
 				hero.equip = {"weapon": ItemData.generate(tier * 10 + 5, family, rng, 0, "weapon")}
@@ -150,9 +176,11 @@ func _ready() -> void:
 					pose(hero, clip, 0.35)
 					var error := grip(held(hero, kind), kind).distance_to(palm(hero, WeaponGrip.hand_for(kind).trim_prefix("handslot.")))
 					max_grip_error = maxf(max_grip_error, error)
+					note(body_tag, "grip", error)
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
 					if family == &"warrior":
 						error = grip(held(hero, "shield"), "shield").distance_to(palm(hero, "l"))
+						note(body_tag, "grip", error)
 						check(error < 0.015, "%s tier%d shield back handle %.4fm" % [tag, tier, error])
 			# Sample whole loops, not just a favourable screenshot phase.
 			var clips := ["Idle", "Running_A", "Walking_A"]
@@ -191,10 +219,12 @@ func _ready() -> void:
 						var axis := posed_transform(asset).basis.y.normalized()
 						var error := (offset - axis * offset.dot(axis)).length()
 						max_support_error = maxf(max_support_error, error)
+						note(body_tag, "shaft", error)
 						check(error < 0.035, "%s %s frame%d support hand %.4fm from shaft" % [tag, clip, frame, error])
 						# The whole shaft, tail included, must pass outside the torso.
 						var clearance := torso_clearance(hero, asset)
 						min_torso_clearance = minf(min_torso_clearance, clearance)
+						note(body_tag, "clear", clearance, true)
 						# Walking, standing, thrusts and slashes must clear it fully; the
 						# short guard/skill swings may graze the torso's edge.
 						var needed := 0.55 if (String(clip).begins_with("Martial_") or String(clip).begins_with("Block")) else 1.0
@@ -203,7 +233,18 @@ func _ready() -> void:
 						var bow_basis := posed_transform(asset).basis.orthonormalized()
 						check(bow_basis.y.dot(Vector3.UP) > 0.995 and bow_basis.z.dot(Vector3.BACK) > 0.995, tag + " bow stays upright and aims forward")
 						var hands := palm(hero, "r") - palm(hero, "l")
+						note(body_tag, "string", Vector2(hands.x, hands.y).length())
 						check(Vector2(hands.x, hands.y).length() < 0.035 and hands.z < -0.04, tag + " drawing hand aligned behind bow string")
+					if family == &"bard" and (clip == "Spellcasting" or clip in ["Idle", "Running_A", "Walking_A", "Fly_Hover", "Fly_Forward"]):
+						# The right hand strums over the strings: its distance from the
+						# strumming line (across the strings, below the rosette).
+						var lute := posed_transform(asset)
+						var across := lute.basis.x.normalized()
+						var strum := lute * ((WeaponPoses.BARD_HOLD["chibi" if rig != 2 else "kaykit"].strum as Vector3) / float(WeaponKit.MODELS.lute.scale))
+						var miss := palm(hero, "r") - strum
+						var strum_error := (miss - across * miss.dot(across)).length()
+						note(body_tag, "strum", strum_error)
+						check(strum_error < STRUM_TOLERANCE, "%s %s frame%d strumming hand %.4fm off the strings" % [tag, clip, frame, strum_error])
 					var rotations: Array[Quaternion] = []
 					for bone in hero._skeleton.get_bone_count():
 						var name := hero._skeleton.get_bone_name(bone)
@@ -237,6 +278,9 @@ func _ready() -> void:
 			check(hero.current == "Running_A" and is_equal_approx(hero.anim.speed_scale, 1.2), tag + " resumes latest movement after recovery")
 			hero.free()
 			print("CHECKED: ", tag)
+	for body in per_body:
+		var b: Dictionary = per_body[body]
+		print("BODY %-15s grip %.4f  spear-support %.4f  bow-string %.4f  lute-strum %.4f  spear-clearance %.2f" % [body, b.grip, b.shaft, b.string, b.strum, b.clear])
 	print("WEAPON MOTION: %s | %d checks, %d failures | max grip %.4fm, support %.4fm, min pole up %.4f, spear torso clearance %.2f" % ["PASS" if failures.is_empty() else "FAIL", checks, failures.size(), max_grip_error, max_support_error, min_pole_up, min_torso_clearance])
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():

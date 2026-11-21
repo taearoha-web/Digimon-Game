@@ -15,12 +15,26 @@ static var authoring := false
 static var _libraries: Dictionary = {}
 
 
+## The baked library's prefix for a body: "boy" / "girl" (the original chibis),
+## "kaykit", or the other chibi bodies' own names (chibi_silver.glb -> "silver").
+## Every body has its own bone lengths, so each holds its weapons with its own
+## baked arms: the originals' arm turns put a shorter arm's hands off the weapon.
+static func rig_name_of(cache_key: String) -> String:
+	if cache_key.contains("chibi_boy"):
+		return "boy"
+	if cache_key.contains("chibi_girl"):
+		return "girl"
+	if cache_key.contains("/heroes/chibi_"):
+		return cache_key.get_file().get_basename().trim_prefix("chibi_")
+	return "kaykit"
+
+
 static func install(player: AnimationPlayer, skeleton: Skeleton3D, family: StringName, cache_key: String, corrections: Dictionary, gear_scale: float) -> void:
 	var key := cache_key + ":" + String(family)
 	if not _libraries.has(key):
 		var original := player.get_animation_library("")
 		var library := AnimationLibrary.new()
-		var rig_name := "boy" if cache_key.contains("chibi_boy") else "girl" if cache_key.contains("chibi_girl") else "kaykit"
+		var rig_name := rig_name_of(cache_key)
 		var path := DIRECTORY + rig_name + "_" + String(family) + ".res"
 		var overlay: AnimationLibrary
 		if authoring:
@@ -213,6 +227,12 @@ static func _shared_grip(skeleton: Skeleton3D, local: Array[Transform3D], rig: D
 ## Shaft clearance (in torso radii) wanted when baking, and the most the spear
 ## may turn further across the body to get it.
 const SPEAR_CLEARANCE := 1.15
+## The spear adjustments tried (turns, lifts, outward shifts, grip widths), the
+## wider grid only when nothing in the first clears the torso.
+const SPEAR_GRIDS := [
+	[[0.0, 10.0, 20.0, 30.0, 40.0], [0.0, 10.0, -10.0, 20.0], [0.0, 0.1, 0.2, 0.3], [0.62, 0.5, 0.4]],
+	[[0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0], [0.0, 10.0, -10.0, 20.0, -20.0, 30.0], [0.0, 0.1, 0.2, 0.3, 0.4, 0.5], [0.62, 0.5, 0.4, 0.3]],
+]
 
 
 ## One adjustment per clip, (extra turn across the body in degrees, extra lift
@@ -230,48 +250,55 @@ static func _spear_tune(source: Animation, skeleton: Skeleton3D, tracks: Diction
 	for side in ["r", "l"]:
 		for key in ["upper", "lower", "hand"]:
 			arm_bones.append(int(rig[side][key]))
-	for turn in [0.0, 10.0, 20.0, 30.0, 40.0]:
-		for lift in [0.0, 10.0, -10.0, 20.0]:
-			for out in [0.0, 0.1, 0.2, 0.3]:
-				for grip in [0.62, 0.5, 0.4]:
-					var tune := Vector4(float(turn), float(lift), float(out), float(grip))
-					var worst := INF
-					var steady := true
-					var last: Array[Quaternion] = []
-					for k in range(0, steps + 1, stride):
-						var time := source.length * float(k) / float(steps)
-						var local := _frame(source, skeleton, tracks, time)
-						var global := _globals(skeleton, local)
-						var chest: Transform3D = global[rig.chest]
-						var body := (chest.basis * skeleton.get_bone_global_rest(rig.chest).basis.inverse()).orthonormalized()
-						_prepare_arms(rig, body, chest.basis * idle_globals[rig.chest].basis.inverse(), idle_globals)
-						var result := _spear_hold(skeleton, local, rig, body, chest, name, time, float(k) / float(steps), source.length, carry, spear, tune)
-						worst = minf(worst, result.x)
-						# The support hand must stay on the shaft and no elbow may
-						# flip between neighbouring samples.
-						if result.y > 0.05:
-							steady = false
-						var now: Array[Quaternion] = []
-						for bone in arm_bones:
-							now.append(local[bone].basis.get_rotation_quaternion())
-						if not last.is_empty():
-							for i in now.size():
-								if absf(now[i].dot(last[i])) < cos(0.45 / 2.0) * (1.0 if stride == 1 else 0.0):
-									steady = false
-						last = now
-					if not steady:
-						continue
-					if worst > clearest_value:
-						clearest_value = worst
-						clearest = tune
-					var cost: float = turn + absf(lift) + out * 100.0 + (0.62 - grip) * 60.0
-					if worst >= SPEAR_CLEARANCE and cost < best_cost:
-						best_cost = cost
-						best = tune
+	# The original grid first (the boy, girl and KayKit libraries were baked with it);
+	# a body whose short arms find no clear hold there tries a wider one.
+	for grid in SPEAR_GRIDS:
+		if best_cost < INF:
+			break
+		for turn in grid[0]:
+			for lift in grid[1]:
+				for out in grid[2]:
+					for grip in grid[3]:
+						var tune := Vector4(float(turn), float(lift), float(out), float(grip))
+						var worst := INF
+						var steady := true
+						var last: Array[Quaternion] = []
+						for k in range(0, steps + 1, stride):
+							var time := source.length * float(k) / float(steps)
+							var local := _frame(source, skeleton, tracks, time)
+							var global := _globals(skeleton, local)
+							var chest: Transform3D = global[rig.chest]
+							var body := (chest.basis * skeleton.get_bone_global_rest(rig.chest).basis.inverse()).orthonormalized()
+							_prepare_arms(rig, body, chest.basis * idle_globals[rig.chest].basis.inverse(), idle_globals)
+							var result := _spear_hold(skeleton, local, rig, body, chest, name, time, float(k) / float(steps), source.length, carry, spear, tune)
+							worst = minf(worst, result.x)
+							# The support hand must stay on the shaft and no elbow may
+							# flip between neighbouring samples.
+							if result.y > 0.05:
+								steady = false
+							var now: Array[Quaternion] = []
+							for bone in arm_bones:
+								now.append(local[bone].basis.get_rotation_quaternion())
+							if not last.is_empty():
+								for i in now.size():
+									if absf(now[i].dot(last[i])) < cos(0.45 / 2.0) * (1.0 if stride == 1 else 0.0):
+										steady = false
+							last = now
+						if not steady:
+							continue
+						if worst > clearest_value:
+							clearest_value = worst
+							clearest = tune
+						var cost: float = turn + absf(lift) + out * 100.0 + (0.62 - grip) * 60.0
+						if worst >= SPEAR_CLEARANCE and cost < best_cost:
+							best_cost = cost
+							best = tune
 	if best_cost == INF and clearest_value == -INF:
 		# Every adjustment flipped an elbow or lost the support hand: the baked
 		# clip will fail weapon_motion_test, so say so at bake time.
 		push_warning("WeaponPoses: no steady spear hold for %s on this rig" % name)
+	elif best_cost == INF:
+		push_warning("WeaponPoses: no spear hold clears the torso in %s on this rig (clearest %.2f)" % [name, clearest_value])
 	return best if best_cost < INF else clearest
 
 
