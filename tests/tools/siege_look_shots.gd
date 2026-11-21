@@ -17,7 +17,8 @@ const PLAYER_VIEWS := [
 	["stairs", Vector3(0.0, 0.3, -94.0), 0.0],
 	["throne", Vector3(3.0, 0.3, -108.0), 0.0],
 	["altar", Vector3(0.0, 0.3, -124.0), 0.0],
-	["altar_back", Vector3(0.0, 0.3, -126.0), PI],
+	["altar_back", Vector3(0.0, 0.3, -122.0), PI],
+	["climb", Vector3(-4.0, 0.3, -97.0), 0.5],
 ]
 ## Free cameras: [name, from, look at].
 const AIR_VIEWS := [
@@ -78,17 +79,25 @@ func _ready() -> void:
 	m.set_process(false)
 	var rig: ThirdPersonCamera = zone.camera_rig
 	var arena: Object = SiegeArena.new()
+	# Each place at the fighting tilt, at the old highest tilt and (where the zone allows
+	# it) tilted up at the castle.
+	var tilts := [[-47.0, "p"], [-38.0, "t"]]
+	if rig.max_pitch > -30.0:
+		tilts.append([rig.max_pitch, "u"])
 	for v in PLAYER_VIEWS:
 		var at: Vector3 = v[1]
 		if arena.has_method("floor_y"):
 			at.y = float(arena.call("floor_y", at)) + 0.3
 		zone.hero.global_position = at
 		zone.hero.velocity = Vector3.ZERO
-		rig.yaw = float(v[2])
-		rig.snap_to_target()
-		for i in 20:
-			await get_tree().process_frame
-		await _shot("p_" + String(v[0]))
+		for tilt in tilts:
+			rig.pitch_degrees = float(tilt[0])
+			rig.set_yaw_behind(float(v[2]))
+			rig.snap_to_target()
+			for i in 14:
+				await get_tree().process_frame
+			await _shot("%s_%s" % [tilt[1], v[0]])
+		print("HERO %s y=%.2f floor=%s" % [v[0], zone.hero.global_position.y, zone.hero.is_on_floor()])
 	var cam := Camera3D.new()
 	zone.add_child(cam)
 	cam.fov = 60.0

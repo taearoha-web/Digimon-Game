@@ -1035,6 +1035,11 @@ func _spawn_hero() -> void:
 		camera_rig.height_offset = 0.9
 		camera_rig.base_fov = 40.0
 		camera_rig.far_plane = 150.0
+		if bool(data.get("guildwar", false)):
+			# The castle siege: the view may be tilted up to take in the walls, the keep and
+			# the kingdom behind them (the fighting view, tilted down, is as everywhere).
+			# (SiegeLift lengthens the camera's reach only while it is tilted up.)
+			camera_rig.max_pitch = -14.0
 	add_child(camera_rig)
 	camera_rig.add_excluded_body(hero)
 	camera_rig.set_yaw_behind(PI * 1.5 if not (is_town or is_hall) else 0.0)

@@ -337,8 +337,10 @@ func _place_camera() -> void:
 	if camera == null:
 		return
 	var pitch := deg_to_rad(PITCH_DEGREES)
-	camera.global_position = center + Vector3(0, sin(pitch), cos(pitch)) * distance
-	camera.look_at(center, Vector3.UP)
+	# Over the staircase and the raised court the view follows the floor up.
+	var at := center + Vector3(0, SiegeArena.floor_y(center), 0)
+	camera.global_position = at + Vector3(0, sin(pitch), cos(pitch)) * distance
+	camera.look_at(at, Vector3.UP)
 
 
 static func _clamp_field(p: Vector3) -> Vector3:

@@ -692,9 +692,9 @@ static func siege(root: Node3D, colors: Array, camps: int) -> void:
 			continue
 		var z: float = S.GATE_Z[2] - 5.0 - (float(i) + 0.5) * (S.THRONE_DEPTH - 9.0) / 6.0
 		for s in [-1.0, 1.0]:
-			torches.append(Transform3D(Basis(), Vector3(s * S.THRONE_HALF * 0.62, 0, z)))
+			torches.append(Transform3D(Basis(), S.on_floor(Vector3(s * S.THRONE_HALF * 0.62, 0, z))))
 	for s in [-1.0, 1.0]:
-		racks.append(Transform3D(Basis(Vector3.UP, -s * PI * 0.5), Vector3(s * (S.THRONE_HALF - 1.6), 0, S.BACK_Z + 8.0)))
+		racks.append(Transform3D(Basis(Vector3.UP, -s * PI * 0.5), S.on_floor(Vector3(s * (S.THRONE_HALF - 2.2), 0, S.BACK_Z + 8.0))))
 	# Drop anything that landed in an exclusion circle (the gates' approaches, the switch,
 	# the altar, the keep camp).
 	torches = _keep_free(torches, blocked, 0.4)

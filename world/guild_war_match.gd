@@ -888,7 +888,7 @@ static func spawn_slot(team: int, index: int, count: int, inside := false) -> Ve
 	var lateral := (float(col) - (float(in_row) - 1.0) * 0.5) * ROW_GAP
 	var depth := float(row) * ROW_DEPTH + (ALLY_SETBACK if team == GuildFighter.TEAM_ALLY else 0.0)
 	var p := center + across * lateral - fwd * depth
-	return Vector3(p.x, 0.3, p.z)
+	return SiegeArena.on_floor(p, 0.3)
 
 
 ## Where the hero comes back in a war it did not start holding the castle in (team 0's camp).
@@ -1749,7 +1749,7 @@ func _raise_castle(saved: Dictionary) -> void:
 				f.position = f.spawn_point
 	var holder := Node3D.new()
 	holder.name = "AltarCrystal"
-	holder.position = SiegeArena.ALTAR
+	holder.position = SiegeArena.altar_top()
 	zone.add_child(holder)
 	# Its own copy: the cached toon material is shared with anything else of that colour.
 	_crystal_mat = (MeshKit.toon(NEUTRAL_COLOR, {"emission": 1.2}) as StandardMaterial3D).duplicate()
@@ -2299,8 +2299,8 @@ func _set_switch_side(k: int, holder: int, challenger := -1) -> bool:
 	var sw_name := SiegeArena.SWITCH_NAMES[k]
 	if holder != was and zone != null and is_instance_valid(zone):
 		var color := team_color(holder) if holder >= 0 else Color.WHITE
-		VfxKit.flash(zone, SiegeArena.SWITCHES[k] + Vector3(0, 1.0, 0), color, 4.0, 0.35)
-		VfxKit.shockwave(zone, SiegeArena.SWITCHES[k] + Vector3(0, 0.3, 0), color, SiegeArena.SWITCH_RADIUS + 1.5)
+		VfxKit.flash(zone, SiegeArena.switch_top(k) + Vector3(0, 1.0, 0), color, 4.0, 0.35)
+		VfxKit.shockwave(zone, SiegeArena.switch_top(k) + Vector3(0, 0.3, 0), color, SiegeArena.SWITCH_RADIUS + 1.5)
 	if state != "fight":
 		return true
 	if holder >= 0 and holder != was:
@@ -2585,7 +2585,7 @@ func _raise_switches() -> void:
 	for k in SiegeArena.SWITCHES.size():
 		var root := Node3D.new()
 		root.name = "CastleSwitch" if k == 0 else "CastleSwitchRight"
-		root.position = SiegeArena.SWITCHES[k]
+		root.position = SiegeArena.switch_top(k)
 		zone.add_child(root)
 		var floor_mat := StandardMaterial3D.new()
 		floor_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2632,7 +2632,7 @@ func _raise_switches() -> void:
 	_color_switch()
 	var holder := Node3D.new()
 	holder.name = "AltarBarrier"
-	holder.position = SiegeArena.ALTAR
+	holder.position = SiegeArena.altar_top()
 	zone.add_child(holder)
 	_barrier_mat = StandardMaterial3D.new()
 	_barrier_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2834,7 +2834,7 @@ func _tick_capture(delta: float) -> void:
 			capture["barrier"] = true
 			feed.emit("บาเรียกลับมากันแท่น! กิลด์ %s หยุดนับที่ %d/%d วิ — %s" % [team_name(team), int(capture.progress), int(CAPTURE_TIME), barrier_text(team).trim_prefix("บาเรียกันแท่นอยู่ — ")], team)
 			if zone != null and is_instance_valid(zone):
-				VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
+				VfxKit.shockwave(zone, SiegeArena.altar_top() + Vector3(0, 0.4, 0), Color(BARRIER_COLOR, 1.0), 5.0)
 		capture["paused"] = true
 		_offer_altar(team)
 		return
@@ -2913,8 +2913,8 @@ func _complete_capture() -> void:
 				_send_home(t, true)
 	_color_crystal()
 	_make_plans()
-	VfxKit.pillar(zone, SiegeArena.ALTAR, _owner_color(), 14.0, 1.6, 1.6)
-	VfxKit.shockwave(zone, SiegeArena.ALTAR + Vector3(0, 0.3, 0), _owner_color(), 9.0)
+	VfxKit.pillar(zone, SiegeArena.altar_top(), _owner_color(), 14.0, 1.6, 1.6)
+	VfxKit.shockwave(zone, SiegeArena.altar_top() + Vector3(0, 0.3, 0), _owner_color(), 9.0)
 	zone.banner_requested.emit("กิลด์ %s ยึดปราสาทได้!" % team_name(team))
 	feed.emit("กิลด์ %s ยึดปราสาทได้!" % team_name(team), team)
 	AudioManager.play_sfx(&"star_release", -2.0)
