@@ -18,7 +18,8 @@ lengths, so the base clips (whose bone offsets Godot drops as constant) play on 
 Weights: the base body is posed into the fit (each region's similarity), then
 every vertex takes the weights of the nearest point of that posed surface
 (barycentric blend), the face, hair and eye bones fold into Head, and the
-weights are smoothed over the mesh a few times.
+weights are smoothed over the mesh a few times. A model with a skirt, dress or
+puffy shorts ("skirt" in its spec) then has the cloth reweighted (garment()).
 """
 import json, struct, sys, math
 import numpy as np
@@ -272,6 +273,89 @@ def transfer(base, posed, V, F_new, smooth_iters=3):
     return W
 
 
+def _smoothstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def _seg_dist(P, a, b):
+    ab = b - a
+    t = np.clip(((P - a) @ ab) / (ab @ ab), 0.0, 1.0)
+    return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+
+
+def garment(W, V, F, G, base, o, fingertip):
+    """A skirt, dress or puffy shorts (spec "skirt"): the nearest-point copy gives the
+    cloth the thigh under it, so the hem tears and stretches as the legs swing. Below
+    `top` (fading in over `fade`) and outside the leg cylinders (`leg_r` around each
+    thigh and shin, `leg_fade` soft) but above `bottom`, every leg weight moves to the
+    Hips, except a share that grows (smoothstep) from 0 at `top` to `hem_thigh` at
+    `hem` (`hem_thigh_front` in front of the hips) and goes to the thigh of the
+    vertex's side (blended over `seam` across x=0, so the front and back seams do
+    not split). Below `arm_top`, a vertex farther than `arm_r` from the arm
+    (shoulder to fingertip) and not mostly arm (the hand itself) drops its arm weights to the Hips: the hanging hand lends them to the cloth
+    beside it and drags shards out with it. Then the cloth (not the hands) is
+    averaged with its neighbours `smooth` times. Returns the weights and the cloth
+    amount."""
+    ix = base.index
+    P = np.array([g[:3, 3] for g in G])
+    y, x = V[:, 1], V[:, 0]
+    g = 1.0 - _smoothstep(o['top'], o['top'] + o.get('fade', 0.03), y)
+    g *= _smoothstep(o.get('bottom', 0.0) - 0.01, o.get('bottom', 0.0) + 0.01, y)
+    lr = o.get('leg_r', 0.04)
+    near = np.full(len(V), 9.0)
+    for S in ('Left', 'Right'):
+        a, k, f = P[ix[S + 'UpperLeg']], P[ix[S + 'LowerLeg']], P[ix[S + 'Foot']]
+        near = np.minimum(near, np.minimum(_seg_dist(V, a, k), _seg_dist(V, k, f)))
+    g *= _smoothstep(lr, lr + o.get('leg_fade', 0.015), near)
+    legs = [ix[S + p] for S in ('Left', 'Right') for p in ('UpperLeg', 'LowerLeg', 'Foot', 'Toes')]
+    L = W[:, legs].sum(1)
+    # the front panel may follow the thigh more (`hem_thigh_front`): a raised knee
+    # lifts it instead of poking through
+    zf = _smoothstep(-0.02, 0.04, V[:, 2] - P[ix['Hips'], 2])
+    ht = o.get('hem_thigh', 0.25) * (1 - zf) + o.get('hem_thigh_front', o.get('hem_thigh', 0.25)) * zf
+    s = ht * _smoothstep(o['top'], o['hem'], y)
+    wl = _smoothstep(-o.get('seam', 0.03), o.get('seam', 0.03), x)
+    T = W.copy()
+    T[:, legs] = 0
+    T[:, ix['Hips']] += L * (1 - s)
+    T[:, ix['LeftUpperLeg']] += L * s * wl
+    T[:, ix['RightUpperLeg']] += L * s * (1 - wl)
+    W = (1 - g)[:, None] * W + g[:, None] * T
+    arm = [k for k, nm in enumerate(base.names) if any(p in nm for p in ('UpperArm', 'LowerArm', 'Hand', 'Thumb', 'Index', 'Middle', 'Ring', 'Little'))]
+    da = np.full(len(V), 9.0)
+    for S, sx in (('Left', 1.0), ('Right', -1.0)):
+        tip = np.array(fingertip) * np.array([sx, 1, 1])
+        pts = [P[ix[S + 'UpperArm']], P[ix[S + 'LowerArm']], P[ix[S + 'Hand']], tip]
+        for a, b in zip(pts[:-1], pts[1:]):
+            da = np.minimum(da, _seg_dist(V, a, b))
+    ar = o.get('arm_r', 0.03)
+    at = o.get('arm_top', o['top'] + 0.04)
+    A = W[:, arm].sum(1)
+    h = (1.0 - _smoothstep(at, at + 0.02, y)) * _smoothstep(ar, ar + 0.01, da) * (1.0 - _smoothstep(0.8, 0.95, A))
+    A = A * h
+    W[:, arm] *= (1 - h)[:, None]
+    W[:, ix['Hips']] += A
+    g = np.maximum(g, h * (A > 1e-4)) * (1.0 - _smoothstep(0.5, 0.9, W[:, arm].sum(1)))
+    rows, cols, deg = _adjacency(F, len(V))
+    for _ in range(int(o.get('smooth', 4))):
+        acc = np.zeros_like(W)
+        np.add.at(acc, rows, W[cols])
+        avg = acc / np.maximum(deg, 1)[:, None]
+        W = W + (g * 0.5)[:, None] * (avg - W)
+    return W, g
+
+
+def _adjacency(F, nv):
+    nb = [[] for _ in range(nv)]
+    for f in F:
+        for x in range(3):
+            nb[f[x]].append(f[(x + 1) % 3]); nb[f[x]].append(f[(x + 2) % 3])
+    rows = np.concatenate([np.full(len(l), i) for i, l in enumerate(nb)])
+    cols = np.concatenate([np.array(l, int) for l in nb])
+    return rows, cols, np.bincount(rows, minlength=nv).astype(float)
+
+
 def top4(W):
     idx = np.argsort(-W, axis=1)[:, :4]
     w = np.take_along_axis(W, idx, 1)
@@ -414,7 +498,11 @@ def main(argv):
     weld = weld.reshape(-1)
     first = np.zeros(weld.max() + 1, int)
     first[weld[::-1]] = np.arange(len(weld))[::-1]
-    W = transfer(base, posed, V[first], weld[F], int(ml.get('smooth', 3)))[weld]
+    W = transfer(base, posed, V[first], weld[F], int(ml.get('smooth', 3)))
+    if 'skirt' in ml:
+        W, cloth = garment(W, V[first], weld[F], G, base, ml['skirt'], ml['fingertip'])
+        print('%s: cloth on %d of %d welded verts' % (name, int((cloth > 0.5).sum()), len(cloth)))
+    W = W[weld]
     # vertex colour R: how much may be recoloured as outfit (head, neck, hands stay)
     keep = np.zeros(len(V))
     for k, nm in enumerate(base.names):
