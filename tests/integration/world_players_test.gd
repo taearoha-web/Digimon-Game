@@ -59,6 +59,9 @@ func _skill_ranks() -> void:
 				steady = steady and int(ranks[id]) >= int(last.get(id, 1)) and int(ranks[id]) <= SkillRank.MAX
 			var unlocked := 0
 			for skill in ClassData.pool(cls):
+				# A class with skill lines ranks each line once (ClassData.rank_id).
+				if ClassData.has_lines(cls) and not skill.has("star") and not ClassData.is_line(cls, String(skill.id)):
+					continue
 				unlocked += 1 if int(skill.level) <= int(step[0]) else 0
 			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1])), unlocked * (SkillRank.MAX - 1))
 			last = ranks
