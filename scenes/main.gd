@@ -43,6 +43,7 @@ var _traveling := false
 
 
 func _ready() -> void:
+	BootTrace.mark("main_ready_start")
 	# GuildWarSpectate finds the game's root here to travel to a watched war and back.
 	add_to_group(&"game_main")
 	GameSettings.load_settings()
@@ -204,6 +205,7 @@ func _ready() -> void:
 		if level >= JobData.GOD_STARS and Game.adv() == JobData.GOD_ADV - 1 and Game.class_id() != ClassData.LEGACY:
 			hud.show_banner("ถึงดาว %d! เปลี่ยนอาชีพขั้นเทพเจ้าได้แล้ว!" % JobData.GOD_STARS)
 			Game.say("ไปหาปรมาจารย์ผู้เปลี่ยนชะตา เพื่อเลื่อนขั้นเป็น \"%s\"" % JobData.god_name(Game.class_id()), &"quest"))
+	BootTrace.mark("main_screens_built")
 	_show_title()
 
 
@@ -317,7 +319,9 @@ func _pick_class(slot: int) -> void:
 func _enter_loaded() -> void:
 	hud.visible = true
 	Game.playing = true
+	BootTrace.mark("enter_world_start")
 	await go(Game.current_zone if Game.current_zone != &"" else &"town", true)
+	BootTrace.mark("enter_world_done")
 	# A guild war cut off a moment ago can be picked up again (Game.GW_CKPT_LIFETIME).
 	var rejoin := Game.guildwar_rejoin_left()
 	if rejoin > 0:
@@ -421,6 +425,7 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
 	if not z.is_built:
 		await z.built
+	BootTrace.mark("zone_built")
 	zone = z
 	await get_tree().process_frame
 	await get_tree().process_frame

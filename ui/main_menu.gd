@@ -68,12 +68,19 @@ func _ready() -> void:
 	_read_slots()
 	_refresh()
 	_layout()
+	BootTrace.mark("title_built")
+	_first_frame_mark()
 	# One frame later: a zone being left is freed by then (one camera, one environment).
 	await get_tree().process_frame
 	if not is_inside_tree():
 		return
 	_layout()
 	await _build_heroes()
+
+
+func _first_frame_mark() -> void:
+	await RenderingServer.frame_post_draw
+	BootTrace.mark("title_first_frame")
 
 
 func _build_masthead(frame: Control) -> void:
@@ -190,6 +197,7 @@ func _build_heroes() -> void:
 		if not is_inside_tree():
 			return
 	_building = false
+	BootTrace.mark("title_heroes_done")
 	arrival_slot = 0
 	_update_plates()
 

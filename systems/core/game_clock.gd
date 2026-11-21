@@ -25,6 +25,7 @@ static func now() -> float:
 
 
 func _ready() -> void:
+	BootTrace.mark("autoloads_start")
 	process_priority = -1000
 	process_physics_priority = -1000
 

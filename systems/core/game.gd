@@ -115,6 +115,7 @@ var peak_save_work_ms := 0.0
 
 
 func _ready() -> void:
+	BootTrace.mark("game_ready_start")
 	ZoneData.ensure()
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -130,6 +131,7 @@ func _ready() -> void:
 	channel_chat.connect(func(_channel: String, speaker: String, text: String, color: Color): _on_world_chat(speaker, text, color))
 	world_boss_defeated.connect(_on_world_boss_defeated)
 	(func(): UIUtil.install_discard_holder(get_tree().root)).call_deferred()
+	BootTrace.mark("game_ready_end")
 
 
 func _process(delta: float) -> void:
