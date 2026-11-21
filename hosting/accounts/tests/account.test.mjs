@@ -872,8 +872,8 @@ test('the field boss record (bossw, BossWorld in the game) is accepted and check
 });
 
 test('the world reopening: characters and storage from before WORLD_EPOCH are refused, and never handed out', async t => {
-  const players = readFileSync(new URL('../../../data/world_players.gd', import.meta.url), 'utf8');
-  assert.equal(Number(players.match(/const START_UNIX := (\d+)/)[1]), WORLD_EPOCH, 'WORLD_EPOCH is the game\'s WorldPlayers.START_UNIX');
+  const game = readFileSync(new URL('../../../systems/core/game.gd', import.meta.url), 'utf8');
+  assert.equal(Number(game.match(/const WORLD_EPOCH := (\d+)/)[1]), WORLD_EPOCH, 'WORLD_EPOCH is the game\'s Game.WORLD_EPOCH');
   const old = {...sample()};
   delete old.world_epoch;
   assert.throws(() => validateBundle(bundle(old)), /before the world reopened/);

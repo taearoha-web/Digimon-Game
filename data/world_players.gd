@@ -30,7 +30,7 @@ extends RefCounted
 ## opening and is dropped with it). Before it the world is closed: nobody is online.
 ## Mirrored in hosting/worker/league.mjs, dungeon.mjs and hosting/accounts/server/accounts.js
 ## (WORLD_EPOCH); their tests read this line.
-const START_UNIX := 1795302000
+const START_UNIX := 1795309200
 ## Schedules run on Thai time.
 const TZ := 7 * 3600
 const DAY := 86400

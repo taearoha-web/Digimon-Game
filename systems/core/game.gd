@@ -59,7 +59,7 @@ const SAVE_VERSION := 1
 ## (or with an older one) is from before the reopening and is removed on start
 ## (reopen_world), refused as a save code and as a backup, dropped by the web page
 ## (tools/web/accounts.js bundleOf) and refused by the server (accounts.js WORLD_EPOCH).
-const WORLD_EPOCH := WorldPlayers.START_UNIX
+const WORLD_EPOCH := 1795302000
 ## This device's record of the reopening: {"epoch": the WORLD_EPOCH it has wiped for,
 ## "noticed": the title's one-time notice shown, "removed": characters it removed}.
 const REOPEN_PATH := "user://toon_tale_world_epoch.json"
@@ -656,7 +656,7 @@ func reopen_notice() -> String:
 		return ""
 	var text := "โลกเปิดใหม่! ตัวละครทั้งหมดถูกรีเซ็ต เริ่มผจญภัยใหม่ได้เลย"
 	if Time.get_unix_time_from_system() < float(WORLD_EPOCH):
-		text += "\nโลกเปิดอาทิตย์ 22 พ.ย. 06:00 น. สร้างตัวละครรอได้เลย ผู้เล่นทั้ง 100 คนจะเริ่มเลเวล 1 พร้อมกัน"
+		text += "\nโลกเปิดอาทิตย์ 22 พ.ย. 08:00 น. สร้างตัวละครรอได้เลย ผู้เล่นทั้ง 100 คนจะเริ่มเลเวล 1 พร้อมกัน"
 	return text
 
 
@@ -672,10 +672,10 @@ func mark_reopen_noticed() -> void:
 ## round): the title's countdown line, "" once it is open.
 func reopen_countdown(now := -1.0) -> String:
 	var t := Time.get_unix_time_from_system() if now < 0.0 else now
-	var left := float(WORLD_EPOCH) - t
+	var left := float(WorldPlayers.START_UNIX) - t
 	if left <= 0.0:
 		return ""
-	return "โลกเปิดใหม่ 06:00 น. (อาทิตย์ 22 พ.ย.) · อีก %d ชม. %02d นาที" % [int(left / 3600.0), int(fmod(left, 3600.0) / 60.0)]
+	return "โลกเปิดใหม่ 08:00 น. (อาทิตย์ 22 พ.ย.) · อีก %d ชม. %02d นาที" % [int(left / 3600.0), int(fmod(left, 3600.0) / 60.0)]
 
 
 static func _remove_tree(dir_path: String) -> void:

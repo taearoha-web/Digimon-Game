@@ -29,7 +29,7 @@ export function slotSecond(day, k) {
 /** One-off extra league rounds (unix starts) on top of SLOTS: 21 Nov 2026 13:00 Thai (as the game: GuildLeague.EXTRA_ROUNDS). */
 export const EXTRA_ROUNDS = [1795240800];
 export const DURATION = 1200;
-export const START_UNIX = 1795302000;
+export const START_UNIX = 1795309200;
 export const GUILDS = [1, 2, 3, 4];
 /** A round may be posted this many seconds before its bell (device clocks drift). */
 export const END_MARGIN = 60;

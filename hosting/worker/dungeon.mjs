@@ -25,7 +25,7 @@ export const NAME_MAX = 32;
 export const TOP = 50;
 export const CLASSES = ['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard', 'muaythai'];
 /** The first week anyone could clear (the world opened, WorldPlayers.START_UNIX). */
-export const START_UNIX = 1795302000;
+export const START_UNIX = 1795309200;
 export const MAX_BODY_BYTES = 2048;
 /** Per IP: [at most, window seconds]. */
 export const LIMITS = {

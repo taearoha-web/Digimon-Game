@@ -74,10 +74,10 @@ func _old_hero(hero_name: String, cls := "warrior", level := 80) -> Dictionary:
 
 
 func _epoch_constants() -> void:
-	check(WorldPlayers.START_UNIX == 1795302000, "the reopening is 22 Nov 2026 06:00 Thai (%d)" % WorldPlayers.START_UNIX)
-	check(Game.WORLD_EPOCH == WorldPlayers.START_UNIX, "the save epoch is the world's opening")
+	check(WorldPlayers.START_UNIX == 1795309200 and Game.WORLD_EPOCH == 1795302000, "the world opens 22 Nov 2026 08:00 Thai (%d); characters were wiped from the 06:00 epoch" % WorldPlayers.START_UNIX)
+	check(Game.WORLD_EPOCH <= WorldPlayers.START_UNIX, "the save epoch (the wipe) is at or before the world's opening")
 	var thai := Time.get_datetime_dict_from_unix_time(WorldPlayers.START_UNIX + WorldPlayers.TZ)
-	check(int(thai.year) == 2026 and int(thai.month) == 11 and int(thai.day) == 22 and int(thai.hour) == 6 and int(thai.minute) == 0, "06:00 Thai time, 22 Nov (%s)" % str(thai))
+	check(int(thai.year) == 2026 and int(thai.month) == 11 and int(thai.day) == 22 and int(thai.hour) == 8 and int(thai.minute) == 0, "08:00 Thai time, 22 Nov (%s)" % str(thai))
 
 
 ## The device as an older build left it: characters, the shared storage, backups, the
@@ -145,8 +145,8 @@ func _title_after_wipe() -> void:
 	check(not again.text.contains("รีเซ็ต") and again.text == countdown, "the next title has only the countdown (%s)" % again.text)
 	menu2.queue_free()
 	await get_tree().process_frame
-	check(Game.reopen_countdown(float(Game.WORLD_EPOCH) - 3600.0 * 2.5).contains("06:00") and Game.reopen_countdown(float(Game.WORLD_EPOCH) - 3600.0 * 2.5).contains("2 ชม. 30"), "a countdown before 06:00")
-	check(Game.reopen_countdown(float(Game.WORLD_EPOCH) + 1.0) == "", "no countdown once the world is open")
+	check(Game.reopen_countdown(float(WorldPlayers.START_UNIX) - 3600.0 * 2.5).contains("08:00") and Game.reopen_countdown(float(WorldPlayers.START_UNIX) - 3600.0 * 2.5).contains("2 ชม. 30"), "a countdown before 08:00")
+	check(Game.reopen_countdown(float(WorldPlayers.START_UNIX) + 1.0) == "", "no countdown once the world is open")
 
 
 ## The web page installs the online save as slot files before the game starts (accounts.js
