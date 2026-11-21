@@ -78,7 +78,7 @@ func _profile(c: StringName, level: int, gear: String) -> Dictionary:
 	var skills := {}
 	for skill in ClassData.pool(c):
 		skills[skill.id] = stars
-	for passive in ClassData.PASSIVES.get(c, []):
+	for passive in ClassData.passives(c):
 		skills[passive.id] = stars
 	var paragon := {"level": 0, "alloc": {}}
 	if gear == "maxed" and level == 100:

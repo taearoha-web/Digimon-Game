@@ -71,9 +71,9 @@ func _measure(cls: StringName, level: int, stars: int, zone_id: StringName, seco
 	para.points = 0
 	para.alloc = Game.party_star_alloc(stars)
 	StarProgression.grant_milestones(p)
-	for skill in ClassData.pool(cls) + ClassData.PASSIVES.get(cls, []):
+	for skill in ClassData.pool(cls) + ClassData.passives(cls):
 		if int(skill.level) <= level and int(skill.get("star", 0)) <= stars:
-			p.skills[String(skill.id)] = SkillRank.MAX
+			p.skills[ClassData.rank_id(skill)] = SkillRank.MAX
 	Game.fill_loadout()
 	for member in p.get("party", []):
 		member["level"] = maxi(1, level - 1)

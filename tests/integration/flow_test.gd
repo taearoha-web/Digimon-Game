@@ -302,7 +302,7 @@ func _jobs() -> void:
 		check(int(Game.stats_now().attrs[main_key]) >= int(attrs_before[main_key]) + 80, "%s: advancements raise the main attribute (%s)" % [class_id, main_key])
 		var before := Game.stats_now()
 		var power_before: float = float(before.atk) + float(before.def) + float(before.max_hp) + float(before.max_mp) + float(before.crit) * 1000.0 + float(before.speed)
-		Game.profile.skills[ClassData.PASSIVES[class_id][0].id] = 5
+		Game.profile.skills[ClassData.passives(class_id)[0].id] = 5
 		var after_stats := Game.stats_now()
 		var power_after: float = float(after_stats.atk) + float(after_stats.def) + float(after_stats.max_hp) + float(after_stats.max_mp) + float(after_stats.crit) * 1000.0 + float(after_stats.speed)
 		check(power_after > power_before, "passive skill ranks add stats")
@@ -1344,8 +1344,9 @@ func _team_buffs() -> void:
 	var hero: Hero = zone.hero
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
-	Game.profile["level"] = 100
-	Game.profile["adv"] = 4
+	# Lv.60: Holy Valor's line has not evolved yet (Drastic Spirit at Lv.70).
+	Game.profile["level"] = 60
+	Game.profile["adv"] = 3
 	Game.fill_loadout()
 	Game.profile.mp = 99999
 	var buddy: Companion = zone.companions[0]

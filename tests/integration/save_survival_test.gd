@@ -92,9 +92,9 @@ func _rich_hero(s: int, cls: StringName, hero_name: String, g: int) -> Dictionar
 	Game.profile.adv = JobData.GOD_ADV
 	# Every skill at its top rank (the God step's art included) and the bar filled.
 	for skill in ClassData.pool(cls):
-		Game.profile.skills[skill.id] = Game.MAX_SKILL_RANK
-	for skill in ClassData.PASSIVES.get(cls, []):
-		Game.profile.skills[skill.id] = Game.MAX_SKILL_RANK
+		Game.profile.skills[ClassData.rank_id(skill)] = Game.MAX_SKILL_RANK
+	for skill in ClassData.passives(cls):
+		Game.profile.skills[ClassData.rank_id(skill)] = Game.MAX_SKILL_RANK
 	Game.fill_loadout()
 	# The full divine set at +10 (the 300-star gear).
 	for slot in DivineGearData.SLOTS:

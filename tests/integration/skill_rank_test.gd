@@ -47,7 +47,7 @@ func _check_tables() -> void:
 						main += 1
 				check(main > 0, "%s ★%d->★%d raises a value besides MP/cooldown (%s)" % [skill.id, rank, rank + 1, ", ".join(changes)])
 			check(SkillRank.next_changes(rows, SkillRank.MAX).is_empty(), "%s has nothing after ★5" % skill.id)
-		for passive in ClassData.PASSIVES.get(cls, []):
+		for passive in ClassData.passives(cls):
 			var rows := SkillRank.passive_table(passive)
 			check(not rows.is_empty(), "passive %s has a star table" % passive.id)
 			for rank in range(1, SkillRank.MAX):
