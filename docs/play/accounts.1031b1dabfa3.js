@@ -12,7 +12,7 @@
   // a bundle from before it has neither field, and keeps having neither.
   const STORAGE_FILE = 'toon_tale_storage.json';
   const CACHE_DB = 'toon_tale_accounts_v1';
-  const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า', darklord:'ดาร์กลอร์ด', bard:'นักดนตรี'};
+  const CLASS_NAMES = {vagabond:'นักเดินทาง', warrior:'นักรบ', archer:'นักธนู', mage:'นักเวท', priest:'นักบวช', summoner:'นักอัญเชิญ', lancer:'นักหอก', lance:'นักหอก', defender:'สายโล่', assassin:'นักฆ่า', darklord:'ดาร์กลอร์ด', bard:'นักดนตรี', muaythai:'นักมวยประเจียด'};
   // A request waits longer the more it carries: a full four-character save is
   // close to 1 MB and mobile uplinks are slow. 15 s, plus 1 s per 10 kB, at most 60 s.
   const REQUEST_TIMEOUT_MS = 15000, REQUEST_TIMEOUT_MAX_MS = 60000;
