@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import worker from '../worker.mjs';
-import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE, FOUGHT_GRACE} from '../league.mjs';
+import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EXTRA_ROUNDS, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE, FOUGHT_GRACE} from '../league.mjs';
 import {D1Sqlite} from '../../accounts/tests/d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon.example';
@@ -47,6 +47,7 @@ test('the server\'s league constants are the game\'s', () => {
   const players = readFileSync(new URL('../../../data/world_players.gd', import.meta.url), 'utf8');
   assert.match(league, /const SLOTS: Array\[int\] = \[12 \* 3600, 18 \* 3600, 20 \* 3600 \+ 30 \* 60\]/);
   assert.equal(Number(league.match(/const EARLY_FINAL_DAY := (\d+)/)[1]), EARLY_FINAL_DAY);
+  assert.deepEqual(league.match(/const EXTRA_ROUNDS: Array\[int\] = \[([\d, ]*)\]/)[1].split(',').filter(x => x.trim()).map(Number), EXTRA_ROUNDS);
   assert.deepEqual(SLOTS, [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60]);
   assert.equal(Number(war.match(/const DURATION := ([\d.]+)/)[1]), DURATION);
   assert.equal(Number(players.match(/const START_UNIX := (\d+)/)[1]), START_UNIX);
@@ -224,4 +225,10 @@ test('wrangler config sends /api/league/* to the Worker', () => {
   assert.ok(config.assets.run_worker_first.includes('/api/league/*'));
   const migration = readFileSync(new URL('../../accounts/drizzle/0001_league_rounds.sql', import.meta.url), 'utf8');
   assert.match(migration, /CREATE TABLE `toon_league_rounds`/);
+});
+
+test('the one-off extra round (21 Nov 2026 13:00 Thai) is a round; 13:00 on other days is not', () => {
+  assert.deepEqual(EXTRA_ROUNDS, [1795240800]);
+  assert.ok(isSlot(1795240800));
+  assert.ok(!isSlot(1795240800 + DAY) && !isSlot(1795240800 - DAY));
 });

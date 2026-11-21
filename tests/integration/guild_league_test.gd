@@ -51,7 +51,7 @@ func _season(w: int, t: float) -> void:
 	check(WorldEvents.weekday(start) == 1 and WorldEvents.time_of_day(start) == 0, "a season starts on Monday 00:00 Thai")
 	check(GuildLeague.week_of(start) == w and GuildLeague.week_of(start - 1.0) == w - 1 and GuildLeague.week_of(GuildLeague.week_end(w) - 1.0) == w, "Sunday 23:59 is still the same season")
 	var wars := GuildLeague.sim_wars(w)
-	check(wars.size() == 7 * GuildLeague.SLOTS.size(), "three rounds a day, one war of every guild a round (%d)" % wars.size())
+	check(wars.size() == GuildLeague.schedule(w).size() and wars.size() >= 7 * GuildLeague.SLOTS.size(), "three rounds a day (and any extra round), one war of every guild a round (%d)" % wars.size())
 	var copy: Array = wars.duplicate(true)
 	GuildLeague._sim_cache.clear()
 	GuildLeague._power_cache.clear()
@@ -139,7 +139,7 @@ func _rollover(w: int) -> void:
 	var t := GuildLeague.week_start(w + 1) + 10.0 * 3600.0
 	pin(t)
 	var d := GuildLeague.data()
-	check(int(d.week) == w + 1 and (d.wars as Array).is_empty() and (d.prev_wars as Array).size() == 21 and int(d.prev_week) == w, "the week turns: last season's wars move aside")
+	check(int(d.week) == w + 1 and (d.wars as Array).is_empty() and (d.prev_wars as Array).size() == GuildLeague.schedule(w).size() and int(d.prev_week) == w, "the week turns: last season's wars move aside")
 	check(GuildLeague.champion_now() == WorldPlayers.ALPHA and GuildLeague.hero_champion(), "the guild holding the castle at the end is the champion")
 	check(GuildLeague.crowned(WorldPlayers.ALPHA) and not GuildLeague.crowned(WorldPlayers.NEVERDIE), "the champion's members (world players too) wear the crown plate")
 	check(absf(GuildLeague.exp_mult() - 1.1) < 0.0001, "the champion earns EXP +10%")

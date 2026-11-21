@@ -26,6 +26,8 @@ const OLD_LAST_SLOT = 21 * 3600 + 30 * 60;
 export function slotSecond(day, k) {
   return k === SLOTS.length - 1 && day < EARLY_FINAL_DAY ? OLD_LAST_SLOT : SLOTS[k];
 }
+/** One-off extra league rounds (unix starts) on top of SLOTS: 21 Nov 2026 13:00 Thai (as the game: GuildLeague.EXTRA_ROUNDS). */
+export const EXTRA_ROUNDS = [1795240800];
 export const DURATION = 1200;
 export const START_UNIX = 1793274300;
 export const GUILDS = [1, 2, 3, 4];
@@ -84,7 +86,7 @@ export function isSlot(at) {
   if (!Number.isSafeInteger(at) || at < firstRound()) return false;
   const second = ((at + TZ) % DAY + DAY) % DAY;
   const day = Math.floor((at + TZ) / DAY);
-  return SLOTS.some((_, k) => slotSecond(day, k) === second);
+  return EXTRA_ROUNDS.includes(at) || SLOTS.some((_, k) => slotSecond(day, k) === second);
 }
 
 /** A clean copy of a posted round result, or a reason string when it is malformed. */

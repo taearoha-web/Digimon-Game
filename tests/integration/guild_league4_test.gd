@@ -147,12 +147,20 @@ func _schedule() -> void:
 	check(GuildLeague.next_slot(float(at) - 1.0) == at and GuildLeague.next_slot(float(at)) == GuildLeague.slot_start(first + 3, 2), "the next round")
 	check(GuildLeague.next_slot(float(GuildLeague.slot_start(first + 3, 2)) + 10.0) == GuildLeague.slot_start(first + 4, 0), "after the last round the next is tomorrow's 12:00")
 	check(GuildLeague.schedule(GuildLeague.week_of(float(at))).size() == 21, "21 rounds a week")
+	# The one-off extra round: Saturday 21 Nov 2026 13:00 Thai, between that day's 12:00 and 18:00.
+	var extra := 1795240800
+	var xday := WorldEvents.day_of(float(extra))
+	check(GuildLeague.is_round(extra) and not GuildLeague.is_round(extra + GuildLeague.DAY), "the extra round at 13:00 on 21 Nov is a round, not on other days")
+	check(GuildLeague.day_slots(xday).size() == 4 and GuildLeague.slot_start(xday, 1) == extra, "that day has four rounds, the extra second (%s)" % [GuildLeague.day_slots(xday)])
+	check(GuildLeague.next_slot(float(GuildLeague.slot_start(xday, 0)) + 1500.0) == extra and GuildLeague.next_slot(float(extra)) == GuildLeague.slot_start(xday, 2), "after 12:00 comes 13:00, then 18:00")
+	check(GuildLeague.prev_slot(GuildLeague.slot_start(xday, 2)) == extra and GuildLeague.live_slot(float(extra) + 60.0) == extra, "the extra round runs its DURATION")
+	check(GuildLeague.schedule(GuildLeague.week_of(float(extra))).size() == 22 and not GuildLeague.is_final(extra), "its week has 22 rounds; it is no deciding round")
 
 
 func _seeded(w: int) -> void:
 	_hero(0)
 	var wars := GuildLeague.sim_wars(w)
-	check(wars.size() == 21, "every round of the week has a result (%d)" % wars.size())
+	check(wars.size() == GuildLeague.schedule(w).size(), "every round of the week has a result (%d)" % wars.size())
 	var copy: Array = wars.duplicate(true)
 	GuildLeague._sim_cache.clear()
 	GuildLeague._power_cache.clear()
@@ -334,7 +342,7 @@ func _table(w: int) -> void:
 	var wins := 0
 	for r in rows:
 		wins += int(r.wins)
-	check(wins == 21, "21 rounds, one first place each")
+	check(wins == GuildLeague.schedule(w).size(), "every round, one first place each")
 	var champ := GuildLeague.champion_of(w, [])
 	check(WorldPlayers.GUILDS.has(champ), "the champion is one of the four (%s)" % WorldPlayers.guild_name(champ))
 	# The castle's holder carries from round to round.
@@ -429,7 +437,7 @@ func _desk(w: int) -> void:
 	check(desk.find_child("LeagueSchedule", true, false) != null, "the desk shows the day's schedule")
 	var countdown := desk.find_child("LeagueCountdown", true, false) as Label
 	check(countdown != null and countdown.text.contains("12:00") and countdown.text.contains("ปิดรับสมัครใน"), "with a countdown to the next round (%s)" % (countdown.text if countdown else ""))
-	check(desk.find_children("Round_*", "", true, false).size() == 3, "three rounds today, one war each")
+	check(desk.find_children("Round_*", "", true, false).size() == GuildLeague.day_slots(WorldEvents.day_of(float(at))).size(), "every round today, one war each")
 	var owner := desk.find_child("LeagueOwner", true, false) as Label
 	check(owner != null and owner.text != "", "the desk tells who holds the castle (%s)" % (owner.text if owner else ""))
 	var go := desk.find_child("EnterWar", true, false) as Button

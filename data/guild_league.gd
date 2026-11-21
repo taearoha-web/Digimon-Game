@@ -66,6 +66,9 @@ const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60]
 ## stored results still match.
 const EARLY_FINAL_DAY := 20768
 const OLD_LAST_SLOT := 21 * 3600 + 30 * 60
+## One-off extra league rounds (unix starts), on top of the day's SLOTS: Saturday 21 Nov
+## 2026 13:00 Thai (asked by the owner). Mirrored in hosting/worker/league.mjs.
+const EXTRA_ROUNDS: Array[int] = [1795240800]
 ## Registration for a round closes this many seconds before it starts.
 const REGISTER_CLOSE := 300
 ## The registered line-up may wait in the arena from this long before a round starts
@@ -176,10 +179,23 @@ static func week_end(w: int) -> float:
 
 ## Unix time round k (0-2) of Thai day `day` starts.
 static func slot_start(day: int, k: int) -> int:
-	var second := SLOTS[k]
-	if k == SLOTS.size() - 1 and day < EARLY_FINAL_DAY:
-		second = OLD_LAST_SLOT
-	return day * DAY - WorldPlayers.TZ + second
+	return day_slots(day)[k]
+
+
+## The unix starts of every round of Thai day `day` in time order: its SLOTS (the last at
+## OLD_LAST_SLOT before EARLY_FINAL_DAY) and any EXTRA_ROUNDS falling on it.
+static func day_slots(day: int) -> Array[int]:
+	var out: Array[int] = []
+	for k in SLOTS.size():
+		var second := SLOTS[k]
+		if k == SLOTS.size() - 1 and day < EARLY_FINAL_DAY:
+			second = OLD_LAST_SLOT
+		out.append(day * DAY - WorldPlayers.TZ + second)
+	for at in EXTRA_ROUNDS:
+		if WorldEvents.day_of(float(at)) == day and not out.has(at):
+			out.append(at)
+	out.sort()
+	return out
 
 
 ## Every league guild, in id order: a round is one castle war of all of them.
@@ -190,7 +206,7 @@ static func guilds_at(_at: int) -> Array[int]:
 ## Whether a round starts at unix `at`.
 static func is_round(at: int) -> bool:
 	var day := WorldEvents.day_of(float(at))
-	for k in SLOTS.size():
+	for k in day_slots(day).size():
 		if slot_start(day, k) == at:
 			return true
 	return false
@@ -205,7 +221,7 @@ static func pairs_on(day: int, k: int) -> Array:
 ## The old pairs of the round starting at unix `at` ([] when no round starts then).
 static func pairs_at(at: int) -> Array:
 	var day := WorldEvents.day_of(float(at))
-	for k in SLOTS.size():
+	for k in day_slots(day).size():
 		if slot_start(day, k) == at:
 			return pairs_on(day, k)
 	return []
@@ -224,7 +240,7 @@ static func opponent(g: int, at: int) -> int:
 ## Every round of Thai day `day`: [{at, k, guilds}], in time order.
 static func rounds_on(day: int) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for k in SLOTS.size():
+	for k in day_slots(day).size():
 		var at := slot_start(day, k)
 		out.append({"at": at, "k": k, "guilds": guilds_at(at)})
 	return out
@@ -244,7 +260,7 @@ static func schedule(w: int) -> Array[Dictionary]:
 static func live_slot(t: float) -> int:
 	var day := WorldEvents.day_of(t)
 	for d in [day - 1, day]:
-		for k in SLOTS.size():
+		for k in day_slots(d).size():
 			var at := slot_start(d, k)
 			if t >= float(at) and t < float(at) + GuildWarData.DURATION:
 				return at
@@ -255,7 +271,7 @@ static func live_slot(t: float) -> int:
 static func next_slot(t: float) -> int:
 	var day := WorldEvents.day_of(t)
 	for d in [day, day + 1]:
-		for k in SLOTS.size():
+		for k in day_slots(d).size():
 			var at := slot_start(d, k)
 			if float(at) > t:
 				return at
@@ -266,7 +282,7 @@ static func next_slot(t: float) -> int:
 static func prev_slot(at: int) -> int:
 	var day := WorldEvents.day_of(float(at))
 	for d in [day, day - 1, day - 2]:
-		for k in range(SLOTS.size() - 1, -1, -1):
+		for k in range(day_slots(d).size() - 1, -1, -1):
 			var s := slot_start(d, k)
 			if s < at:
 				return s
@@ -1265,7 +1281,7 @@ static func credit_idle_rounds(t := -1.0) -> int:
 	var rounds := 0
 	var at := next_slot(float(since))
 	var guard := 0
-	while at <= last and guard < IDLE_DAYS * SLOTS.size() + 3:
+	while at <= last and guard < IDLE_DAYS * (SLOTS.size() + 1) + 3:
 		guard += 1
 		var real := real_wars(week_of(float(at)))
 		if guilds_at(at).has(g) and _real_round(real, at).is_empty():
@@ -1341,7 +1357,7 @@ static func registered(at: int) -> bool:
 	# Registered before the day's last round moved from 21:30 to 20:30: that sign-up is for
 	# the same round.
 	var day := WorldEvents.day_of(float(at))
-	return day >= EARLY_FINAL_DAY and at == slot_start(day, SLOTS.size() - 1) \
+	return day >= EARLY_FINAL_DAY and at == day_slots(day).back() \
 		and reg == day * DAY - WorldPlayers.TZ + OLD_LAST_SLOT
 
 
