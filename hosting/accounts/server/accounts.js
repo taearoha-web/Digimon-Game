@@ -20,6 +20,13 @@ const MAX_BUNDLE_BYTES = 1_800_000;
 const MAX_REQUEST_BYTES = MAX_BUNDLE_BYTES + 8192;
 const ENCODER = new TextEncoder();
 const EMPTY_BUNDLE = JSON.stringify({slots: {}, selectedSlot: 1});
+/** The world reopened (Sunday 22 Nov 2026, 06:00 Thai time; the game's Game.WORLD_EPOCH =
+ * WorldPlayers.START_UNIX, the test reads data/world_players.gd): every character and
+ * shared storage from before it was deleted. A character carries it as "world_epoch", the
+ * bundle's shared storage as "storageEpoch". An upload holding a character or a non-empty
+ * storage from before it is refused (old_world: an old build or an old device), and a save
+ * stored before it is handed out without them (currentWorld). */
+export const WORLD_EPOCH = 1795302000;
 const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard']);
 // Game.PARAGON_MAX (the star cap) and JobData: four level advancements, then the
 // God promotion (adv 5, "เทพเจ้าแห่ง<อาชีพ>") that needs Lv.100 and 300 stars.
@@ -569,6 +576,47 @@ function validateSharedStorage(bundle) {
   }
 }
 
+function currentProfile(profile) {
+  return dictionary(profile) && Number.isSafeInteger(profile.world_epoch) && profile.world_epoch >= WORLD_EPOCH;
+}
+
+/** The bundle as the reopened world has it: characters from before WORLD_EPOCH removed and
+ * a shared storage from before it emptied. Returns {bundle, changed}. */
+export function currentWorld(bundle) {
+  if (!dictionary(bundle)) return {bundle: JSON.parse(EMPTY_BUNDLE), changed: true};
+  const next = {...bundle, slots: {}};
+  let changed = false;
+  for (const [slot, profile] of Object.entries(dictionary(bundle.slots) ? bundle.slots : {})) {
+    if (currentProfile(profile)) next.slots[slot] = profile;
+    else changed = true;
+  }
+  if (!(Number.isSafeInteger(bundle.storageEpoch) && bundle.storageEpoch >= WORLD_EPOCH)) {
+    if (Array.isArray(bundle.storage) && bundle.storage.length > 0) changed = true;
+    if (dictionary(bundle.storageMigrated) && Object.keys(bundle.storageMigrated).length > 0) changed = true;
+    if ('storage' in bundle || changed) {
+      next.storage = [];
+      next.storageMigrated = {};
+      next.storageEpoch = WORLD_EPOCH;
+    }
+  }
+  if (!next.slots[String(next.selectedSlot)]) {
+    const left = Object.keys(next.slots).map(Number).sort((x, y) => x - y);
+    if (left.length || changed) next.selectedSlot = left.length ? left[0] : 1;
+  }
+  return {bundle: next, changed};
+}
+
+function validateWorld(bundle) {
+  if (Object.values(bundle.slots).some(profile => !currentProfile(profile))) {
+    fail(400, 'old_world', 'This save holds characters from before the world reopened. Reload the page to update the game.');
+  }
+  if ('storageEpoch' in bundle && !Number.isSafeInteger(bundle.storageEpoch)) fail(400, 'invalid_save', 'The shared storage epoch is invalid.');
+  const current = Number.isSafeInteger(bundle.storageEpoch) && bundle.storageEpoch >= WORLD_EPOCH;
+  if (!current && ((bundle.storage ?? []).length > 0 || Object.keys(bundle.storageMigrated ?? {}).length > 0)) {
+    fail(400, 'old_world', 'This shared storage is from before the world reopened. Reload the page to update the game.');
+  }
+}
+
 export function validateBundle(bundle) {
   if (!dictionary(bundle) || !dictionary(bundle.slots) || !integer(bundle.selectedSlot, 1, MAX_SLOTS)) fail(400, 'invalid_save', `Send up to ${MAX_SLOTS} character slots and a selected slot from 1 to ${MAX_SLOTS}.`);
   validateJsonTree(bundle);
@@ -578,9 +626,11 @@ export function validateBundle(bundle) {
   }
   validateSharedStorage(bundle);
   validateLegendWings(bundle);
+  validateWorld(bundle);
   const kept = {slots: bundle.slots, selectedSlot: bundle.selectedSlot};
   if ('storage' in bundle) kept.storage = bundle.storage;
   if ('storageMigrated' in bundle) kept.storageMigrated = bundle.storageMigrated;
+  if ('storageEpoch' in bundle) kept.storageEpoch = bundle.storageEpoch;
   const serialized = JSON.stringify(kept);
   if (ENCODER.encode(serialized).byteLength > MAX_BUNDLE_BYTES) fail(413, 'save_too_large', 'The full save must be at most 1.8 MB.');
   return serialized;
@@ -756,7 +806,7 @@ async function route(request, env) {
     const {user} = await requireSession(request, db, now);
     const save = await db.prepare('SELECT revision, bundle, updated_at FROM toon_saves WHERE user_id = ?').bind(user.id).first();
     return response(save ? {
-      userId: user.id, revision: save.revision, bundle: JSON.parse(save.bundle),
+      userId: user.id, revision: save.revision, bundle: currentWorld(JSON.parse(save.bundle)).bundle,
       updatedAt: save.updated_at == null ? null : new Date(save.updated_at * 1000).toISOString(),
     } : {userId: user.id, revision: 0, bundle: JSON.parse(EMPTY_BUNDLE), updatedAt: null});
   }
@@ -808,7 +858,7 @@ async function route(request, env) {
     ]);
     if (!result[0].results.length) await conflict(db, user.id);
     const save = result[0].results[0];
-    return response({userId: user.id, revision: save.revision, bundle: JSON.parse(save.bundle), updatedAt: new Date(save.updated_at * 1000).toISOString()});
+    return response({userId: user.id, revision: save.revision, bundle: currentWorld(JSON.parse(save.bundle)).bundle, updatedAt: new Date(save.updated_at * 1000).toISOString()});
   }
   fail(404, 'not_found', 'Endpoint not found.');
 }

@@ -1,0 +1,63 @@
+name: World reopening - remove every account's old characters (owner only)
+
+# Manual only, and only for people with write access to this repository.
+# The world reopened on Sunday 22 Nov 2026, 06:00 Thai time (WORLD_EPOCH in
+# hosting/accounts/server/accounts.js = Game.WORLD_EPOCH = WorldPlayers.START_UNIX).
+# The game already removes every character from before it on its own (on the device, at
+# login, and the server never hands them out or takes them back), so this is optional: it
+# empties the online saves at once. For every account, each character and the shared
+# storage from before the reopening are removed; characters made since stay, and the
+# account, its password and recovery code are untouched. Each save it changes is kept as a
+# snapshot first, and is written only if the game did not save in between.
+# Run first with mode "dry-run" (lists what it would do), then "apply" with confirm REOPEN.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run (list only) or apply
+        default: dry-run
+        required: true
+      confirm:
+        description: Type REOPEN to confirm (needed for apply)
+        default: ''
+        required: false
+      database_name:
+        description: D1 database name
+        default: toon-tale-accounts
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boost-character
+  cancel-in-progress: false
+
+jobs:
+  reopen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DB_NAME: ${{ inputs.database_name }}
+      MODE: ${{ inputs.mode }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - name: Check the request
+        run: |
+          test "$MODE" = "dry-run" -o "$MODE" = "apply" || { echo "::error::mode must be dry-run or apply."; exit 1; }
+          test "$MODE" = "dry-run" -o "$CONFIRM" = "REOPEN" || { echo "::error::Type REOPEN in the confirm field to apply."; exit 1; }
+          echo "$DB_NAME" | grep -Eq '^[A-Za-z0-9_-]{1,64}$' || { echo "::error::Invalid database name."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Cloudflare secrets are missing."; exit 1; }
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Remove the old characters
+        run: |
+          if [ "$MODE" = "apply" ]; then
+            node hosting/worker/boost-character.mjs reopen-all --apply
+          else
+            node hosting/worker/boost-character.mjs reopen-all
+          fi
