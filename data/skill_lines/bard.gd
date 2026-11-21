@@ -12,7 +12,7 @@ extends RefCounted
 ## tests/tools/class_dps_probe.tscn at Lv.26 (snow), Lv.70 (storm) and Lv.100 ★200
 ## (lotus_sanctum) so the class's DPS stayed where it was before the rework (a support
 ## class: about half the median, the owner's call).
-const TUNE := [[1.05, 0.66], [0.55, 1.05], [0.92, 0.56]]
+const TUNE := [[0.914, 0.632], [0.49, 0.82], [0.49, 0.413]]
 
 ## The 8 lines in bar order, each its stage ids, first stage first. A line's id is
 ## its first stage's id: the bar slot and the skill's star rank are kept under it.
