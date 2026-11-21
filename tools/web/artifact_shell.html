@@ -336,7 +336,11 @@
   const totalPacked = Object.values(PACKED).reduce((sum, p) => sum + p[1], 0);
 
   function mb(bytes) { return (bytes / 1048576).toFixed(1); }
+  // The start screen keeps its text while the game is read ahead (prewarm); the bar
+  // shows the load only once the player has tapped start.
+  let progressShown = false;
   function showProgress() {
+    if (!progressShown) return;
     const done = Object.values(loaded).reduce((a, b) => a + b, 0);
     bar.style.width = Math.min(100, (done / totalPacked) * 100).toFixed(1) + '%';
     statusEl.textContent = 'กำลังโหลด ' + mb(done) + ' / ' + mb(totalPacked) + ' MB';
@@ -420,9 +424,13 @@
     if (compressed) stream = stream.pipeThrough(new DecompressionStream('gzip'));
     return new Response(stream, { status: 200, headers: { 'Content-Type': packed[2] } });
   }
+  // The engine compiled ahead (prewarm): the engine's own read of index.wasm gets an
+  // empty answer and its instantiate uses the compiled module instead.
+  let compiledEngine = null;
   window.fetch = async function (input, init) {
     const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
     const name = url.split('?')[0].split('/').pop();
+    if (compiledEngine && name === 'index.wasm') return new Response(new Uint8Array(0), { status: 200, headers: { 'Content-Type': 'application/wasm' } });
     const packed = PACKED[name];
     return packed ? packedResponse(packed, name, init) : nativeFetch(input, init);
   };
@@ -529,6 +537,63 @@
   window.addEventListener('resize', resizeGameCanvas);
   window.addEventListener('pageshow', resizeGameCanvas);
   resizeGameCanvas();
+  // Prewarm: on a returning visit every file of this build is in the offline cache. Read
+  // and inflate the game pack and compile the engine right away, while the start screen
+  // and the account check are up, so the tap on start only has to boot the engine. Never
+  // on a first visit (the background download is busy fetching those same files), and the
+  // engine itself (its save folder) still starts only after the account check.
+  const EXE = GODOT_CONFIG.executable;
+  const PACK = GODOT_CONFIG.mainPack || EXE + '.pck';
+  let warm = null;
+  const instantiate = WebAssembly.instantiateStreaming;
+  function compileEngine() {
+    if (typeof WebAssembly.compileStreaming !== 'function' || typeof instantiate !== 'function') return null;
+    const module = WebAssembly.compileStreaming(window.fetch(EXE + '.wasm'));
+    compiledEngine = module;
+    WebAssembly.instantiateStreaming = function (source, imports) {
+      WebAssembly.instantiateStreaming = instantiate;
+      Promise.resolve(source).then(function (r) { if (r && r.body) r.body.cancel().catch(function () {}); }, function () {});
+      return module.then(function (compiled) {
+        return WebAssembly.instantiate(compiled, imports).then(function (instance) { return { instance: instance, module: compiled }; });
+      });
+    };
+    return module;
+  }
+  function prewarm() {
+    if (warm) return warm;
+    const engine = new Engine(GODOT_CONFIG);
+    let module = null;
+    try { module = compileEngine(); } catch (_) { module = null; }
+    // With the module compiled, the engine's own load is an empty answer (see fetch above).
+    Engine.load(EXE, GODOT_CONFIG.fileSizes[EXE + '.wasm']);
+    const pack = engine.preloadFile(PACK, PACK);
+    warm = { engine: engine, ready: Promise.all([pack, module]) };
+    // Fails quietly here; start() waits on it and reports.
+    warm.ready.catch(function () {});
+    return warm;
+  }
+  function forgetWarm() {
+    warm = null;
+    compiledEngine = null;
+    if (instantiate) WebAssembly.instantiateStreaming = instantiate;
+    Engine.unload();
+  }
+  async function allCached() {
+    const offline = window.TOON_OFFLINE;
+    if (!offline || !navigator.serviceWorker || !navigator.serviceWorker.controller || !window.caches) return false;
+    const cache = await caches.open('toon-tale-' + offline.build);
+    const names = [];
+    for (const packed of Object.values(PACKED)) names.push.apply(names, Array.isArray(packed[0]) ? packed[0] : [packed[0]]);
+    for (const name of names) { if (!await cache.match(name)) return false; }
+    return true;
+  }
+  (async function () {
+    try {
+      if (Engine.getMissingFeatures({ threads: false }).length) return;
+      if (await allCached() && !started) prewarm();
+    } catch (_) { /* optional */ }
+  }());
+
   async function start() {
     goFullscreen(); // must run inside the tap
     if (started) return;
@@ -551,13 +616,18 @@
     started = true;
     // The game's own download fills the offline cache; pause the background copy meanwhile.
     if (window.toonOffline) window.toonOffline.gameLoading();
-    for (const key of Object.keys(loaded)) delete loaded[key];
+    progressShown = true;
+    if (!warm) for (const key of Object.keys(loaded)) delete loaded[key];
     showProgress();
-    const engine = new Engine(GODOT_CONFIG);
-    engine.startGame({
-      onProgress: function () { /* our own bar tracks the compressed download */ },
-      onPrintError: function () { console.error.apply(console, arguments); window.toonSession.error(Array.from(arguments).join(' ')); },
-      onExit: function () { window.toonSession.end(); },
+    const w = prewarm();
+    const engine = w.engine;
+    w.ready.then(function () {
+      return engine.start({
+        args: ['--main-pack', PACK].concat(GODOT_CONFIG.args || []),
+        onProgress: function () { /* our own bar tracks the compressed download */ },
+        onPrintError: function () { console.error.apply(console, arguments); window.toonSession.error(Array.from(arguments).join(' ')); },
+        onExit: function () { window.toonSession.end(); },
+      });
     }).then(function () {
       window.toonHeapBytes = () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : 0;
       window.toonSession.begin('__VERSION__', () => engine.rtenv && engine.rtenv.HEAPU8 ? engine.rtenv.HEAPU8.byteLength : null);
@@ -568,6 +638,7 @@
       if (window.toonOffline) window.toonOffline.gameStarted();
     }, function (err) {
       started = false;
+      forgetWarm();
       console.error(err);
       window.toonSession.error(err);
       if (window.toonOffline) window.toonOffline.gameStopped();

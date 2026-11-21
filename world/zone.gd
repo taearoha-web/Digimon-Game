@@ -198,11 +198,15 @@ func _slice() -> void:
 
 
 func _phase(label: String) -> void:
-	if not phase_log:
+	if not phase_log and not BootTrace.zone_phases:
 		return
 	var now := Time.get_ticks_usec()
 	if _phase_t > 0:
-		phases.append([label, snappedf(float(now - _phase_t) / 1000.0, 0.1)])
+		var ms := snappedf(float(now - _phase_t) / 1000.0, 0.1)
+		if phase_log:
+			phases.append([label, ms])
+		if BootTrace.zone_phases:
+			print("[boot] zone %s %s: %.0f ms" % [zone_id, label, ms])
 	_phase_t = now
 
 
