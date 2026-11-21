@@ -1,6 +1,6 @@
 class_name JobData
 extends RefCounted
-## Advancement path of every class line. After the line is chosen at Lv.10 a hero
+## Advancement path of every class line. From the class picked on the create screen a hero
 ## advances four more times at the Job Master:
 ##   Lv.20 advanced -> Lv.40 supreme -> Lv.60 master -> Lv.80 legend
 ## Each step renames the hero, adds stat multipliers and STR/INT/DEX/VIT, and
