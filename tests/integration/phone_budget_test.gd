@@ -147,7 +147,8 @@ func _buff_book() -> void:
 # Party roles in a guild war
 
 func _class_roles_war() -> void:
-	Game.new_profile(&"warrior", "Budget GW")
+	# The hero wears one of the new character bodies (ChibiBodies) in both scenes.
+	Game.new_profile(&"warrior", "Budget GW", {"gender": 0, "body": 2})
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	Game.profile["paragon"] = {"level": 200, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(200)}
@@ -220,7 +221,7 @@ func _village(quality: int) -> void:
 	PetCrowd.enabled = true
 	# A day when the village is at its busiest.
 	WorldPresence.clock_offset = float(WorldPlayers.START_UNIX) + 20.7 * 86400.0 - WorldPlayers.now()
-	Game.new_profile(&"lancer", "Budget Town")
+	Game.new_profile(&"lancer", "Budget Town", {"gender": 1, "body": 2})
 	Game.profile.level = 100
 	Game.profile.adv = 4
 	Game.paragon().level = 300

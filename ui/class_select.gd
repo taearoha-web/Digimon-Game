@@ -264,10 +264,25 @@ func _refresh() -> void:
 		var on := int(look.body) == i
 		_body_cards[i].set_pressed_no_signal(on)
 		_body_cards[i].disabled = on
+		# The picked card: a gold frame (a disabled button alone reads as unavailable).
+		if on:
+			_body_cards[i].add_theme_stylebox_override("disabled", _picked_card_box())
+		else:
+			_body_cards[i].remove_theme_stylebox_override("disabled")
+		_body_names[i].add_theme_color_override("font_color", Color("ffd257") if on else UIPalette.TEXT)
 		_body_names[i].text = ChibiBodies.body_name(int(look.gender), i)
 		_body_pics[i].texture = ChibiBodies.card(int(look.gender), i)
 	_stage.show_hero(picked, {}, "", look)
 	_preview = _stage.visual
+
+
+static func _picked_card_box() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color("2f4392")
+	box.border_color = Color("ffd257")
+	box.set_border_width_all(3)
+	box.set_corner_radius_all(14)
+	return box
 
 
 ## Drag the preview with a finger (or mouse) to turn the hero.
