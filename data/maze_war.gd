@@ -39,8 +39,10 @@ extends RefCounted
 const ID := &"maze_war"
 const TITLE := "เขาวงกตหนึ่งในใต้หล้า"
 const KEY := "mazew"
-## The maze opened (19 Nov 2026, 12:00 Thai time): the world players' fights start here.
-const OPEN_UNIX := 1795064400
+## The maze is open from the world's (re)opening (WorldPlayers.START_UNIX: 22 Nov 2026,
+## 06:00 Thai time; it first opened 19 Nov, before the reopening): the world players'
+## fights, the week's kills and the champions start here, nothing from before it.
+const OPEN_UNIX := WorldPlayers.START_UNIX
 const MIN_LEVEL := 100
 const SLOT := 600.0
 const BLOCK := 1800.0
