@@ -18,7 +18,8 @@ lengths, so the base clips (whose bone offsets Godot drops as constant) play on 
 Weights: the base body is posed into the fit (each region's similarity), then
 every vertex takes the weights of the nearest point of that posed surface
 (barycentric blend), the face, hair and eye bones fold into Head, and the
-weights are smoothed over the mesh a few times.
+weights are smoothed over the mesh a few times. A model with a skirt, dress or
+puffy shorts ("skirt" in its spec) then has the cloth reweighted (garment()).
 """
 import json, struct, sys, math
 import numpy as np
@@ -289,10 +290,10 @@ def garment(W, V, F, G, base, o, fingertip):
     `top` (fading in over `fade`) and outside the leg cylinders (`leg_r` around each
     thigh and shin, `leg_fade` soft) but above `bottom`, every leg weight moves to the
     Hips, except a share that grows (smoothstep) from 0 at `top` to `hem_thigh` at
-    `hem` and goes to the thigh of the vertex's side (blended over `seam` across x=0,
-    so the front and back seams do not split). Below `arm_top`, a vertex farther than
-    `arm_r` from the arm (shoulder to fingertip) and not mostly arm (the hand itself)
-    drops its arm weights to the Hips: the hanging hand lends them to the cloth
+    `hem` (`hem_thigh_front` in front of the hips) and goes to the thigh of the
+    vertex's side (blended over `seam` across x=0, so the front and back seams do
+    not split). Below `arm_top`, a vertex farther than `arm_r` from the arm
+    (shoulder to fingertip) and not mostly arm (the hand itself) drops its arm weights to the Hips: the hanging hand lends them to the cloth
     beside it and drags shards out with it. Then the cloth (not the hands) is
     averaged with its neighbours `smooth` times. Returns the weights and the cloth
     amount."""
@@ -309,7 +310,11 @@ def garment(W, V, F, G, base, o, fingertip):
     g *= _smoothstep(lr, lr + o.get('leg_fade', 0.015), near)
     legs = [ix[S + p] for S in ('Left', 'Right') for p in ('UpperLeg', 'LowerLeg', 'Foot', 'Toes')]
     L = W[:, legs].sum(1)
-    s = o.get('hem_thigh', 0.25) * _smoothstep(o['top'], o['hem'], y)
+    # the front panel may follow the thigh more (`hem_thigh_front`): a raised knee
+    # lifts it instead of poking through
+    zf = _smoothstep(-0.02, 0.04, V[:, 2] - P[ix['Hips'], 2])
+    ht = o.get('hem_thigh', 0.25) * (1 - zf) + o.get('hem_thigh_front', o.get('hem_thigh', 0.25)) * zf
+    s = ht * _smoothstep(o['top'], o['hem'], y)
     wl = _smoothstep(-o.get('seam', 0.03), o.get('seam', 0.03), x)
     T = W.copy()
     T[:, legs] = 0
