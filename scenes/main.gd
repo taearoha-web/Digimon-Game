@@ -565,7 +565,12 @@ func _on_level_up(level: int) -> void:
 	Game.say("ได้แต้มสถานะ +%d และแต้มสกิล +1 (เปิดเมนูเพื่อใช้)" % Game.STAT_POINTS_PER_LEVEL, &"success")
 	for skill in Game.skill_pool():
 		if int(skill.level) == level:
-			if Game.skill_unlocked(skill):
+			if Game.skill_unlocked(skill) and int(skill.get("stage", 0)) > 0:
+				# A skill line evolved (ClassData.has_lines): same slot, same stars.
+				var before: Dictionary = ClassData.line_stages(Game.class_id(), ClassData.rank_id(skill))[int(skill.stage) - 1]
+				hud.show_banner("สกิลวิวัฒน์! %s → %s" % [before.name, skill.name])
+				Game.say("สกิล %s วิวัฒน์เป็น %s! (ช่องเดิม ดาวเดิม)" % [before.name, skill.name], &"quest")
+			elif Game.skill_unlocked(skill):
 				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
 			else:
 				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
@@ -596,7 +601,7 @@ func _on_npc(role: String) -> void:
 			dialog.say("เจ้าของคลัง", "ของที่ยังไม่ใช้ฝากไว้กับข้าได้ปลอดภัย คลังนี้ใช้ร่วมกันทุกตัวละคร (จุ %d ช่อง) ชุดเกราะและอาวุธของอาชีพอื่นเบิกได้เฉพาะตัวละครอาชีพนั้น หรือจะจ่ายเหรียญขยายกระเป๋าเพิ่มทีละ %d ช่องก็ได้ ตอนนี้กระเป๋ามี %d ช่อง" % [Game.STORAGE_SIZE, Game.BAG_STEP, Game.bag_size()], [
 				{"label": "เปิดคลัง", "action": func(): storage.open_storage()}, {"label": "ไว้ก่อน"}])
 		"skill":
-			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกตามเลเวล แล้วเจ้าก็เลือกใส่ 4 ตัวบนแถบสกิลได้ในเมนูสกิล", [
+			dialog.say("ปรมาจารย์สกิล", "ข้าสอนสกิลให้แรงขึ้นได้สูงสุด 5 ดาว ใช้แต้มสกิลและเหรียญ สกิลใหม่จะปลดล็อกและวิวัฒน์ตามเลเวล (ดาวที่อัปไว้ติดไปด้วย) แล้วเจ้าก็จัดลำดับบนแถบสกิลได้ในเมนูสกิล", [
 				{"label": "ฝึกสกิล", "action": func(): trainer.open_trainer()}, {"label": "ไว้ก่อน"}])
 		"registry":
 			dialog.say("นายทะเบียนเกม", "สมุดทะเบียนเล่มนี้จดชื่อทุกคนที่เล่นในโลกนี้ อาชีพ เลเวล กิลด์ และใครออนไลน์อยู่ที่แมพไหนตอนนี้ อยากออกล่ากับใคร ไปหาเขาที่แมพนั้นแล้วแตะที่ตัวเพื่อชวนเข้าปาร์ตี้ (ปาร์ตี้ละ %d คนรวมคุณ แบ่ง EXP กันทุกตัวที่ล้มได้) คนแปลกหน้าจะตอบรับถ้าเลเวลห่างกันไม่เกิน %d (ระดับดาว Lv.100 ด้วยกันชวนกันได้หมด) เพื่อนร่วมกิลด์ตอบรับเสมอ" % [Game.PARTY_SIZE, Game.PARTY_LEVEL_GAP], [
