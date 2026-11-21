@@ -69,7 +69,7 @@ func _ready() -> void:
 		if not s.is_empty():
 			hero.receive_buff(s.fx.buff, s.color, s.name, pair[2], String(s.id))
 	for line in CHAT_LINES:
-		Game.world_chat.emit("ราชันอีกา", line, Color("ff9a8a"))
+		Game.world_chat.emit("OmenKing", line, Color("ff9a8a"))
 	# A boss as the target: the top bar shows its name and big HP numbers.
 	var boss: Mob = null
 	var best := INF

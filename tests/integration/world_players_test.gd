@@ -77,7 +77,7 @@ func _skill_ranks() -> void:
 			low = int(skill.level)
 			first = String(skill.id)
 	check(first != "" and int(early[first]) >= 2, "a new player ranks up its first skills with its first points (%s)" % [early])
-	var sheet := WorldPlayers.profile({"class": "warrior", "name": "Zerox", "level": 60, "stars": 0, "frac": 0.0})
+	var sheet := WorldPlayers.profile({"class": "warrior", "name": "Kraisorn", "level": 60, "stars": 0, "frac": 0.0})
 	check(sheet.skills == WorldPlayers.skill_ranks(&"warrior", 60, 0), "the character sheet carries the ranks it bought")
 
 

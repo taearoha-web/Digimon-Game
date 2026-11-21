@@ -26,7 +26,7 @@ func _ready() -> void:
 	WorldPlayers.clear_bonus()
 	Game.new_profile(&"warrior", "Stall QA", FaceKit.default_look())
 	Game.profile.level = 42
-	var i := _keeper("PotionKing")
+	var i := _keeper("PotionPim")
 	# The middle of the stall's restock window, so the window holds through the test.
 	var t0 := float(WorldPlayers.START_UNIX) + 5.0 * 86400.0
 	var t := StallStock.restock_at(i, t0) - StallStock.RESTOCK * 0.5
@@ -38,7 +38,7 @@ func _ready() -> void:
 	_announce(i, t)
 	_prune(i, t)
 	_consign(i, t)
-	await _screen(_keeper("ร้านเกราะพี่โต"))
+	await _screen(_keeper("ร้านเกราะเจ๊หมวย"))
 	WorldPresence.clock_offset = 0.0
 	print("STALL TRADE: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
@@ -68,7 +68,7 @@ func _stock(i: int, t: float) -> void:
 		if WorldPlayers.in_town_style(n) and StallStock.stock(n, t).is_empty():
 			empty.append(String(WorldPlayers.entry(n).name))
 	check(empty.is_empty(), "every stall keeper has a stock (%s)" % [empty])
-	check(StallStock.specialty(i) == "potion" and StallStock.specialty(_keeper("ร้านเกราะพี่โต")) == "armor" and StallStock.specialty(_keeper("LuteSeller")) == "weapon", "a stall's name tells what it sells")
+	check(StallStock.specialty(i) == "potion" and StallStock.specialty(_keeper("ร้านเกราะเจ๊หมวย")) == "armor" and StallStock.specialty(_keeper("ร้านพิณลุงเปี๊ยก")) == "weapon", "a stall's name tells what it sells")
 	var potions := lots.filter(func(e): return String(e.item.get("kind", "")) == "potion").size()
 	check(potions >= 3, "a potion stall sells potions (%d lots)" % potions)
 	# Better than the merchant: the merchant's gear is common or good, a stall's rare and up.
@@ -254,10 +254,10 @@ func _announce(i: int, t: float) -> void:
 	var named := lots.filter(func(e): return text.contains(ItemData.name_of(e.item)) and text.contains(StallStock._thousands(int(e.price))))
 	check(text.begins_with("ร้าน%s: มี" % WorldPlayers.entry(i).name) and text.ends_with("แวะดูได้") and named.size() >= 1, "an announcement names a real lot and its price (%s)" % text)
 	check(text == StallStock.announcement(i, t + 1.0), "the same call for a while")
-	var armor := _keeper("ร้านเกราะพี่โต")
+	var armor := _keeper("ร้านเกราะเจ๊หมวย")
 	var armor_text := StallStock.announcement(armor, t)
 	var gear := StallStock.stock(armor, t).filter(func(e): return String(e.item.get("kind", "")) == "equip" and armor_text.contains(ItemData.name_of(e.item)))
-	check(armor_text.begins_with("ร้านเกราะพี่โต: มี") and (gear.is_empty() or (armor_text.contains("ระดับ") and armor_text.contains("Lv."))), "a shop's name is not doubled; gear comes with its grade and level (%s)" % armor_text)
+	check(armor_text.begins_with("ร้านเกราะเจ๊หมวย: มี") and (gear.is_empty() or (armor_text.contains("ระดับ") and armor_text.contains("Lv."))), "a shop's name is not doubled; gear comes with its grade and level (%s)" % armor_text)
 	var w := StallStock.window(i, t)
 	for e in lots:
 		Game.profile.flags["stall|%s|%d|%d" % [WorldPlayers.entry(i).name, w, int(e.k)]] = 1

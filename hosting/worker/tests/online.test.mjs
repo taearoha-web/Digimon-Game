@@ -1224,8 +1224,8 @@ test('boss_kill: only the game running the zone (its host, or alone there), the 
   a.send({t: 'boss_kill', zone: 'meadow', by: '', ai: 'Spam'});
   assert.equal(c.frames('boss_kill').length, 1, 'once in BOSS_GAP_MS a zone');
   pass(clock, BOSS_GAP_MS, a, b, c);
-  a.send({t: 'boss_kill', zone: 'meadow', by: '9', ai: 'NightHawk_with_a_very_long_name'});
-  assert.equal(c.last('boss_kill').name, 'NightHawk_with_a_very_lo', 'a world player of the host\'s game, cut to 24');
+  a.send({t: 'boss_kill', zone: 'meadow', by: '9', ai: 'HawkeyeTH_with_a_very_long_name'});
+  assert.equal(c.last('boss_kill').name, 'HawkeyeTH_with_a_very_lo', 'a world player of the host\'s game, cut to 24');
   // Alone in a zone: its own game runs it.
   c.send({t: 'boss_kill', zone: 'desert', by: '1'});
   assert.equal(a.last('boss_kill').name, 'Carol', 'alone there, and `by` not in that zone: the sender');
@@ -1233,7 +1233,7 @@ test('boss_kill: only the game running the zone (its host, or alone there), the 
   clock.t += 5_000;
   const d = connect('4');
   const book = d.last('boss_state');
-  assert.deepEqual(book.bosses.map(x => [x.zone, x.name]).sort(), [['desert', 'Carol'], ['meadow', 'NightHawk_with_a_very_lo']]);
+  assert.deepEqual(book.bosses.map(x => [x.zone, x.name]).sort(), [['desert', 'Carol'], ['meadow', 'HawkeyeTH_with_a_very_lo']]);
   assert.ok(book.bosses.every(x => x.ago >= 5_000 && x.ago < 70_000), 'ago, in ms by the server\'s clock');
   // An hour later they are forgotten.
   clock.t += BOSS_KEEP_MS + 1;
@@ -1282,7 +1282,7 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   const c = connect('3').hello({name: 'Carol', zone: 'meadow'});
   clearAll(a, b, c);
   // Alice's own kill of a world player (her game saw it): everyone else hears it.
-  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
   const heard = c.last('maze_kill');
   assert.equal(heard.name, 'Alice');
   assert.equal(heard.kills, 1);
@@ -1290,16 +1290,16 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   assert.equal(heard.week, mazeWeek(clock.t));
   assert.equal(a.frames('maze_kill').length, 0, 'not back to the sender (its game counted it)');
   // Too soon after: refused; the same victim within a minute: refused.
-  a.send({t: 'maze_kill', victim: 'Shadow_Fang', ai: true});
+  a.send({t: 'maze_kill', victim: 'Kage_Ninja', ai: true});
   assert.equal(c.frames('maze_kill').length, 1, 'one credit per MAZE_CREDIT_GAP_MS');
   clock.t += MAZE_CREDIT_GAP_MS;
-  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
   assert.equal(c.frames('maze_kill').length, 1, 'the same victim once a minute');
   pass(clock, MAZE_REKILL_MS, a, b, c);
-  a.send({t: 'maze_kill', victim: 'Kaito', ai: true});
+  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
   assert.equal(c.last('maze_kill').kills, 2);
   // Outside the maze: refused.
-  c.send({t: 'maze_kill', victim: 'Kaito'});
+  c.send({t: 'maze_kill', victim: 'BigBoss_Tor'});
   assert.equal(a.frames('maze_kill').filter(f => f.name === 'Carol').length, 0, 'only from inside the maze');
   // Bob fell to Alice: his game says so; Alice is told (her game counts it).
   clock.t += MAZE_CREDIT_GAP_MS;
@@ -1312,9 +1312,9 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   assert.equal(a.frames('maze_kill').length, 1, 'never oneself, never one outside the maze');
   // A `by` from one that is not the maze's host: refused (only the host runs the world players).
   clock.t += MAZE_CREDIT_GAP_MS;
-  b.send({t: 'maze_kill', victim: 'Mintty', ai: true, by: '1'});
+  b.send({t: 'maze_kill', victim: 'Mewnich', ai: true, by: '1'});
   assert.equal(a.frames('maze_kill').length, 1, 'only the host credits another player');
-  a.send({t: 'maze_kill', victim: 'Mintty', ai: true, by: '2'});
+  a.send({t: 'maze_kill', victim: 'Mewnich', ai: true, by: '2'});
   assert.equal(b.last('maze_kill').name, 'Bob', 'the host credits a real player who took its world player');
   // A newcomer gets the board.
   const d = connect('4');
@@ -1348,7 +1348,7 @@ test('WorldRoom: the maze\'s board outlives a restart (storage)', async () => {
   ctx.acceptWebSocket(wa);
   dobj.accept(wa, '1', 'alice');
   await dobj.webSocketMessage(wa, JSON.stringify({t: 'hello', name: 'Alice', cls: 'mage', level: 100, stars: 0, look: {}, zone: 'maze_war', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''}));
-  await dobj.webSocketMessage(wa, JSON.stringify({t: 'maze_kill', victim: 'Kaito', ai: true}));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true}));
   await Promise.resolve();
   assert.equal(store.get('maze').board[0].name, 'Alice', 'stored');
   const ctx2 = ctxWith();

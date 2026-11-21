@@ -1905,8 +1905,12 @@ func party_gender(member: Dictionary) -> int:
 	return int(member.get("gender", 0))
 
 
-## What a companion sheet's chibi wears: its body, in the body's own look (no colours).
+## What a companion sheet's chibi wears: a world player's own look (WorldPlayers.look:
+## its body and colouring), else the original body of its gender (no colours).
 func party_look(member: Dictionary) -> Dictionary:
+	var i := WorldPlayers.index_of(String(member.get("name", ""))) if String(member.get("name", "")) != "" else -1
+	if i >= 0 and int(WorldPlayers.entry(i).gender) == party_gender(member):
+		return WorldPlayers.look(i)
 	return {"gender": party_gender(member)}
 
 

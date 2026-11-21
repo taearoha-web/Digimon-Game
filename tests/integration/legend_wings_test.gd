@@ -160,7 +160,7 @@ func _validation() -> void:
 		check(not Game._valid_item(copy), "a tampered pair is refused (%s)" % [bad])
 	Game.profile.inv.append(pair)
 	Game.profile.equip["wings"] = LegendWings.item(W0, WorldPlayers.ALPHA)
-	Game.profile[LegendWings.KEY] = {"done": W0 + 1, "hold": {str(W0): {"g": 1, "n": "", "s": 1}, str(W0 + 1): {"g": 1, "n": "Kaito", "s": 2}}, "hand": {str(W0 + 1): "Kaito"}}
+	Game.profile[LegendWings.KEY] = {"done": W0 + 1, "hold": {str(W0): {"g": 1, "n": "", "s": 1}, str(W0 + 1): {"g": 1, "n": "BigBoss_Tor", "s": 2}}, "hand": {str(W0 + 1): "BigBoss_Tor"}}
 	check(Game._valid_profile(Game.profile.duplicate(true)), "a save with pairs and the record is valid")
 	var json: Variant = JSON.parse_string(JSON.stringify(Game.profile))
 	check(json is Dictionary and Game._valid_profile(json), "and after a JSON round trip")

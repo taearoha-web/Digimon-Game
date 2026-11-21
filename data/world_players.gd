@@ -48,117 +48,122 @@ const GUILD_COLORS := {ALPHA: Color("ffd24a"), NEVERDIE: Color("ff6f8e"), TITAN:
 ## GUILD_MIN of the roster's hardcore players (the ones who reach Lv.100 in days), so
 ## every guild fields a full guild-war side (GuildWarData.GUILD_SIDE). Changing it makes
 ## everyone choose again (guild_league4_test checks the counts).
-const GUILD_PICK_SEED := "guild4"
+const GUILD_PICK_SEED := "guild1644"
 const GUILD_MIN := 20
 
+## Which roster this is. The owner deleted every AI player before the reopening of 22 Nov
+## 2026 and they all made new characters (new names, classes, genders, bodies, voices):
+## the roster below. What a device kept about world players by name (the party EXP of
+## BONUS_PATH) is dropped when it was written for another roster, so nobody of the old
+## roster comes back. Change it whenever the roster is replaced.
+const ROSTER_ID := "reborn_20261122"
+
+## The world players. "body": the chibi body (ChibiBodies index of its gender) each picked
+## at random among all the characters of its gender; look() dresses it.
 const ROSTER: Array[Dictionary] = [
-	{"name": "Kaito", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "Shadow_Fang", "class": &"assassin", "gender": 0, "style": "hardcore"},
-	{"name": "น้องแพรวา", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	{"name": "LanceKung", "class": &"lancer", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "SkyArrow", "class": &"archer", "gender": 0, "style": "hardcore", "voice": "early"},
-	{"name": "Mintty", "class": &"mage", "gender": 1, "style": "hardcore", "voice": "early"},
-	{"name": "Rinrada", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "overseas"},
-	{"name": "ป้อมปราการ", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "เมจิกหมูกรอบ", "class": &"mage", "gender": 0, "style": "hardcore", "voice": "overseas"},
-	{"name": "ข้าวเหนียวมะม่วง", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "overseas"},
-	{"name": "Zerox", "class": &"warrior", "gender": 0, "style": "hardcore"},
-	{"name": "BlackLotus", "class": &"assassin", "gender": 1, "style": "hardcore"},
-	{"name": "TonkatsuX", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "นักล่าตะวัน", "class": &"archer", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "Fiora", "class": &"lancer", "gender": 1, "style": "hardcore"},
-	{"name": "Yoyo", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "student"},
-	{"name": "แม่หมอมิว", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "night_owl"},
-	{"name": "PhantomZ", "class": &"summoner", "gender": 0, "style": "hardcore", "voice": "night_owl"},
-	{"name": "ไฟร์บอลเด้ง", "class": &"mage", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "Raijin", "class": &"muaythai", "gender": 0, "style": "hardcore", "voice": "casual"},
-	{"name": "Ryuu", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "ขุนศึกหน้าหวาน", "class": &"muaythai", "gender": 1, "style": "hardcore", "voice": "weekend"},
-	{"name": "ปีศาจสีเงิน", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "Gekko", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "night_owl"},
-	{"name": "Momo", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "casual"},
-	{"name": "นางฟ้าตาหวาน", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "regular"},
-	{"name": "หอกทะลวงฟ้า", "class": &"lancer", "gender": 0, "style": "hardcore"},
-	{"name": "Valkyrie", "class": &"lancer", "gender": 1, "style": "hardcore", "voice": "regular"},
-	{"name": "NightHawk", "class": &"archer", "gender": 0, "style": "hardcore", "voice": "night_owl"},
-	{"name": "ไอซ์ซี่", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "casual"},
-	{"name": "พ่อมดน้อยฟ้าใส", "class": &"mage", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "Luna_Mew", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "weekend"},
-	{"name": "หมอผีหมูเด้ง", "class": &"summoner", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "BearTank", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "ShieldMaiden", "class": &"defender", "gender": 1, "style": "hardcore"},
-	{"name": "Ragnar", "class": &"warrior", "gender": 0, "style": "hardcore"},
-	{"name": "เสือดาวดำ", "class": &"muaythai", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "Kurogane", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "จิ้งจอกเงา", "class": &"assassin", "gender": 1, "style": "hardcore", "voice": "night_owl"},
-	{"name": "Seraphine", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "regular"},
-	{"name": "หอกพยัคฆ์", "class": &"lancer", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "Akane", "class": &"lancer", "gender": 1, "style": "hardcore", "voice": "weekend"},
-	{"name": "ArrowRain", "class": &"archer", "gender": 0, "style": "hardcore"},
-	{"name": "ลูกศรสีชมพู", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "student"},
-	{"name": "บะหมี่เวทมนตร์", "class": &"mage", "gender": 0, "style": "hardcore", "voice": "casual"},
-	{"name": "Nebula", "class": &"mage", "gender": 1, "style": "hardcore", "voice": "regular"},
-	{"name": "อสูรน้อยหลับยาก", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "night_owl"},
-	{"name": "Wyvern", "class": &"summoner", "gender": 0, "style": "hardcore", "voice": "casual"},
-	{"name": "IronWall", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "weekend"},
-	{"name": "โล่ทองคำ", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "casual"},
-	# Dark Lords (scepter and raven), added with the class.
-	{"name": "DarkKaiser", "class": &"darklord", "gender": 0, "style": "hardcore"},
-	{"name": "ราชันอีกา", "class": &"darklord", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "LordRaven", "class": &"darklord", "gender": 1, "style": "hardcore", "voice": "night_owl"},
-	{"name": "จักรพรรดิมืด", "class": &"darklord", "gender": 0, "style": "hardcore", "voice": "weekend"},
-	# Bards (lute and songs), added with the class.
-	{"name": "Melodia", "class": &"bard", "gender": 1, "style": "hardcore"},
-	{"name": "เสียงพิณราตรี", "class": &"bard", "gender": 1, "style": "hardcore", "voice": "night_owl"},
-	{"name": "SongBird", "class": &"bard", "gender": 0, "style": "hardcore", "voice": "student"},
-	{"name": "นักพิณพเนจร", "class": &"bard", "gender": 0, "style": "hardcore", "voice": "regular"},
-	# More players of every style (a roster entry may carry "vet": a head start, see head_work).
-	{"name": "MaxPower", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "Hikari", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "early"},
-	{"name": "หมูกระทะ", "class": &"mage", "gender": 0, "style": "hardcore", "voice": "overseas"},
+	# Players with a play schedule (everyone plays hardcore; voice: the tone they talk in).
+	{"name": "เวทมนตร์คนจน", "class": &"mage", "gender": 0, "body": 0, "style": "hardcore", "voice": "student"},
+	{"name": "BigBoss_Tor", "class": &"warrior", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
+	{"name": "Ohm_TH", "class": &"summoner", "gender": 0, "body": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "มวยวัดสายโหด", "class": &"muaythai", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
+	{"name": "คุณหนูปีศาจ", "class": &"summoner", "gender": 1, "body": 3, "style": "hardcore", "voice": "weekend"},
+	{"name": "ArcaneOat", "class": &"mage", "gender": 0, "body": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "ผู้กองเหล็ก", "class": &"defender", "gender": 1, "body": 0, "style": "hardcore", "voice": "weekend"},
+	{"name": "Jaa_Lance", "class": &"lancer", "gender": 1, "body": 2, "style": "hardcore", "voice": "daytime"},
+	{"name": "Guitar_Bom", "class": &"bard", "gender": 0, "body": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "พ่อมดตาโต", "class": &"mage", "gender": 0, "body": 0, "style": "hardcore", "voice": "student"},
+	{"name": "ต้นข้าวสายฟัน", "class": &"warrior", "gender": 0, "body": 0, "style": "hardcore", "voice": "early"},
+	{"name": "Kongpob", "class": &"lancer", "gender": 0, "body": 1, "style": "hardcore", "voice": "regular"},
+	{"name": "แม่ไม้มวยไทย", "class": &"muaythai", "gender": 1, "body": 0, "style": "hardcore", "voice": "weekend"},
+	{"name": "Ploy_Mage", "class": &"mage", "gender": 1, "body": 2, "style": "hardcore", "voice": "regular"},
+	{"name": "มีดสั้นใจเศร้า", "class": &"assassin", "gender": 1, "body": 0, "style": "hardcore", "voice": "early"},
+	{"name": "Holy_Nam", "class": &"priest", "gender": 1, "body": 0, "style": "hardcore", "voice": "student"},
+	{"name": "Lord_Krit", "class": &"darklord", "gender": 0, "body": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "Mewnich", "class": &"mage", "gender": 1, "body": 3, "style": "hardcore", "voice": "weekend"},
+	{"name": "Abyss_Ton", "class": &"darklord", "gender": 0, "body": 1, "style": "hardcore", "voice": "early"},
+	{"name": "Petch_Summon", "class": &"summoner", "gender": 0, "body": 2, "style": "hardcore", "voice": "daytime"},
+	{"name": "เงาไร้นาม", "class": &"assassin", "gender": 0, "body": 2, "style": "hardcore", "voice": "casual"},
+	{"name": "เพื่อนผีน้อย", "class": &"summoner", "gender": 1, "body": 2, "style": "hardcore", "voice": "weekend"},
+	{"name": "SwordBuddy", "class": &"warrior", "gender": 0, "body": 3, "style": "hardcore", "voice": "student"},
+	{"name": "แทงค์หมีขาว", "class": &"defender", "gender": 0, "body": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "Boonmee_Tank", "class": &"defender", "gender": 0, "body": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "Thanwa", "class": &"lancer", "gender": 0, "body": 3, "style": "hardcore", "voice": "regular"},
+	{"name": "หมอลำซิ่ง", "class": &"bard", "gender": 0, "body": 3, "style": "hardcore", "voice": "early"},
+	{"name": "จอมมารขี้เซา", "class": &"darklord", "gender": 1, "body": 3, "style": "hardcore"},
+	{"name": "Silent_Pond", "class": &"assassin", "gender": 1, "body": 3, "style": "hardcore", "voice": "night_owl"},
+	{"name": "HawkeyeTH", "class": &"archer", "gender": 0, "body": 2, "style": "hardcore", "voice": "night_owl"},
+	{"name": "หมอเต้ย", "class": &"priest", "gender": 0, "body": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Lyra_Kim", "class": &"bard", "gender": 1, "body": 1, "style": "hardcore", "voice": "daytime"},
+	{"name": "ฟ้าประทาน", "class": &"priest", "gender": 0, "body": 0, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Jirayu_88", "class": &"archer", "gender": 0, "body": 2, "style": "hardcore", "voice": "night_owl"},
+	{"name": "SlyFox_TH", "class": &"assassin", "gender": 0, "body": 2, "style": "hardcore", "voice": "weekend"},
+	{"name": "ดีดพิณทั้งคืน", "class": &"bard", "gender": 1, "body": 3, "style": "hardcore", "voice": "daytime"},
+	{"name": "SpearBoy_01", "class": &"lancer", "gender": 0, "body": 1, "style": "hardcore", "voice": "casual"},
+	{"name": "SisterJune", "class": &"priest", "gender": 1, "body": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "Nakmuay_Ek", "class": &"muaythai", "gender": 0, "body": 1, "style": "hardcore", "voice": "regular"},
+	{"name": "ทวนเหล็กกล้า", "class": &"lancer", "gender": 0, "body": 2, "style": "hardcore", "voice": "night_owl"},
+	{"name": "DragoonFai", "class": &"lancer", "gender": 1, "body": 1, "style": "hardcore"},
+	{"name": "TigerKnee", "class": &"muaythai", "gender": 0, "body": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "หมัดหนักโคราช", "class": &"muaythai", "gender": 0, "body": 2, "style": "hardcore", "voice": "overseas"},
+	{"name": "หอกเดียวดาย", "class": &"lancer", "gender": 0, "body": 0, "style": "hardcore", "voice": "weekend"},
+	{"name": "Kage_Ninja", "class": &"assassin", "gender": 0, "body": 2, "style": "hardcore", "voice": "regular"},
+	{"name": "Tum_Fighter", "class": &"muaythai", "gender": 1, "body": 2, "style": "hardcore", "voice": "overseas"},
+	{"name": "แมวดำยามดึก", "class": &"assassin", "gender": 1, "body": 1, "style": "hardcore", "voice": "weekend"},
+	{"name": "Venomz", "class": &"assassin", "gender": 0, "body": 2, "style": "hardcore", "voice": "regular"},
+	{"name": "Kickboxer_Jo", "class": &"muaythai", "gender": 1, "body": 1, "style": "hardcore", "voice": "early"},
+	{"name": "แม่พระน้อย", "class": &"priest", "gender": 1, "body": 2, "style": "hardcore", "voice": "daytime"},
+	{"name": "FrostByte_7", "class": &"mage", "gender": 0, "body": 1, "style": "hardcore", "voice": "student"},
+	{"name": "DarkPao", "class": &"darklord", "gender": 1, "body": 1, "style": "hardcore"},
+	{"name": "Mordred_TH", "class": &"darklord", "gender": 0, "body": 1, "style": "hardcore"},
+	{"name": "ภูตเงาจันทร์", "class": &"summoner", "gender": 1, "body": 3, "style": "hardcore", "voice": "casual"},
+	{"name": "NongBank99", "class": &"warrior", "gender": 0, "body": 1, "style": "hardcore", "voice": "casual"},
+	{"name": "PeachyBow", "class": &"archer", "gender": 1, "body": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Kraisorn", "class": &"warrior", "gender": 0, "body": 3, "style": "hardcore", "voice": "casual"},
+	{"name": "Healy_Bear", "class": &"priest", "gender": 0, "body": 2, "style": "hardcore", "voice": "daytime"},
+	{"name": "ZooKeeperX", "class": &"summoner", "gender": 0, "body": 0, "style": "hardcore", "voice": "early"},
+	{"name": "Nuna_Mon", "class": &"summoner", "gender": 1, "body": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "OmenKing", "class": &"darklord", "gender": 0, "body": 2, "style": "hardcore"},
+	{"name": "นุ่นนิ่ม", "class": &"priest", "gender": 1, "body": 3, "style": "hardcore", "voice": "weekend"},
+	{"name": "แบมแบม", "class": &"archer", "gender": 1, "body": 2, "style": "hardcore", "voice": "student"},
+	{"name": "Pinn_Song", "class": &"bard", "gender": 1, "body": 1, "style": "hardcore"},
+	{"name": "Tank_Kla", "class": &"defender", "gender": 0, "body": 2, "style": "hardcore", "voice": "casual"},
+	{"name": "นักร้องเสียงทอง", "class": &"bard", "gender": 1, "body": 3, "style": "hardcore"},
+	{"name": "MookBless", "class": &"priest", "gender": 1, "body": 2, "style": "hardcore", "voice": "night_owl"},
+	{"name": "Pim_Shoot", "class": &"archer", "gender": 1, "body": 2, "style": "hardcore", "voice": "night_owl"},
+	{"name": "StoneHeart", "class": &"defender", "gender": 1, "body": 0, "style": "hardcore", "voice": "early"},
+	{"name": "ด่านหน้าตัวจริง", "class": &"defender", "gender": 0, "body": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "Fahsai", "class": &"archer", "gender": 1, "body": 0, "style": "hardcore", "voice": "daytime"},
+	{"name": "อาร์ตตี้", "class": &"warrior", "gender": 1, "body": 1, "style": "hardcore", "voice": "early"},
+	{"name": "PraewHeal", "class": &"priest", "gender": 1, "body": 3, "style": "hardcore", "voice": "student"},
+	{"name": "Nueng_Sin", "class": &"assassin", "gender": 0, "body": 1, "style": "hardcore", "voice": "overseas"},
+	{"name": "Tonnam_W", "class": &"warrior", "gender": 1, "body": 2, "style": "hardcore", "voice": "casual"},
+	{"name": "เจ้าหอกม่วง", "class": &"lancer", "gender": 1, "body": 1, "style": "hardcore"},
+	{"name": "ธนูใจร้าย", "class": &"archer", "gender": 0, "body": 3, "style": "hardcore", "voice": "casual"},
+	{"name": "นายท่านยามค่ำ", "class": &"darklord", "gender": 0, "body": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "น้องเกดยิงไว", "class": &"archer", "gender": 1, "body": 3, "style": "hardcore", "voice": "early"},
+	{"name": "เจ้าพ่อดาบไม้", "class": &"warrior", "gender": 0, "body": 2, "style": "hardcore", "voice": "casual"},
+	{"name": "ศอกกลับ", "class": &"muaythai", "gender": 0, "body": 0, "style": "hardcore", "voice": "regular"},
+	{"name": "WallE_Nut", "class": &"defender", "gender": 0, "body": 0, "style": "hardcore", "voice": "overseas"},
+	{"name": "น้ำแข็งใส", "class": &"mage", "gender": 1, "body": 3, "style": "hardcore"},
+	{"name": "PikeRider", "class": &"lancer", "gender": 0, "body": 1, "style": "hardcore", "voice": "casual"},
 	# Stall keepers: they stay in the village the whole session and sell what they find.
-	{"name": "ร้านป้าแดง", "class": &"priest", "gender": 1, "style": "afk"},
-	{"name": "Shop_Nana", "class": &"mage", "gender": 1, "style": "afk"},
-	{"name": "ร้านเครื่องเงิน", "class": &"defender", "gender": 0, "style": "afk"},
-	{"name": "ตลาดนัดเวท", "class": &"summoner", "gender": 1, "style": "afk"},
-	{"name": "LuteSeller", "class": &"bard", "gender": 1, "style": "afk"},
-	{"name": "แม่ค้าออนไลน์", "class": &"priest", "gender": 1, "style": "afk"},
-	{"name": "PotionKing", "class": &"mage", "gender": 0, "style": "afk"},
-	{"name": "ร้านลุงหมี", "class": &"defender", "gender": 0, "style": "afk"},
-	{"name": "ร้านพิณเสียงใส", "class": &"bard", "gender": 1, "style": "afk"},
-	{"name": "ScrollShop", "class": &"mage", "gender": 0, "style": "afk"},
-	{"name": "ร้านเกราะพี่โต", "class": &"warrior", "gender": 0, "style": "afk"},
-	{"name": "ร้านยาแม่มด", "class": &"mage", "gender": 1, "style": "afk"},
-	# Once stall keepers and AFK players, now out levelling with a play schedule like the rest.
-	{"name": "TradeMaster", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "regular"},
-	{"name": "ขายของถูก", "class": &"archer", "gender": 0, "style": "hardcore", "voice": "casual"},
-	{"name": "AFK_Taro", "class": &"lancer", "gender": 0, "style": "hardcore", "voice": "overseas"},
-	{"name": "นอนรอบอส", "class": &"assassin", "gender": 0, "style": "hardcore"},
-	{"name": "DarkMarket", "class": &"darklord", "gender": 0, "style": "hardcore", "voice": "early"},
-	{"name": "ZzzSleepy", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "night_owl"},
-	{"name": "Afk_Mochi", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "casual"},
-	{"name": "CrystalMart", "class": &"darklord", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	# Fresh players who play in the daytime, in the early morning or from abroad.
-	{"name": "Mango", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	{"name": "ข้าวผัดกะเพรา", "class": &"warrior", "gender": 0, "style": "hardcore", "voice": "early"},
-	{"name": "Sakura_TH", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "overseas"},
-	{"name": "Rocky", "class": &"defender", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "นินจาน้อย", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "overseas"},
-	{"name": "Aqua", "class": &"mage", "gender": 1, "style": "hardcore", "voice": "early"},
-	{"name": "Leo_Lancer", "class": &"lancer", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "ภูติจิ๋ว", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "overseas"},
-	{"name": "Minnie", "class": &"bard", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	{"name": "Draco", "class": &"darklord", "gender": 0, "style": "hardcore", "voice": "early"},
-	{"name": "ชาไข่มุก", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	{"name": "Coffee_Break", "class": &"archer", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	{"name": "Freelancer_Ken", "class": &"lancer", "gender": 0, "style": "hardcore", "voice": "daytime"},
-	{"name": "NightNurse", "class": &"priest", "gender": 1, "style": "hardcore", "voice": "daytime"},
-	# Newcomers (join: real days after the opening) and second characters of old hands.
-	{"name": "Kaito_Bard", "class": &"bard", "gender": 0, "style": "hardcore", "join": 6},
-	{"name": "Lily_New", "class": &"summoner", "gender": 1, "style": "hardcore", "voice": "early", "join": 11},
-	{"name": "Rookie_Ace", "class": &"assassin", "gender": 0, "style": "hardcore", "voice": "night_owl", "join": 18},
-	{"name": "TuneUp", "class": &"bard", "gender": 0, "style": "hardcore", "voice": "regular", "join": 30},
-	{"name": "DarkMoon_TH", "class": &"darklord", "gender": 1, "style": "hardcore", "voice": "night_owl"},
+	{"name": "ร้านยาเจ๊ดา", "class": &"priest", "gender": 1, "body": 3, "style": "afk"},
+	{"name": "PotionPim", "class": &"priest", "gender": 1, "body": 1, "style": "afk"},
+	{"name": "Scroll_Hub", "class": &"mage", "gender": 0, "body": 3, "style": "afk"},
+	{"name": "CrystalNook", "class": &"mage", "gender": 1, "body": 2, "style": "afk"},
+	{"name": "ร้านเกราะเจ๊หมวย", "class": &"defender", "gender": 1, "body": 0, "style": "afk"},
+	{"name": "IronShop_Toy", "class": &"defender", "gender": 0, "body": 3, "style": "afk"},
+	{"name": "ร้านพิณลุงเปี๊ยก", "class": &"bard", "gender": 0, "body": 3, "style": "afk"},
+	{"name": "ร้านดาบช่างโอ๊ต", "class": &"warrior", "gender": 0, "body": 3, "style": "afk"},
+	{"name": "MagicCorner", "class": &"summoner", "gender": 1, "body": 0, "style": "afk"},
+	{"name": "แผงลูกธนูพี่ต่าย", "class": &"archer", "gender": 1, "body": 1, "style": "afk"},
+	{"name": "BlackMarket_Z", "class": &"darklord", "gender": 0, "body": 1, "style": "afk"},
+	{"name": "ร้านนวมมือสอง", "class": &"muaythai", "gender": 0, "body": 1, "style": "afk"},
+	# Newcomers: they log in for the first time some real days after the opening (join).
+	{"name": "Ukulele_Ice", "class": &"bard", "gender": 0, "body": 0, "style": "hardcore", "voice": "weekend", "join": 6},
+	{"name": "Golem_Daddy", "class": &"summoner", "gender": 0, "body": 1, "style": "hardcore", "voice": "daytime", "join": 11},
+	{"name": "Jett_Dagger", "class": &"assassin", "gender": 0, "body": 3, "style": "hardcore", "join": 18},
+	{"name": "Mellow_Fern", "class": &"bard", "gender": 1, "body": 1, "style": "hardcore", "voice": "student", "join": 30},
 ]
 
 ## Sessions as [start hour, hours] on weekdays and at weekends (Saturday, Sunday). Each day
@@ -1011,7 +1016,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "saved": now()}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "roster": ROSTER_ID, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -1027,8 +1032,8 @@ static func _load_bonus() -> void:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary or not parsed.get("bonus") is Dictionary:
 		return
-	# Party EXP from an earlier opening of the world is forgotten.
-	if int(parsed.get("start", 0)) != START_UNIX:
+	# Party EXP from an earlier opening of the world, or of an earlier roster, is forgotten.
+	if int(parsed.get("start", 0)) != START_UNIX or String(parsed.get("roster", "")) != ROSTER_ID:
 		_bonus_dirty = true
 		return
 	for key in parsed.bonus:
@@ -1219,8 +1224,11 @@ static func grade_of(_level: int, stars: int, divine: bool) -> int:
 
 # --- Looks and fighters ---------------------------------------------------------------
 
-## Player i's look, always the same: the original chibi body (ChibiBodies 0) of its
-## gender in one of that body's ready-made colourings (ChibiLook style).
+## Player i's look, always the same: its own chibi body of its gender (the roster entry's
+## "body", ChibiBodies: the original or one of the other characters, picked at random for
+## each player when the roster was made; anyone without one, from its name) in one of
+## the ready-made colourings (ChibiLook style). Read from the roster alone, so it takes
+## no draw from a guild war's or a maze's seeded rng.
 static func look(i: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("look|%s" % entry(i).name)
@@ -1229,7 +1237,8 @@ static func look(i: int) -> Dictionary:
 	if int(l.gender) != gender:
 		l["gender"] = gender
 		ChibiLook.apply_style(l, (rng.randi() % FaceKit.option_count("hair", gender)) % ChibiLook.count("style"))
-	return {"gender": gender, "body": 0, "style": clampi(int(l.get("style", 0)), 0, ChibiLook.count("style") - 1)}
+	var body := int(entry(i).body) if entry(i).has("body") else rng.randi() % ChibiBodies.count(gender)
+	return {"gender": gender, "body": FaceKit.hero_look({"gender": gender, "body": body}).body, "style": clampi(int(l.get("style", 0)), 0, ChibiLook.count("style") - 1)}
 
 
 ## A party-member dictionary for the field (Companion reads class, name, level, stars;

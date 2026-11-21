@@ -94,7 +94,7 @@ func _deterministic() -> void:
 	for i in n:
 		same = same and WorldPlayers.pet_of(i) == first[i]
 	check(same, "the same pets after the world is worked out again (another device)")
-	check(PetData.of_player("Kaito") == PetData.of_player("Kaito") and PetData.of_player("") == "", "a name always gives the same pet; no name, no pet")
+	check(PetData.of_player("BigBoss_Tor") == PetData.of_player("BigBoss_Tor") and PetData.of_player("") == "", "a name always gives the same pet; no name, no pet")
 
 
 ## The online state: the hero's pet goes out with hello / look, others' are validated.

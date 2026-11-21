@@ -196,7 +196,7 @@ func _kills() -> void:
 	check(not MazeWar.record_kill({"kind": "mob", "name": "slime"}, hero, t), "a monster's kill does not count")
 	check(not MazeWar.record_kill(hero, {"kind": "mob", "name": "slime"}, t), "killing a monster does not count")
 	check(not MazeWar.record_kill(hero, hero, t), "nobody counts falling to oneself")
-	check(MazeWar.record_kill(hero, {"kind": "ai", "name": "Kaito", "index": 0}, t - 100.0), "the hero's kill of a world player counts")
+	check(MazeWar.record_kill(hero, {"kind": "ai", "name": "BigBoss_Tor", "index": 0}, t - 100.0), "the hero's kill of a world player counts")
 	check(MazeWar.record_kill(hero, {"kind": "real", "name": "Someone", "index": -1}, t - 50.0), "and of a real player")
 	var book := MazeWar.week_book(week)
 	check(int(book.k) == 2 and int(book.at) == int(t - 50.0), "the hero's kills and when it reached the count are in the save")
@@ -340,11 +340,11 @@ func _plus_sum(i: int, t: float) -> int:
 
 
 func _save() -> void:
-	var good := {"weeks": {"2967": {"k": 3, "at": 1795100000, "d": 1, "live": {"Kaito": [2, 1795100100]}, "held": {"Kaito": [40, 41]}}}, "champs": {"2966": {"name": "Kaito", "kills": 40, "hero": false, "index": 0}}}
+	var good := {"weeks": {"2967": {"k": 3, "at": 1795100000, "d": 1, "live": {"BigBoss_Tor": [2, 1795100100]}, "held": {"BigBoss_Tor": [40, 41]}}}, "champs": {"2966": {"name": "BigBoss_Tor", "kills": 40, "hero": false, "index": 0}}}
 	check(MazeWar.valid(good), "a good record is valid")
 	var bad := [
-		{"weeks": {"x": {}}}, {"weeks": {"1": {"k": -1}}}, {"weeks": {"1": {"k": 1.5}}}, {"weeks": {"1": {"live": {"Kaito": [1]}}}},
-		{"weeks": {"1": {"held": {"Kaito": ["a"]}}}}, {"weeks": {"1": {"zap": 1}}}, {"other": {}}, {"champs": {"1": {"name": 5}}},
+		{"weeks": {"x": {}}}, {"weeks": {"1": {"k": -1}}}, {"weeks": {"1": {"k": 1.5}}}, {"weeks": {"1": {"live": {"BigBoss_Tor": [1]}}}},
+		{"weeks": {"1": {"held": {"BigBoss_Tor": ["a"]}}}}, {"weeks": {"1": {"zap": 1}}}, {"other": {}}, {"champs": {"1": {"name": 5}}},
 		{"weeks": {"1": {"live": {"%s" % "N".repeat(30): [1, 1]}}}}, "nope",
 	]
 	for b in bad:
@@ -358,7 +358,7 @@ func _save() -> void:
 	var copy: Dictionary = JSON.parse_string(JSON.stringify({MazeWar.KEY: good}))
 	MazeWar.repair(copy)
 	var w: Dictionary = copy[MazeWar.KEY].weeks["2967"]
-	check(w.k is int and w.live.Kaito[0] is int and w.held.Kaito[0] is int and copy[MazeWar.KEY].champs["2966"].kills is int, "a save read back from JSON gets its ints back")
+	check(w.k is int and w.live.BigBoss_Tor[0] is int and w.held.BigBoss_Tor[0] is int and copy[MazeWar.KEY].champs["2966"].kills is int, "a save read back from JSON gets its ints back")
 	check(MazeWar.valid(Game.profile.get(MazeWar.KEY, {})), "the record the game wrote itself is valid")
 
 

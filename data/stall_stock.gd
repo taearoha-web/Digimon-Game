@@ -872,7 +872,7 @@ static func lot_name(i: int, kind: String, pick: int, t: float = -1.0) -> String
 
 
 ## Stall keeper i calls out one of the lots it still has at time t for the world chat
-## ("ร้านลุงหมี: มี+8 ดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
+## ("IronShop_Toy: มี+8 ดาบระดับหายาก Lv.27 ราคา 3,200 แวะดูได้"); "" with nothing left.
 ## A showpiece it has (is_hot) is called out half the time, as "ของเด่น".
 static func announcement(i: int, t: float = -1.0) -> String:
 	t = _now(t)

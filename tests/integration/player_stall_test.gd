@@ -210,16 +210,16 @@ func _sale_effects() -> void:
 	var price := PlayerStall.fair_price(axe) * 2
 	var lot := PlayerStall.list_item(_bag(axe), price, 0, t0)
 	var gold := int(Game.profile.gold)
-	var result := PlayerStall.sell(lot, "Fiora")
+	var result := PlayerStall.sell(lot, "Jaa_Lance")
 	check(int(Game.profile.gold) == gold + price, "the price is paid at once")
 	check(String(result.get("item", {}).get("uid", "")) == String(axe.uid) and int(result.get("price", 0)) == price, "sell returns the item and the price")
-	var want := "Fiora ซื้อ %s จากแผงของคุณ ราคา %s เหรียญ" % [ItemData.name_of(axe), PlayerStall.thousands(price)]
+	var want := "Jaa_Lance ซื้อ %s จากแผงของคุณ ราคา %s เหรียญ" % [ItemData.name_of(axe), PlayerStall.thousands(price)]
 	check(lines.any(func(l): return String(l[1]) == want), "the world chat: %s" % want)
-	check(toasts.any(func(t): return String(t).contains("Fiora") and String(t).contains(PlayerStall.thousands(price))), "a toast tells the sale")
+	check(toasts.any(func(t): return String(t).contains("Jaa_Lance") and String(t).contains(PlayerStall.thousands(price))), "a toast tells the sale")
 	check(changed[0] >= 2, "Game.stall_changed fired on list and sale")
 	var log: Array = PlayerStall.sales()
-	check(log.size() == 1 and String(log[0].buyer) == "Fiora" and int(log[0].price) == price and String(log[0].name) == ItemData.name_of(axe), "the sale is logged")
-	check(PlayerStall.sell(lot, "Fiora").is_empty() and int(Game.profile.gold) == gold + price, "a lot sells once")
+	check(log.size() == 1 and String(log[0].buyer) == "Jaa_Lance" and int(log[0].price) == price and String(log[0].name) == ItemData.name_of(axe), "the sale is logged")
+	check(PlayerStall.sell(lot, "Jaa_Lance").is_empty() and int(Game.profile.gold) == gold + price, "a lot sells once")
 	# The log keeps the last 20.
 	for k in 25:
 		var it := ItemData.potion("hp_s", 1)
@@ -281,14 +281,14 @@ func _save_round_trip() -> void:
 	var lot_a := PlayerStall.list_item(_bag(a), PlayerStall.fair_price(a), 0, t0)
 	PlayerStall.list_item(_bag(gem), PlayerStall.fair_price(gem) * 2, 0, t0 + 30.0)
 	var c := ItemData.potion("mp_l", 4)
-	PlayerStall.sell(PlayerStall.list_item(_bag(c), PlayerStall.fair_price(c), 0, t0), "Kaito")
+	PlayerStall.sell(PlayerStall.list_item(_bag(c), PlayerStall.fair_price(c), 0, t0), "BigBoss_Tor")
 	var before := JSON.stringify(Game.profile.stall)
 	check(Game.save(), "saved")
 	check(Game.load_game(), "loaded")
 	var s: Dictionary = Game.profile.stall
 	check(s.lots.size() == 2 and int(s.lots[0].lot) == lot_a and String(s.lots[0].item.uid) == String(a.uid) and int(s.lots[0].item.plus) == 4, "the lots survive a save")
 	check(s.lots[0].item.plus is int and s.lots[0].price is int and s.lots[1].item.count is int and s.next is int, "with their number types")
-	check(int(s.lots[1].item.count) == 3 and s.log.size() == 1 and String(s.log[0].buyer) == "Kaito", "the stack and the log too")
+	check(int(s.lots[1].item.count) == 3 and s.log.size() == 1 and String(s.log[0].buyer) == "BigBoss_Tor", "the stack and the log too")
 	check(JSON.stringify(Game.profile.stall) == before, "the stall reads back the same")
 	check(Game.save_code_roundtrip(), "the save code carries the stall")
 	# Older saves have no stall: an empty one.
