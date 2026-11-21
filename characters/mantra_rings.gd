@@ -117,6 +117,7 @@ static func fly(parent: Node, from: Vector3, to: Vector3, home: Node3D, seconds 
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ring.scale = Vector3.ONE * scale
 	parent.add_child(ring)
+	VfxBudget.track_decoration(ring)
 	ring.global_position = from
 	var home_ref: WeakRef = weakref(home) if home != null else null
 	var tween := ring.create_tween()

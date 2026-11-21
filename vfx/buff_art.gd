@@ -74,6 +74,14 @@ const RECIPES := {
 	"maestro_fervor": ["wing", "ff9ad2", "fff2fa", 6, 1.08, 1.3, 0.15],
 	"hymn_of_legends": ["note", "ffd36b", "fff8dc", 8, 1.2, 1.85, 0.35],
 	"celestial_stage": ["crown", "ffd36b", "fff8e0", 7, 1.16, 1.65, 0.1],
+	# Muay Thai: the ritual (ไหว้ครู, รำมวย, the มงคล) in flame and gold; the ring guard a band
+	# of shields and a citadel of rings; the star vow a hex of rings.
+	"wai_khru": ["flame", "ffb347", "fff0c0", 3, 0.9, 0.75, 0.22],
+	"ram_muay": ["flame", "ff8a2a", "ffe2a0", 4, 0.96, 0.95, -0.2],
+	"sacred_mongkhon": ["crown", "ffc24a", "fff4d0", 7, 1.1, 1.75, -0.15],
+	"ring_guard": ["shield", "ffb347", "fff2d0", 6, 1.06, 0.7, 0.35],
+	"iron_prajiad": ["citadel", "ff8a2a", "fff0c8", 6, 1.1, 0.95, 0.3],
+	"vow_of_the_ring": ["hex", "ffc24a", "fff6d0", 6, 1.16, 1.15, 0.25],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}

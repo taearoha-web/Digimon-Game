@@ -5,22 +5,22 @@ extends RefCounted
 ## hit sounds, and a missing file falls back the same way (AudioManager.has_sound),
 ## so sound choice never changes gameplay timing.
 
-## Defender, Assassin, Dark Lord and Bard skill ids by sound family (tools/generate_skill_sfx.py renders the files).
+## Defender, Assassin, Dark Lord, Bard and Muay Thai skill ids by sound family (tools/generate_skill_sfx.py renders the files).
 const FAMILIES := {
-	&"shield_bash": ["shield_bash", "shield_slam", "aegis_strike", "bastion_crush", "bulwark_charge", "shield_wave"],
-	&"shield_quake": ["ground_quake", "quake_slam", "titan_quake", "shockwave_wall", "meteor_shield", "titan_shieldbreak", "heavens_bulwark", "pantheon_bastion", "earthshake", "earth_dominion", "chaos_inferno"],
+	&"shield_bash": ["shield_bash", "shield_slam", "aegis_strike", "bastion_crush", "bulwark_charge", "shield_wave", "jab_cross", "flame_hook", "sun_fist", "back_elbow", "flying_knee", "thunder_elbow", "push_kick", "solar_knee_barrage"],
+	&"shield_quake": ["ground_quake", "quake_slam", "titan_quake", "shockwave_wall", "meteor_shield", "titan_shieldbreak", "heavens_bulwark", "pantheon_bastion", "earthshake", "earth_dominion", "chaos_inferno", "body_throw", "earth_kick", "muay_king", "heaven_ring_cataclysm", "three_realms_fist"],
 	&"shield_taunt": ["provoke", "grand_provoke"],
 	&"shield_throw": ["shield_toss", "rebound_storm", "judgment_rebound"],
-	&"shield_holy": ["holy_rampart", "judgment_shield", "world_bastion", "guardian_oath", "aegis_of_ages", "sanctuary_wall", "eternal_aegis", "critical_damage", "iron_defense", "commanders_aura", "lord_of_command", "emperors_command", "lords_dominion", "imperial_judgment"],
-	&"blade_swish": ["twin_fang", "crimson_cut", "blade_flurry", "night_raid", "thousand_cuts", "shadow_dance", "eclipse_fang", "umbral_lacerate", "shadow_execution"],
-	&"blade_throw": ["fan_of_knives", "phantom_daggers", "phantom_legion", "eclipse_requiem", "death_gods_eclipse", "birds", "raven_storm", "raven_sovereign"],
+	&"shield_holy": ["holy_rampart", "judgment_shield", "world_bastion", "guardian_oath", "aegis_of_ages", "sanctuary_wall", "eternal_aegis", "critical_damage", "iron_defense", "commanders_aura", "lord_of_command", "emperors_command", "lords_dominion", "imperial_judgment", "wai_khru", "ram_muay", "sacred_mongkhon", "ring_guard", "iron_prajiad", "vow_of_the_ring"],
+	&"blade_swish": ["twin_fang", "crimson_cut", "blade_flurry", "night_raid", "thousand_cuts", "shadow_dance", "eclipse_fang", "umbral_lacerate", "shadow_execution", "sweep_kick", "flame_ring_spin", "fire_dragon_circle", "naga_coil_fist"],
+	&"blade_throw": ["fan_of_knives", "phantom_daggers", "phantom_legion", "eclipse_requiem", "death_gods_eclipse", "birds", "raven_storm", "raven_sovereign", "ring_throw", "twin_rings", "mantra_storm"],
 	&"shadow_vanish": ["shadow_veil", "shadow_step", "smoke_bomb", "shadow_clone", "veil_of_night", "summon"],
 	&"venom_hiss": ["venom_edge", "deadly_venom"],
 	&"shadow_dark": ["killing_focus", "backstab", "throat_slit", "death_mark", "night_lord", "abyss_vortex", "midnight_execution", "shadow_sovereign", "oblivion_requiem", "force", "force_wave", "chaos_strike", "chaotic_diseier", "royal_crush", "dark_comet", "chaos_sovereign", "abyssal_throne"],
 	&"lute_strum": ["staccato_shot", "resonance", "sorrow_note", "triad_chord", "echo_chain", "heartstring", "cascade", "aria_of_ruin", "eternal_echo", "heartbreak_sonata"],
 	&"song_rise": ["valor_march", "iron_ballad", "virtuoso", "heroic_anthem", "slumber_lullaby", "sanctuary_serenade", "maestro_fervor", "hymn_of_legends", "celestial_stage"],
 	&"song_discord": ["discord", "lament", "shattering_rhapsody", "grand_dissonance"],
-	&"drum_boom": ["war_drum", "fortissimo", "thunder_crescendo", "grand_finale", "starlight_overture", "cosmic_encore", "divine_symphony"],
+	&"drum_boom": ["war_drum", "fortissimo", "thunder_crescendo", "grand_finale", "starlight_overture", "cosmic_encore", "divine_symphony", "thousand_ring_fist"],
 }
 static var _family_of: Dictionary = {}
 

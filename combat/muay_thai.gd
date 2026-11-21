@@ -158,8 +158,12 @@ static func after_hit(attacker: Variant, dealt: int) -> void:
 	if dealt <= 0 or not is_fighter(attacker):
 		return
 	var share := heal_share(attacker)
-	add_combo(attacker, 1)
+	var before := combo(attacker)
+	var count := add_combo(attacker, 1)
 	ClassRoles._gain(attacker, HEAL_META, float(dealt) * share, "hp")
+	# The player's own fighter calls its combo at every fifth stack.
+	if attacker is Hero and count != before and count % 5 == 0 and is_instance_valid((attacker as Hero).field):
+		BattleVfx.floating_text((attacker as Hero).field, (attacker as Hero).global_position + Vector3(0, 2.9, 0), "คอมโบ %d!" % count, Color("ffb347"), 0.8)
 
 
 ## A skill's own effects on a landed hit: extra combo stacks, the kick.
@@ -200,6 +204,10 @@ static func ring_show(caster: Variant, skill: Dictionary, center: Vector3) -> vo
 	var count := ring_count(level_of(caster))
 	var visual := visual_of(caster)
 	var secs := 0.7
+	# Cosmetic copies: they keep within the effects budget (VfxBudget), the hero's own
+	# casts first; the orbit is lent out only when they fly.
+	if not VfxBudget.can_decorate(count):
+		return
 	if visual != null and is_instance_valid(visual.rings):
 		visual.rings.lend(secs)
 	var from := body.global_position + Vector3(0, MantraRings.HEIGHT, 0)

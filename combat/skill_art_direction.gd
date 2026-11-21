@@ -297,6 +297,30 @@ const RECIPES := {
 	"thunder_crescendo": ["quake", "storm", 8, 0.60, 0.90],
 	"hymn_of_legends": ["crown", "gold", 8, 0.50, 1.00],
 	"grand_finale": ["sun", "melody", 9, 0.85, 1.20],
+	# Muay Thai: fists, elbows, knees and kicks in copper and flame; the mantra rings thrown
+	# as gold arcs; the ritual in grace; the ultimates a sun of fire.
+	"jab_cross": ["cut", "copper", 2, -0.40, 0.30],
+	"flame_hook": ["crosscut", "flame", 3, -0.60, 0.38],
+	"sun_fist": ["sun", "flame", 6, -0.30, 0.55],
+	"back_elbow": ["crosscut", "gold", 2, -0.65, 0.34],
+	"flying_knee": ["lance", "copper", 4, 0.10, 0.45],
+	"thunder_elbow": ["bolt", "storm", 6, -0.50, 0.55],
+	"ring_throw": ["bolt", "gold", 3, 0.50, 0.42],
+	"twin_rings": ["bolt", "flame", 5, 0.55, 0.50],
+	"mantra_storm": ["gale", "flame", 7, 0.70, 0.70],
+	"push_kick": ["roar", "copper", 3, 0.10, 0.40],
+	"body_throw": ["quake", "earth", 5, -0.30, 0.55],
+	"earth_kick": ["quake", "flame", 7, 0.20, 0.70],
+	"sweep_kick": ["sweep", "copper", 3, 0.30, 0.50],
+	"flame_ring_spin": ["sweep", "flame", 5, 0.45, 0.60],
+	"fire_dragon_circle": ["sweep", "flame", 8, 0.60, 0.85],
+	"wai_khru": ["bloom", "gold", 4, 0.40, 0.85],
+	"ram_muay": ["wings", "flame", 5, 0.45, 0.90],
+	"sacred_mongkhon": ["crown", "gold", 7, 0.50, 1.05],
+	"ring_guard": ["guard", "gold", 4, 0.30, 0.85],
+	"iron_prajiad": ["guard", "flame", 6, 0.35, 0.95],
+	"thousand_ring_fist": ["sun", "copper", 6, -0.20, 0.70],
+	"muay_king": ["sun", "flame", 9, 0.80, 1.15],
 }
 
 
