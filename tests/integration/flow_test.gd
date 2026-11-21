@@ -471,7 +471,7 @@ func _summons() -> void:
 		probe.setup(hero, "recall_wolverine", {"kind": "wolf", "count": 1, "secs": 120.0}, 1.0, 0, 1, stars)
 		check(absf(probe.size_mult - float(expected[stars])) < 0.002, "%d star(s) -> %d%% size" % [stars, int(round(float(expected[stars]) * 100.0))])
 		probe.free()
-	Game.profile.skills["recall_wolverine"] = 4
+	Game.profile.skills["golden_falcon"] = 4  # the rank of its line
 	hero.cooldowns.clear()
 	hero.use_skill(0)
 	await _wait(0.9)
