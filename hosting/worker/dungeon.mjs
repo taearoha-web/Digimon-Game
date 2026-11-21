@@ -25,7 +25,7 @@ export const NAME_MAX = 32;
 export const TOP = 50;
 export const CLASSES = ['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard'];
 /** The first week anyone could clear (the world opened, WorldPlayers.START_UNIX). */
-export const START_UNIX = 1793274300;
+export const START_UNIX = 1795302000;
 export const MAX_BODY_BYTES = 2048;
 /** Per IP: [at most, window seconds]. */
 export const LIMITS = {
@@ -112,7 +112,7 @@ async function getTimes(request, env, url, now) {
   if (!isInt(week, firstWeek(), weekOf(now) + 1)) return failure(400, 'invalid_week', 'week must be a week number of the dungeon.');
   const busy = await limited(request, env, 'dungeon_get', now);
   if (busy) return busy;
-  const rows = await env.DB.prepare('SELECT leader, name, secs, classes, at FROM toon_dungeon_times WHERE week = ? ORDER BY secs, at LIMIT ?').bind(week, TOP).all();
+  const rows = await env.DB.prepare('SELECT leader, name, secs, classes, at FROM toon_dungeon_times WHERE week = ? AND at >= ? ORDER BY secs, at LIMIT ?').bind(week, START_UNIX, TOP).all();
   const times = (rows.results ?? []).map(rowOf).filter(Boolean);
   return json({week, times, now});
 }
@@ -135,11 +135,12 @@ async function postTime(request, env, now) {
   }
   const time = cleanTime(body, now);
   if (typeof time === 'string') return failure(400, 'invalid_time', time);
-  // The best time wins: a slower post changes nothing, and the stored one comes back.
+  // The best time wins: a slower post changes nothing, and the stored one comes back. A
+  // time kept from before the world reopened (at < START_UNIX) is always replaced.
   const [upsert, read] = await env.DB.batch([
     env.DB.prepare(`INSERT INTO toon_dungeon_times (week, leader, name, secs, classes, at) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(week, leader) DO UPDATE SET name = excluded.name, secs = excluded.secs, classes = excluded.classes, at = excluded.at
-      WHERE excluded.secs < toon_dungeon_times.secs`).bind(time.week, time.leader, time.name, time.secs, JSON.stringify(time.classes), now),
+      WHERE excluded.secs < toon_dungeon_times.secs OR toon_dungeon_times.at < ?`).bind(time.week, time.leader, time.name, time.secs, JSON.stringify(time.classes), now, START_UNIX),
     env.DB.prepare('SELECT leader, name, secs, classes, at FROM toon_dungeon_times WHERE week = ? AND leader = ?').bind(time.week, time.leader),
   ]);
   const stored = Number(upsert.meta?.changes ?? 0) > 0;
