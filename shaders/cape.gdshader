@@ -12,7 +12,10 @@ shader_type spatial;
 // The Muay Thai fighter's capes (boxer > 0) paint the same cloth their own way
 // (boxer_paint): 1 the ring robe (satin red, gold trim and fringe, a mongkhon with
 // an unalom and rows of yant script on the back), 2 the star robe (crimson-to-orange
-// flame satin, glowing drifting script, embers along the hem). They add two layers:
+// flame satin, glowing drifting script, embers along the hem), 3 the Dragon God's robe
+// (the star robe re-cut: jade dragon-scale satin whose scale rims smoulder in the
+// glow colour, a gold dragon coiled round the mongkhon, embers of the glow colour).
+// They add two layers:
 // ribbon (the prajiad tails tied at the shoulders) and kind 3, the mantra ring that
 // floats behind the shoulders of the star robe.
 render_mode cull_disabled, diffuse_toon, specular_disabled;
@@ -42,7 +45,7 @@ uniform float phase = 0.0;
 uniform float stiff = 1.0;
 uniform float billow = 0.15;
 uniform float fold = 0.0;
-// The Muay Thai robes: 0 off (the Dark Lord), 1 Lv.100, 2 the star robe.
+// The Muay Thai robes: 0 off (the Dark Lord), 1 Lv.100, 2 the star robe, 3 the dragon robe.
 uniform float boxer = 0.0;
 // A prajiad tail (boxer only): a narrow band with a swallowtail end.
 uniform float ribbon = 0.0;
@@ -321,12 +324,84 @@ float mongkhon(vec2 c, out float shade) {
 	return max(m, un_m);
 }
 
+// Dragon scales in cloth units: overlapping rounded scales in offset rows, tips down.
+// Returns the scale's shade (0 at its lower rim .. 1 at its root); [param edge] 1 on
+// the rim line, [param id] the scale's random.
+float dragon_scales(vec2 dp, float size, out float edge, out float id) {
+	vec2 g = vec2(dp.x / size, -dp.y / (size * 0.72));
+	float row = floor(g.y);
+	g.x += mod(row, 2.0) * 0.5;
+	vec2 cell = vec2(floor(g.x), row);
+	vec2 f = fract(g) - vec2(0.5, 0.0);
+	// The scale is a disc hanging from the row above: its rim is the lower arc.
+	float d = length(f);
+	float r = 0.62;
+	id = hash2(cell);
+	edge = smoothstep(0.1, 0.0, abs(d - r) - 0.02) * step(0.0, f.y);
+	return clamp(1.0 - d / r, 0.0, 1.0);
+}
+
+// The Dragon God's emblem: a dragon coiled once round the mongkhon at [param c] (cloth
+// units, the ring's centre), clear of the ring, its head rearing at the upper left and
+// two claws gripping the ring. [param grow] thickens every part (the outline pass).
+// Returns 1 on the dragon; [param shade] its scale light (belly toward the ring),
+// [param spine] 1 along its glowing ridge, [param eye] 1 on its eye.
+float coiled_dragon(vec2 c, float grow, out float shade, out float spine, out float eye) {
+	float r = length(c);
+	float ang = atan(c.x, c.y);
+	// The body runs clockwise from the tail at the top right round to the neck at the
+	// upper left, weaving in and out a little.
+	float t = fract((ang - 0.3) / (2.0 * PI));
+	float rd = 0.152 + 0.01 * sin(t * 2.0 * PI * 5.0);
+	float thick = mix(0.003, 0.021, smoothstep(0.0, 0.3, t)) * mix(1.0, 0.8, smoothstep(0.8, 0.95, t)) + grow;
+	float body = abs(r - rd) - thick;
+	float m = smoothstep(0.002, -0.002, body) * step(t, 0.97);
+	float across = clamp((r - rd) / max(thick - grow, 0.001), -1.0, 1.0);
+	float band = step(0.45, fract(t * 70.0));
+	shade = mix(0.55, 1.05, smoothstep(-1.0, 0.6, across)) * mix(0.78, 1.0, band);
+	spine = smoothstep(0.3, 0.0, abs(across - 0.7)) * m * step(grow, 0.0001);
+	// The head at the neck's end over the top of the ring, rearing up and to the left.
+	vec2 hc = (c - vec2(-0.012, 0.19)) / 1.6;
+	vec2 dir = normalize(vec2(-0.55, 0.84));
+	vec2 hq = vec2(dot(hc, dir), dot(hc, vec2(-dir.y, dir.x)));
+	float head = length(hq * vec2(1.0, 1.5)) - 0.024 - grow;
+	head = min(head, seg(hq, vec2(0.0, 0.0), vec2(0.045, -0.004)) - 0.011 - grow);
+	float jaw = seg(hq, vec2(0.005, -0.012), vec2(0.04, -0.022)) - 0.005 - grow;
+	float horn = seg(hq, vec2(-0.012, 0.012), vec2(-0.05, 0.034)) - 0.0045 - grow;
+	horn = min(horn, seg(hq, vec2(-0.004, 0.016), vec2(-0.028, 0.048)) - 0.0035 - grow);
+	float hm = smoothstep(0.002, -0.002, min(min(head, jaw), horn));
+	if (hm > m) {
+		shade = 1.0;
+		spine = smoothstep(0.002, -0.002, horn) * step(grow, 0.0001);
+	}
+	eye = smoothstep(0.008, 0.004, length(hq - vec2(0.01, 0.008))) * step(grow, 0.0001);
+	// A flame of the dragon's fire at the tail's tip (top right).
+	vec2 tip = vec2(sin(0.3), cos(0.3)) * 0.152;
+	float flame = length((c - tip - vec2(0.012, 0.012)) * vec2(1.0, 0.7)) - 0.014 - grow;
+	float fm = smoothstep(0.002, -0.002, flame);
+	if (fm > max(m, hm)) {
+		shade = 1.0;
+		spine = step(grow, 0.0001);
+	}
+	m = max(m, fm);
+	// Two claws gripping the mongkhon from the coil.
+	float claws = 1e3;
+	for (int k = 0; k < 2; k++) {
+		float a = k == 0 ? 2.1 : 4.2;
+		vec2 at = vec2(sin(a), cos(a));
+		claws = min(claws, seg(c, at * 0.142, at * 0.118) - 0.006 - grow);
+	}
+	float cm = smoothstep(0.002, -0.002, claws);
+	return max(max(m, hm), cm);
+}
+
 // The colour and glow of a robe point; cut > 0.5 discards it.
 void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out vec3 col, out vec3 emit, out float cut) {
 	float u = uv.x;
 	float v = uv.y;
 	float s = u * 2.0 - 1.0;
 	float star = boxer > 1.5 ? 1.0 : 0.0;
+	bool dragon = boxer > 2.5;
 	vec3 gold_c = trim_color.rgb;
 	cut = 0.0;
 	emit = vec3(0.0);
@@ -367,8 +442,19 @@ void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out 
 		emit = gold_c * (edge * 0.3 + dots * 0.5 + bind * 0.4) * star + glow_color.rgb * star * 0.15 * v;
 		return;
 	}
-	// The cloth: satin, a deep crimson running into flame orange on the star robe.
-	if (star > 0.5) {
+	// The cloth: satin, a deep crimson running into flame orange on the star robe; jade
+	// dragon scales on the dragon robe, their rims smouldering toward the hem.
+	if (dragon) {
+		col = mix(outer_color.rgb * 1.1, outer_deep.rgb, smoothstep(0.0, 1.1, v));
+		float edge;
+		float sid;
+		float sc = dragon_scales(dp, 0.05, edge, sid);
+		col *= mix(0.62, 1.12, sc) * mix(0.92, 1.06, sid);
+		col = mix(col, gold_c * 0.75, edge * 0.55);
+		float smoulder = edge * smoothstep(0.25, 1.0, v) * (0.55 + 0.45 * sin(TIME * 2.2 + sid * 6.2832));
+		col = mix(col, glow_color.rgb, smoulder * 0.5);
+		emit += glow_color.rgb * smoulder * 0.7;
+	} else if (star > 0.5) {
 		col = mix(outer_color.rgb, glow_color.rgb * 0.95, smoothstep(0.3, 1.0, v));
 		vec2 q = dp * vec2(9.0, 5.0) + vec2(0.0, -TIME * 0.6);
 		float f = fbm(q + vec2(fbm(q * 0.7 + TIME * 0.1), 0.0));
@@ -410,15 +496,37 @@ void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out 
 	if (front) {
 		// The back: the mongkhon over the yant rows.
 		float ring_y = -0.17 * cape_length / 0.56;
+		if (dragon) {
+			// Lower, clear of the collar, so the dragon's head shows over the ring.
+			ring_y -= 0.05;
+		}
 		vec2 c = dp - vec2(0.0, ring_y);
+		if (dragon) {
+			// A smaller mongkhon, so the dragon's coils fit round it on the narrow robe.
+			c /= 0.7;
+		}
 		float shade;
 		float m = mongkhon(c, shade);
-		float halo = smoothstep(0.16, 0.1, length(c)) * star;
+		if (dragon) {
+			// The mongkhon held in the coils of a jade-and-gold dragon, outlined dark.
+			float dshade;
+			float spine;
+			float eye;
+			float outline = coiled_dragon(c, 0.005, dshade, spine, eye);
+			float dm = coiled_dragon(c, 0.0, dshade, spine, eye);
+			col = mix(col, outer_deep.rgb * 0.2, max(outline - dm, 0.0) * 0.85);
+			vec3 hide = mix(vec3(0.62, 0.95, 0.8), gold_c, 0.25);
+			col = mix(col, hide * dshade, dm);
+			col = mix(col, glow_color.rgb, spine * 0.85);
+			col = mix(col, glow_color.rgb * 1.3, eye);
+			emit += hide * dm * 0.12 + glow_color.rgb * (spine * (1.0 + 0.4 * sin(TIME * 3.0 + c.x * 40.0)) + eye * 2.0);
+		}
+		float halo = smoothstep(0.16, 0.1, length(c)) * star * (dragon ? 0.0 : 1.0);
 		col = mix(col, gold_c * 1.1, halo * 0.15);
 		col = mix(col, outer_deep.rgb * 0.35, smoothstep(0.02, 0.0, abs(length(c) - 0.1) - 0.026) * (1.0 - m) * 0.8);
 		col = mix(col, gold_c * shade, m);
 		emit += gold_c * (m * (0.2 + 0.45 * star) + halo * 0.2);
-		float script = yant_rows(dp, ring_y - 0.135, 4.0, 0.034, 0.17, star * TIME * 0.35);
+		float script = yant_rows(dp, ring_y - 0.135, dragon ? 3.0 : 4.0, 0.034, 0.17, star * TIME * 0.35);
 		vec3 ink = star > 0.5 ? mix(gold_c, vec3(1.0, 0.95, 0.7), 0.4) : gold_c;
 		col = mix(col, ink, script);
 		emit += ink * script * (0.15 + 0.8 * star * (0.8 + 0.2 * sin(TIME * 4.0 + dp.x * 30.0)));
@@ -436,11 +544,13 @@ void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out 
 		vec2 o = vec2(hash2(id + 3.1), hash2(id + 5.7)) - 0.5;
 		float ember = smoothstep(0.22, 0.0, length(f - o * 0.5)) * step(0.72, h) * smoothstep(0.2, 0.0, e_hem);
 		ember *= 0.6 + 0.4 * sin(TIME * (4.0 + h * 6.0) + h * 30.0);
-		col = mix(col, vec3(1.0, 0.8, 0.35), ember);
-		emit += vec3(1.0, 0.55, 0.15) * ember * 2.2;
+		vec3 hot = dragon ? mix(glow_color.rgb, vec3(1.0, 0.95, 0.7), 0.35) : vec3(1.0, 0.8, 0.35);
+		vec3 fire = dragon ? glow_color.rgb : vec3(1.0, 0.55, 0.15);
+		col = mix(col, hot, ember);
+		emit += fire * ember * 2.2;
 		// The hem itself smoulders.
 		float burn = smoothstep(0.03, 0.0, e_hem);
-		emit += vec3(1.0, 0.5, 0.12) * burn * (0.8 + 0.4 * sin(TIME * 5.0 + dp.x * 40.0));
+		emit += (dragon ? glow_color.rgb * 0.8 : vec3(1.0, 0.5, 0.12)) * burn * (0.8 + 0.4 * sin(TIME * 5.0 + dp.x * 40.0));
 	}
 }
 

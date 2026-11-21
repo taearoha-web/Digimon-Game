@@ -11,8 +11,12 @@ extends Node3D
 ## The Dark Lord, who wears a cape in the wing slot, gets the Dragon Emperor's cape
 ## instead: CapeArt's long cape and scale capelet re-cut in dragon jade over his abyss
 ## violet, with a small pair of these wings standing at the shoulders. The Muay Thai
-## fighter, who wears a ring robe, gets its star robe (CapeArt, "muaythai") re-cut in
-## dragon jade and gold, with no wings at all.
+## fighter, who wears a ring robe, gets its star robe (CapeArt, "muaythai") re-cut
+## as the Dragon God's (cape shader boxer 3): jade dragon-scale satin, a gold dragon coiled
+## round the mongkhon on the back, scale rims, embers, prajiad tails and mantra ring all
+## alight in the fire of its dragon (อัคนี: the class set's glow), and two gold dragon
+## heads clasping the robe at the shoulders where the prajiad tails are knotted (one
+## baked mesh). No wings at all.
 ##
 ## One unshaded shader (dragon_wing.gdshader) draws membrane, bones, scales and claws
 ## from the mesh's UVs: no textures, no lights, no particles, nothing added over the
@@ -126,13 +130,14 @@ func _make(still: bool) -> void:
 	_fit.position = BACK
 	add_child(_fit)
 	if cls == "muaythai":
-		_cape = CapeArt.build_tinted("DragonCape", {"outer_color": Color("0f6a52"), "outer_deep": Color("04241c"), "lining_color": Color("1a0e08"),
-			"trim_color": DragonGearData.GOLD, "glow_color": DragonGearData.JADE_LIGHT}, cls)
+		_cape = CapeArt.build_tinted("DragonCape", {"outer_color": Color("13785c"), "outer_deep": Color("052a21"), "lining_color": Color("10261f"),
+			"trim_color": DragonGearData.GOLD, "glow_color": SetGearData.palette(cls).glow, "boxer": 3.0}, cls)
 		var own_player := _cape.get_node_or_null("AnimationPlayer")
 		if own_player != null:
 			_cape.remove_child(own_player)
 			own_player.free()
 		add_child(_cape)
+		_cape._fit.add_child(_clasps())
 	elif cls == "darklord":
 		var own := SetGearData.palette(cls)
 		_cape = CapeArt.build_tinted("DragonCape", {"outer_color": Color("14725c"), "outer_deep": Color("05221d"), "lining_color": Color("2c1548"),
@@ -165,6 +170,28 @@ func _make(still: bool) -> void:
 	add_child(player)
 	player.add_animation_library("", _clips())
 	player.play("Idle")
+
+
+## The Muay Thai robe's clasps: a gold dragon head on each shoulder, over the knot of
+## the prajiad tails, looking forward and out, eyes in the class's fire (DragonGearArt's
+## head, both in one baked mesh). In the robe's authored space (CapeArt._fit).
+func _clasps() -> Node3D:
+	var key := "dragonwing_clasps_" + cls
+	if not StarGearArt._cache.has(key):
+		var b := StarGearArt._builder()
+		var p := DragonGearArt.palette(cls)
+		for side in [-1.0, 1.0]:
+			var at := Vector3(side * 0.2, CapeArt.TOP_Y - 0.02, CapeArt.BACK_Z + 0.13)
+			StarGearArt._ring_at(b, at + Vector3(0, -0.01, -0.03), 0.045, 0.02, DragonGearData.GOLD)
+			DragonGearArt._head(b, p, at, Vector3(side * 0.35, 0.25, 1.0), Vector3(0, 1, -0.2), 0.085)
+		StarGearArt._store(key, b)
+	var root := Node3D.new()
+	root.name = "DragonClasps"
+	StarGearArt._attach(root, key)
+	var art := root.get_child(0) as MeshInstance3D
+	if art != null and art.mesh != null and art.mesh.get_surface_count() > 1:
+		art.set_surface_override_material(1, DragonGearArt.glow_material())
+	return root
 
 
 ## The class sigil that burns at a wrist (SetGearArt._sigil, front and back).

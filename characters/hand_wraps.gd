@@ -10,7 +10,9 @@ extends RefCounted
 ##   star_wraps_<50..200>       star gear (StarGearData)
 ##   set_wraps_muaythai         the 250-star class set (SetGearData)
 ##   divine_wraps_muaythai_200  the divine weapon (DivineGearData)
-##   dragon_wraps_muaythai      the Dragon God weapon (DragonGearData)
+##   dragon_wraps_muaythai      the Dragon God weapon (DragonGearData), built by
+##                              DragonGearArt (dragon-scale wraps with the dragon coiled
+##                              round the fist) in this same layout
 ## Model convention: the grip (the hand slot, where a held handle would pass through the
 ## closed fingers) at the origin, as a RIGHT fist sits in the grip space every rig shares
 ## (HeroVisual's slot fix lines the chibi slots up with KayKit's): the forearm runs to
@@ -199,6 +201,10 @@ static func _bake(look: String) -> ArrayMesh:
 ## The wrapped fist of [param look]: a root (named after the look) holding one model node
 ## (a single baked mesh, see _bake).
 static func build(look: String) -> Node3D:
+	# The Dragon God's wraps are a dragon weapon (DragonGearArt: two surfaces, the dragon
+	# coiled round the fist, its pulse of light and breath), laid out in this grip space.
+	if look.begins_with("dragon_"):
+		return DragonGearArt.build(look)
 	var root := Node3D.new()
 	root.name = look
 	var model := MeshInstance3D.new()

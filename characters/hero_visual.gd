@@ -1129,6 +1129,9 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var kind := StarGearData.kind_from_look(look)
 	if kind == HandWraps.KIND:
 		item = HandWraps.build(look)
+		# The Dragon God's wraps breathe round both fists.
+		if look.begins_with("dragon_"):
+			DragonGearArt.breath(item, decor_light)
 	elif look.begins_with("divine_"):
 		item = DivineGearArt.build(look)
 	elif look.begins_with("star_"):

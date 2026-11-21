@@ -106,7 +106,7 @@ func _items() -> void:
 			var lines := ItemData.detail_lines(item)
 			check(lines.any(func(line): return String(line).contains("เกาะลอยฟ้าเทพมังกร")) and lines.any(func(line): return String(line).contains("ดาว 300")), "%s %s: the tooltip names the isle and ★300" % [c, item.slot])
 		check(ItemData.detail_lines(weapon).any(func(line): return String(line).begins_with("พลังเทพมังกร")) and ItemData.detail_lines(weapon).any(func(line): return String(line).contains("โบนัสเซต")), "%s: the weapon's tooltip shows its line and the set bonus" % c)
-	check(names.size() == 20, "twenty distinct names")
+	check(names.size() == ClassData.IDS.size() * 2, "%d distinct names (a weapon and wings a class)" % (ClassData.IDS.size() * 2))
 	check(String(DragonGearData.wing_name("darklord")).begins_with("ผ้าคลุม"), "the Dark Lord's is a cape")
 	# The contract's stub signatures still answer for an unknown class.
 	check(DragonGearData.weapon(&"vagabond", rng).get("dragon") == 1 and DragonGearData.wings(&"", rng).get("dragon") == 1, "an unknown class still gets a piece")
@@ -398,7 +398,7 @@ func _save() -> void:
 
 func _icons() -> void:
 	var ids := DragonGearData.icon_ids()
-	check(ids.size() == 20, "twenty icon ids")
+	check(ids.size() == ClassData.IDS.size() * 2, "%d icon ids" % (ClassData.IDS.size() * 2))
 	var all := ItemLook.all_icon_ids()
 	var rng := _rng(9)
 	for id in ids:
@@ -461,13 +461,14 @@ func _visuals() -> void:
 			hero.setup(cls, "", true, equip, FaceKit.default_look())
 			await get_tree().process_frame
 			var held := hero.find_children("Held_dragon_*", "", true, false)
-			# (The Assassin's twin dagger shares the main one's node name: counted once here.)
-			var want_held := 2 if c in ["warrior", "priest", "summoner"] else 1
+			# (The Assassin's twin dagger shares the main one's node name: counted once here.
+			# The Muay Thai fighter's wraps are worn on both fists, the left one "_l".)
+			var want_held := 2 if c in ["warrior", "priest", "summoner", "muaythai"] else 1
 			check(held.size() == want_held, "q%d %s holds the dragon weapon%s (%d)" % [quality, c, " and its off-hand" if want_held == 2 else "", held.size()])
 			var aura := hero.find_child("SetAura", true, false)
 			check(quality == 0 or (aura != null and String(aura.get_meta("set_aura", "")) == c), "q%d %s: the set aura stays with the dragon weapon in place" % [quality, c])
 			var breaths := hero.find_children("DragonBreath", "", true, false).size()
-			check(breaths == (0 if quality == 0 else (2 if c == "assassin" else 1)), "q%d %s: breath shells in the hand: %d" % [quality, c, breaths])
+			check(breaths == (0 if quality == 0 else (2 if c in ["assassin", "muaythai"] else 1)), "q%d %s: breath shells in the hand: %d" % [quality, c, breaths])
 			var wing := hero.find_child("Wings_dragon_" + c, true, false) as DragonWingArt
 			check(wing != null, "q%d %s wears the dragon wings" % [quality, c])
 			if wing != null:
@@ -531,8 +532,8 @@ func _visuals() -> void:
 	await settle(4)
 	var orphans_after := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	check(orphans_after <= orphans_before, "nothing is left orphaned after freeing (%d -> %d)" % [orphans_before, orphans_after])
-	# Ten classes, ten different wing colourings; one shared mesh.
+	# Every class its own wing colouring; one shared mesh.
 	var seen := {}
 	for cls in StarGearData.CLASSES:
 		seen[(DragonWingArt.colors(cls).membrane as Color).to_html()] = true
-	check(seen.size() == 10 and DragonWingArt.wing_mesh() == DragonWingArt.wing_mesh(), "ten membrane colours over one shared wing mesh")
+	check(seen.size() == StarGearData.CLASSES.size() and StarGearData.CLASSES.size() == ClassData.IDS.size() and DragonWingArt.wing_mesh() == DragonWingArt.wing_mesh(), "%d membrane colours over one shared wing mesh (%d)" % [ClassData.IDS.size(), seen.size()])
