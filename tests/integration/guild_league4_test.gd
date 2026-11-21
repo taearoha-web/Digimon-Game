@@ -150,7 +150,9 @@ func _schedule() -> void:
 	# The one-off extra round: Saturday 21 Nov 2026 13:00 Thai, between that day's 12:00 and 18:00.
 	var extra := 1795240800
 	var xday := WorldEvents.day_of(float(extra))
-	check(GuildLeague.is_round(extra) and not GuildLeague.is_round(extra + GuildLeague.DAY), "the extra round at 13:00 on 21 Nov is a round, not on other days")
+	# It came before the reopening (WorldPlayers.START_UNIX, 22 Nov 06:00): no round is
+	# fought before it any more (is_round, as the server's isSlot); the calendar keeps it.
+	check(extra < WorldPlayers.START_UNIX and not GuildLeague.is_round(extra) and not GuildLeague.is_round(extra + 2 * GuildLeague.DAY), "the extra round at 13:00 on 21 Nov was before the reopening: no round; nor 13:00 on other days")
 	check(GuildLeague.day_slots(xday).size() == 4 and GuildLeague.slot_start(xday, 1) == extra, "that day has four rounds, the extra second (%s)" % [GuildLeague.day_slots(xday)])
 	check(GuildLeague.next_slot(float(GuildLeague.slot_start(xday, 0)) + 1500.0) == extra and GuildLeague.next_slot(float(extra)) == GuildLeague.slot_start(xday, 2), "after 12:00 comes 13:00, then 18:00")
 	check(GuildLeague.prev_slot(GuildLeague.slot_start(xday, 2)) == extra and GuildLeague.live_slot(float(extra) + 60.0) == extra, "the extra round runs its DURATION")
