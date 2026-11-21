@@ -281,14 +281,14 @@ func _save_round_trip() -> void:
 	var lot_a := PlayerStall.list_item(_bag(a), PlayerStall.fair_price(a), 0, t0)
 	PlayerStall.list_item(_bag(gem), PlayerStall.fair_price(gem) * 2, 0, t0 + 30.0)
 	var c := ItemData.potion("mp_l", 4)
-	PlayerStall.sell(PlayerStall.list_item(_bag(c), PlayerStall.fair_price(c), 0, t0), "BigBoss_Tor")
+	PlayerStall.sell(PlayerStall.list_item(_bag(c), PlayerStall.fair_price(c), 0, t0), "TorTor_W")
 	var before := JSON.stringify(Game.profile.stall)
 	check(Game.save(), "saved")
 	check(Game.load_game(), "loaded")
 	var s: Dictionary = Game.profile.stall
 	check(s.lots.size() == 2 and int(s.lots[0].lot) == lot_a and String(s.lots[0].item.uid) == String(a.uid) and int(s.lots[0].item.plus) == 4, "the lots survive a save")
 	check(s.lots[0].item.plus is int and s.lots[0].price is int and s.lots[1].item.count is int and s.next is int, "with their number types")
-	check(int(s.lots[1].item.count) == 3 and s.log.size() == 1 and String(s.log[0].buyer) == "BigBoss_Tor", "the stack and the log too")
+	check(int(s.lots[1].item.count) == 3 and s.log.size() == 1 and String(s.log[0].buyer) == "TorTor_W", "the stack and the log too")
 	check(JSON.stringify(Game.profile.stall) == before, "the stall reads back the same")
 	check(Game.save_code_roundtrip(), "the save code carries the stall")
 	# Older saves have no stall: an empty one.

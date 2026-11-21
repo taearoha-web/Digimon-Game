@@ -1282,7 +1282,7 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   const c = connect('3').hello({name: 'Carol', zone: 'meadow'});
   clearAll(a, b, c);
   // Alice's own kill of a world player (her game saw it): everyone else hears it.
-  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
+  a.send({t: 'maze_kill', victim: 'TorTor_W', ai: true});
   const heard = c.last('maze_kill');
   assert.equal(heard.name, 'Alice');
   assert.equal(heard.kills, 1);
@@ -1293,13 +1293,13 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   a.send({t: 'maze_kill', victim: 'Kage_Ninja', ai: true});
   assert.equal(c.frames('maze_kill').length, 1, 'one credit per MAZE_CREDIT_GAP_MS');
   clock.t += MAZE_CREDIT_GAP_MS;
-  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
+  a.send({t: 'maze_kill', victim: 'TorTor_W', ai: true});
   assert.equal(c.frames('maze_kill').length, 1, 'the same victim once a minute');
   pass(clock, MAZE_REKILL_MS, a, b, c);
-  a.send({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true});
+  a.send({t: 'maze_kill', victim: 'TorTor_W', ai: true});
   assert.equal(c.last('maze_kill').kills, 2);
   // Outside the maze: refused.
-  c.send({t: 'maze_kill', victim: 'BigBoss_Tor'});
+  c.send({t: 'maze_kill', victim: 'TorTor_W'});
   assert.equal(a.frames('maze_kill').filter(f => f.name === 'Carol').length, 0, 'only from inside the maze');
   // Bob fell to Alice: his game says so; Alice is told (her game counts it).
   clock.t += MAZE_CREDIT_GAP_MS;
@@ -1348,7 +1348,7 @@ test('WorldRoom: the maze\'s board outlives a restart (storage)', async () => {
   ctx.acceptWebSocket(wa);
   dobj.accept(wa, '1', 'alice');
   await dobj.webSocketMessage(wa, JSON.stringify({t: 'hello', name: 'Alice', cls: 'mage', level: 100, stars: 0, look: {}, zone: 'maze_war', pos: [0, 0, 0], yaw: 0, hp: 1, max_hp: 1, mount: ''}));
-  await dobj.webSocketMessage(wa, JSON.stringify({t: 'maze_kill', victim: 'BigBoss_Tor', ai: true}));
+  await dobj.webSocketMessage(wa, JSON.stringify({t: 'maze_kill', victim: 'TorTor_W', ai: true}));
   await Promise.resolve();
   assert.equal(store.get('maze').board[0].name, 'Alice', 'stored');
   const ctx2 = ctxWith();

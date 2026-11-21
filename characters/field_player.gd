@@ -228,7 +228,7 @@ func refresh() -> void:
 		say(("ตีบวก %s เป็น +%d สำเร็จ!" % [piece.name, plus]) if plus > 0 and enhanced else ("เก็บได้ %s" % piece.name), color)
 
 
-## "[Alpha] BigBoss_Tor Lv.100 ★44" in the guild's colour; no tag before Lv.100 (no guild yet);
+## "[Alpha] TorTor_W Lv.100 ★44" in the guild's colour; no tag before Lv.100 (no guild yet);
 ## a God's title above it ("✦ เทพเจ้าแห่งนักรบ ✦").
 func _level_text() -> String:
 	var g := WorldPlayers.guild_at(world_index, int(member.level))
