@@ -229,7 +229,7 @@ func _grid(st: SurfaceTool, params: Dictionary, cols: int, rows: int, base: int,
 
 
 ## The Muay Thai robe: one short satin cape, two prajiad tails knotted at each
-## shoulder (all four one mesh) and, on the star robe, the
+## shoulder (all four one mesh, bound in gold at the top) and, on the star robe, the
 ## mantra ring behind the shoulders.
 func _make_boxer() -> void:
 	var palette := {"outer_color": Color("d42a2a"), "outer_deep": Color("7a0c14"), "lining_color": Color("3a0a10"),
@@ -252,16 +252,8 @@ func _make_boxer() -> void:
 	if star:
 		var ring := _layer(palette.merged({"kind": 3.0, "top_width": 0.34, "hem_width": 0.4, "cape_length": 0.1, "behind": 0.07}, true), 48, 2)
 		ring.name = "MantraRing"
-	_knots()
-
-
-## The prajiad knots that tie the robe at the shoulders, where the tails hang from
-## (one small piece a side, straight on the Fit node: the village counts every node).
-func _knots() -> void:
-	var cloth := MeshKit.toon(Color("e0401a") if star else Color("c81e24"), {"emission": 0.5 if star else 0.05})
-	for side in [-1.0, 1.0]:
-		var knot := _piece(_fit, MeshKit.sphere_low(), cloth, Vector3(side * 0.2, TOP_Y - 0.03, BACK_Z + 0.08), Vector3(0.085, 0.07, 0.07))
-		knot.name = "Knot" + ("L" if side < 0.0 else "R")
+	# (No knot pieces: the tails' tops are painted as gold bindings, so a robe costs
+	# the village as many nodes as a pair of wings.)
 
 
 ## Gem clasps where the cape meets the shoulders: rubies in gold for the Lv.100

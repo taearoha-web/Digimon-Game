@@ -359,8 +359,12 @@ void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out 
 		col *= 0.85 + 0.4 * pow(max(1.0 - abs(dot(n, view)), 0.0), 2.0);
 		float edge = smoothstep(0.62, 0.72, abs(s));
 		float dots = smoothstep(0.35, 0.2, length(vec2(s * 1.6, (fract(-dp.y * 22.0) - 0.5))));
+		// The binding where it is knotted at the shoulder: wraps of gold cord.
+		float bind = smoothstep(0.13, 0.1, v);
+		float cord = 0.75 + 0.35 * step(0.5, fract(v * 40.0 + s));
 		col = mix(col, gold(gold_c, abs(s)), max(edge, dots * 0.9));
-		emit = gold_c * (edge * 0.3 + dots * 0.5) * star + glow_color.rgb * star * 0.15 * v;
+		col = mix(col, gold_c * cord, bind);
+		emit = gold_c * (edge * 0.3 + dots * 0.5 + bind * 0.4) * star + glow_color.rgb * star * 0.15 * v;
 		return;
 	}
 	// The cloth: satin, a deep crimson running into flame orange on the star robe.
