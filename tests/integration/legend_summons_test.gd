@@ -272,7 +272,7 @@ func _ai_summoners(hero: Hero) -> void:
 	rival.set_physics_process(false)
 	rival.war_scale = 2.0
 	var pact := ClassData.find_skill(&"summoner", "moonwolf_pact")
-	var treant := ClassData.find_skill(&"summoner", "alpha_wolves")
+	var treant := ClassData.find_skill(&"summoner", "elder_dragon")  # one creature (the treant is in no skill line any more)
 	check(rival._score(pact, "summon", 5.0, 1.0) > 8.0 and rival._score(treant, "summon", 5.0, 1.0) > 8.0, "a rival summoner rates its summons highly")
 	check(rival._stars() == 200, "the war rival has 200 stars, so its star summons are allowed")
 	rival._summon(pact)
