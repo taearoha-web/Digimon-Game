@@ -8,7 +8,7 @@ extends Node3D
 ## its cap, and a caster dying mid-cast takes the set piece down with it.
 const G := preload("res://combat/skill_art/_guard.gd")
 const IDS := {
-	&"defender": ["titan_quake", "bastion_crush", "rebound_storm", "grand_provoke", "unbreakable", "holy_rampart", "judgment_shield", "aegis_of_ages", "meteor_shield", "sanctuary_wall", "world_bastion"],
+	&"defender": ["titan_quake", "bastion_crush", "grand_provoke", "unbreakable", "holy_rampart", "judgment_shield", "aegis_of_ages", "meteor_shield", "sanctuary_wall", "world_bastion"],
 	&"assassin": ["thousand_cuts", "throat_slit", "shadow_dance", "night_lord", "eclipse_fang", "abyss_vortex", "phantom_legion", "midnight_execution", "shadow_sovereign", "oblivion_requiem"],
 }
 ## Roots of the shared class systems that a signature's skill must never open.
@@ -48,7 +48,7 @@ func _ready() -> void:
 			check(SkillSignature.script_for(id) != null, "signature script for " + id)
 			check(SkillSignature.owns(skill) and GodSkillArt.owns(skill), "signature owns " + id)
 	check(SkillSignature.script_for("_guard") == null, "the kit is never a skill's art")
-	check(not SkillSignature.owns(_skill(&"defender", "shield_wave")), "a lower skill keeps the shared art")
+	check(not SkillSignature.owns(_skill(&"defender", "shield_slam")), "a lower skill keeps the shared art")
 	for quality in [2, 0]:
 		GameSettings.quality = quality
 		for cls in IDS:

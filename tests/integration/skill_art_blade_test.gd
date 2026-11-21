@@ -9,7 +9,7 @@ extends Node3D
 ## piece down with it.
 const IDS := {
 	&"warrior": ["cyclone_strike", "brandish", "double_crash", "piercing", "drastic_spirit", "grand_cross", "sword_of_justice", "godly_shield", "divine_piercing", "triumph_of_valhalla", "gladiator"],
-	&"lancer": ["typhoon_spear", "lancer_rush", "vanguard_strike", "sky_pierce", "dragon_stance", "dragon_lance", "gale_cyclone", "valkyrie_blessing", "gungnir", "heaven_rend", "ragnarok_lance"],
+	&"lancer": ["typhoon_spear", "lancer_rush", "vanguard_strike", "sky_pierce", "dragon_stance", "dragon_lance", "gale_cyclone", "valkyrie_blessing", "gungnir", "ragnarok_lance"],
 }
 ## Nodes of the shared class systems that an owned skill must never open.
 const FOREIGN := ["ClassFlourish_", "ShadowArt_", "Signature_", "SkillLink_", "SkillFlight_", "SkillContact_", "SpellSpectacle_", "EliteSkill_", "StarContact_", "StarWindup_", "InkBlade", "InkImpact", "InkSeal", "FlourishFlightGlow", "EssentialSkillProjectile"]

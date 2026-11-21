@@ -70,8 +70,9 @@ func _ready() -> void:
 		check(lv.model.find_children("*", "Skeleton3D", true, false).size() == 1, "%s is rigged" % legend)
 		lv.queue_free()
 
-	# The summoner keeps every look it had.
-	var kept := {"wolf_pack": "wolf", "giant_frog": "frog", "forest_guardian": "guardian", "alpha_wolves": "wolf", "ancient_treant": "treant", "fairy_spirit": "fairy", "primal_legion": "beast", "elder_dragon": "elder_dragon", "spirit_cat": "cat"}
+	# The summoner keeps the looks of the summons in its lines (skill lines: the cat, frog,
+	# guardian and treant summons are in no line any more).
+	var kept := {"wolf_pack": "wolf", "alpha_wolves": "wolf", "fairy_spirit": "fairy", "primal_legion": "beast", "elder_dragon": "elder_dragon"}
 	for id in kept:
 		check(_kind_of(&"summoner", id) == kept[id], "summoner %s keeps its %s" % [id, kept[id]])
 	check(String(Summon.KINDS.wolf.model) == "blob/Dog" and String(Summon.KINDS.beast.model) == "big/Dino", "the summoner's wolf and beast models are untouched")
