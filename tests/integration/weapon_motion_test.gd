@@ -6,12 +6,15 @@ var checks := 0
 var failures: Array[String] = []
 ## The strumming hand's palm from the lute's strumming line, in metres.
 const STRUM_TOLERANCE := 0.03
-## Worst main-hand grip / spear support / bow string / lute strum per body, in metres.
+## The bow's string behind its grip, in bow model units (WeaponPoses draws from it).
+const BOW_STRING_BACK := 0.095
+## Worst main-hand grip / spear support / bow string / lute strum per body, and the
+## furthest the drawing hand gets behind the bow's resting string, in metres.
 const BODY_LIMITS := {
-	"chibi_boy": {"grip": 0.0021, "shaft": 0.0021, "string": 0.0023, "strum": 0.0007},
-	"chibi_girl": {"grip": 0.0021, "shaft": 0.0013, "string": 0.0023, "strum": 0.0004},
-	"kaykit": {"grip": 0.0021, "shaft": 0.0064, "string": 0.0033, "strum": 0.0091},
-	"other": {"grip": 0.0021, "shaft": 0.010, "string": 0.005, "strum": 0.005},
+	"chibi_boy": {"grip": 0.0021, "shaft": 0.0021, "string": 0.0023, "strum": 0.0007, "draw": 0.1077},
+	"chibi_girl": {"grip": 0.0021, "shaft": 0.0013, "string": 0.0023, "strum": 0.0004, "draw": 0.0915},
+	"kaykit": {"grip": 0.0021, "shaft": 0.0064, "string": 0.0033, "strum": 0.0091, "draw": 0.0916},
+	"other": {"grip": 0.0021, "shaft": 0.010, "string": 0.005, "strum": 0.005, "draw": 0.112},
 }
 var max_grip_error := 0.0
 var max_support_error := 0.0
@@ -25,7 +28,7 @@ var per_body: Dictionary = {}
 
 func note(body: String, key: String, value: float, worse_is_lower := false) -> void:
 	if not per_body.has(body):
-		per_body[body] = {"grip": 0.0, "shaft": 0.0, "string": 0.0, "strum": 0.0, "clear": 9.0}
+		per_body[body] = {"grip": 0.0, "shaft": 0.0, "string": 0.0, "strum": 0.0, "clear": 9.0, "draw": -9.0, "draw_front": 9.0}
 	var stats: Dictionary = per_body[body]
 	stats[key] = minf(stats[key], value) if worse_is_lower else maxf(stats[key], value)
 
@@ -242,6 +245,11 @@ func _ready() -> void:
 						check(bow_basis.y.dot(Vector3.UP) > 0.995 and bow_basis.z.dot(Vector3.BACK) > 0.995, tag + " bow stays upright and aims forward")
 						var hands := palm(hero, "r") - palm(hero, "l")
 						note(body_tag, "string", Vector2(hands.x, hands.y).length())
+						# How far behind the bow's resting string the drawing hand is (the
+						# string model does not bend with the draw): + behind, - in front.
+						var gap := -hands.z - posed_transform(asset).basis.z.length() * BOW_STRING_BACK
+						note(body_tag, "draw", gap)
+						note(body_tag, "draw_front", gap, true)
 						check(Vector2(hands.x, hands.y).length() < 0.035 and hands.z < -0.04, tag + " drawing hand aligned behind bow string")
 					if family == &"bard" and (clip == "Spellcasting" or clip in ["Idle", "Running_A", "Walking_A", "Fly_Hover", "Fly_Forward"]):
 						# The right hand strums over the strings: its distance from the
@@ -294,7 +302,8 @@ func _ready() -> void:
 		var limit: Dictionary = BODY_LIMITS.get(body, BODY_LIMITS.other)
 		for key in limit:
 			check(float(b[key]) <= float(limit[key]), "%s worst %s %.4fm over %.4fm" % [body, key, b[key], limit[key]])
-		print("BODY %-15s grip %.4f  spear-support %.4f  bow-string %.4f  lute-strum %.4f  spear-clearance %.2f" % [body, b.grip, b.shaft, b.string, b.strum, b.clear])
+		check(float(b.draw_front) > -0.0065, "%s drawing hand %.4fm in front of the bow string" % [body, b.draw_front])
+		print("BODY %-15s grip %.4f  spear-support %.4f  bow-string %.4f  lute-strum %.4f  spear-clearance %.2f  bow-draw %.4f..%.4f" % [body, b.grip, b.shaft, b.string, b.strum, b.clear, b.draw_front, b.draw])
 	print("WEAPON MOTION: %s | %d checks, %d failures | max grip %.4fm, support %.4fm, min pole up %.4f, spear torso clearance %.2f" % ["PASS" if failures.is_empty() else "FAIL", checks, failures.size(), max_grip_error, max_support_error, min_pole_up, min_torso_clearance])
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():

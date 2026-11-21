@@ -227,6 +227,9 @@ static func _shared_grip(skeleton: Skeleton3D, local: Array[Transform3D], rig: D
 ## Shaft clearance (in torso radii) wanted when baking, and the most the spear
 ## may turn further across the body to get it.
 const SPEAR_CLEARANCE := 1.15
+## The furthest the drawing hand pulls behind the bow's resting string, in held-gear
+## units (0.11 of a hero's 2-unit height; the boy's and girl's draws stay shorter).
+const BOW_DRAW_MAX := 0.121
 ## The spear adjustments tried (turns, lifts, outward shifts, grip widths), the
 ## wider grid only when nothing in the first clears the torso.
 const SPEAR_GRIDS := [
@@ -554,7 +557,9 @@ static func _build(source: Animation, library: AnimationLibrary, skeleton: Skele
 				# actual facing direction, rather than into the rotated torso.
 				target = (shoulder + global[rig.r.upper].origin) * 0.5 + Vector3(0.08, -0.10, 0.86) * arm_length
 				bow_basis = Basis.IDENTITY
-				var pull := sin(PI * clampf(time / 0.46, 0.0, 1.0)) * arm_length * 0.20
+				# A fifth of the arm, but no further behind the (unbending) string
+				# than the original bodies draw: the same held-gear distance on every body.
+				var pull := sin(PI * clampf(time / 0.46, 0.0, 1.0)) * minf(arm_length * 0.20, BOW_DRAW_MAX * float(rig.scale))
 				var draw := Vector3(0, 0, -0.095 * 2.2 * float(rig.scale) - pull)
 				var right_item: Basis = global[rig.r.slot].basis * (rig.r.correction as Basis) * WeaponGrip.mount("sword")
 				target = _shared_grip(skeleton, local, rig, target, {"r": right_item, "l": bow_basis}, {"r": draw, "l": Vector3.ZERO}, {"r": "sword", "l": "bow"})
