@@ -52,6 +52,17 @@ const LEGACY_SAVE_PATH := "user://toon_tale_save.json"
 const SLOT_COUNT := 10
 const META_PATH := "user://toon_tale_meta.json"
 const SAVE_VERSION := 1
+## The world this game's characters belong to: the reopening of Sunday 22 Nov 2026, 06:00
+## Thai time (WorldPlayers.START_UNIX), when every player's characters were deleted at the
+## owner's order. Every profile is saved with it ("world_epoch"), the shared storage file
+## and the cloud bundle too ("epoch", "storageEpoch"); a character or storage without it
+## (or with an older one) is from before the reopening and is removed on start
+## (reopen_world), refused as a save code and as a backup, dropped by the web page
+## (tools/web/accounts.js bundleOf) and refused by the server (accounts.js WORLD_EPOCH).
+const WORLD_EPOCH := WorldPlayers.START_UNIX
+## This device's record of the reopening: {"epoch": the WORLD_EPOCH it has wiped for,
+## "noticed": the title's one-time notice shown, "removed": characters it removed}.
+const REOPEN_PATH := "user://toon_tale_world_epoch.json"
 const AUTOSAVE_INTERVAL := 10.0
 ## The web audio mixer silent this long while the page is shown: iOS is often about to
 ## close it (a v0.9.4 report: 28 s without a mix, then gone). The game saves at once,
@@ -120,11 +131,13 @@ func _ready() -> void:
 	rng.randomize()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_migrate_legacy_save()
+	# The world reopened (WORLD_EPOCH): characters from before it are removed first.
+	var wiped := reopen_world()
 	# The heroes' old storages join the shared one (once; SharedStorage).
 	SharedStorage.read_file()
 	if not FileAccess.file_exists(SharedStorage.PATH):
 		SharedStorage.store()
-	if SharedStorage.migrate_slots() > 0:
+	if SharedStorage.migrate_slots() > 0 or wiped > 0:
 		_queue_cloud_save()
 	SaveBackup.maybe_daily()
 	world_chat.connect(_on_world_chat)
@@ -204,7 +217,7 @@ func _notification(what: int) -> void:
 
 func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 	profile = {
-		"version": SAVE_VERSION, "class": String(class_id), "name": hero_name.strip_edges(),
+		"version": SAVE_VERSION, "world_epoch": WORLD_EPOCH, "class": String(class_id), "name": hero_name.strip_edges(),
 		"level": 1, "exp": 0, "points": 0, "skill_points": 1,
 		"attrs": {"str": 0, "int": 0, "dex": 0, "vit": 0},
 		"skills": {}, "loadout": ["", "", "", "", "", "", "", ""], "gold": 150, "equip": {}, "inv": [],
@@ -501,6 +514,9 @@ func _decode_import(code: String) -> Dictionary:
 	var parsed: Variant = json.data
 	if not parsed is Dictionary or not _valid_profile(parsed):
 		return {}
+	# A code of a character from before the world reopened: that character is gone.
+	if old_world(parsed):
+		return {}
 	return _repair(parsed)
 
 
@@ -555,6 +571,123 @@ func save_code_roundtrip() -> bool:
 
 ## Which of the save slots (1..SLOT_COUNT) the current profile belongs to.
 var slot := 1
+
+
+# --- The reopening (WORLD_EPOCH) --------------------------------------------------------
+
+## True when a saved character is from before the world reopened: no "world_epoch", or an
+## older one.
+static func old_world(data: Dictionary) -> bool:
+	var e: Variant = data.get("world_epoch")
+	return not ((e is int or e is float) and int(e) >= WORLD_EPOCH)
+
+
+## The reopening on this device: every character slot from before WORLD_EPOCH is deleted
+## (its file, its .damaged.json copy; checked on every start, so a slot an old build or
+## another tab wrote later goes too), and the first time on this device also everything
+## kept beside the characters: the shared storage (คลัง: its items and migration record;
+## any later file without the current epoch too), the daily backups (SaveBackup: they
+## would bring the old characters back), and the dungeon ranking and league rounds cached
+## on this device. Gold, the reward shop's coins and costumes, pets, mounts, mail and
+## legend items all live in the character's profile, so they go with it. The settings
+## (GameSettings), the last-slot record and the account (the web page's) stay. The world
+## players' own file resets itself (WorldPlayers.START_UNIX). Returns the number of
+## characters removed; the caller sends the emptied set to the cloud.
+func reopen_world() -> int:
+	var removed := 0
+	for i in range(1, SLOT_COUNT + 1):
+		var path := save_path(i)
+		if not FileAccess.file_exists(path):
+			continue
+		var file := FileAccess.open(path, FileAccess.READ)
+		var parsed: Variant = parse_save_text(file.get_as_text()) if file != null else null
+		file = null
+		if parsed is Dictionary and not old_world(parsed):
+			continue
+		if DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK:
+			removed += 1
+		_slot_json.erase(i)
+		for extra in [path + ".damaged.json", path + ".tmp"]:
+			if FileAccess.file_exists(extra):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(extra))
+	if FileAccess.file_exists(LEGACY_SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(LEGACY_SAVE_PATH))
+	var record := reopen_record()
+	var first := int(record.get("epoch", 0)) < WORLD_EPOCH
+	if FileAccess.file_exists(SharedStorage.PATH) and (first or SharedStorage.file_epoch() < WORLD_EPOCH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SharedStorage.PATH))
+		SharedStorage.read_file()
+	if first:
+		for path in [SharedStorage.BAD_PATH, DungeonRanking.PATH, LeagueRounds.PATH]:
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		_remove_tree(SaveBackup.ROOT)
+		SaveBackup.reset_daily_cache()
+		record = {"epoch": WORLD_EPOCH, "noticed": false, "removed": removed}
+	elif removed > 0:
+		record["removed"] = int(record.get("removed", 0)) + removed
+	if first or removed > 0:
+		_write_reopen_record(record)
+	if has_profile and old_world(profile):
+		has_profile = false
+		profile = {}
+	return removed
+
+
+## This device's reopening record ({} before its first reopening).
+func reopen_record() -> Dictionary:
+	if not FileAccess.file_exists(REOPEN_PATH):
+		return {}
+	var file := FileAccess.open(REOPEN_PATH, FileAccess.READ)
+	var parsed: Variant = JSON.parse_string(file.get_as_text()) if file != null else null
+	return parsed if parsed is Dictionary else {}
+
+
+func _write_reopen_record(record: Dictionary) -> void:
+	var file := FileAccess.open(REOPEN_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(record))
+
+
+## The title's one-time notice of the reopening ("" once shown: mark_reopen_noticed).
+func reopen_notice() -> String:
+	var record := reopen_record()
+	if int(record.get("epoch", 0)) < WORLD_EPOCH or bool(record.get("noticed", false)):
+		return ""
+	var text := "โลกเปิดใหม่! ตัวละครทั้งหมดถูกรีเซ็ต เริ่มผจญภัยใหม่ได้เลย"
+	if Time.get_unix_time_from_system() < float(WORLD_EPOCH):
+		text += "\nโลกเปิดอาทิตย์ 22 พ.ย. 06:00 น. สร้างตัวละครรอได้เลย ผู้เล่นทั้ง 100 คนจะเริ่มเลเวล 1 พร้อมกัน"
+	return text
+
+
+func mark_reopen_noticed() -> void:
+	var record := reopen_record()
+	if record.is_empty():
+		record = {"epoch": WORLD_EPOCH}
+	record["noticed"] = true
+	_write_reopen_record(record)
+
+
+## Before the reopening moment the world is closed (no world player online, no league
+## round): the title's countdown line, "" once it is open.
+func reopen_countdown(now := -1.0) -> String:
+	var t := Time.get_unix_time_from_system() if now < 0.0 else now
+	var left := float(WORLD_EPOCH) - t
+	if left <= 0.0:
+		return ""
+	return "โลกเปิดใหม่ 06:00 น. (อาทิตย์ 22 พ.ย.) · อีก %d ชม. %02d นาที" % [int(left / 3600.0), int(fmod(left, 3600.0) / 60.0)]
+
+
+static func _remove_tree(dir_path: String) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub in dir.get_directories():
+		_remove_tree(dir_path.path_join(sub))
+	for name in dir.get_files():
+		dir.remove(name)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dir_path))
+
 
 
 func save_path(for_slot := -1) -> String:
@@ -758,6 +891,7 @@ func save() -> bool:
 	snapshot["zone"] = String(current_zone)
 	snapshot["resume"] = playing
 	snapshot["saved_at"] = int(Time.get_unix_time_from_system())
+	snapshot["world_epoch"] = WORLD_EPOCH
 	if not _write_profile(snapshot, slot):
 		_dirty = true
 		_note_save_work(work_started)
@@ -765,6 +899,7 @@ func save() -> bool:
 	profile["zone"] = snapshot.zone
 	profile["resume"] = snapshot.resume
 	profile["saved_at"] = snapshot.saved_at
+	profile["world_epoch"] = WORLD_EPOCH
 	_remember_slot()
 	_autosave_timer = 0.0
 	_dirty = false
