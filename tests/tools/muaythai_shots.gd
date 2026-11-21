@@ -41,9 +41,15 @@ func _ready() -> void:
 	main.hud.visible = true
 	Game.playing = true
 	if mode in ["town", "all"]:
-		await main.go(&"village", true)
+		await main.go(&"town", true)
 		await get_tree().create_timer(2.5).timeout
 		await _shot("muaythai_town")
+		# A closer look: the rings orbiting the fighter in the village.
+		var rig: Node = main.zone.hero.camera_rig
+		if rig != null and "_target_distance" in rig:
+			rig._target_distance = 3.2
+		await get_tree().create_timer(1.5).timeout
+		await _shot("muaythai_town_close")
 	if mode in ["fight", "all"]:
 		await main.go(&"meadow", true)
 		await get_tree().create_timer(1.5).timeout
