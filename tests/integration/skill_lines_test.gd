@@ -136,12 +136,14 @@ func _check_hero(cls: StringName) -> void:
 		var pool_ids := Game.skill_pool().filter(func(s): return not s.has("star")).map(func(s): return String(s.id))
 		check(pool_ids.size() == ClassData.SLOTS, "%s Lv.%d: the skill screens list 8 lines" % [cls, level])
 	# An evolution waits for the advancement its level needs.
+	# (the first line that evolves at Lv.60: line 1 for most classes)
+	var e := _evolves_at_60(plan)
 	Game.profile.level = 60
 	Game.profile.adv = 2
-	check(String(Game.loadout_skills()[0].id) == String(plan[0][0][0]), "%s: Lv.60 without the 3rd advancement keeps the first stage" % cls)
-	check(Game.evolution_note(Game.loadout_skills()[0]).contains("ต้องเปลี่ยนเป็น"), "%s: the screens say the advancement is missing" % cls)
+	check(String(Game.loadout_skills()[e].id) == String(plan[e][0][0]), "%s: Lv.60 without the 3rd advancement keeps the first stage" % cls)
+	check(Game.evolution_note(Game.loadout_skills()[e]).contains("ต้องเปลี่ยนเป็น"), "%s: the screens say the advancement is missing" % cls)
 	Game.profile.adv = 3
-	check(String(Game.loadout_skills()[0].id) == String(plan[0][1][0]), "%s: with it the line evolves" % cls)
+	check(String(Game.loadout_skills()[e].id) == String(plan[e][1][0]), "%s: with it the line evolves" % cls)
 	# Rank and bar slot belong to the line.
 	Game.profile.level = 30
 	Game.profile.adv = JobData.adv_for_level(30)
@@ -162,6 +164,14 @@ func _check_hero(cls: StringName) -> void:
 	check(Game.evolution_note(top).ends_with("ร่างสุดท้าย"), "%s: the last stage says so" % cls)
 
 
+## The index of the first line of [param plan] whose second stage comes at Lv.60.
+func _evolves_at_60(plan: Array) -> int:
+	for i in plan.size():
+		if plan[i].size() > 1 and int(plan[i][1][1]) == 60:
+			return i
+	return 0
+
+
 func _check_ai(cls: StringName) -> void:
 	for level in [26, 70, 100]:
 		var tier := _tier(level)
@@ -176,7 +186,7 @@ func _check_ai(cls: StringName) -> void:
 		var ranks := WorldPlayers.skill_ranks(cls, level, 0)
 		check(ranks.keys().all(func(id): return ClassData.is_line(cls, String(id)) or ClassData.find_skill(cls, String(id)).has("star")), "%s Lv.%d: world players rank lines %s" % [cls, level, ranks.keys()])
 	# A Lv.70 rival casts the evolved stage, not the first one.
-	var first: Dictionary = ClassData.find_skill(cls, ClassData.line_ids(cls)[0])
+	var first: Dictionary = ClassData.find_skill(cls, ClassData.line_ids(cls)[_evolves_at_60(PLANS[cls])])
 	check(not ClassData.knows(first, 70, _tier(70), 0) and ClassData.knows(first, 30, _tier(30), 0), "%s: the first stage is cast at Lv.30, replaced by Lv.70" % cls)
 
 
@@ -246,7 +256,7 @@ func _check_darklord_redesign() -> void:
 	var other := Node.new()
 	check(is_zero_approx(ClassRoles.raven_bonus(hero, target)), "an unmarked target takes no raven bonus")
 	ClassRoles.raven_mark(hero, target, ClassData.find_skill(&"darklord", "birds").fx.raven_mark)
-	check(is_equal_approx(ClassRoles.raven_bonus(hero, target), 0.15), "the raven's mark: +15% from the marking party (got %.2f)" % ClassRoles.raven_bonus(hero, target))
+	check(is_equal_approx(ClassRoles.raven_bonus(hero, target), 0.15), "the raven's mark: +15%% from the marking party (got %.2f)" % ClassRoles.raven_bonus(hero, target))
 	check(is_zero_approx(ClassRoles.raven_bonus(other, target)), "the raven's mark does nothing for someone outside the party")
 	var marks: Dictionary = target.get_meta(ClassRoles.RAVEN_META)
 	marks["hero"] = [Time.get_ticks_msec() - 1, 0.15]

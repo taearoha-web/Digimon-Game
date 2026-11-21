@@ -170,9 +170,9 @@ func _ready() -> void:
 		check(absf(lands - (Mob.REPEL_DISTANCE + mob.body_radius())) < 0.05, "a repel throws a monster to 3 m from the Lord (lands %.2f m)" % lands)
 		# Imperial Judgment now PULLS: a monster 7 m off slides in to 1.5 m of the Lord.
 		mob.velocity = Vector3.ZERO
-		var lord := mob.global_position + Vector3(7.0, 0.0, 0.0)
+		var lord_at := mob.global_position + Vector3(7.0, 0.0, 0.0)
 		mob.velocity = Vector3(-2.0, 0.0, 0.0)  # a knock-back of the same hit is replaced
-		mob.pull_in(lord, Mob.PULL_DISTANCE)
+		mob.pull_in(lord_at, Mob.PULL_DISTANCE)
 		var pull := Vector2(mob.velocity.x, mob.velocity.z)
 		var travel := pull.length_squared() / (2.0 * 12.0)
 		check(pull.x > 0.0 and absf(pull.y) < 0.001 and absf(7.0 - travel - (Mob.PULL_DISTANCE + mob.body_radius())) < 0.05, "a pull draws a monster in to 1.5 m of the Lord (stops %.2f m off)" % (7.0 - travel))
