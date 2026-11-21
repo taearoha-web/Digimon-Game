@@ -25,10 +25,13 @@ func _ready() -> void:
 	check(CasterArt._meshes.size() == CasterArt.KINDS.split(" ").size(), "the shared caster geometry is finite and warm")
 	var skills: Array[Dictionary] = []
 	for family in FAMILIES:
+		var before := skills.size()
 		for skill in ClassData.pool(family):
 			if not String(skill.id) in SEQUENCES:
 				skills.append(skill)
-	check(skills.size() >= 100, "all four classes' skills selected (%d)" % skills.size())
+		# Every class: 8 skill lines (1..3 stages each) and 5 star skills.
+		check(skills.size() - before >= 8 + 5 - SEQUENCES.size(), "%s's skills selected (%d)" % [family, skills.size() - before])
+	check(skills.size() >= FAMILIES.size() * 20, "all four classes' skills selected (%d)" % skills.size())
 	# --- tiers -------------------------------------------------------------------
 	GameSettings.quality = 2
 	MemoryGuard.pressure = 0

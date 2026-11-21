@@ -1,5 +1,5 @@
 extends Node3D
-## The arcane classes' regular skills from Lv.60 (Summoner, Dark Lord, Bard; 33 skills,
+## The arcane classes' late regular skills (Summoner, Dark Lord, Bard; every Lv.64+ stage,
 ## combat/skill_art via SkillSignature, team kit _mystic.gd): every skill casts through the
 ## real hero path at high and low quality and under memory pressure, and through a
 ## companion, without script errors; its own signature owns the show (no shared class art,
@@ -43,7 +43,10 @@ func skills() -> Array:
 	var out: Array = []
 	for cls in CLASSES:
 		for skill in ClassData.pool(cls):
-			if not skill.has("star") and int(skill.level) >= 60 and int(skill.level) <= 100:
+			# Skill lines moved stages: the late regular skills with their own signature art
+			# (a few now unlock from Lv.50; the Lv.60 stages that were early skills draw the
+			# class art). _hooks checks every Lv.64+ stage is one of them.
+			if not skill.has("star") and SkillSignature.script_for(skill.id) != null:
 				out.append([cls, skill])
 	return out
 
@@ -75,9 +78,15 @@ func _ready() -> void:
 	get_tree().quit(failures)
 
 
-## All 33 skills have their own signature script and own their show; kits are never skills.
+## All these skills have their own signature script and own their show; kits are never skills.
 func _hooks() -> void:
-	check(skills().size() == 33, "33 regular skills from Lv.60 (%d)" % skills().size())
+	var late := 0
+	for cls in CLASSES:
+		for skill in ClassData.pool(cls):
+			if not skill.has("star") and int(skill.level) >= 64:
+				late += 1
+				check(SkillSignature.script_for(skill.id) != null, "%s's Lv.%d stage %s has its own signature art" % [cls, int(skill.level), skill.id])
+	check(skills().size() >= late and late >= 20, "regular skills with their own art (%d; %d from Lv.64)" % [skills().size(), late])
 	check(SkillSignature.script_for("_mystic") == null, "a kit is never a skill's own art")
 	for entry in skills():
 		var skill: Dictionary = entry[1]

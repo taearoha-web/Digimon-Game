@@ -7,10 +7,12 @@ const GOD_STAR := 300
 ## Base TOTAL multiplier of the god-tier skills before ClassData.skill_tune. 50 is the
 ## 50/100/150/200 curve (15, 23, 25, 38) carried on (+32% over 38); the mage and the bard
 ## carry a low area tune, so theirs is raised until the god skill tops the class's
-## strongest skill (Judgment Ray, Heartbreak Sonata) and stays its strongest.
+## strongest skill (Judgment Ray, Heartbreak Sonata) and stays its strongest. The Dark
+## Lord's band-2 tune is single 1.5 / area 0.75 (skill lines), so its god skill is
+## raised to stay above Raven Sovereign (27 single at that band).
 const GOD_MULT := {
 	&"warrior": 50.0, &"archer": 50.0, &"lancer": 50.0, &"mage": 62.0, &"priest": 50.0,
-	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 50.0, &"bard": 78.0,
+	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 92.0, &"bard": 78.0,
 }
 ## Contact beats of a god-tier cast (StarSkillSequence): four waves and the finale.
 const GOD_BEATS := [0.0, 0.32, 0.64, 0.96, 1.5]

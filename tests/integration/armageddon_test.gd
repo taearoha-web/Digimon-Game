@@ -96,8 +96,11 @@ func _fixture(rank := 1) -> Dictionary:
 	Game.new_profile(&"mage", "Armageddon QA", {"gender": 0})
 	Game.profile.level = 100
 	Game.profile.adv = 4
-	Game.profile.skills["armageddon"] = rank
-	Game.profile.loadout[0] = "armageddon"
+	# Skill lines: Armageddon is the Lv.100 stage of the Thunder Storm line; its rank and
+	# bar slot live on the line.
+	var line := ClassData.rank_id(ClassData.find_skill(&"mage", "armageddon"))
+	Game.profile.skills[line] = rank
+	Game.profile.loadout[0] = line
 	Game.profile.hp = 100000
 	Game.profile.mp = 100000
 	var field := Node3D.new()
