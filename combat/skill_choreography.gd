@@ -45,13 +45,13 @@ const GESTURES := {
 ## signature / gesture : explicit skill IDs, including support and summon skills.
 const GROUPS := {
 	"cleave/cleave": "power_strike destroyer sword_of_justice chaos_strike royal_crush chaos_sovereign",
-	"cross/cross_cut": "raving triple_impact avenging_crash grand_cross",
+	"cross/cross_cut": "raving triple_impact grand_cross",
 	"cleave/draw_cut": "brandish",
 	"shield/shield": "impact stagger",
 	"greatshield/shield": "shield_bash shield_slam aegis_strike bulwark_charge shield_wave",
 	"roar/resolve": "roar war_cry night_lord",
 	"focus/resolve": "concentration berserker focus beast_rage killing_focus critical_damage commanders_aura lord_of_command emperors_command",
-	"wind/weave": "swift_axe wind_stance",
+	"wind/weave": "wind_stance",
 	"fault/cleave": "bone_crash double_crash",
 	"blade/draw_cut": "sword_blast piercing divine_piercing",
 	"shield/ward": "holy_valor drastic_spirit godly_shield iron_resolve dragon_stance brace iron_wall thorn_guard unbreakable iron_defense",

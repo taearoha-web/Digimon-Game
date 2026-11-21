@@ -52,7 +52,7 @@ func _settle(_field: Node3D) -> void:
 func _ready() -> void:
 	GameSettings.load_settings()
 	var skills := _skills()
-	check(skills.size() == 90, "75 class skills and 15 star skills (%d)" % skills.size())
+	check(skills.size() == 88, "73 class skills and 15 star skills (%d; a class converted to skill lines drops the skills in no line)" % skills.size())
 	var field := Node3D.new()
 	add_child(field)
 	await get_tree().process_frame
