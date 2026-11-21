@@ -130,7 +130,7 @@ page.on('pageerror', error => errors.push(error.message));
 const consoleErrors = [];
 page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
 
-const hero = (name, level, saved_at) => ({version: 1, name, class: 'mage', level, gold: 100, equip: {}, inv: [], saved_at});
+const hero = (name, level, saved_at) => ({version: 1, world_epoch: 1795302000, name, class: 'mage', level, gold: 100, equip: {}, inv: [], saved_at});
 const bundle = (name, level, saved_at) => JSON.stringify({slots: {'1': hero(name, level, saved_at)}, selectedSlot: 1});
 const offline = () => page.evaluate(() => JSON.parse(window.toonOffline.status()));
 const cloud = () => page.evaluate(() => JSON.parse(window.toonCloudStatus()));

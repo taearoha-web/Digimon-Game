@@ -72,3 +72,11 @@ Pages ไม่มี backend `/api/account/*` จึงเล่นเกม/�
 - ทดสอบ login/save บนสองเครื่องและกรณี revision conflict; หากย้าย DB ต้องยืนยันการเล่นต่อด้วยบัญชีเดิม
 
 รายละเอียดทรัพย์สินและใบอนุญาตอยู่ใน `game-source/ASSET_CREDITS.md` และ `game-source/assets/vendor/` โมเดลที่ผู้ใช้ส่งมาไม่ถูกระบุว่าเป็น CC0
+
+## เปิดโลกใหม่ (ลบตัวละครทุกคน)
+
+โลกเปิดใหม่ อาทิตย์ 22 พ.ย. 2026 เวลา 06:00 น. (WorldPlayers.START_UNIX = Game.WORLD_EPOCH = `WORLD_EPOCH` ใน hosting/accounts/server/accounts.js = 1795302000)
+ตัวละครและคลังรวมที่เซฟก่อนเวลานี้ถูกลบเองทั้งในเครื่อง (Game.reopen_world), ตอนล็อกอิน (tools/web/accounts.js) และเซิร์ฟเวอร์ไม่ส่งคืน/ไม่รับเซฟเก่า (old_world)
+ถ้าต้องการล้างเซฟออนไลน์ทุกบัญชีทันที (ไม่จำเป็น): Actions → "World reopening - remove every account's old characters" รันโหมด dry-run ก่อน แล้ว apply พร้อมพิมพ์ REOPEN
+(หรือ `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… DB_NAME=toon-tale-accounts node hosting/worker/boost-character.mjs reopen-all [--apply]`)
+ทุกเซฟที่เปลี่ยนถูกเก็บเป็น snapshot ก่อน บัญชี รหัสผ่าน และรหัสกู้คืนไม่ถูกแตะ ตัวละครที่สร้างหลังเปิดโลกใหม่ไม่ถูกลบ

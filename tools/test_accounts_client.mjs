@@ -15,7 +15,7 @@ const icon = await fs.readFile(new URL('../docs/play/icon-512.png',import.meta.u
 const screenshotDir=process.env.TOON_ACCOUNT_SCREENSHOT_DIR;
 if(screenshotDir)await fs.mkdir(screenshotDir,{recursive:true});
 const empty = () => ({slots:{},selectedSlot:1});
-const hero = (name,level,saved_at=100) => ({version:1,name,class:'mage',level,gold:300,equip:{},inv:[],saved_at});
+const hero = (name,level,saved_at=100) => ({version:1,world_epoch:1795302000,name,class:'mage',level,gold:300,equip:{},inv:[],saved_at});
 const bundle = (name,level,saved_at=100) => ({slots:{'1':hero(name,level,saved_at)},selectedSlot:1});
 const users = new Map(), sessions = new Map();
 let sequence=0, posts=0, delayedLogout, releaseLogout;
@@ -25,7 +25,7 @@ let dropNextPost = false;
 // the POST, so every compare-and-swap loses.
 let rejectPost = null, driftOnPost = false;
 const headers = [];
-const defender = (level,saved_at) => ({version:1,name:'Assotix',class:'defender',level,gold:1200,equip:{},inv:[],party:[{class:'priest',name:'นีน่า',level:level-1}],saved_at});
+const defender = (level,saved_at) => ({version:1,world_epoch:1795302000,name:'Assotix',class:'defender',level,gold:1200,equip:{},inv:[],party:[{class:'priest',name:'นีน่า',level:level-1}],saved_at});
 const server = http.createServer(async (req,res) => {
   function json(status,data) { res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data)); }
   if (req.url === '/accounts.js') {res.setHeader('Content-Type','text/javascript; charset=utf-8');res.end(js);return;}
@@ -304,7 +304,7 @@ try {
   // bundle's "storage" and "storageMigrated": uploaded with the heroes, installed with them,
   // read from the game's files, counted on the choice screens, removed with a bundle without it.
   const STORAGE='toon_tale_storage.json', chaos={kind:'jewel',id:'chaos',count:3}, pink={kind:'jewel',id:'pink',count:2};
-  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':defender(28,8000)},selectedSlot:1,storage:[chaos],storageMigrated:{'u:old':1}}));
+  await page.evaluate(b=>toonCloudSave(b),JSON.stringify({slots:{'1':defender(28,8000)},selectedSlot:1,storage:[chaos],storageMigrated:{'u:old':1},storageEpoch:1795302000}));
   await poll(()=>Array.isArray(two.bundle.storage)&&two.bundle.storage.length===1,'shared storage upload');
   ok(two.bundle.storage[0].id==='chaos'&&two.bundle.storageMigrated['u:old']===1,'the shared storage and its record reach the account');
   await poll(()=>page.evaluate(()=>!JSON.parse(toonCloudStatus()).pending),'shared storage acknowledged');
@@ -315,11 +315,11 @@ try {
   let file=await readFile(page,STORAGE);
   ok(file&&file.version===1&&file.items.length===1&&file.items[0].id==='chaos'&&file.migrated['u:old']===1,'installing the account writes the shared storage file: '+JSON.stringify(file));
   // The game deposits (the storage file and the slot change): the next start sends both.
-  await putFile(page,STORAGE,{version:1,items:[chaos,pink],migrated:{'u:old':1}});await putFile(page,'toon_tale_slot_1.json',defender(29,8200));
+  await putFile(page,STORAGE,{version:1,epoch:1795302000,items:[chaos,pink],migrated:{'u:old':1}});await putFile(page,'toon_tale_slot_1.json',defender(29,8200));
   let cloudBefore2=two.revision;await page.reload();await page.waitForFunction(()=>window.ready);
   ok(two.revision===cloudBefore2+1&&two.bundle.storage.length===2&&two.bundle.storage[1].id==='pink','the shared storage in the game files is uploaded with the heroes');
   // Every hero deleted, the storage kept: the account still counts as holding a save.
-  two.bundle={slots:{},selectedSlot:1,storage:[pink],storageMigrated:{}};two.revision++;
+  two.bundle={slots:{},selectedSlot:1,storage:[pink],storageMigrated:{},storageEpoch:1795302000};two.revision++;
   await page.reload();await page.getByRole('heading',{name:'ยินดีต้อนรับ hero_two'}).waitFor();
   ok((await page.locator('.ta-body').innerText()).includes('คลังรวมทุกตัวละคร: 1 ชิ้น'),'an account with only a shared storage is not offered a guest import over it');
   await page.getByRole('button',{name:'เล่นต่อจากเซฟออนไลน์',exact:true}).click();await page.waitForFunction(()=>window.ready);
