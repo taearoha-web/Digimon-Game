@@ -131,31 +131,49 @@ func _altar_open() -> void:
 	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	m._tick_capture(1.0)
 	check(not bool(m.capture.paused) and is_equal_approx(float(m.capture.progress), 6.0), "back on it goes on (%.1f)" % float(m.capture.progress))
-	# Their leader on the circle while ours waits off it: it takes over.
+	check(is_equal_approx(GuildWarMatch.CAPTURE_TIME, 60.0), "the altar takes 60 s")
+	# Their leader on the circle while ours waits off it: it takes over; ours keeps its 6 s.
 	var lead: GuildFighter = m.ai_leader(GuildFighter.TEAM_ENEMY)
 	check(lead != null, "theirs have a leader")
 	hero.global_position = SiegeArena.ALTAR + Vector3(6.0, 0.3, 0)
 	lead.global_position = SiegeArena.ALTAR + Vector3(0.5, 0.3, 0)
 	m._tick_capture(0.5)
 	check(m.capturer() == lead and int(m.capture.team) == GuildFighter.TEAM_ENEMY, "their leader on the circle takes over our waiting count")
-	# Their leader falls: the count is lost.
+	check(is_equal_approx(m.banked_capture(GuildFighter.TEAM_ALLY), 6.0), "ours keeps its count (%.1f)" % m.banked_capture(GuildFighter.TEAM_ALLY))
+	# Their leader falls: the count stops, but what it loaded is kept for its guild.
 	m._tick_capture(3.0)
+	var loaded := float(m.capture.progress)
 	lead.hp = 0
 	lead._die()
 	m._tick_capture(0.1)
-	check(m.capture.is_empty(), "their leader falls: the count starts over")
+	check(m.capture.is_empty(), "their leader falls: the count stops")
+	check(loaded > 2.0 and is_equal_approx(m.banked_capture(GuildFighter.TEAM_ENEMY), loaded), "their loaded %.1f s is kept (%.1f)" % [loaded, m.banked_capture(GuildFighter.TEAM_ENEMY)])
+	# Our hero back on the circle goes on from our 6 s, not from 0.
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
+	m.start_hero_capture()
+	check(m.capturer() == hero and is_equal_approx(float(m.capture.progress), 6.0), "back on the altar ours goes on from 6 s (%s)" % [m.capture])
+	m._tick_capture(2.0)
+	hero.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 40.0)
+	m._tick_capture(0.1)
+	check(m.capture.is_empty() and is_equal_approx(m.banked_capture(GuildFighter.TEAM_ALLY), 8.0), "leaving the throne room keeps 8 s too (%.1f)" % m.banked_capture(GuildFighter.TEAM_ALLY))
+	# A checkpoint carries each guild's count.
+	var saved_counts := m._banked_now()
+	check(saved_counts.size() == m.team_count() and is_equal_approx(float(saved_counts[0]), 8.0) and is_equal_approx(float(saved_counts[1]), loaded), "the checkpoint keeps the counts (%s)" % [saved_counts])
 	# An AI leader sent up (capture_role) starts its count on the altar by itself and
 	# takes the castle after CAPTURE_TIME.
 	lead.respawn()
 	lead.global_position = SiegeArena.ALTAR + Vector3(0, 0.3, 0)
 	lead.capture_role = true
 	m._tick_capture(0.1)
-	check(m.capturer() == lead, "an AI leader on the altar starts on its own")
+	check(m.capturer() == lead and is_equal_approx(float(m.capture.progress), loaded), "an AI leader on the altar starts on its own, from its guild's %.1f s" % loaded)
+	var ticks := 0
 	for i in int(GuildWarMatch.CAPTURE_TIME) + 2:
 		if m.castle_owner >= 0:
 			break
 		m._tick_capture(1.0)
-	check(m.castle_owner == GuildFighter.TEAM_ENEMY, "after %d s the castle is theirs" % int(GuildWarMatch.CAPTURE_TIME))
+		ticks += 1
+	check(m.castle_owner == GuildFighter.TEAM_ENEMY and ticks < int(GuildWarMatch.CAPTURE_TIME), "the castle is theirs after only %d more s (%d in all)" % [ticks, int(GuildWarMatch.CAPTURE_TIME)])
+	check(is_equal_approx(m.banked_capture(GuildFighter.TEAM_ENEMY), 0.0) and is_equal_approx(m.banked_capture(GuildFighter.TEAM_ALLY), 8.0), "taking it clears the taker's count; ours stays")
 	# An older leader's online status (switch codes, a fourth capture field) reads fine.
 
 	m.mirror_sync("gw", {"st": "fight", "tl": 500.0, "s": [1, 2], "o": -1, "cp": [0, 12.0, false, true], "sw": [0, 3], "swa": [[0, -1], [1, 0]]})

@@ -347,12 +347,13 @@ func _league() -> void:
 	WorldPlayers.ensure_until(t)
 	var w := GuildLeague.week_of(t)
 	var list := GuildLeague.schedule(w)
-	check(list.size() == 21 and list.all(func(r): return r.guilds == [1, 2, 3, 4]), "21 rounds a week, every guild in each")
+	check(list.size() == 21 + GuildLeague.EXTRA_ROUNDS.filter(func(x): return GuildLeague.week_of(float(x)) == w).size() and list.all(func(r): return r.guilds == [1, 2, 3, 4]), "21 rounds a week, every guild in each")
 	# The chain: each round begins with the holder after the one before, across days and
 	# into the next week; only a capture changes it; a seeded round begins with it.
 	var start := int(GuildLeague.week_start(w - 1))
 	var at := GuildLeague.next_slot(float(start) - 1.0)
 	var end := int(GuildLeague.week_end(w))
+	var _extras := GuildLeague.EXTRA_ROUNDS.filter(func(x): return x >= start and x < end).size()
 	# Walked once both weeks are over (a round not over yet has no result to begin with).
 	WorldPresence.clock_offset = float(end) + 60.0 - WorldPlayers.now()
 	var rounds := 0
@@ -376,7 +377,7 @@ func _league() -> void:
 			keeps += 1 if after == own else 0
 		rounds += 1
 		at = next
-	check(rounds == 42, "two weeks of rounds walked (%d)" % rounds)
+	check(rounds == 42 + _extras, "two weeks of rounds walked (%d)" % rounds)
 	check(chain_ok, "each round begins with the holder after the round before (across days and weeks)")
 	check(seeded_ok, "the seeded rounds begin with that holder, and it holds on unless taken")
 	check(capture_ok, "the holder changes only by a capture")

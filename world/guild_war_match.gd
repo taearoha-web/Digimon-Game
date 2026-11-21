@@ -8,7 +8,8 @@ extends Node
 ## cross the bridge to the castle, where three tiers of gates (CastleGate; the first two
 ## tiers have a left and a right gate, either one broken opens the tier) must be broken one
 ## after the other; broken gates stay broken. Behind them is the throne room: whoever stands
-## on the altar for CAPTURE_TIME seconds without falling takes the castle for its guild, and
+## on the altar for CAPTURE_TIME seconds in all takes the castle for its guild (a fall keeps the
+## count so far: banked), and
 ## another guild may take it the same way. The guild holding the castle at the bell places
 ## first; the others (and all of them with no holder) by points: falls dealt /
 ## GuildLeague.KILLS_PER_POINT + captures * GuildLeague.CAPTURE (placement; a tie at the top
@@ -24,7 +25,7 @@ extends Node
 ## class and calls its orders in the feed; the HUD and the watcher's board show each
 ## guild's plan and phase (plans_line).
 ## The altar stands against the throne room's back wall, open to every guild once the
-## gates are down: a guild's leader standing on it CAPTURE_TIME s without falling takes
+## gates are down: a guild's leader standing on it CAPTURE_TIME s in all (banked) takes
 ## the castle (nothing else to hold first); every other guild's way to stop it is to kill
 ## or push that leader off.
 
@@ -46,7 +47,10 @@ const COUNTDOWN := 4.2
 ## gates), so an assault that wins the fight at the altar can finish the count before the
 ## second wave arrives; at 60 s seeded AI wars mostly ran the whole 20 minutes without a
 ## capture (guild_war_capture_test).
-const CAPTURE_TIME := 45.0
+const CAPTURE_TIME := 60.0
+## Each guild's capture count so far (s), kept when its leader falls, leaves the throne
+## room or is pushed off by another guild: the next time it stands on the altar the count
+## goes on from there (banked_capture). Reset for a guild once it takes the castle.
 ## A gate holds out about this long against both whole guilds hitting it at once (its HP is
 ## set from all the fighters' strength, so more or stronger fighters meet a stronger door),
 ## each gate harder than the one before.
@@ -152,6 +156,7 @@ var gates: Array[CastleGate] = []
 var castle_owner := -1
 ## Castle captures of each team this war (the weekly league counts them, GuildLeague).
 var captures: Array[int] = [0, 0]
+var banked: Array[float] = [0.0, 0.0]
 var capture: Dictionary = {}
 ## Team 1's leader (หัวหน้ากิลด์): the only one of its side who may take the altar. Ours is
 ## the hero, or the member the player picked (ally_leader). See leaders for every team.
@@ -329,6 +334,7 @@ func _set_teams(n: int) -> void:
 	leaders.resize(n)
 	score.resize(n)
 	captures.resize(n)
+	banked.resize(n)
 	plans.resize(n)
 	party_plan.resize(n)
 	commanders.resize(n)
@@ -544,7 +550,7 @@ func build(tree: SceneTree = null) -> void:
 	var counts: PackedStringArray = []
 	for t in team_count():
 		counts.append("กิลด์ %s %d คน" % [team_names[t], side(t).size() + (1 if t == GuildFighter.TEAM_ALLY else 0)])
-	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) แล้วบุกเข้าห้องบัลลังก์ หัวหน้ากิลด์ยืนบนแท่นท้ายห้องบัลลังก์ให้ครบ %d วินาทีโดยไม่ล้มเพื่อยึดปราสาท กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
+	Game.say("ชิงปราสาท %d นาที (หลุดกลับเข้าต่อได้ภายใน %d นาที): %s — ข้ามสะพาน ทำลายประตูปราสาท 3 ชั้น (ชั้น 1 และ 2 มีประตูซ้ายและขวา พังบานไหนก็ผ่านได้) แล้วบุกเข้าห้องบัลลังก์ หัวหน้ากิลด์ยืนบนแท่นท้ายห้องบัลลังก์ให้ครบ %d วินาทีเพื่อยึดปราสาท (ล้มแล้วเวลาที่โหลดไว้ไม่หาย กลับขึ้นแท่นนับต่อได้) กิลด์ที่ยึดปราสาทไว้ได้ตอนหมดเวลาได้อันดับ 1" % [int(GuildWarData.DURATION / 60.0), Game.GW_CKPT_LIFETIME / 60, " · ".join(counts), int(CAPTURE_TIME)], &"quest")
 	Game.say(owner_briefing(), &"quest")
 	if lobby_until > 0:
 		lobby_ui = GuildWarLobby.new()
@@ -896,7 +902,15 @@ func save_checkpoint() -> void:
 		left.append(0 if g.is_dead() else int(ceil(1000.0 * float(g.hp) / float(maxi(1, g.max_hp)))))
 	var order: Array = GuildLeague.current_match.get("guilds", []) if not GuildLeague.current_match.is_empty() else []
 	Game.guildwar_save_checkpoint(roll_seed, time_left, overtime, score, hero_kills, hero_deaths, started_at, {"gates": left, "owner": castle_owner, "picks": party_picks, "chosen": party_chosen,
-		"league": order, "teams": team_count()})
+		"league": order, "teams": team_count(), "banked": _banked_now()})
+
+
+## Each guild's capture count for a checkpoint (the running one included).
+func _banked_now() -> Array:
+	var out: Array = []
+	for t in team_count():
+		out.append(banked_capture(t))
+	return out
 
 
 # ---------------------------------------------------------------------------
@@ -1667,6 +1681,9 @@ func _raise_castle(saved: Dictionary) -> void:
 			gates.append(gate)
 			k += 1
 	castle_owner = clampi(int(saved.get("owner", start_owner)), -1, team_count() - 1)
+	var kept_counts: Array = saved.get("banked", [])
+	for t in mini(kept_counts.size(), banked.size()):
+		banked[t] = 0.0 if t == castle_owner else clampf(float(kept_counts[t]), 0.0, CAPTURE_TIME - 1.0)
 	# A resumed war remembers the holder, so at least its one capture (not the one it began
 	# with), and the holder starts again inside the castle.
 	if castle_owner >= 0 and castle_owner != start_owner:
@@ -2212,27 +2229,41 @@ func _who_name(who: Node3D) -> String:
 
 
 func _start_capture(team: int, who: Node3D) -> void:
-	capture = {"team": team, "who": who, "progress": 0.0, "paused": false}
+	var kept := banked_capture(team)
+	capture = {"team": team, "who": who, "progress": kept, "paused": false}
 	if who is GuildFighter:
 		(who as GuildFighter).capturing = true
 	var who_name := "คุณ" if who == hero else (who as GuildFighter).rival_name
-	feed.emit("%s เริ่มยึดแท่นปราสาท! (%d วินาที)" % [who_name, int(CAPTURE_TIME)], team)
+	if kept > 0.0:
+		feed.emit("%s ขึ้นแท่นปราสาท นับต่อจาก %d/%d วิ!" % [who_name, int(kept), int(CAPTURE_TIME)], team)
+	else:
+		feed.emit("%s เริ่มยึดแท่นปราสาท! (%d วินาที)" % [who_name, int(CAPTURE_TIME)], team)
 	_make_plans()
 	zone.banner_requested.emit("%s กำลังยึดแท่นปราสาท!" % team_name(team))
 	AudioManager.play_sfx(&"star_charge", -4.0)
 
 
-## Ends a capture; with a `reason` (the leader fell or left the throne room) the count
-## is lost and must start over.
+## Ends a capture (the leader fell, left the throne room or gave way to another guild):
+## the count so far is banked for its guild, which goes on from it next time.
 func _cancel_capture(reason := "") -> void:
 	var who: Variant = capture.get("who")
 	if who is GuildFighter and is_instance_valid(who):
 		(who as GuildFighter).capturing = false
+	var team := int(capture.team)
+	if team >= 0 and team < banked.size():
+		banked[team] = clampf(float(capture.progress), 0.0, CAPTURE_TIME - 1.0)
 	if reason != "":
-		feed.emit("หัวหน้ากิลด์ %s %s — การยึดแท่นต้องนับใหม่!" % [team_name(int(capture.team)), reason], -1)
+		feed.emit("หัวหน้ากิลด์ %s %s — เก็บเวลาไว้ %d/%d วิ กลับขึ้นแท่นนับต่อได้" % [team_name(team), reason, int(banked[team]), int(CAPTURE_TIME)], -1)
 	else:
-		feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด!" % team_name(int(capture.team)), -1)
+		feed.emit("การยึดแท่นของกิลด์ %s ถูกขัด! (เก็บไว้ %d/%d วิ)" % [team_name(team), int(banked[team]), int(CAPTURE_TIME)], -1)
 	capture = {}
+
+
+## Guild `team`'s capture count so far (s): the running count, else what it banked.
+func banked_capture(team: int) -> float:
+	if not capture.is_empty() and int(capture.team) == team:
+		return float(capture.progress)
+	return banked[team] if team >= 0 and team < banked.size() else 0.0
 
 
 func _complete_capture() -> void:
@@ -2241,6 +2272,7 @@ func _complete_capture() -> void:
 	if who is GuildFighter and is_instance_valid(who):
 		(who as GuildFighter).capturing = false
 	capture = {}
+	banked[team] = 0.0
 	var lost := castle_owner
 	castle_owner = team
 	captures[team] += 1

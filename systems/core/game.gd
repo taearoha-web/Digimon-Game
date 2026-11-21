@@ -3592,7 +3592,7 @@ func pvp_finish(won: bool, timeout: bool, info: Dictionary, opponent: String) ->
 ## (or a closed tab) can pick the same war up again: line-ups come from the seed, the rest
 ## is the clock and the score. Plain ints in the flags, so it travels with every save.
 const GW_CKPT_KEYS := ["gw_r_seed", "gw_r_time", "gw_r_us", "gw_r_them", "gw_r_kills", "gw_r_deaths", "gw_r_ot", "gw_r_at", "gw_r_t0", "gw_r_g0", "gw_r_g1", "gw_r_g2", "gw_r_owner", "gw_r_pc", "gw_r_p0", "gw_r_p1", "gw_r_p2", "gw_r_p3", "gw_r_la", "gw_r_lb",
-	"gw_r_g3", "gw_r_g4", "gw_r_n", "gw_r_lg0", "gw_r_lg1", "gw_r_lg2", "gw_r_lg3", "gw_r_s0", "gw_r_s1", "gw_r_s2", "gw_r_s3", "gw_r_sw", "gw_r_sw0", "gw_r_sw1"]
+	"gw_r_g3", "gw_r_g4", "gw_r_n", "gw_r_lg0", "gw_r_lg1", "gw_r_lg2", "gw_r_lg3", "gw_r_s0", "gw_r_s1", "gw_r_s2", "gw_r_s3", "gw_r_sw", "gw_r_sw0", "gw_r_sw1", "gw_r_b0", "gw_r_b1", "gw_r_b2", "gw_r_b3"]
 ## A war cut off (the page closed, the phone dropped it) can be rejoined for 10 minutes.
 const GW_CKPT_LIFETIME := 10 * 60
 ## Set by the lobby's "continue" button; the next guild war zone takes it.
@@ -3633,6 +3633,10 @@ func guildwar_save_checkpoint(rng_seed: int, time_left: float, overtime: bool, s
 	var league: Array = siege.get("league", [])
 	for k in 4:
 		flags["gw_r_lg%d" % k] = clampi(int(league[k]), 0, 99) if k < league.size() else 0
+	# Each guild's capture count on the altar so far (whole seconds).
+	var counts: Array = siege.get("banked", [])
+	for k in 4:
+		flags["gw_r_b%d" % k] = clampi(int(float(counts[k])), 0, 3600) if k < counts.size() else 0
 	flags["gw_r_la"] = 0
 	flags["gw_r_lb"] = 0
 	flags["gw_r_seed"] = rng_seed
@@ -3671,7 +3675,8 @@ func guildwar_checkpoint() -> Dictionary:
 			"overtime": int(flags.get("gw_r_ot", 0)) == 1, "t0": int(flags.get("gw_r_t0", 0)),
 			"gates": _guildwar_saved_gates(flags), "owner": clampi(int(flags.get("gw_r_owner", 0)), 0, 4) - 1,
 			"chosen": int(flags.get("gw_r_pc", 0)) == 1, "picks": _guildwar_saved_picks(flags),
-			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags)}
+			"league": _guildwar_saved_league(flags), "scores": _guildwar_saved_scores(flags),
+			"banked": [int(flags.get("gw_r_b0", 0)), int(flags.get("gw_r_b1", 0)), int(flags.get("gw_r_b2", 0)), int(flags.get("gw_r_b3", 0))]}
 
 
 ## The castle's gates in a checkpoint: one value a gate (GW_GATES), or, from a save before

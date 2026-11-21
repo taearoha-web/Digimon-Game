@@ -659,7 +659,7 @@ func last_call_at() -> float:
 	var way := GuildWarCommander._flat(from, SiegeArena.ALTAR)
 	if SiegeArena.section(from) < 2:
 		way = GuildWarCommander._flat(from, SiegeArena.APPROACH) + GuildWarCommander._flat(SiegeArena.APPROACH, SiegeArena.ALTAR)
-	return maxf(LAST_CALL, GuildWarMatch.CAPTURE_TIME + way / DEADLINE_PACE + DEADLINE_FIGHT)
+	return maxf(LAST_CALL, GuildWarMatch.CAPTURE_TIME - war.banked_capture(team) + way / DEADLINE_PACE + DEADLINE_FIGHT)
 
 
 ## Every member's squad, each squad's leader (its strongest standing) and count.
