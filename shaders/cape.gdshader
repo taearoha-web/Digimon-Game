@@ -284,8 +284,7 @@ float yant_rows(vec2 dp, float top, float rows, float cell, float half_w, float 
 	return smoothstep(0.04, -0.04, g);
 }
 
-// The back emblem: a gold mongkhon (a twisted rope ring with its tail) round an
-// unalom. Returns 1 on gold; [param shade] the rope's twist light.
+// The back emblem: a gold mongkhon (a twisted rope ring) round an unalom. Returns 1 on gold; [param shade] the rope's twist light.
 float mongkhon(vec2 c, out float shade) {
 	float r = length(c);
 	float ang = atan(c.y, c.x);
@@ -294,14 +293,6 @@ float mongkhon(vec2 c, out float shade) {
 	// The rope twist: diagonal light and dark bands round the ring.
 	float twist = fract(ang / (2.0 * PI) * 22.0 + (r - 0.1) * 30.0);
 	shade = mix(0.62, 1.12, smoothstep(0.0, 0.5, twist) * smoothstep(1.0, 0.5, twist));
-	// The tail, hanging from the bottom of the ring and ending in a knot.
-	float tail = seg(c, vec2(0.0, -0.12), vec2(0.012, -0.2)) - 0.012;
-	tail = min(tail, length(c - vec2(0.014, -0.215)) - 0.02);
-	float t = smoothstep(0.004, -0.002, tail);
-	if (t > m) {
-		shade = 0.95;
-	}
-	m = max(m, t);
 	// The unalom: a coiled loop, a line winding up and a dot of light at the top.
 	float un = abs(length(c - vec2(0.0, -0.035)) - 0.018) - 0.006;
 	un = min(un, seg(c, vec2(0.018, -0.035), vec2(-0.014, 0.0)) - 0.006);
@@ -407,11 +398,11 @@ void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out 
 		col = mix(col, gold_c * 1.1, halo * 0.15);
 		col = mix(col, outer_deep.rgb * 0.35, smoothstep(0.02, 0.0, abs(length(c) - 0.1) - 0.026) * (1.0 - m) * 0.8);
 		col = mix(col, gold_c * shade, m);
-		emit += gold_c * (m * (0.25 + 0.9 * star) + halo * 0.25);
+		emit += gold_c * (m * (0.2 + 0.45 * star) + halo * 0.2);
 		float script = yant_rows(dp, ring_y - 0.135, 4.0, 0.034, 0.17, star * TIME * 0.35);
 		vec3 ink = star > 0.5 ? mix(gold_c, vec3(1.0, 0.95, 0.7), 0.4) : gold_c;
 		col = mix(col, ink, script);
-		emit += ink * script * (0.15 + 1.1 * star * (0.8 + 0.2 * sin(TIME * 4.0 + dp.x * 30.0)));
+		emit += ink * script * (0.15 + 0.8 * star * (0.8 + 0.2 * sin(TIME * 4.0 + dp.x * 30.0)));
 	} else {
 		// The lining.
 		col = mix(lining_color.rgb * mix(1.2, 0.8, v), trim_col, trim * 0.8);

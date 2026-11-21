@@ -179,8 +179,8 @@ func _layer(params: Dictionary, cols: int, rows: int) -> MeshInstance3D:
 			st.set_uv(Vector2(u, v))
 			st.set_normal(Vector3(0, 0, -1))
 			if ring:
-				var r := lerpf(top_width, hem_width, v)
-				st.add_vertex(Vector3(cos(u * TAU) * r, TOP_Y - length + sin(u * TAU) * r, BACK_Z))
+				var radius := lerpf(top_width, hem_width, v)
+				st.add_vertex(Vector3(cos(u * TAU) * radius, TOP_Y - length + sin(u * TAU) * radius, BACK_Z))
 			elif collar:
 				var a := (u * 2.0 - 1.0) * 1.45
 				st.add_vertex(Vector3(sin(a) * hem_width, TOP_Y + (1.0 - v) * length, BACK_Z + 0.1 - cos(a) * hem_width))
@@ -243,13 +243,13 @@ func _make_boxer() -> void:
 		for k in 2:
 			var piece: MeshInstance3D = tail if first else tail.duplicate() as MeshInstance3D
 			first = false
-			var basis := Basis.from_euler(Vector3(0, 0, deg_to_rad(side * (8.0 + 16.0 * k)))).scaled(Vector3.ONE * (1.0 - 0.22 * k))
-			piece.transform = Transform3D(basis, knot - basis * top)
+			var turn := Basis.from_euler(Vector3(0, 0, deg_to_rad(side * (8.0 + 16.0 * k)))).scaled(Vector3.ONE * (1.0 - 0.22 * k))
+			piece.transform = Transform3D(turn, knot - turn * top)
 			if piece.get_parent() == null:
 				piece.name = "PrajiadTail%d" % (_fit.get_child_count())
 				_fit.add_child(piece)
 	if star:
-		var ring := _layer(palette.merged({"kind": 3.0, "top_width": 0.36, "hem_width": 0.43, "cape_length": 0.06, "behind": 0.07}, true), 48, 2)
+		var ring := _layer(palette.merged({"kind": 3.0, "top_width": 0.34, "hem_width": 0.4, "cape_length": 0.1, "behind": 0.07}, true), 48, 2)
 		ring.name = "MantraRing"
 	_knots()
 
