@@ -436,8 +436,12 @@ func _flush_cooldowns() -> void:
 			cooldowns[id] = maxf(0.0, left - step)
 
 
+## AI players drink a potion once HP falls under half.
+const POTION_AT := 0.5
+
+
 func _try_potion() -> bool:
-	if _potions <= 0 or _potion_cd > 0.0 or float(hp) / float(max_hp) > 0.32:
+	if _potions <= 0 or _potion_cd > 0.0 or float(hp) / float(max_hp) > POTION_AT:
 		return false
 	_potions -= 1
 	_potion_cd = 5.0

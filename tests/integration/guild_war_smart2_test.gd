@@ -182,17 +182,20 @@ func _fighter_rules(m: GuildWarMatch, lead0: GuildFighter, lead1: GuildFighter) 
 	check(a._stun_worth(lead0), "it goes on the leader")
 	lead0.global_position = lead0.spawn_point
 	check(a._stun_worth(e), "with no priority foe near anyone is worth it")
-	# Potions: drunk before a fall (the baseline waits to 32%).
-	a.hp = int(a.max_hp * 0.4)
+	# Potions: every AI player drinks once under half HP, not above it.
+	a.hp = int(a.max_hp * 0.6)
 	a._potions = 3
 	a._potion_cd = 0.0
 	a._try_potion()
-	check(a._potions == 2, "at 40%% HP the second brain drinks")
+	check(a._potions == 3, "at 60%% HP no potion yet")
+	a.hp = int(a.max_hp * 0.48)
+	a._try_potion()
+	check(a._potions == 2, "under half HP it drinks")
 	a.smart2 = false
-	a.hp = int(a.max_hp * 0.4)
+	a.hp = int(a.max_hp * 0.48)
 	a._potion_cd = 0.0
 	a._try_potion()
-	check(a._potions == 2, "the baseline does not yet")
+	check(a._potions == 1, "the baseline drinks under half too")
 	a.smart2 = true
 	a.hp = a.max_hp
 	# A healer heals with nobody to fight.

@@ -1181,9 +1181,8 @@ const CALLED_LEADER_REACH := 16.0
 ## more at full health before the extra ones look elsewhere.
 const FOCUS_ROOM_MIN := 2
 const FOCUS_ROOM_HP := 5
-## Second brain: a potion under this share of HP (POTION_LEADER for the leader), so it is
-## not lost unused in a fall (the old rule: Rival's 0.32).
-const POTION_AT := 0.42
+## Second brain: the leader drinks under this share of HP (the others from Rival.POTION_AT,
+## half HP), so a potion is not lost unused in a fall.
 const POTION_LEADER := 0.55
 ## Second brain: a healer heals an ally within heal reach under this share of its HP even
 ## with nobody to fight (_support_idle), looking again every SUPPORT_LOOK s.

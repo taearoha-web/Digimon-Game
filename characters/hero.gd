@@ -518,10 +518,14 @@ func _follow_step(delta: float) -> Vector3:
 	return _auto_step(delta)
 
 
+## Auto play drinks an HP potion once HP falls under half.
+const AUTO_POTION_AT := 0.5
+
+
 func _auto_think() -> void:
 	var hp_rate := float(Game.profile.hp) / float(maxi(1, stats.max_hp))
 	var mp_rate := float(Game.profile.mp) / float(maxi(1, stats.max_mp))
-	if hp_rate < 0.45 and Game.total_potions("hp") > 0:
+	if hp_rate < AUTO_POTION_AT and Game.total_potions("hp") > 0:
 		use_potion("hp")
 	if mp_rate < 0.2 and Game.total_potions("mp") > 0:
 		use_potion("mp")
