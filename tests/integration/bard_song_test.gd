@@ -523,11 +523,15 @@ func _hero_auto() -> void:
 	mob.global_position = hero.global_position + Vector3(0, 0, 4)
 	hero.set_target(mob)
 	hero._buffs.clear()
-	_bar(["valor_march", "heroic_anthem"])
+	# The bar holds lines (skill lines): a line casts its current stage, so the level
+	# picks the song: Lv.60 Heroic Anthem + Iron Ballad, Lv.64 Sanctuary Serenade, Lv.96
+	# Hymn of Legends.
+	Game.profile.level = 60
+	_bar(["valor_march"])
 	hero._auto_cast(1.0)
-	check(hero.last_cast_id == "valor_march", "auto plays the first song on the bar (%s)" % hero.last_cast_id)
+	check(hero.last_cast_id == "heroic_anthem", "auto plays the song line on the bar, its current stage (%s)" % hero.last_cast_id)
 	await get_tree().create_timer(1.6).timeout
-	check(String(hero.song_entry().get("skill_id", "")) == "valor_march", "the song is playing")
+	check(String(hero.song_entry().get("skill_id", "")) == "heroic_anthem", "the song is playing")
 	_bar(["valor_march", "iron_ballad"])
 	hero._auto_cast(1.0)
 	check(hero.last_cast_id == "iron_ballad", "a ward song fills the ward slot beside the attack song (%s)" % hero.last_cast_id)
@@ -536,37 +540,39 @@ func _hero_auto() -> void:
 	_bar(["valor_march", "iron_ballad"])
 	hero._auto_cast(1.0)
 	check(hero.last_cast_id == "", "a running song is never replaced early (%s)" % hero.last_cast_id)
-	_bar(["valor_march", "heroic_anthem"])
-	hero._auto_cast(1.0)
-	check(hero.last_cast_id == "", "a second attack song never goes over the playing one (%s)" % hero.last_cast_id)
-	_bar(["valor_march", "sanctuary_serenade"])
+	Game.profile.level = 64
+	_bar(["valor_march", "iron_ballad"])
 	hero._auto_cast(0.3)
 	check(hero.last_cast_id == "sanctuary_serenade", "badly hurt, a healing song swaps in (%s)" % hero.last_cast_id)
 	await get_tree().create_timer(1.6).timeout
 	BuffBook.song_to_replace(hero._buffs, "attack")["until"] = Time.get_ticks_msec() + 2000
-	_bar(["heroic_anthem", "sanctuary_serenade"])
+	Game.profile.level = 96
+	_bar(["valor_march", "iron_ballad"])
 	hero._auto_cast(1.0)
-	check(hero.last_cast_id == "heroic_anthem", "when the attack song is about to end the next attack song takes over (%s)" % hero.last_cast_id)
+	check(hero.last_cast_id == "hymn_of_legends", "when the attack song is about to end the next attack song takes over (%s)" % hero.last_cast_id)
 	await get_tree().create_timer(1.6).timeout
 	# Marks already up: the marking skill waits behind the next skill, and fires when nothing else can.
+	Game.profile.level = 60
 	mob.apply_shred(0.15, 8.0)
 	_bar(["discord", "staccato_shot"])
 	hero._auto_cast(1.0)
-	check(String(hero._pending.get("id", "")) == "staccato_shot", "a skill whose marks are up waits behind the others (%s)" % hero._pending.get("id", ""))
+	check(String(hero._pending.get("id", "")) == "heartstring", "a skill whose marks are up waits behind the others (%s)" % hero._pending.get("id", ""))
 	_bar(["discord", "staccato_shot"])
-	hero.cooldowns["staccato_shot"] = 5.0
+	for id in ["staccato_shot", "heartstring"]:
+		hero.cooldowns[id] = 5.0
 	hero._auto_cast(1.0)
 	check(String(hero._pending.get("id", "")) == "discord", "and still fires when nothing else can")
 	mob._tick_status(9.0)
 	_bar(["discord", "staccato_shot"])
 	hero._auto_cast(1.0)
 	check(String(hero._pending.get("id", "")) == "discord", "an unmarked target gets the mark first")
+	Game.profile.level = 100
 	# A marking burst opens on a lone monster while it is unmarked.
-	_bar(["thunder_crescendo"])
+	_bar(["slumber_lullaby"])
 	hero._auto_cast(1.0)
 	check(String(hero._pending.get("id", "")) == "thunder_crescendo", "a marking burst is cast on a lone unmarked monster")
 	mob.apply_weaken(0.24, 8.0)
-	_bar(["thunder_crescendo"])
+	_bar(["slumber_lullaby"])
 	hero._auto_cast(1.0)
 	check(hero._pending.is_empty(), "but not on a lone monster already sapped")
 	mob._tick_status(9.0)
