@@ -240,7 +240,7 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 	var cls := item_class(item)
 	if is_wings(item):
 		return [
-			"%s %d ดาว · ระดับ%s" % ["ผ้าคลุม" if cls == "darklord" else "ปีก", WING_STARS, TAG],
+			"%s %d ดาว · ระดับ%s" % ["ผ้าคลุม" if CapeArt.wears_cape(cls) else "ปีก", WING_STARS, TAG],
 			"ดรอปเฉพาะที่%s · สวมใส่ได้ที่ ดาว %d" % [FIELD, STARS],
 			"แรงกว่าปีก 100 ดาว +%d ทุกค่า · ตีบวกได้ถึง +%d" % [WING_REF_PLUS, ItemData.MAX_PLUS],
 		]

@@ -11,8 +11,6 @@ const LEATHER := [Color("9a6b42"), Color("7a5a3a"), Color("8a95a8"), Color("3e7a
 const MAX_TIER := 9
 ## The class wing models (assets/models/wings/wings_<class>.glb).
 const WING_MODEL := "res://assets/models/wings/wings_%s.glb"
-## Classes that wear another class's wing model (the Muay Thai fighter: the fire dragon's).
-const WING_ALIAS := {"muaythai": "lancer"}
 
 
 static func _p(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3, size: Vector3, rot := Vector3.ZERO, glow := 0.0) -> MeshInstance3D:
@@ -132,10 +130,11 @@ static func armor_flourish(tier: int) -> Node3D:
 static func wings(kind: String) -> Node3D:
 	if not ItemData.WING_INFO.has(kind):
 		kind = "warrior"
-	# The Dark Lord wears a cape instead of wings (it floats him the same way).
-	if kind == "darklord":
-		return CapeArt.build(false)
-	var root := (load(WING_MODEL % String(WING_ALIAS.get(kind, kind))) as PackedScene).instantiate() as Node3D
+	# The Dark Lord and the Muay Thai fighter wear a cape instead of wings (it floats
+	# them the same way).
+	if CapeArt.wears_cape(kind):
+		return CapeArt.build(false, kind)
+	var root := (load(WING_MODEL % kind) as PackedScene).instantiate() as Node3D
 	root.name = "Wings_" + kind
 	# Thin membranes and feathers: an outline shell would draw dark stripes across them.
 	for mi in root.find_children("*", "MeshInstance3D", true, false):

@@ -1199,7 +1199,7 @@ func use_skill(index: int) -> String:
 		return "cooldown"
 	if Time.get_ticks_msec() < _cast_until: return "casting"
 	if bool(skill.get("requires_wings", false)) and not visual.has_wings():
-		message.emit("ต้องสวมปีกก่อนใช้สกิลนี้")
+		message.emit("ต้องสวม%sก่อนใช้สกิลนี้" % ("ผ้าคลุม" if CapeArt.wears_cape(String(visual.class_id)) else "ปีก"))
 		return "wings"
 	if int(Game.profile.mp) < mp_cost(skill):
 		message.emit("MP ไม่พอ!")

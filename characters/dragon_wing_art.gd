@@ -10,7 +10,9 @@ extends Node3D
 ## galaxy, dawn rays, a moon, ice, blood crescents or aurora ribbons) burns at each wrist.
 ## The Dark Lord, who wears a cape in the wing slot, gets the Dragon Emperor's cape
 ## instead: CapeArt's long cape and scale capelet re-cut in dragon jade over his abyss
-## violet, with a small pair of these wings standing at the shoulders.
+## violet, with a small pair of these wings standing at the shoulders. The Muay Thai
+## fighter, who wears a ring robe, gets its star robe (CapeArt, "muaythai") re-cut in
+## dragon jade and gold, with no wings at all.
 ##
 ## One unshaded shader (dragon_wing.gdshader) draws membrane, bones, scales and claws
 ## from the mesh's UVs: no textures, no lights, no particles, nothing added over the
@@ -123,7 +125,15 @@ func _make(still: bool) -> void:
 	_fit.scale = Vector3.ONE * FIT
 	_fit.position = BACK
 	add_child(_fit)
-	if cls == "darklord":
+	if cls == "muaythai":
+		_cape = CapeArt.build_tinted("DragonCape", {"outer_color": Color("0f6a52"), "outer_deep": Color("04241c"), "lining_color": Color("1a0e08"),
+			"trim_color": DragonGearData.GOLD, "glow_color": DragonGearData.JADE_LIGHT}, cls)
+		var own_player := _cape.get_node_or_null("AnimationPlayer")
+		if own_player != null:
+			_cape.remove_child(own_player)
+			own_player.free()
+		add_child(_cape)
+	elif cls == "darklord":
 		var own := SetGearData.palette(cls)
 		_cape = CapeArt.build_tinted("DragonCape", {"outer_color": Color("14725c"), "outer_deep": Color("05221d"), "lining_color": Color("2c1548"),
 			"trim_color": DragonGearData.GOLD, "glow_color": own.glow, "capelet_color": Color("1f9a78"), "capelet_deep": Color("0a3a30"), "gem": own.gem})
@@ -134,7 +144,7 @@ func _make(still: bool) -> void:
 			own_player.free()
 		add_child(_cape)
 	var mat := material(cls, still)
-	for side in [1.0, -1.0]:
+	for side in ([] if cls == "muaythai" else [1.0, -1.0]):
 		var mi := MeshInstance3D.new()
 		mi.name = "Wing" + ("R" if side > 0 else "L")
 		mi.mesh = wing_mesh()
@@ -176,6 +186,9 @@ func _sigil() -> Node3D:
 
 ## Places the wings for the current beat and fold (the left one mirrors the right).
 func _place() -> void:
+	if _cape != null:
+		_cape.billow = clampf(0.14 + 0.82 * air + 0.08 * beat, 0.0, 1.0)
+		_cape.fold = fold
 	if _fit == null or _wings.size() < 2:
 		return
 	var small := cls == "darklord"
@@ -186,9 +199,6 @@ func _place() -> void:
 	var pivot := SMALL_PIVOT if small else PIVOT
 	_wings[0].transform = Transform3D(open, pivot)
 	_wings[1].transform = Transform3D(Basis.from_scale(Vector3(-1, 1, 1)) * open, pivot * Vector3(-1, 1, 1))
-	if _cape != null:
-		_cape.billow = clampf(0.14 + 0.82 * air + 0.08 * beat, 0.0, 1.0)
-		_cape.fold = fold
 
 
 ## The wing clips, shared by every pair (they key this node's beat, fold and air).
@@ -222,7 +232,7 @@ static func build_icon_node(p_cls: String) -> Node3D:
 	var wings := build(p_cls, true)
 	wings.rotation_degrees = Vector3(0, 180, 0)
 	holder.add_child(wings)
-	if p_cls == "darklord":
+	if CapeArt.wears_cape(p_cls):
 		holder.set_meta("frame", Vector3(0.0, 0.4, 1.16))
 	else:
 		holder.set_meta("frame", Vector3(0.0, 0.8, 1.72))

@@ -479,22 +479,33 @@ func _visuals() -> void:
 				check(clips, "q%d %s: Idle, Flap, Glide, Fold and Unfold" % [quality, c])
 				var wing_cost := DragonWingArt.cost(wing)
 				var no_fx := _mesh_cost(wing)
-				# (The Dark Lord's is CapeArt's three cloth layers plus the small pair.)
-				var cape := c == "darklord"
+				# (The Dark Lord's is CapeArt's three cloth layers plus the small pair; the
+				# Muay Thai fighter's its star robe alone, no wings.)
+				var cape := CapeArt.wears_cape(c)
 				check(int(wing_cost.surfaces) <= (12 if cape else 8) and int(wing_cost.triangles) > 1200 and int(wing_cost.triangles) < (9000 if cape else 7000), "q%d %s: wings phone-sized: %d surfaces, %d triangles" % [quality, c, int(wing_cost.surfaces), int(wing_cost.triangles)])
 				check(int(no_fx.lights) == 0 and int(no_fx.gpu) == 0 and int(no_fx.cpu) == 0, "q%d %s: no lights, no particles in the wings" % [quality, c])
 				var right := wing.find_child("WingR", true, false) as MeshInstance3D
-				var mat := right.get_surface_override_material(0) as ShaderMaterial if right != null else null
-				check(mat != null and mat.shader == DragonWingArt.SHADER and is_equal_approx(float(mat.get_shader_parameter("motion")), 0.0 if quality == 0 else 1.0), "q%d %s: the wing shader %s" % [quality, c, "holds still" if quality == 0 else "sways"])
-				check((wing.find_child("DragonCape", true, false) != null) == (c == "darklord"), "q%d %s: %s" % [quality, c, "the Dragon Emperor's cape" if c == "darklord" else "wings, no cape"])
-				# The poses HeroVisual asks for.
-				var open: Transform3D = right.transform
-				hero.set_wing_mode(HeroVisual.WING_FOLD, true)
-				check(is_equal_approx(wing.fold, 1.0) and not right.transform.is_equal_approx(open), "q%d %s: folding moves the wings" % [quality, c])
-				hero.set_wing_mode(HeroVisual.WING_FLY, true)
-				await get_tree().process_frame
-				check(hero.flying() and player.current_animation in ["Flap", "Glide", "Unfold"], "q%d %s: flying plays the flap" % [quality, c])
-				hero.set_wing_mode(HeroVisual.WING_STAND, true)
+				if c == "muaythai":
+					var robe := wing.find_child("DragonCape", true, false) as CapeArt
+					check(right == null and robe != null and robe.cls == "muaythai", "q%d muaythai: the dragon robe, no wings" % quality)
+					hero.set_wing_mode(HeroVisual.WING_FOLD, true)
+					check(is_equal_approx(wing.fold, 1.0) and robe != null and is_equal_approx(robe.fold, 1.0), "q%d muaythai: folding gathers the robe" % quality)
+					hero.set_wing_mode(HeroVisual.WING_FLY, true)
+					await get_tree().process_frame
+					check(hero.flying() and player.current_animation in ["Flap", "Glide", "Unfold"], "q%d muaythai: flying plays the robe's flap" % quality)
+					hero.set_wing_mode(HeroVisual.WING_STAND, true)
+				else:
+					var mat := right.get_surface_override_material(0) as ShaderMaterial if right != null else null
+					check(mat != null and mat.shader == DragonWingArt.SHADER and is_equal_approx(float(mat.get_shader_parameter("motion")), 0.0 if quality == 0 else 1.0), "q%d %s: the wing shader %s" % [quality, c, "holds still" if quality == 0 else "sways"])
+					check((wing.find_child("DragonCape", true, false) != null) == (c == "darklord"), "q%d %s: %s" % [quality, c, "the Dragon Emperor's cape" if c == "darklord" else "wings, no cape"])
+					# The poses HeroVisual asks for.
+					var open: Transform3D = right.transform
+					hero.set_wing_mode(HeroVisual.WING_FOLD, true)
+					check(is_equal_approx(wing.fold, 1.0) and not right.transform.is_equal_approx(open), "q%d %s: folding moves the wings" % [quality, c])
+					hero.set_wing_mode(HeroVisual.WING_FLY, true)
+					await get_tree().process_frame
+					check(hero.flying() and player.current_animation in ["Flap", "Glide", "Unfold"], "q%d %s: flying plays the flap" % [quality, c])
+					hero.set_wing_mode(HeroVisual.WING_STAND, true)
 			# Nothing additive for the select stage to tone down in the wings; the call is safe.
 			TitleStage.soften_glow(hero)
 			# A re-dress to the plain set frees the dragon pieces.

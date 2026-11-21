@@ -1207,7 +1207,7 @@ func _update_wing_row() -> void:
 	var worn := hero != null and is_instance_valid(hero.visual) and hero.visual.has_wings()
 	_wing_row.visible = worn
 	_gear_row.visible = _wing_row.visible or _mount_row.visible
-	var cape := worn and hero.visual.class_id == &"darklord"
+	var cape := worn and CapeArt.wears_cape(String(hero.visual.class_id))
 	if not worn or (hero.visual.wing_mode == _wing_shown and cape == _cape_shown):
 		return
 	_wing_shown = hero.visual.wing_mode

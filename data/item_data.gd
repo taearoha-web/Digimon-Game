@@ -34,9 +34,11 @@ const WING_INFO := {
 	"darklord": {"name": "ผ้าคลุมราชันอีกา", "stat": "atk", "base": 205, "bonus": ["hp", "def", "crit", "mp"], "color": Color("b02a3a")},
 	"priest": {"name": "ปีกนางฟ้า", "stat": "matk", "base": 195, "bonus": ["hp", "mp", "def", "crit"], "color": Color("f2d47a")},
 	"bard": {"name": "ปีกโน้ตสวรรค์", "stat": "matk", "base": 205, "bonus": ["crit", "mp", "hp", "def"], "color": Color("ff8fcf")},
-	# The Muay Thai fighter's wings: the fire dragon's pair (GearKit.WING_ALIAS) in flame-gold.
-	"muaythai": {"name": "ปีกเพลิงประเจียด", "stat": "atk", "base": 205, "bonus": ["hp", "crit", "def", "mp"], "color": Color("ff8a2a")},
+	# The Muay Thai fighter wears a ring robe instead of wings (CapeArt): satin red and gold.
+	"muaythai": {"name": "ผ้าคลุมนักมวย", "stat": "atk", "base": 205, "bonus": ["hp", "crit", "def", "mp"], "color": Color("ff8a2a")},
 }
+## Old names of the Muay Thai fighter's wings, shown as their robes' names (name_of).
+const RENAMED_WINGS := {"ปีกเพลิงประเจียด": "ผ้าคลุมนักมวย", "ปีกเพลิงมนตราดารา": "ผ้าคลุมมนตราดารา"}
 ## Gear drops (monsters, bosses, the world boss, the arena prize, the star and divine
 ## regions, wings) come for every class, so pieces of other classes can be sold or set
 ## out on the hero's stall (PlayerStall): a piece is rolled for the hero's own class
@@ -552,7 +554,12 @@ static func name_of(item: Dictionary) -> String:
 	if is_costume(item):
 		return String(RewardShop.COSTUMES.get(String(item.get("id", "")), {}).get("name", "คอสตูม"))
 	var plus := int(item.get("plus", 0))
-	return ("+%d " % plus if plus > 0 else "") + str(item.get("name", "?"))
+	var label := str(item.get("name", "?"))
+	if String(item.get("wing", "")) == "muaythai":
+		# The Muay Thai fighter's wings became robes: pieces dropped before keep their old name.
+		for old in RENAMED_WINGS:
+			label = label.replace(old, String(RENAMED_WINGS[old]))
+	return ("+%d " % plus if plus > 0 else "") + label
 
 
 static func color_of(item: Dictionary) -> Color:

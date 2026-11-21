@@ -9,6 +9,12 @@ shader_type spatial;
 // Two styles: 0 royal (Lv.100: crimson velvet, gold filigree, a raven crest) and
 // 1 star (100 stars: galaxy cloth with twinkling stars, a crowned raven on a gold
 // sunburst, a hem of glowing raven feathers, an indigo feather mantle).
+// The Muay Thai fighter's capes (boxer > 0) paint the same cloth their own way
+// (boxer_paint): 1 the ring robe (satin red, gold trim and fringe, a mongkhon with
+// an unalom and rows of yant script on the back), 2 the star robe (crimson-to-orange
+// flame satin, glowing drifting script, embers along the hem). They add two layers:
+// ribbon (the prajiad tails tied at the shoulders) and kind 3, the mantra ring that
+// floats behind the shoulders of the star robe.
 render_mode cull_disabled, diffuse_toon, specular_disabled;
 
 uniform vec4 outer_color : source_color = vec4(0.56, 0.11, 0.16, 1.0);
@@ -36,6 +42,10 @@ uniform float phase = 0.0;
 uniform float stiff = 1.0;
 uniform float billow = 0.15;
 uniform float fold = 0.0;
+// The Muay Thai robes: 0 off (the Dark Lord), 1 Lv.100, 2 the star robe.
+uniform float boxer = 0.0;
+// A prajiad tail (boxer only): a narrow band with a swallowtail end.
+uniform float ribbon = 0.0;
 
 varying vec2 cloth;
 varying float pleat_shade;
@@ -46,6 +56,18 @@ varying float pleat_shade;
 vec3 shape(vec2 uv, float t) {
 	float s = uv.x * 2.0 - 1.0;
 	float v = uv.y;
+	if (kind > 2.5) {
+		// The mantra ring: an upright band (u around, v across) behind the shoulders,
+		// turning slowly, tipping back as the robe streams and shrinking when stowed.
+		float a = uv.x * 2.0 * PI + TIME * 0.35;
+		float r = mix(top_width, hem_width, v) * (1.0 - fold * 0.7) * (1.0 + 0.03 * sin(TIME * 2.2));
+		vec3 c = vec3(cos(a) * r, sin(a) * r, 0.0);
+		float tip = billow * 0.5;
+		c = vec3(c.x, c.y * cos(tip), -c.y * sin(tip));
+		c.y += top_y - cape_length + 0.012 * sin(TIME * 1.3);
+		c.z += back_z - behind;
+		return c;
+	}
 	if (kind > 1.5) {
 		// The collar: an arc behind the neck, flaring outwards as it rises.
 		float a = s * 1.45;
@@ -216,7 +238,214 @@ vec3 galaxy(vec2 p, out float sparkle) {
 	return c;
 }
 
+// ---- The Muay Thai robes ----------------------------------------------------
+
+// One glyph of yant script in a cell (p 0..1): a small head loop, a stem and one of
+// a few hooks, the way Khom letters read from afar. Negative inside.
+float yant_glyph(vec2 p, float h) {
+	float d = abs(length(p - vec2(0.3, 0.28)) - 0.15) - 0.06;
+	d = min(d, seg(p, vec2(0.45, 0.28), vec2(0.45, 0.84)) - 0.065);
+	if (h < 0.3) {
+		d = min(d, seg(p, vec2(0.45, 0.84), vec2(0.78, 0.84)) - 0.065);
+		d = min(d, seg(p, vec2(0.78, 0.84), vec2(0.78, 0.2)) - 0.065);
+	} else if (h < 0.6) {
+		d = min(d, seg(p, vec2(0.45, 0.84), vec2(0.82, 0.6)) - 0.065);
+		d = min(d, abs(length(p - vec2(0.74, 0.3)) - 0.12) - 0.055);
+	} else if (h < 0.8) {
+		d = min(d, seg(p, vec2(0.15, 0.84), vec2(0.45, 0.84)) - 0.065);
+		d = min(d, seg(p, vec2(0.7, 0.15), vec2(0.7, 0.7)) - 0.065);
+	} else {
+		d = min(d, seg(p, vec2(0.45, 0.6), vec2(0.8, 0.6)) - 0.06);
+	}
+	return d;
+}
+
+// Rows of yant script (Hah Taew, the lines of a sak yant) in cloth units, the first
+// line's top at [param top]; [param drift] slides the letters along their lines.
+// 1 on a stroke.
+float yant_rows(vec2 dp, float top, float rows, float cell, float half_w, float drift) {
+	float ry = (top - dp.y) / (cell * 1.55);
+	float row = floor(ry);
+	if (row < 0.0 || row >= rows) {
+		return 0.0;
+	}
+	// The lines shorten towards the bottom, like a tapering yant.
+	float w = half_w * (1.0 - row * 0.12);
+	if (abs(dp.x) > w) {
+		return 0.0;
+	}
+	float fy = fract(ry) * 1.55;
+	if (fy > 1.0) {
+		return 0.0;
+	}
+	float gx = dp.x / cell + drift * (mod(row, 2.0) < 0.5 ? 1.0 : -1.0);
+	float id = floor(gx);
+	float g = yant_glyph(vec2(fract(gx), 1.0 - fy), hash1(id * 7.1 + row * 13.0));
+	return smoothstep(0.04, -0.04, g);
+}
+
+// The back emblem: a gold mongkhon (a twisted rope ring with its tail) round an
+// unalom. Returns 1 on gold; [param shade] the rope's twist light.
+float mongkhon(vec2 c, out float shade) {
+	float r = length(c);
+	float ang = atan(c.y, c.x);
+	float ring = abs(r - 0.1) - 0.022;
+	float m = smoothstep(0.004, -0.002, ring);
+	// The rope twist: diagonal light and dark bands round the ring.
+	float twist = fract(ang / (2.0 * PI) * 22.0 + (r - 0.1) * 30.0);
+	shade = mix(0.62, 1.12, smoothstep(0.0, 0.5, twist) * smoothstep(1.0, 0.5, twist));
+	// The tail, hanging from the bottom of the ring and ending in a knot.
+	float tail = seg(c, vec2(0.0, -0.12), vec2(0.012, -0.2)) - 0.012;
+	tail = min(tail, length(c - vec2(0.014, -0.215)) - 0.02);
+	float t = smoothstep(0.004, -0.002, tail);
+	if (t > m) {
+		shade = 0.95;
+	}
+	m = max(m, t);
+	// The unalom: a coiled loop, a line winding up and a dot of light at the top.
+	float un = abs(length(c - vec2(0.0, -0.035)) - 0.018) - 0.006;
+	un = min(un, seg(c, vec2(0.018, -0.035), vec2(-0.014, 0.0)) - 0.006);
+	un = min(un, seg(c, vec2(-0.014, 0.0), vec2(0.012, 0.025)) - 0.006);
+	un = min(un, seg(c, vec2(0.012, 0.025), vec2(0.0, 0.05)) - 0.006);
+	un = min(un, length(c - vec2(0.0, 0.066)) - 0.01);
+	float un_m = smoothstep(0.004, -0.002, un);
+	if (un_m > m) {
+		shade = 1.05;
+	}
+	return max(m, un_m);
+}
+
+// The colour and glow of a robe point; cut > 0.5 discards it.
+void boxer_paint(vec2 uv, bool front, vec3 n, vec3 view, float shade_pleat, out vec3 col, out vec3 emit, out float cut) {
+	float u = uv.x;
+	float v = uv.y;
+	float s = u * 2.0 - 1.0;
+	float star = boxer > 1.5 ? 1.0 : 0.0;
+	vec3 gold_c = trim_color.rgb;
+	cut = 0.0;
+	emit = vec3(0.0);
+	if (kind > 2.5) {
+		// The mantra ring: a glowing band with gold rims and dark script turning in it.
+		float rim = smoothstep(0.24, 0.12, min(v, 1.0 - v));
+		vec2 g = vec2(u * 46.0, (v - 0.22) / 0.56);
+		float glyph = 0.0;
+		if (g.y > 0.0 && g.y < 1.0) {
+			glyph = smoothstep(0.05, -0.05, yant_glyph(vec2(fract(g.x), g.y), hash1(floor(g.x) * 3.7)));
+		}
+		float pulse = 0.85 + 0.15 * sin(TIME * 3.0 + u * 2.0 * PI * 3.0);
+		col = mix(glow_color.rgb, outer_color.rgb * 0.5, glyph * 0.8);
+		col = mix(col, gold_c, rim);
+		emit = mix(glow_color.rgb * 1.6 * pulse, gold_c * 0.9, rim) * (1.0 - glyph * 0.65);
+		return;
+	}
+	float width_here = mix(top_width, hem_width, pow(max(v, 0.0), 0.8));
+	float len_here = cape_length * (1.0 + hem_curve * (1.0 - s * s));
+	float e_side = min(u, 1.0 - u) * width_here;
+	float e_hem = (1.0 - v) * len_here;
+	vec2 dp = vec2((u - 0.5) * width_here, -v * len_here);
+	if (ribbon > 0.5) {
+		// A prajiad tail: a swallowtail end, red with gold edges and a row of gold dots.
+		if (e_hem < 0.05 * (1.0 - abs(s))) {
+			cut = 1.0;
+			return;
+		}
+		col = mix(outer_color.rgb * 1.15, outer_deep.rgb, v * 0.7);
+		col *= 0.85 + 0.4 * pow(max(1.0 - abs(dot(n, view)), 0.0), 2.0);
+		float edge = smoothstep(0.62, 0.72, abs(s));
+		float dots = smoothstep(0.35, 0.2, length(vec2(s * 1.6, (fract(-dp.y * 22.0) - 0.5))));
+		col = mix(col, gold(gold_c, abs(s)), max(edge, dots * 0.9));
+		emit = gold_c * (edge * 0.3 + dots * 0.5) * star + glow_color.rgb * star * 0.15 * v;
+		return;
+	}
+	// The cloth: satin, a deep crimson running into flame orange on the star robe.
+	if (star > 0.5) {
+		col = mix(outer_color.rgb, glow_color.rgb * 0.95, smoothstep(0.3, 1.0, v));
+		vec2 q = dp * vec2(9.0, 5.0) + vec2(0.0, -TIME * 0.6);
+		float f = fbm(q + vec2(fbm(q * 0.7 + TIME * 0.1), 0.0));
+		float flame = smoothstep(0.45, 0.85, f + v * 0.9 - 0.55);
+		col = mix(col, vec3(1.0, 0.72, 0.25), flame * 0.7);
+		emit += vec3(1.0, 0.45, 0.1) * flame * 0.8 * smoothstep(0.4, 1.0, v);
+	} else {
+		col = mix(outer_color.rgb * 1.05, outer_deep.rgb, smoothstep(0.0, 1.1, v));
+	}
+	// Satin: bright crests on the folds and a sheen at grazing angles.
+	float fres = pow(max(1.0 - clamp(abs(dot(n, view)), 0.0, 1.0), 0.0), 2.0);
+	float crest_light = pow(max(shade_pleat, 0.0), 4.0);
+	col *= mix(0.8, 1.05, shade_pleat * 0.5 + 0.5);
+	col += outer_color.rgb * (0.45 * crest_light + 0.55 * fres) + vec3(0.18) * crest_light;
+	// A gold fringe of tassels along the hem (the Lv.100 robe).
+	float fringe_h = star > 0.5 ? 0.0 : 0.035;
+	if (e_hem < fringe_h) {
+		float strand = abs(fract(u * 46.0) - 0.5);
+		if (strand > 0.3 - 0.1 * (1.0 - e_hem / fringe_h)) {
+			cut = 1.0;
+			return;
+		}
+		col = gold(gold_c, strand * 2.0 + 0.3) * mix(0.75, 1.0, e_hem / fringe_h);
+		if (!front) {
+			col *= 0.7;
+		}
+		return;
+	}
+	// Gold trim: a broad band down the sides and above the fringe, a thin line inside it.
+	float tw = 0.026;
+	float e = min(e_side, e_hem - fringe_h);
+	float trim = smoothstep(tw, tw - 0.004, e);
+	float inner = smoothstep(0.004, 0.0, abs(e - tw - 0.014));
+	vec3 trim_col = gold(gold_c, clamp(e / tw, 0.0, 1.0));
+	col = mix(col, trim_col * 0.35, smoothstep(0.004, 0.0, abs(e - tw)) * (1.0 - trim));
+	col = mix(col, gold(gold_c, 0.5), inner);
+	col = mix(col, trim_col, trim);
+	emit += gold_c * (trim * 0.25 + inner * 0.35) * star;
+	if (front) {
+		// The back: the mongkhon over the yant rows.
+		float ring_y = -0.17 * cape_length / 0.56;
+		vec2 c = dp - vec2(0.0, ring_y);
+		float shade;
+		float m = mongkhon(c, shade);
+		float halo = smoothstep(0.16, 0.1, length(c)) * star;
+		col = mix(col, gold_c * 1.1, halo * 0.15);
+		col = mix(col, outer_deep.rgb * 0.35, smoothstep(0.02, 0.0, abs(length(c) - 0.1) - 0.026) * (1.0 - m) * 0.8);
+		col = mix(col, gold_c * shade, m);
+		emit += gold_c * (m * (0.25 + 0.9 * star) + halo * 0.25);
+		float script = yant_rows(dp, ring_y - 0.135, 4.0, 0.034, 0.17, star * TIME * 0.35);
+		vec3 ink = star > 0.5 ? mix(gold_c, vec3(1.0, 0.95, 0.7), 0.4) : gold_c;
+		col = mix(col, ink, script);
+		emit += ink * script * (0.15 + 1.1 * star * (0.8 + 0.2 * sin(TIME * 4.0 + dp.x * 30.0)));
+	} else {
+		// The lining.
+		col = mix(lining_color.rgb * mix(1.2, 0.8, v), trim_col, trim * 0.8);
+		emit *= 0.3;
+	}
+	if (star > 0.5) {
+		// Embers rising off the hem.
+		vec2 eg = vec2(dp.x * 40.0, (e_hem - TIME * 0.05) * 34.0);
+		vec2 id = floor(eg);
+		vec2 f = fract(eg) - 0.5;
+		float h = hash2(id);
+		vec2 o = vec2(hash2(id + 3.1), hash2(id + 5.7)) - 0.5;
+		float ember = smoothstep(0.22, 0.0, length(f - o * 0.5)) * step(0.72, h) * smoothstep(0.2, 0.0, e_hem);
+		ember *= 0.6 + 0.4 * sin(TIME * (4.0 + h * 6.0) + h * 30.0);
+		col = mix(col, vec3(1.0, 0.8, 0.35), ember);
+		emit += vec3(1.0, 0.55, 0.15) * ember * 2.2;
+		// The hem itself smoulders.
+		float burn = smoothstep(0.03, 0.0, e_hem);
+		emit += vec3(1.0, 0.5, 0.12) * burn * (0.8 + 0.4 * sin(TIME * 5.0 + dp.x * 40.0));
+	}
+}
+
 void fragment() {
+	if (boxer > 0.5) {
+		vec3 bcol;
+		vec3 bemit;
+		float bcut;
+		boxer_paint(cloth, FRONT_FACING, NORMAL, VIEW, pleat_shade, bcol, bemit, bcut);
+		if (bcut > 0.5) {
+			discard;
+		}
+		ALBEDO = bcol;
+		EMISSION = bemit;
+	} else {
 	float u = cloth.x;
 	float v = cloth.y;
 	float s = u * 2.0 - 1.0;
@@ -405,4 +634,5 @@ void fragment() {
 		ALBEDO = col;
 		EMISSION = glow_rgb * glow;
 	}
+}
 }

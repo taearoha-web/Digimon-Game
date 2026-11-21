@@ -224,7 +224,7 @@ static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
 	root.name = "SetAura"
 	visual.add_child(root)
 	made.append(root)
-	# The Dark Lord wears a cape, not wings: his +12..+15 light comes as a cape of light.
+	# The cape wearers (CapeArt.CLASSES) get their +12..+15 light as a cape of light.
 	if String(visual.get("class_id")) in CAPE_CLASSES:
 		root.set_meta("cape", true)
 	var head := 1.85 if bool(visual.get("chibi")) else 2.2
@@ -499,7 +499,7 @@ static func _wings(root: Node3D, head: float, colors: Array, span: float) -> voi
 
 
 ## Classes that wear a cape in the wings slot (their light aura is a cape too).
-const CAPE_CLASSES: Array[String] = ["darklord"]
+const CAPE_CLASSES: Array[String] = CapeArt.CLASSES
 
 
 ## A cape of light for the cape wearers: the worn cape itself shines in the step's
@@ -541,7 +541,7 @@ static func _shine_cape(root: Node3D, color: Color) -> void:
 	if not is_instance_valid(root) or not is_instance_valid(root.get_parent()):
 		return
 	var shine := _glow_material(color, 0.32)
-	for node in root.get_parent().find_children("Wings_*darklord", "", true, false):
+	for node in root.get_parent().find_children("Wings_*" + String(root.get_parent().get("class_id")), "", true, false):
 		for m in MeshKit.collect_meshes(node):
 			m.material_overlay = shine
 	var pulse := root.create_tween().set_loops()
