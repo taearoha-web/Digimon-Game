@@ -855,7 +855,8 @@ func _wings() -> void:
 			check(cape is CapeArt and cape.get_node_or_null("AnimationPlayer") != null, "darklord cape has a model")
 			cape.free()
 		else:
-			check(ResourceLoader.exists(GearKit.WING_MODEL % cls), "%s wings have a model" % cls)
+			# The Muay Thai fighter wears the fire dragon pair (GearKit.WING_ALIAS).
+			check(ResourceLoader.exists(GearKit.WING_MODEL % String(GearKit.WING_ALIAS.get(cls, cls))), "%s wings have a model" % cls)
 		for i in 60:
 			var w := ItemData.wings(rng, cls)
 			rarities[int(w.rarity)] = true
