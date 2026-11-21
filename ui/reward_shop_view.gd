@@ -45,20 +45,31 @@ static func build(parent: Control, refresh: Callable) -> Control:
 		tabs.add_child(b)
 	match tab:
 		"stone":
-			box.add_child(UIUtil.label("หินเสริมพลัง: อัญมณีและเพชรตีบวกจากร้าน เป็นของเสริม ไม่ใช่ทางลัด (ของดรอปในสนามเหมือนเดิม) จำกัดจำนวนต่อสัปดาห์ รีเซ็ตวันจันทร์", &"SmallLabel"))
+			box.add_child(_wrapped("หินเสริมพลัง: อัญมณีและเพชรตีบวกจากร้าน เป็นของเสริม ไม่ใช่ทางลัด (ของดรอปในสนามเหมือนเดิม) จำกัดจำนวนต่อสัปดาห์ รีเซ็ตวันจันทร์"))
 			for e in RewardShop.STONES:
 				box.add_child(_stone_card(e, refresh))
 		_:
 			var note := {"costume": "คอสตูม: ย้อมชุดทั้งตัว พร้อมชิ้นตกแต่งหลายชั้นบนหัว หลัง สะโพกหรือไหล่ (หาง ผ้าคลุม ปีก มงกุฎ ฯลฯ) และประกายรอบตัว ใส่ได้ทุกอาชีพทับเกราะที่สวมอยู่ · แลกแล้วได้เป็นไอเทมเข้ากระเป๋า ใส่ที่ช่องคอสตูม (ครั้งละ 1 ชุด) ฝากคลังส่งให้ตัวละครอื่นได้ แต่ขายหรือแลกเปลี่ยนไม่ได้",
 				"trail": "เอฟเฟกต์ท่าเดิน: ร่องรอยที่ตามรอยเท้าเวลาเดิน (ปิดเองที่กราฟิกต่ำหรือเมื่อเครื่องหน่วยความจำตึง)",
 				"ncol": "สีชื่อ: สีป้ายชื่อเหนือหัว ผู้เล่นคนอื่นที่ออนไลน์เห็นด้วย (สมาชิกราชันปราสาทยังใส่สีมงกุฎทองตามเดิม)"}
-			box.add_child(UIUtil.label(String(note.get(tab, "")), &"SmallLabel"))
+			var tab_note := _wrapped(String(note.get(tab, "")))
+			tab_note.name = "RewardTabNote"
+			box.add_child(tab_note)
 			var worn := RewardShop.active(tab)
 			if worn == "":
 				box.add_child(UIUtil.label("ตอนนี้ไม่ได้สวมอะไร", &"DimLabel"))
 			for id in RewardShop.catalog(tab):
 				box.add_child(_cosmetic_card(tab, String(id), refresh))
 	return scroll
+
+
+## A note that wraps to the page's width: an unwrapped long line widens the whole page
+## past the screen and pushes every card's "แลก" button out of sight.
+static func _wrapped(text: String) -> Label:
+	var label := UIUtil.label(text, &"SmallLabel")
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return label
 
 
 static func _swatch(color: Color) -> Control:

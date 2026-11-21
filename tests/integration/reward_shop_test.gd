@@ -501,6 +501,25 @@ func _page() -> void:
 		check(desc != null and desc.text == String(RewardShop.COSTUMES[id].desc), "the card names the pieces of costume %s" % id)
 	var buy := host.find_child("RewardBuy_sakura", true, false) as Button
 	check(buy != null and not buy.disabled, "sakura can be bought")
+	# A phone-sized page: the long notes wrap, so every card's button stays on the page.
+	var narrow := Control.new()
+	narrow.size = Vector2(760, 600)
+	add_child(narrow)
+	for t in ["costume", "stone"]:
+		RewardShopView.tab = t
+		UIUtil.clear(narrow)
+		RewardShopView.build(narrow, func(): pass)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var page := narrow.get_child(0) as Control
+		var inside := 0
+		var buttons := narrow.find_children("RewardBuy_*", "Button", true, false)
+		for btn in buttons:
+			if (btn as Control).get_global_rect().end.x <= narrow.get_global_rect().end.x + 1.0:
+				inside += 1
+		check(page != null and page.size.x <= narrow.size.x + 1.0 and buttons.size() > 0 and inside == buttons.size(), "%s tab on a narrow page: no wider than it (%.0f of %.0f), every แลก button inside (%d of %d)" % [t, page.size.x if page else -1.0, narrow.size.x, inside, buttons.size()])
+	narrow.queue_free()
+	RewardShopView.tab = "costume"
 	var royal := host.find_child("RewardBuy_royal", true, false) as Button
 	check(royal != null and royal.disabled and royal.tooltip_text != "", "the royal costume is out of reach (900 coins)")
 	buy.pressed.emit()
