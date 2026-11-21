@@ -1880,10 +1880,10 @@ func _summoner_class() -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
 	check(Game.class_id() == &"summoner" and ClassData.IDS.has(&"summoner"), "the summoner is a playable line")
-	check(ClassData.pool(&"summoner").size() == 29, "29 active skills (%d)" % ClassData.pool(&"summoner").size())
+	check(ClassData.pool(&"summoner").size() == 25, "20 line stages and 5 star skills (%d)" % ClassData.pool(&"summoner").size())
 	check(not ClassData.find_skill(&"summoner", "elder_dragon").is_empty(), "the Lv.100 skill exists")
 	var bar: Array = Game.profile["loadout"]
-	check(bar.has("thorn_shot") and bar.has("spirit_cat"), "the first skills fill the bar (%s)" % str(bar))
+	check(bar.has("thorn_shot"), "the first skill fills the bar (%s)" % str(bar))
 	# Every creature kind of the class has a model and stands in the field.
 	var kinds := {}
 	for skill in ClassData.pool(&"summoner"):
@@ -1892,19 +1892,19 @@ func _summoner_class() -> void:
 	for kind in kinds:
 		check(Summon.KINDS.has(kind) or String(kind).begins_with("star_"), "summon kind '%s' is defined" % kind)
 		var probe := Summon.new()
-		probe.setup(hero, "spirit_cat", {"kind": kind, "count": 1, "secs": 10.0, "interval": 1.0}, 2.0, 0, 1, 1)
+		probe.setup(hero, "wolf_pack", {"kind": kind, "count": 1, "secs": 10.0, "interval": 1.0}, 2.0, 0, 1, 1)
 		zone.add_child(probe)
 		await _wait(0.1)
 		check(is_instance_valid(probe) and probe._visual != null, "'%s' builds its body" % kind)
 		probe.queue_free()
 	# Casting a summon skill puts creatures next to the hero.
-	Game.profile["level"] = 30
-	Game.profile["adv"] = 1
+	Game.profile["level"] = 50
+	Game.profile["adv"] = JobData.adv_for_level(50)
 	Game.fill_loadout()
 	Game.profile.mp = 99999
 	hero.refresh_stats()
 	var slot: int = Game.profile["loadout"].find("wolf_pack")
-	check(slot >= 0, "Wolf Pack is on the bar at Lv.30")
+	check(slot >= 0, "Wolf Pack (the beast summon line) is on the bar at Lv.50")
 	hero.cooldowns.clear()
 	check(hero.use_skill(slot) == "", "Wolf Pack is cast")
 	await _wait(0.8)
@@ -1932,7 +1932,7 @@ func _lancer_class() -> void:
 	for node in get_tree().get_nodes_in_group("mobs"):
 		node.queue_free()
 	check(Game.class_id() == &"lancer" and ClassData.IDS.has(&"lancer"), "the lancer is a playable line")
-	check(ClassData.pool(&"lancer").size() == 29, "29 active skills (%d)" % ClassData.pool(&"lancer").size())
+	check(ClassData.pool(&"lancer").size() == 24, "19 line stages and 5 star skills (%d)" % ClassData.pool(&"lancer").size())
 	var data := ClassData.get_class_data(&"lancer")
 	check(String(data.main) == "dex" and String(data.sub) == "str", "DEX is the main attribute, STR the second")
 	# More DEX means more attack (and more haste/crit), more STR a little.

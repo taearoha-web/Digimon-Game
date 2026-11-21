@@ -25,6 +25,36 @@ const PLANS := {
 		[["holy_valor", 40], ["drastic_spirit", 70], ["godly_shield", 90]],
 		[["rage_of_zecram", 50], ["gladiator", 100]],
 	],
+	&"summoner": [
+		[["thorn_shot", 1], ["sylvan_ray", 76]],
+		[["vine_lash", 5], ["nature_wrath", 60]],
+		[["entangle", 10], ["world_tree", 80]],
+		[["spore_burst", 15], ["earth_shatter", 64], ["cataclysm", 96]],
+		[["thorn_storm", 20]],
+		[["forest_blessing", 30], ["spirit_link", 72], ["gaia_blessing", 88]],
+		[["regrowth", 40], ["life_bloom", 60], ["fairy_spirit", 84]],
+		[["wolf_pack", 50], ["alpha_wolves", 70], ["primal_legion", 90], ["elder_dragon", 100]],
+	],
+	&"lancer": [
+		[["thrust", 1], ["dragon_tooth", 60], ["sky_pierce", 90]],
+		[["stagger", 5], ["hook_strike", 60]],
+		[["whirl", 10], ["typhoon_spear", 60], ["gale_cyclone", 90]],
+		[["charge_dash", 15], ["vanguard_strike", 70]],
+		[["spear_wave", 20], ["dragon_lance", 80]],
+		[["wind_stance", 30], ["lancer_rush", 64], ["valkyrie_blessing", 88]],
+		[["iron_resolve", 40], ["dragon_stance", 76]],
+		[["gungnir", 50], ["ragnarok_lance", 100]],
+	],
+	&"defender": [
+		[["shield_bash", 1], ["aegis_strike", 60], ["judgment_shield", 90]],
+		[["brace", 5]],
+		[["shield_slam", 10], ["bastion_crush", 70]],
+		[["provoke", 15], ["grand_provoke", 72]],
+		[["ground_quake", 20], ["titan_quake", 60], ["holy_rampart", 80]],
+		[["iron_wall", 30], ["sanctuary_wall", 96]],
+		[["thorn_guard", 40], ["unbreakable", 76], ["aegis_of_ages", 88]],
+		[["meteor_shield", 50], ["world_bastion", 100]],
+	],
 }
 
 
@@ -49,6 +79,8 @@ func _ready() -> void:
 		_check_hero(cls)
 		_check_ai(cls)
 	_check_warrior_migration()
+	_check_defender_migration()
+	_check_summoner_migration()
 	_check_unconverted()
 	await _check_screens()
 	print("skill_lines_test: %d checks, %d failures" % [checks, failures])
@@ -104,11 +136,13 @@ func _check_hero(cls: StringName) -> void:
 		var pool_ids := Game.skill_pool().filter(func(s): return not s.has("star")).map(func(s): return String(s.id))
 		check(pool_ids.size() == ClassData.SLOTS, "%s Lv.%d: the skill screens list 8 lines" % [cls, level])
 	# An evolution waits for the advancement its level needs.
-	Game.profile.level = 60
-	Game.profile.adv = 2
+	# (line 1's first evolution: Lv.60 for most classes, Lv.76 for the summoner)
+	var evo := int(plan[0][1][1])
+	Game.profile.level = evo
+	Game.profile.adv = JobData.adv_for_level(evo) - 1
 	check(String(Game.loadout_skills()[0].id) == String(plan[0][0][0]), "%s: Lv.60 without the 3rd advancement keeps the first stage" % cls)
 	check(Game.evolution_note(Game.loadout_skills()[0]).contains("ต้องเปลี่ยนเป็น"), "%s: the screens say the advancement is missing" % cls)
-	Game.profile.adv = 3
+	Game.profile.adv = JobData.adv_for_level(evo)
 	check(String(Game.loadout_skills()[0].id) == String(plan[0][1][0]), "%s: with it the line evolves" % cls)
 	# Rank and bar slot belong to the line.
 	Game.profile.level = 30
@@ -143,9 +177,10 @@ func _check_ai(cls: StringName) -> void:
 				check(ClassData.ai_allows(skill, kit) == kit.has(String(skill.skill_line)), "%s Lv.%d: buff %s allowed by its line" % [cls, level, skill.id])
 		var ranks := WorldPlayers.skill_ranks(cls, level, 0)
 		check(ranks.keys().all(func(id): return ClassData.is_line(cls, String(id)) or ClassData.find_skill(cls, String(id)).has("star")), "%s Lv.%d: world players rank lines %s" % [cls, level, ranks.keys()])
-	# A Lv.70 rival casts the evolved stage, not the first one.
+	# A rival past line 1's first evolution casts the evolved stage, not the first one.
 	var first: Dictionary = ClassData.find_skill(cls, ClassData.line_ids(cls)[0])
-	check(not ClassData.knows(first, 70, _tier(70), 0) and ClassData.knows(first, 30, _tier(30), 0), "%s: the first stage is cast at Lv.30, replaced by Lv.70" % cls)
+	var later := int(first.next_level) + 10
+	check(not ClassData.knows(first, later, _tier(later), 0) and ClassData.knows(first, 30, _tier(30), 0), "%s: the first stage is cast at Lv.30, replaced by Lv.%d" % [cls, later])
 
 
 func _check_warrior_migration() -> void:
@@ -172,6 +207,45 @@ func _check_warrior_migration() -> void:
 	check(again.skill_points == data.skill_points and again.skills == data.skills and again.loadout == data.loadout, "the move is done once (a second load changes nothing)")
 	# The whole save check passes too.
 	check(Game._valid_profile(data.duplicate(true)), "a moved old save passes the save check")
+
+
+## Old Defender save: เบ่งเลือด keeps its id and stars (its line is "brace"), dropped skills
+## refund, merged passives keep the higher rank.
+func _check_defender_migration() -> void:
+	Game.new_profile(&"defender", "Old Tank", FaceKit.default_look())
+	var data: Dictionary = Game.profile.duplicate(true)
+	data.level = 90
+	data.adv = JobData.adv_for_level(90)
+	data.skill_points = 0
+	data.skills = {"brace": 4, "shield_wave": 3, "stalwart": 5, "shield_mastery": 2, "aegis_strike": 2, "shield_bash": 1, "iron_wall": 3}
+	data.loadout = ["brace", "shield_wave", "aegis_strike", "iron_wall", "", "", "", ""]
+	Game._migrate_skills(data)
+	# shield_wave refunds 2, stalwart -> shield_mastery max(5, 2) refunds 1, shield_bash
+	# max(1, 2) refunds 0.
+	check(int(data.skill_points) == 3, "old defender save: 3 points refunded (got %d)" % int(data.skill_points))
+	check(data.skills == {"brace": 4, "shield_mastery": 5, "shield_bash": 2, "iron_wall": 3}, "old defender save: ranks moved to the lines %s" % data.skills)
+	var bar: Array = data.loadout
+	check(bar.count("brace") == 1 and bar.count("shield_bash") == 1 and bar.count("iron_wall") == 1, "old defender save: เบ่งเลือด and the stages' lines stay on the bar %s" % [bar])
+	check(ClassData.is_signature(ClassData.find_skill(&"defender", "brace")) and ClassData.is_line(&"defender", "brace"), "เบ่งเลือด is still the signature, by its line id")
+	check(Game._valid_profile(data.duplicate(true)), "a moved old defender save passes the save check")
+
+
+## Old Summoner save: the Fairy Spirit's rank goes to its line (Regrowth), dropped summons
+## refund.
+func _check_summoner_migration() -> void:
+	Game.new_profile(&"summoner", "Old Caller", FaceKit.default_look())
+	var data: Dictionary = Game.profile.duplicate(true)
+	data.level = 90
+	data.adv = JobData.adv_for_level(90)
+	data.skill_points = 0
+	data.skills = {"fairy_spirit": 4, "regrowth": 2, "life_bloom": 1, "spirit_cat": 3, "gaia_heart": 2, "wild_vitality": 1, "elder_dragon": 3}
+	data.loadout = ["spirit_cat", "fairy_spirit", "elder_dragon", "", "", "", "", ""]
+	Game._migrate_skills(data)
+	# regrowth max(4, 2, 1) refunds 1 + 0, spirit_cat 2, wild_vitality max(2, 1) 0.
+	check(int(data.skill_points) == 3, "old summoner save: 3 points refunded (got %d)" % int(data.skill_points))
+	check(data.skills == {"regrowth": 4, "wild_vitality": 2, "wolf_pack": 3}, "old summoner save: ranks moved to the lines %s" % data.skills)
+	check(String(data.loadout[1]) == "regrowth" and String(data.loadout[2]) == "wolf_pack", "old summoner save: the fairy and the dragon became their lines in place %s" % [data.loadout])
+	check(Game._valid_profile(data.duplicate(true)), "a moved old summoner save passes the save check")
 
 
 func _check_unconverted() -> void:

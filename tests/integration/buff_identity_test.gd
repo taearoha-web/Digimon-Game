@@ -97,7 +97,7 @@ func _ready() -> void:
 		buddy._apply_self(ClassData.find_skill(&"mage", id))
 	check(buddy._book.buffs.size() == 2 and not BuffBook.contains(buddy._book.buffs, "zenith", false), "companion self casts also cap at two")
 	check(BuffBook.group_count(hero._buffs, true) >= 3 and BuffBook.group_count(hero._buffs, false) == 2, "companion casts preserve the hero's own two slots")
-	for id in ["forest_blessing", "beast_rage", "spirit_link"]:
+	for id in ["forest_blessing", "spirit_link", "gaia_blessing"]:
 		var skill := ClassData.find_skill(&"summoner", id)
 		buddy.receive_party_buff(skill.fx.buff, skill.color, skill.name, id)
 	check(buddy._book.buffs.size() == 5 and BuffBook.group_count(buddy._book.buffs, true) == 3, "companion keeps every friend's buff beside its own two")

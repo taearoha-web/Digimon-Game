@@ -287,30 +287,6 @@ const PASSIVES := {
 		{"id": "divine_power", "name": "Divine Power", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
 		{"id": "sanctity", "name": "Sanctity", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 80, "bonus": {"def": 0.04}},
 	],
-	&"summoner": [
-		{"id": "nature_bond", "name": "Nature Bond", "desc": "MP สูงสุด +5% ต่อดาว", "level": 1, "bonus": {"mp": 0.05}},
-		{"id": "beast_tamer", "name": "Beast Tamer", "desc": "พลังโจมตี +2% ต่อดาว", "level": 20, "bonus": {"atk": 0.02}},
-		{"id": "wild_vitality", "name": "Wild Vitality", "desc": "HP สูงสุด +4% ต่อดาว", "level": 30, "bonus": {"hp": 0.04}},
-		{"id": "spirit_ward", "name": "Spirit Ward", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
-		{"id": "primal_focus", "name": "Primal Focus", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
-		{"id": "gaia_heart", "name": "Gaia's Heart", "desc": "HP +4% และ MP +4% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "mp": 0.04}},
-	],
-	&"lancer": [
-		{"id": "spear_mastery", "name": "Spear Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
-		{"id": "light_footwork", "name": "Light Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
-		{"id": "keen_point", "name": "Keen Point", "desc": "คริติคอล +1.5% ต่อดาว", "level": 30, "bonus": {"crit": 0.015}},
-		{"id": "iron_stance", "name": "Iron Stance", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
-		{"id": "dragon_fang", "name": "Dragon Fang", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
-		{"id": "valkyrie_heart", "name": "Valkyrie's Heart", "desc": "HP +4% และความเร็ว +2% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "speed": 0.02}},
-	],
-	&"defender": [
-		{"id": "shield_mastery", "name": "Shield Mastery", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 1, "bonus": {"def": 0.04}},
-		{"id": "iron_body", "name": "Iron Body", "desc": "HP สูงสุด +5% ต่อดาว", "level": 20, "bonus": {"hp": 0.05}},
-		{"id": "bash_mastery", "name": "Bash Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 30, "bonus": {"atk": 0.025}},
-		{"id": "stalwart", "name": "Stalwart", "desc": "พลังป้องกัน +4% ต่อดาว", "level": 40, "bonus": {"def": 0.04}},
-		{"id": "heavy_impact", "name": "Heavy Impact", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 60, "bonus": {"atk": 0.025}},
-		{"id": "living_fortress", "name": "Living Fortress", "desc": "HP +4% และพลังป้องกัน +3% ต่อดาว", "level": 80, "bonus": {"hp": 0.04, "def": 0.03}},
-	],
 	&"assassin": [
 		{"id": "dagger_mastery", "name": "Dagger Mastery", "desc": "พลังโจมตี +2.5% ต่อดาว", "level": 1, "bonus": {"atk": 0.025}},
 		{"id": "shadow_footwork", "name": "Shadow Footwork", "desc": "ความเร็ว +2% และหลบ +0.6% ต่อดาว", "level": 20, "bonus": {"speed": 0.02, "dodge": 0.006}},
@@ -355,6 +331,9 @@ static var _pools: Dictionary = {}
 ## level it is replaced at).
 const LINE_FILES := {
 	&"warrior": "res://data/skill_lines/warrior.gd",
+	&"summoner": "res://data/skill_lines/summoner.gd",
+	&"lancer": "res://data/skill_lines/lancer.gd",
+	&"defender": "res://data/skill_lines/defender.gd",
 }
 static var _line_scripts := {}
 ## Per converted class: {stage id: line id}.
@@ -715,9 +694,6 @@ const TUNE := {
 	&"archer": [[0.527, 0.527], [0.515, 0.515], [0.676, 0.676]],
 	&"mage": [[0.441, 0.36], [1.33, 0.34], [1.73, 0.789]],
 	&"priest": [[1.718, 1.718], [0.74, 0.74], [1.8, 1.8]],
-	&"summoner": [[0.872, 0.872], [1.499, 1.385], [1.087, 1.242]],
-	&"lancer": [[0.691, 0.691], [0.553, 0.737], [0.793, 0.793]],
-	&"defender": [[1.395, 1.395], [1.647, 1.796], [1.8, 1.61]],
 	&"assassin": [[0.922, 0.922], [0.834, 0.834], [0.809, 0.809]],
 	&"darklord": [[0.95, 0.95], [0.85, 0.85], [0.95, 0.95]],
 	&"bard": [[1.05, 0.66], [0.55, 1.05], [0.92, 0.56]],
@@ -881,101 +857,8 @@ static func _build_pools() -> void:
 		_sk(p, "miracle", "Miracle", "ปาฏิหาริย์ ATK +80% DEF +60% ฟื้นฟู HP 50% นาน 1 นาที", 96, 140, 55.0, "self", 0.0, {"fx": {"heal": 0.5, "buff": {"atk": 0.8, "def": 0.6, "secs": 60.0}}, "vfx": &"aura", "anim": "Spellcast_Raise", "color": Color("ffe27a"), "icon": "bless"}),
 		_sk(p, "last_judgement", "Last Judgement", "การพิพากษาครั้งสุดท้ายถล่มพื้นที่ ศัตรูมึนงง 2 วินาที", 100, 180, 24.0, "blast", 24.0, {"radius": 12.0, "fx": {"stun": 2.0}, "vfx": &"light", "color": Color("ffd36b"), "icon": "nova"}),
 	]
-	var s := &"summoner"
-	var sm := func(id: String, name: String, desc: String, level: int, mp: int, cd: float, mult: float, kind: String, count: int, interval: float, color: Color, extra := {}) -> Dictionary:
-		var spec := {"kind": kind, "count": count, "secs": 120.0, "interval": interval}
-		spec.merge(extra.get("spec", {}))
-		return _sk(s, id, name, desc + " (นาน 2 นาทีหรือจนกว่าจะถูกสังหาร ใหญ่ขึ้นตามดาวสกิล)", level, mp, cd, "summon", mult, {"summon": spec, "color": color, "icon": "triple"})
-	_pools[s] = [
-		_sk(s, "thorn_shot", "Thorn Shot", "ยิงหนามธรรมชาติใส่ศัตรูตัวเดียว", 1, 9, 3.0, "single", 2.9, {"color": Color("a8f07a"), "icon": "arrow"}),
-		sm.call("spirit_cat", "Spirit Cat", "เรียกแมววิญญาณกระโจนข่วนศัตรู", 5, 14, 24.0, 2.2, "cat", 1, 0.8, Color("ffd8a0")),
-		_sk(s, "forest_blessing", "Forest Blessing", "พลังป่าคุ้มครอง DEF +25% ATK +12% นาน 1 นาที (ส่งถึงทีมและอสูร)", 13, 18, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.25, "atk": 0.12, "secs": 60.0}}, "color": Color("7ddc6a"), "icon": "bless"}),
-		_sk(s, "vine_lash", "Vine Lash", "เถาวัลย์ฟาด 3 เส้นพร้อมกัน", 16, 18, 7.0, "fan", 2.0, {"hits": 3, "color": Color("6fe07a"), "icon": "triple"}),
-		_sk(s, "entangle", "Entangle", "รากไม้พันศัตรูในพื้นที่ ช้าลง 4 วินาที", 20, 24, 10.0, "blast", 3.4, {"radius": 4.8, "fx": {"slow": 4.0}, "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
-		sm.call("wolf_pack", "Wolf Pack", "เรียกหมาป่าแห่งป่า 2 ตัว", 24, 30, 30.0, 2.8, "wolf", 2, 0.9, Color("bfe0ff")),
-		_sk(s, "regrowth", "Regrowth", "ฟื้นฟู HP 35% และ DEF +15% นาน 1 นาที", 27, 28, 20.0, "self", 0.0, {"fx": {"heal": 0.35, "buff": {"def": 0.15, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
-		_sk(s, "spore_burst", "Spore Burst", "ปล่อยสปอร์ระเบิดรอบตัว ศัตรูช้าลง 3 วินาที", 31, 32, 10.0, "burst", 4.8, {"radius": 5.0, "fx": {"slow": 3.0}, "vfx": &"leaf", "color": Color("b8f07a"), "icon": "nova"}),
-		sm.call("giant_frog", "Giant Frog", "เรียกกบยักษ์พ่นน้ำพิษใส่ศัตรู", 35, 38, 32.0, 4.0, "frog", 1, 1.1, Color("7fe07a")),
-		_sk(s, "beast_rage", "Beast Rage", "ATK +30% วิ่งเร็ว +15% นาน 1 นาที (ส่งถึงทีมและอสูร)", 39, 34, 32.0, "self", 0.0, {"fx": {"buff": {"atk": 0.3, "speed": 0.15, "secs": 60.0}}, "color": Color("ffb04a"), "icon": "roar"}),
-		_sk(s, "thorn_storm", "Thorn Storm", "พายุหนามถล่มพื้นที่เป้าหมาย", 43, 46, 12.0, "blast", 7.0, {"radius": 6.0, "special": "rain", "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
-		sm.call("forest_guardian", "Forest Guardian", "เรียกผู้พิทักษ์ป่าร่างยักษ์", 47, 60, 36.0, 6.0, "guardian", 1, 1.2, Color("c8a070")),
-		_sk(s, "life_bloom", "Life Bloom", "ฟื้นฟู HP 40% DEF +30% นาน 1 นาที", 52, 52, 28.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.3, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
-		_sk(s, "nature_wrath", "Nature's Wrath", "พลังธรรมชาติกระโดดฟาดศัตรู 6 ตัว", 56, 58, 12.0, "chain", 5.6, {"hits": 6, "vfx": &"leaf", "color": Color("7ddc6a"), "icon": "bolt"}),
-		sm.call("alpha_wolves", "Alpha Wolves", "เรียกหมาป่าจ่าฝูง 3 ตัว", 60, 70, 36.0, 5.0, "wolf", 3, 0.8, Color("9ad0ff")),
-		_sk(s, "earth_shatter", "Earth Shatter", "ทุบพื้นสะเทือนรอบตัว ศัตรูมึนงง 1.2 วินาที", 64, 66, 12.0, "burst", 9.0, {"radius": 6.0, "fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("e8c79f"), "icon": "nova"}),
-		sm.call("ancient_treant", "Ancient Treant", "เรียกเอนท์โบราณผู้ทรงพลัง", 68, 90, 40.0, 9.0, "treant", 1, 1.3, Color("b0e070")),
-		_sk(s, "spirit_link", "Spirit Link", "เชื่อมวิญญาณ ATK +50% วิ่งเร็ว +20% DEF +30% นาน 1 นาที (ส่งถึงทีมและอสูร)", 72, 76, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "speed": 0.2, "def": 0.3, "secs": 60.0}}, "color": Color("a8ffd0"), "icon": "bless"}),
-		_sk(s, "sylvan_ray", "Sylvan Ray", "รังสีแห่งป่าใส่ศัตรูตัวเดียว", 76, 78, 9.0, "single", 14.0, {"range": 12.0, "vfx": &"leaf", "color": Color("b8ffa0"), "icon": "light"}),
-		_sk(s, "world_tree", "World Tree", "ต้นไม้โลกถล่มพื้นที่กว้าง ศัตรูช้าลง 4 วินาที", 80, 100, 16.0, "blast", 15.0, {"radius": 8.5, "fx": {"slow": 4.0}, "special": "rain", "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
-		sm.call("fairy_spirit", "Fairy Spirit", "อัญเชิญภูตินางฟ้าบินตามติดผู้อัญเชิญ ฟื้นฟู HP 20% ให้ผู้อัญเชิญทุก 10 วินาที และ 10% ให้เพื่อนร่วมทีมที่อยู่ใกล้เธอ", 84, 100, 40.0, 4.0, "fairy", 1, 10.0, Color("ffb6e6"), {"spec": {"heal": 0.2, "ally_heal": 0.1}}),
-		_sk(s, "gaia_blessing", "Gaia's Blessing", "ฟื้นฟู HP 40% DEF +60% ATK +40% นาน 1 นาที (ส่งถึงทีมและอสูร)", 88, 96, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.6, "atk": 0.4, "secs": 60.0}}, "vfx": &"heal", "color": Color("d8ffb0"), "icon": "bless"}),
-		sm.call("primal_legion", "Primal Legion", "เรียกอสูรป่าดึกดำบรรพ์ 3 ตัว", 92, 110, 45.0, 10.0, "beast", 3, 1.0, Color("7aff8a")),
-		_sk(s, "cataclysm", "Cataclysm", "ธรรมชาติพิโรธ ถล่มรอบตัวอย่างรุนแรง", 96, 118, 16.0, "burst", 22.0, {"radius": 9.0, "vfx": &"leaf", "color": Color("b8ff7a"), "icon": "spin"}),
-		sm.call("elder_dragon", "Elder Dragon", "เรียกมังกรโบราณผู้เป็นตำนาน", 100, 150, 50.0, 28.0, "elder_dragon", 1, 1.2, Color("ffd84a")),
-	]
-	var l := &"lancer"
 	var pc := func(n: int, length: float, width := 1.3, keep := 0.7) -> Dictionary:
 		return {"n": n, "len": length, "w": width, "k": keep}
-	_pools[l] = [
-		_sk(l, "thrust", "Thrust", "แทงหอกใส่ศัตรูตัวเดียว ทะลุไปโดนตัวหลังอีก 2 ตัว", 1, 9, 4.0, "single", 3.0, {"pierce": pc.call(2, 6.5), "color": Color("9ad8ff"), "icon": "sword"}),
-		_sk(l, "stagger", "Stagger", "ด้ามหอกกระแทก ศัตรูมึนงง 1.2 วินาที", 5, 12, 6.0, "single", 3.2, {"fx": {"stun": 1.2}, "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
-		_sk(l, "focus", "Focus", "จดจ่อ คริติคอล +15% ATK +10% นาน 1 นาที", 13, 16, 28.0, "self", 0.0, {"fx": {"buff": {"crit": 0.15, "atk": 0.1, "secs": 60.0}}, "color": Color("ffd27a"), "icon": "roar"}),
-		_sk(l, "skewer", "Skewer", "แทงเสียบทะลุแนวตรง 3 ตัว", 16, 18, 6.0, "single", 4.2, {"pierce": pc.call(3, 7.5), "color": Color("8fd0ff"), "icon": "sword"}),
-		_sk(l, "whirl", "Whirl", "หมุนหอกฟาดรอบตัว", 20, 22, 8.0, "burst", 2.7, {"radius": 4.6, "special": "spin", "color": Color("9ad8ff"), "icon": "spin"}),
-		_sk(l, "charge_dash", "Charge Dash", "พุ่งเข้าใส่แล้วแทง ศัตรูมึนงงสั้นๆ", 24, 24, 8.0, "single", 5.0, {"range": 8.5, "fx": {"stun": 0.6}, "pierce": pc.call(2, 8.5), "color": Color("ffb04a"), "icon": "boots"}),
-		_sk(l, "wind_stance", "Wind Stance", "ท่าลม วิ่งเร็ว +30% คริติคอล +12% ATK +15% นาน 1 นาที", 27, 26, 30.0, "self", 0.0, {"fx": {"buff": {"speed": 0.3, "crit": 0.12, "atk": 0.15, "secs": 60.0}}, "color": Color("7affd0"), "icon": "boots"}),
-		_sk(l, "impale", "Impale", "ปักหอกเสียบศัตรู ช้าลง 3 วินาที ทะลุ 3 ตัว", 31, 28, 8.0, "single", 6.0, {"fx": {"slow": 3.0}, "pierce": pc.call(3, 8.0), "color": Color("7fdcff"), "icon": "sword"}),
-		_sk(l, "spear_wave", "Spear Wave", "คลื่นหอกพุ่งไกลทะลุ 5 ตัว", 35, 34, 9.0, "single", 4.8, {"range": 9.0, "pierce": pc.call(5, 11.0, 1.5), "vfx": &"impact", "color": Color("b8e6ff"), "icon": "arrow"}),
-		_sk(l, "iron_resolve", "Iron Resolve", "ใจเหล็ก DEF +50% ฟื้นฟู HP 15% นาน 1 นาที", 39, 34, 32.0, "self", 0.0, {"fx": {"heal": 0.15, "buff": {"def": 0.5, "secs": 60.0}}, "color": Color("c0d0e8"), "icon": "shield"}),
-		_sk(l, "spinning_pike", "Spinning Pike", "หอกหมุนเป็นพายุรอบตัว", 43, 40, 10.0, "burst", 5.2, {"radius": 5.0, "special": "spin", "color": Color("8fd0ff"), "icon": "spin"}),
-		_sk(l, "hook_strike", "Hook Strike", "เกี่ยวด้วยใบมีดข้างหอก ศัตรูมึนงง 1.5 วินาที", 47, 42, 9.0, "single", 7.0, {"fx": {"stun": 1.5}, "pierce": pc.call(2, 7.0), "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
-		_sk(l, "war_cry", "War Cry", "ตะโกนศึก ศัตรูรอบตัวมึนงง 2 วินาที", 52, 46, 16.0, "burst", 1.8, {"radius": 7.0, "fx": {"stun": 2.0}, "vfx": &"impact", "anim": "Cheer", "color": Color("ffd27a"), "icon": "roar"}),
-		_sk(l, "dragon_tooth", "Dragon Tooth", "เขี้ยวมังกร แทงทะลุศัตรู 6 ตัว", 56, 54, 10.0, "single", 8.5, {"pierce": pc.call(6, 10.0, 1.5), "color": Color("ff8a4a"), "icon": "sword"}),
-		_sk(l, "typhoon_spear", "Typhoon Spear", "พายุหอกหมุนถล่มรอบตัว ศัตรูช้าลง", 60, 62, 12.0, "burst", 9.0, {"radius": 6.5, "special": "spin", "fx": {"slow": 2.5}, "vfx": &"wind", "color": Color("7affd0"), "icon": "spin"}),
-		_sk(l, "lancer_rush", "Lancer Rush", "บุกทะลวง ATK +45% วิ่งเร็ว +25% คริติคอล +10% นาน 1 นาที", 64, 60, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.45, "speed": 0.25, "crit": 0.1, "secs": 60.0}}, "color": Color("ff9a5a"), "icon": "boots"}),
-		_sk(l, "vanguard_strike", "Vanguard Strike", "แทงแนวหน้าทรงพลัง ทะลุ 4 ตัว", 68, 66, 9.0, "single", 12.0, {"range": 4.6, "pierce": pc.call(4, 9.0, 1.5), "color": Color("6ecbff"), "icon": "sword"}),
-		_sk(l, "sky_pierce", "Sky Pierce", "หอกพุ่งทะลุฟ้า แทงเป็นเส้นยาวทะลุ 8 ตัว", 72, 74, 11.0, "single", 9.5, {"range": 10.0, "pierce": pc.call(8, 13.0, 1.6), "vfx": &"light", "color": Color("d8f0ff"), "icon": "arrow"}),
-		_sk(l, "dragon_stance", "Dragon Stance", "ท่ามังกร ATK +40% DEF +40% ฟื้นฟู HP 20% นาน 1 นาที", 76, 70, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.4, "def": 0.4, "secs": 60.0}}, "color": Color("ffb04a"), "icon": "shield"}),
-		_sk(l, "dragon_lance", "Dragon Lance", "หอกมังกรเพลิงแทงทะลุ 8 ตัว ติดไฟ", 80, 90, 11.0, "single", 14.0, {"range": 5.0, "pierce": pc.call(8, 14.0, 1.6), "fx": {"burn": [0.4, 5.0]}, "vfx": &"fireball", "color": Color("ff6a2a"), "icon": "fire"}),
-		_sk(l, "gale_cyclone", "Gale Cyclone", "ไซโคลนหอกพัดถล่มรอบตัว ศัตรูช้าลง", 84, 96, 14.0, "burst", 14.0, {"radius": 7.5, "special": "spin", "fx": {"slow": 3.0}, "vfx": &"wind", "color": Color("7affd0"), "icon": "spin"}),
-		_sk(l, "valkyrie_blessing", "Valkyrie's Blessing", "พรวัลคีรี ATK +60% วิ่งเร็ว +20% คริติคอล +15% นาน 1 นาที", 88, 96, 45.0, "self", 0.0, {"fx": {"buff": {"atk": 0.6, "speed": 0.2, "crit": 0.15, "secs": 60.0}}, "color": Color("ffe9a0"), "icon": "bless"}),
-		_sk(l, "gungnir", "Gungnir", "ขว้างหอกเทพเจ้า ทะลุศัตรู 5 ตัวเป็นแนวยาว", 92, 110, 13.0, "single", 17.0, {"range": 13.0, "pierce": pc.call(5, 15.0, 1.8), "vfx": &"light", "color": Color("fff0a0"), "icon": "arrow"}),
-		_sk(l, "heaven_rend", "Heaven Rend", "ฟาดหอกฉีกฟ้า ศัตรูรอบตัวมึนงง 1.2 วินาที", 96, 118, 16.0, "burst", 21.0, {"radius": 9.0, "fx": {"stun": 1.2}, "special": "spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "spin"}),
-		_sk(l, "ragnarok_lance", "Ragnarok Lance", "หอกแห่งวันสิ้นโลก แทงทะลุศัตรู 10 ตัว", 100, 140, 14.0, "single", 26.0, {"range": 5.5, "pierce": pc.call(10, 15.0, 1.8, 0.8), "vfx": &"light", "color": Color("ffd84a"), "icon": "sword"}),
-	]
-	var d := &"defender"
-	_pools[d] = [
-		_sk(d, "shield_bash", "Shield Bash", "ฟาดขอบโล่ใส่ศัตรูตัวเดียว", 1, 10, 3.0, "single", 2.6, {"anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "shield"}),
-		# เบ่งเลือด (was Brace, same id so saves keep their stars): max HP +30% and damage taken
-		# -10% at ★1, up to +50% / -25% at ★5 (the buff's "grow", SkillRank.scaled_fx), 1 minute.
-		# The max HP is a ceiling for the whole party ("party": only "hp" is shared,
-		# BuffBook.party_part): it fills no HP. The damage cut is the Defender's own.
-		# A 25 s cooldown keeps it up all the time.
-		_sk(d, "brace", "เบ่งเลือด", "เพิ่มเพดาน HP สูงสุดของทุกคนในปาร์ตี้ +30% (ไม่เติมเลือด) และผู้พิทักษ์ลดความเสียหายที่ได้รับ 10% นาน 1 นาที (★5: HP สูงสุด +50% ลดดาเมจ 25%)", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "party": ["hp"], "grow": {"hp": 0.05, "guard": 0.0375}}}, "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
-		_sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 14, 16, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
-		_sk(d, "provoke", "Provoke", "เคาะโล่ท้าทาย ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 4 วินาที", 17, 18, 14.0, "burst", 1.5, {"radius": 7.0, "fx": {"taunt": 4.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff9a6a"), "icon": "roar"}),
-		_sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),
-		_sk(d, "shield_toss", "Shield Toss", "ขว้างโล่เด้งไปโดนศัตรู 3 ตัวแล้วกลับมือ", 24, 24, 9.0, "chain", 3.0, {"hits": 3, "range": 9.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("bcd6f0"), "icon": "triple"}),
-		_sk(d, "iron_wall", "Iron Wall", "กำแพงเหล็ก DEF +50% ลดความเสียหาย 15% นาน 1 นาที (ส่งถึงทีม)", 27, 26, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.5, "guard": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("a8c8e8"), "icon": "shield"}),
-		_sk(d, "bulwark_charge", "Bulwark Charge", "ยกโล่พุ่งชนทะลุแนวศัตรู 3 ตัว มึนงงสั้นๆ", 31, 28, 8.0, "single", 4.8, {"range": 8.0, "fx": {"stun": 0.6}, "pierce": pc.call(3, 8.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffb04a"), "icon": "boots"}),
-		_sk(d, "thorn_guard", "Thorn Guard", "โล่หนาม สะท้อนความเสียหาย 20% กลับใส่ผู้โจมตี DEF +20% นาน 1 นาที", 35, 30, 34.0, "self", 0.0, {"fx": {"buff": {"reflect": 0.2, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffb46a"), "icon": "shield"}),
-		_sk(d, "quake_slam", "Quake Slam", "ทุบพื้นสั่นสะเทือน ศัตรูรอบตัวมึนงง 1.2 วินาที", 39, 38, 12.0, "burst", 4.0, {"radius": 5.2, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("e8c08a"), "icon": "spin"}),
-		_sk(d, "aegis_strike", "Aegis Strike", "ฟาดโล่สุดแรงใส่ศัตรูตัวเดียว", 43, 40, 8.0, "single", 7.4, {"range": 3.2, "anim": "Block_Attack", "vfx": &"impact", "color": Color("9fd0ff"), "icon": "shield"}),
-		_sk(d, "guardian_oath", "Guardian's Oath", "สาบานผู้พิทักษ์ ฟื้น HP 20% และโล่ดูดซับ 15% ของ HP สูงสุด นาน 1 นาที", 47, 44, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"shield": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("fff0b0"), "icon": "heal"}),
-		_sk(d, "shield_wave", "Shield Wave", "ฟาดโล่ส่งคลื่นพลังทะลุศัตรู 5 ตัว", 52, 48, 9.0, "single", 6.5, {"range": 9.0, "pierce": pc.call(5, 11.0, 1.6), "anim": "Block_Attack", "vfx": &"impact", "color": Color("b8e0ff"), "icon": "arrow"}),
-		_sk(d, "shockwave_wall", "Shockwave Wall", "ดันโล่สร้างคลื่นกระแทกรอบตัว ศัตรูกระเด็นและมึนงง 0.8 วินาที", 56, 52, 11.0, "burst", 6.0, {"radius": 6.0, "fx": {"stun": 0.8}, "anim": "2H_Melee_Attack_Spin", "vfx": &"impact", "color": Color("9fe8ff"), "icon": "nova"}),
-		_sk(d, "titan_quake", "Titan Quake", "ทุบพสุธาด้วยโล่ยักษ์ ศัตรูรอบตัวมึนงง 1 วินาที", 60, 62, 12.0, "burst", 7.5, {"radius": 6.5, "fx": {"stun": 1.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ffb06a"), "icon": "spin"}),
-		_sk(d, "bastion_crush", "Bastion Crush", "กดโล่บดขยี้ศัตรูตัวเดียว", 64, 60, 8.0, "single", 12.0, {"range": 3.4, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ff8a5a"), "icon": "shield"}),
-		_sk(d, "rebound_storm", "Rebound Storm", "ขว้างโล่เด้งรัวไปโดนศัตรู 5 ตัว", 68, 66, 11.0, "chain", 5.6, {"hits": 5, "range": 10.0, "anim": "Block_Attack", "vfx": &"impact", "color": Color("c8e4ff"), "icon": "triple"}),
-		_sk(d, "grand_provoke", "Grand Provoke", "ท้ารบทั้งสนาม ศัตรูรอบตัวช้าลงและหันมาโจมตีคุณ 5 วินาที", 72, 70, 16.0, "burst", 2.0, {"radius": 8.0, "fx": {"taunt": 5.0, "slow": 2.0}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ff7a4a"), "icon": "roar"}),
-		_sk(d, "unbreakable", "Unbreakable", "ไม่มีวันแตก DEF +80% ฟื้น HP 30% สะท้อนความเสียหาย 25% นาน 1 นาที", 76, 76, 42.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"def": 0.8, "reflect": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffd27a"), "icon": "shield"}),
-		_sk(d, "holy_rampart", "Holy Rampart", "กำแพงแสงระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 11.5, {"radius": 7.5, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		_sk(d, "judgment_shield", "Judgment Shield", "ฟาดโล่แห่งคำพิพากษาใส่ศัตรูตัวเดียว", 84, 92, 10.0, "single", 17.0, {"range": 3.6, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("fff0a0"), "icon": "shield"}),
-		_sk(d, "aegis_of_ages", "Aegis of Ages", "อีจิสนิรันดร์ DEF +100% ฟื้น HP 40% โล่ดูดซับ 25% ของ HP นาน 1 นาที", 88, 90, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 1.0, "shield": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffffff"), "icon": "shield"}),
-		_sk(d, "meteor_shield", "Meteor Shield", "กระโดดทุบโล่ลงกลางฝูงศัตรู มึนงง 1.2 วินาที", 92, 100, 14.0, "blast", 13.5, {"radius": 7.0, "range": 11.0, "fx": {"stun": 1.2}, "anim": "2H_Melee_Attack_Slice", "hit_delay": 0.55, "vfx": &"impact", "color": Color("ffb04a"), "icon": "meteor"}),
-		_sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร ATK +40% ลดความเสียหาย 25% นาน 1 นาที (ส่งถึงทีม)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
-		_sk(d, "world_bastion", "World Bastion", "ปักโล่ลงพิภพ คลื่นป้อมปราการถล่มรอบตัว ศัตรูมึนงง 2 วินาทีแล้วหันมาโจมตีคุณ", 100, 130, 16.0, "burst", 23.0, {"radius": 9.0, "fx": {"stun": 2.0, "taunt": 4.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"light", "color": Color("ffd84a"), "icon": "nova"}),
-	]
 
 	# Assassin: twin daggers and the shadows. Violet night, a crimson edge for the kills.
 	var n := &"assassin"

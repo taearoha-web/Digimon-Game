@@ -272,7 +272,7 @@ func _ai_summoners(hero: Hero) -> void:
 	rival.set_physics_process(false)
 	rival.war_scale = 2.0
 	var pact := ClassData.find_skill(&"summoner", "moonwolf_pact")
-	var treant := ClassData.find_skill(&"summoner", "ancient_treant")
+	var treant := ClassData.find_skill(&"summoner", "alpha_wolves")
 	check(rival._score(pact, "summon", 5.0, 1.0) > 8.0 and rival._score(treant, "summon", 5.0, 1.0) > 8.0, "a rival summoner rates its summons highly")
 	check(rival._stars() == 200, "the war rival has 200 stars, so its star summons are allowed")
 	rival._summon(pact)
@@ -375,7 +375,9 @@ func _ai_summoners(hero: Hero) -> void:
 func _data_and_save() -> void:
 	var raw := {"class": "summoner", "level": 90, "skills": {"wind_drake": 4, "thorn_shot": 2}, "loadout": ["thorn_shot", "wind_drake", "", "", "", "", "", ""], "adv": 4, "paragon": {}}
 	var repaired := Game._repair(raw.duplicate(true))
-	check(int(repaired.skills.get("fairy_spirit", 0)) == 4 and not repaired.skills.has("wind_drake"), "a Wind Drake rank becomes a Fairy Spirit rank")
-	check(repaired.loadout[1] == "fairy_spirit", "the bar slot follows")
+	# Skill lines: the Fairy Spirit is the Lv.84 stage of the Regrowth line, so the rank
+	# and the slot end up on that line.
+	check(int(repaired.skills.get("regrowth", 0)) == 4 and not repaired.skills.has("wind_drake") and not repaired.skills.has("fairy_spirit"), "a Wind Drake rank becomes the Fairy Spirit's line rank %s" % repaired.skills)
+	check(repaired.loadout[1] == "regrowth", "the bar slot follows %s" % [repaired.loadout])
 	check(StarSkillData.DESCS[&"summoner"][0].contains("สกิล 2") and StarSkillData.DESCS[&"summoner"][3].contains("แช่แข็ง"), "the star skill descriptions tell the two moves")
 	check(SummonAura.THEME.has("fairy"), "the fairy has her own aura theme")
