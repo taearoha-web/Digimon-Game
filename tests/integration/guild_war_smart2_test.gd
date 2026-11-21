@@ -255,7 +255,14 @@ func _waves(m: GuildWarMatch, d1: GuildWarDoctrine, c1: GuildWarCommander, lead1
 	d1._waves(side, lead1, front)
 	check(d1.waves_sent == sent + 1, "with %d of them there the wave goes in" % D.WAVE_N)
 	c1.apply()
-	check(walkers[0].goal_point.distance_to(join) > D.JOIN_RADIUS, "those sent go on to the front")
+	# (The wave's damage dealers; a healer of the wave keeps to its mates behind them, and
+	# which roster player stands first depends on the seeded line-up.)
+	var dealer: GuildFighter = null
+	for i in D.WAVE_N:
+		if not walkers[i].is_healer():
+			dealer = walkers[i]
+			break
+	check(dealer != null and dealer.goal_point.distance_to(join) > D.JOIN_RADIUS, "those sent go on to the front (%s)" % (str(dealer.member.get("class")) if dealer else "-"))
 	check(walkers[4].goal_point.distance_to(join) < D.JOIN_RADIUS, "the one still on its way waits for the next wave")
 	# Walking up from far behind: it fights only what is on it.
 	walkers[4].hold_range = 0.0

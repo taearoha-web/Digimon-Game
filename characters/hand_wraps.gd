@@ -98,42 +98,64 @@ static func _meshes() -> void:
 	_plate.size = Vector3(0.05, 0.15, 0.035)
 
 
-static func _part(parent: Node3D, mesh: Mesh, material: Material, at: Vector3, rot := Vector3.ZERO, size := Vector3.ONE) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = material
-	mi.position = at
-	mi.rotation = rot
-	mi.scale = size
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mi)
-	return mi
+## Each look's wrapped fist baked into ONE mesh (a surface per material), cached: a fist
+## is then a single MeshInstance3D, so a crowd of fighters stays inside the phone's node
+## budget (phone_budget_test).
+static var _baked := {}
 
 
-## The wrapped fist of [param look]: a root (named after the look) holding one model node.
-static func build(look: String) -> Node3D:
+static func _bake(look: String) -> ArrayMesh:
+	if _baked.has(look):
+		return _baked[look]
 	_meshes()
 	var colors := palette(look)
 	var level := grade(look)
 	var glow := float(colors[3])
-	var root := Node3D.new()
-	root.name = look
-	var model := Node3D.new()
-	model.name = "Wraps"
-	root.add_child(model)
+	# [mesh, material, position, rotation, scale] of every piece, as the look stacks them.
+	var parts: Array = []
 	# The tape wound round the fist: three cloth turns and two coloured bands, round the
 	# fist itself (the hand slot's axis), so the hand shows through between them.
 	for y in [-0.05, 0.0, 0.05]:
-		_part(model, _band, _material(colors[0]), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.0, 1.4, 1.0))
+		parts.append([_band, _material(colors[0]), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.0, 1.4, 1.0)])
 	for y in [-0.025, 0.025]:
-		_part(model, _band, _material(colors[1], glow * 0.5), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.04, 0.8, 1.04))
+		parts.append([_band, _material(colors[1], glow * 0.5), Vector3(0, y, 0), Vector3.ZERO, Vector3(1.04, 0.8, 1.04)])
 	if level >= 1:
 		# The knuckle guard over the front of the fist.
-		_part(model, _plate, _material(colors[2], glow * 0.6), Vector3(0, 0, 0.058))
+		parts.append([_plate, _material(colors[2], glow * 0.6), Vector3(0, 0, 0.058), Vector3.ZERO, Vector3.ONE])
 	if level >= 2:
 		# The mantra band (ประเจียด) round the wrist, a little below the fist.
-		_part(model, _band, _material(colors[2], maxf(glow, 0.5)), Vector3(0, -0.1, 0), Vector3.ZERO, Vector3(1.12, 1.6, 1.12))
+		parts.append([_band, _material(colors[2], maxf(glow, 0.5)), Vector3(0, -0.1, 0), Vector3.ZERO, Vector3(1.12, 1.6, 1.12)])
 	if level >= 3:
 		# A ring of light round the knuckles (the top weapons).
-		_part(model, _band, _material(colors[1], maxf(glow, 1.2)), Vector3(0, 0.0, 0.0), Vector3(PI * 0.5, 0, 0), Vector3(1.35, 1.0, 1.35))
+		parts.append([_band, _material(colors[1], maxf(glow, 1.2)), Vector3.ZERO, Vector3(PI * 0.5, 0, 0), Vector3(1.35, 1.0, 1.35)])
+	# One surface per material: pieces sharing a material share a surface.
+	var tools := {}
+	var order: Array = []
+	for part in parts:
+		var mat: Material = part[1]
+		if not tools.has(mat):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			tools[mat] = st
+			order.append(mat)
+		var basis := Basis.from_euler(part[3]).scaled(part[4])
+		(tools[mat] as SurfaceTool).append_from(part[0], 0, Transform3D(basis, part[2]))
+	var mesh := ArrayMesh.new()
+	for mat in order:
+		(tools[mat] as SurfaceTool).commit(mesh)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
+	_baked[look] = mesh
+	return mesh
+
+
+## The wrapped fist of [param look]: a root (named after the look) holding one model node
+## (a single baked mesh, see _bake).
+static func build(look: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = look
+	var model := MeshInstance3D.new()
+	model.name = "Wraps"
+	model.mesh = _bake(look)
+	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(model)
 	return root
