@@ -12,7 +12,8 @@ extends Node
 ## - "ชิ้นที่ N", "N ชิ้น": its set / divine pieces or a forged piece's number;
 ## - "เลเวล N": its mount's level or a mount levelling of the window;
 ## - item, mount and wing names after ได้ / ดรอป / ขี่ / ใส่ / อัป / ทำ / หลอม: its real
-##   finds, mount and wings (WorldGear events and gear);
+##   finds, mount and wings (WorldGear events and gear), and the krathong it really
+##   floated at the pier with what it took (LoyKrathong.own_float);
 ## - field and boss names: its own hunting field / where it stands and that field's boss;
 ## - a God title after เป็น: only from a player at ★300;
 ## - guild names: its guild or one it meets in the war;
@@ -251,6 +252,14 @@ func _facts(s: Dictionary, t: float) -> Dictionary:
 				named[String(e.item)] = true
 			"wings_up", "drop", "spare":
 				named[String(e.item)] = true
+	# Its own krathong at the pier (LoyKrathong.own_float): the krathong and what it took.
+	var lk := LoyKrathong.own_float(i, t) if i >= 0 else {}
+	if not lk.is_empty():
+		var kr: Dictionary = LoyKrathong.KRATHONGS[int(lk.tier)]
+		named[String(kr.name)] = true
+		for k in LoyKrathong.MAT_NAMES.size():
+			if int(kr.need[k]) > 0:
+				named[LoyKrathong.MAT_NAMES[k]] = true
 	for n in named.keys():
 		if String(n) != "":
 			_names[String(n)] = true

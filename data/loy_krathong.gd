@@ -117,14 +117,22 @@ const FLOAT_SLOT := 45.0
 const FLOAT_SHARE := 0.55
 const FLOAT_SHARE_NIGHT := 0.95
 const FLOAT_LIFE := 60.0
-## The wishes the world players make.
-const WISHES := ["ขอให้ตีบวกติด", "ขอให้ได้ปีกเทพ", "ขอให้ได้ไข่มังกรฟ้าเทพ", "ขอให้กิลด์ชนะกิลด์วอ", "ขอให้ดาวขึ้นไว ๆ",
-	"ขอให้ได้ชุดเทพมังกร", "ขอให้เจอคนรู้ใจ", "ขอให้ดรอปดีทุกตัว", "ขอให้ตี +15 ติดในครั้งเดียว", "ขอให้ได้แฟนในเกม",
-	"ขอให้เพื่อน ๆ ในกิลด์สุขภาพแข็งแรง", "ขอให้ได้เกล็ดพญานาคเยอะ ๆ", "ขอให้ปีนี้รวย ๆ", "ขอให้ล่ามังกรแก้วได้", "ขอให้ได้แก่นเทพหลอมเซต"]
-## The world chat's festival lines (chat_line: %wish a wish, %name a krathong).
+## The wishes the world players make (a wish, not a claim: never "ได้<an item>").
+const WISHES := ["ขอให้ตีบวกติด", "ขอให้ปีกเทพมาไว ๆ", "ขอให้ไข่มังกรฟ้าเทพดรอปสักใบ", "ขอให้กิลด์ชนะกิลด์วอ", "ขอให้ดาวขึ้นไว ๆ",
+	"ขอให้ชุดเทพมังกรครบไว ๆ", "ขอให้เจอคนรู้ใจ", "ขอให้ดรอปดีทุกตัว", "ขอให้ตีบวกติดรวดเดียว", "ขอให้มีแฟนในเกม",
+	"ขอให้เพื่อน ๆ ในกิลด์สุขภาพแข็งแรง", "ขอให้เกล็ดพญานาคดรอปเยอะ ๆ", "ขอให้ปีนี้รวย ๆ", "ขอให้ล่ามังกรแก้วได้", "ขอให้แก่นเทพหลอมเซตดรอปเยอะ ๆ"]
+## The world chat's festival lines (chat_line). Lines 0, 1, 6 and 7 tell what the speaker
+## really did: its own krathong at the pier (own_float: %wish its wish, %name its krathong;
+## 6 only when that krathong took a เทียนทอง); 3 only in the evening and night, 5 only
+## before the pageant's result; the rest say nothing about the speaker.
 const CHAT := ["ลอยกระทงแล้ว %wish สาธุ", "ไปลอย%name ที่ท่าน้ำในเมืองมา สวยมาก", "ใครเก็บใบตองได้เยอะ แบ่งหน่อย", "พระจันทร์เต็มดวงสวยจัง",
-	"วันนี้ลอยครบ %daily ใบแล้ว", "ปีนี้จะประกวดนางนพมาศ ใครไปบ้าง", "ได้เทียนทองมาแล้ว ทำกระทงทองคำได้!", "ขอให้ตีบวกติดด้วยเถิด ลอยกระทงแล้ว"]
-const CHAT_NIGHT := ["คืนนี้คืนลอยกระทง EXP x2 ถึงสี่ทุ่มนะ", "โคมลอยเต็มฟ้าเลย สวยมาก", "พญานาคขึ้นแล้ว รีบไปตี!", "ขอให้ได้ปีกเทพ ลอยกระทงคืนนี้"]
+	"ไปดูกระทงที่ท่าน้ำในเมืองกันไหม", "ปีนี้จะประกวดนางนพมาศ ใครไปบ้าง", "ได้เทียนทองมาแล้ว ทำ%nameไปลอยแล้ว!", "%wish ด้วยเถิด ลอยกระทงแล้ว"]
+## The lines needing the speaker's own krathong (own_float), and the ones about nobody.
+const CHAT_OWN: Array[int] = [0, 1, 6, 7]
+const CHAT_PLAIN: Array[int] = [2, 4]
+const CHAT_NIGHT := ["คืนนี้คืนลอยกระทง EXP x2 ถึงห้าทุ่มนะ", "โคมลอยเต็มฟ้าเลย สวยมาก", "พญานาคขึ้นแล้ว รีบไปตี!", "ขอให้ปีกเทพมาไว ๆ ลอยกระทงคืนนี้"]
+## How far back (seconds) a world player's own krathong is something it "just" floated.
+const OWN_FLOAT_BACK := 4.0 * 3600.0
 const CHAT_SHARE := 0.12
 
 ## false: no festival at all (tests of other events' base rates also switch it off with
@@ -637,7 +645,7 @@ static func contestants(gender: int) -> Array[int]:
 	WorldPlayers.ensure_until(float(RESULT_AT))
 	var picks: Array = []
 	for i in WorldPlayers.size():
-		if WorldPlayers.joined_at(i) > float(START) or int(WorldPlayers.look(i).get("gender", 0)) != gender:
+		if WorldPlayers.joined_at(i) > float(RESULT_AT) or int(WorldPlayers.look(i).get("gender", 0)) != gender:
 			continue
 		picks.append([WorldEvents.roll("lkpgfield|%s" % String(WorldPlayers.entry(i).name)), i])
 	picks.sort_custom(func(a, b): return int(a[0]) < int(b[0]))
@@ -791,6 +799,9 @@ static func ai_float(n: int) -> Dictionary:
 		var i := WorldEvents.roll("lkwho|%d|%d" % [n, tries]) % count
 		if WorldPlayers.joined_at(i) > at:
 			continue
+		# Only someone in the game at that moment walks to the pier.
+		if WorldPlayers.session_at(i, at).is_empty():
+			continue
 		var p := WorldPlayers.progress_at(i, at)
 		var tier := clampi(WeeklyCollect.tier_of(int(p.level), int(p.stars)) / 2 + WorldEvents.roll("lktier|%d" % n) % 2, 0, KRATHONGS.size() - 1)
 		return {"index": i, "name": String(WorldPlayers.entry(i).name), "tier": tier,
@@ -810,19 +821,39 @@ static func ai_floats(t: float) -> Array:
 	return out
 
 
-## A world player's festival line ("" when it has nothing to say): a wish, the pier, the moon.
+## World player i's latest krathong at the pier at or before t, within OWN_FLOAT_BACK
+## ({} for none): what it really floated ({index, name, tier, wish, at} of ai_float).
+static func own_float(i: int, t: float) -> Dictionary:
+	if not on(t):
+		return {}
+	var last := int(floor(t / FLOAT_SLOT))
+	var first := int(floor(maxf(float(START), t - OWN_FLOAT_BACK) / FLOAT_SLOT))
+	for n in range(last, first - 1, -1):
+		var e := ai_float(n)
+		if not e.is_empty() and int(e.index) == i and float(e.at) <= t:
+			return e
+	return {}
+
+
+## A world player's festival line ("" when it has nothing to say): a wish, the pier, the
+## moon. What it says it did is what it did (own_float); otherwise a line about nobody.
 static func chat_line(s: Dictionary, seed_value: int, t: float) -> String:
 	if not on(t) or not s.has("index"):
 		return ""
 	var pick := absi(hash(seed_value * 13 + 7))
-	var pool: Array = CHAT_NIGHT if night_on(t) and pick % 2 == 0 else CHAT
-	var line := String(pool[(pick / 2) % pool.size()])
-	line = line.replace("%wish", String(WISHES[pick % WISHES.size()]))
-	line = line.replace("%name", String(KRATHONGS[(pick / 3) % KRATHONGS.size()].name))
-	line = line.replace("%daily", str(DAILY_FLOATS))
-	# The Naga is up only in its windows: a line saying so waits for one.
-	if line.contains(NAGA_NAME) and naga_now(t).is_empty():
-		return String(CHAT[pick % CHAT.size()]).replace("%wish", String(WISHES[(pick + 1) % WISHES.size()])).replace("%name", String(KRATHONGS[0].name)).replace("%daily", str(DAILY_FLOATS))
+	if night_on(t) and pick % 2 == 0:
+		var night := String(CHAT_NIGHT[(pick / 2) % CHAT_NIGHT.size()])
+		# The Naga is up only in its windows: a line saying so waits for one.
+		if not (night.contains(NAGA_NAME) and naga_now(t).is_empty()):
+			return night
+	var k := (pick / 2) % CHAT.size()
+	var mine: Dictionary = own_float(int(s.index), t) if k in CHAT_OWN else {}
+	var hour := WorldEvents.time_of_day(t) / 3600
+	if (k in CHAT_OWN and (mine.is_empty() or (k == 6 and int(mine.tier) < 2))) or (k == 3 and hour >= 6 and hour < 18) or (k == 5 and t >= float(RESULT_AT)):
+		k = CHAT_PLAIN[pick % CHAT_PLAIN.size()]
+	var line := String(CHAT[k])
+	if not mine.is_empty():
+		line = line.replace("%wish", String(mine.wish)).replace("%name", String(KRATHONGS[int(mine.tier)].name))
 	return line
 
 
@@ -832,7 +863,7 @@ static func chat_answer(_index: int, t: float) -> String:
 		return "%s เริ่ม %s ถึง %s คืนลอยกระทง 24 พ.ย. 19:00-23:00 EXP x2" % [TITLE, date_text(float(START)), date_text(float(END))]
 	if not on(t):
 		return "%sจบไปแล้ว ปีหน้ามาลอยด้วยกันใหม่นะ" % TITLE
-	return "ล่ามอนได้ใบตอง ดอกบัว เทียนทอง เกล็ดพญานาค ทำกระทงแล้วไปลอยที่ท่าน้ำในเมือง วันละ %d ใบ คืน 24 พ.ย. EXP x2 ถึงสี่ทุ่ม พญานาคขึ้นตอน 2 ทุ่ม 3 ทุ่ม 4 ทุ่ม" % DAILY_FLOATS
+	return "มอนในทุกสนามดรอปวัสดุ (ใบตอง ดอกบัว เทียนทอง เกล็ดพญานาค) เอามาทำกระทงแล้วไปลอยที่ท่าน้ำในเมือง วันละ %d ใบ คืน 24 พ.ย. EXP x2 ถึงห้าทุ่ม พญานาคขึ้นตอน 2 ทุ่ม 3 ทุ่ม 4 ทุ่ม" % DAILY_FLOATS
 
 
 # --- The server's news ------------------------------------------------------------------
