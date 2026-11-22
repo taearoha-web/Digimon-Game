@@ -6,7 +6,7 @@ extends RefCounted
 ## bar across the striking face with four finger rings behind it, a palm grip joined to
 ## the ends of the bar, rising in grandeur by tier: plain iron and steel with a grip
 ## bound in the tier's colour (Lv.1-30), studded steel (Lv.31-60), gold with set gems
-## (Lv.61-100), and for the top weapons (star 150+, set, divine) glowing inlays down the
+## (Lv.61-100), and for the top weapons (Lv.91-100, star 150+, set, divine) glowing inlays down the
 ## bar, a crest of blades over it and a band of mantra script (ประเจียด) on the grip.
 ## Every look kind is handled here so the weapon reads the same whoever draws it:
 ##   wraps_<0-9>                the ten gear tiers (ItemData)
@@ -107,7 +107,8 @@ static func grade(look: String) -> int:
 	if look.begins_with("star_"):
 		return 2 if StarGearData.stars_from_look(look) < 150 else 3
 	var tier := int(look.rsplit("_", true, 1)[-1])
-	return 0 if tier < 3 else (1 if tier < 6 else 2)
+	# The god of boxing's (Lv.91-100) already carries the top weapons' inlays and crest.
+	return 0 if tier < 3 else (1 if tier < 6 else (2 if tier < 9 else 3))
 
 
 static func _material(color: Color, glow := 0.0, metal := false) -> StandardMaterial3D:
@@ -215,9 +216,6 @@ static func pieces(level: int, studs: bool) -> Array:
 		for k in 4:
 			out.append([_ring, "accent", Transform3D(Basis(Vector3.BACK * 0.72, Vector3.RIGHT * 0.5, Vector3.UP * 0.72), Vector3(KNUCKLES.x + 0.01, ring_y(k), KNUCKLES.z))])
 			out.append([_gem, "gem", Transform3D(Basis.from_scale(Vector3(0.012, 0.019, 0.019)), Vector3(KNUCKLES.x + 0.011, ring_y(k), KNUCKLES.z))])
-		# A trim of the accent along both edges of the bar.
-		for z in [KNUCKLES.z + 0.024, KNUCKLES.z - 0.024]:
-			out.append([_plate, "accent", Transform3D(Basis.from_scale(Vector3(0.02, top - bottom, 0.005)), Vector3(KNUCKLES.x - 0.002, KNUCKLES.y, z))])
 	if level >= 3:
 		# Glowing inlays down the bar between the stones and on the frame's ends.
 		for k in 3:
@@ -227,13 +225,13 @@ static func pieces(level: int, studs: bool) -> Array:
 		for i in 3:
 			var at := Vector3(KNUCKLES.x - 0.012 * i, top + 0.006, KNUCKLES.z + 0.012 * (i - 1))
 			out.append([_blade, "metal", _along(at + Vector3(0.008, 0.012, 0), Vector3(0.7, 1.0, 0.1 * (i - 1)), Vector3(0.014, 0.034 - 0.006 * i, 0.007))])
-		# The mantra script (ประเจียด) round the grip: a band of light with glyph strokes.
+		# The mantra script (ประเจียด): a line of glyph strokes of light along the top of
+		# the bar (toward the back of the hand), and a band of light round the grip.
+		for i in 9:
+			var y := bottom + 0.012 + (top - bottom - 0.024) * float(i) / 8.0
+			var tilt := Basis.from_euler(Vector3(0, 0, 0.55 if i % 2 == 0 else -0.35))
+			out.append([_plate, "glow", Transform3D(tilt * Basis.from_scale(Vector3(0.0045, 0.012, 0.004)), Vector3(KNUCKLES.x - 0.001, y, KNUCKLES.z + 0.026))])
 		out.append([_ring, "glow", Transform3D(Basis(Vector3.RIGHT * 0.95, Vector3.UP * 0.6, Vector3.BACK * 0.95), grip_at)])
-		for i in 5:
-			var a := TAU * float(i) / 5.0
-			var y := grip_at.y + (float(i) - 2.0) * 0.022
-			var at := grip_at + Vector3(cos(a) * 0.012, y - grip_at.y, sin(a) * 0.012)
-			out.append([_plate, "glow", Transform3D(Basis.from_euler(Vector3(0, -a, 0.6 * (i % 2) - 0.3)) * Basis.from_scale(Vector3(0.003, 0.012, 0.004)), at)])
 	return out
 
 

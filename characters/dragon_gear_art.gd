@@ -51,8 +51,8 @@ const LAYOUT := {
 	# forearm to -X, back of the hand +Z): the dragon coils from the wrist round the hand
 	# and rears its head over the knuckle bar, looking where the punch goes; its breath
 	# wraps the fist.
-	"wraps": {"path": [Vector3(-0.17, -0.018, 0.03), Vector3(-0.005, -0.018, 0.03)], "rx": 0.098, "rz": 0.07, "turns": 1.5, "thick": 0.014,
-		"head": Vector3(0.03, -0.018, 0.1), "nose": Vector3(1, 0, 0.25), "crown": Vector3(0, 0, 1), "size": 0.06, "breath": [Vector3(-0.07, -0.17, 0.03), Vector3(0.32, 0.34, 0.3)]},
+	"wraps": {"path": [Vector3(-0.165, -0.016, 0.03), Vector3(-0.03, -0.016, 0.03)], "rx": 0.088, "rz": 0.066, "turns": 1.5, "thick": 0.014,
+		"head": Vector3(0.0, -0.016, 0.08), "nose": Vector3(1, 0, 0.25), "crown": Vector3(0, 0, 1), "size": 0.06, "breath": [Vector3(-0.07, -0.17, 0.03), Vector3(0.32, 0.34, 0.3)]},
 	"lute": {"path": [Vector3(-0.02, -0.56, 0.03), Vector3(0.14, -0.5, 0.03), Vector3(0.205, -0.33, 0.03), Vector3(0.11, -0.17, 0.03), Vector3(0.036, -0.1, 0.0),
 			Vector3(0.03, 0.1, -0.03), Vector3(0.0, 0.3, -0.045), Vector3(0, 0.4, -0.085)], "rx": 0.01, "rz": 0.012, "turns": 3.0, "thick": 0.03,
 		"head": Vector3(0, 0.47, -0.1), "nose": Vector3(0, 1, 0.35), "crown": Vector3(0, -0.3, 1), "size": 0.16, "breath": [Vector3(0, -0.6, 0), Vector3(0.52, 1.1, 0.3)]},
