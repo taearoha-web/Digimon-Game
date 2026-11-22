@@ -41,9 +41,12 @@ const STAGGER := 0.3
 const DECAY := 12.0
 ## The way is checked in steps this long.
 const STEP := 0.25
-## Kept this far inside the field's round edge, a wall's line or a gate's posts.
+## Kept this far inside the field's round edge.
 const EDGE := 1.5
-const WALL_GAP := 0.8
+## Kept this far from a castle wall's line (its inner face is 1.7 m off it: SiegeArena's
+## walls are 3.4 m thick) and from a gate opening's jambs (GATE_HALF off its middle).
+const WALL_GAP := 2.2
+const JAMB_GAP := 0.5
 const META := &"war_push_until"
 
 ## Counters (tests, the sim): pushes made, pushes refused by the immunity.
@@ -259,10 +262,10 @@ static func _step_ok(ctx: int, q: Vector3, p: Vector3, q_ok: bool) -> bool:
 	# Through the join between the two sections: the bridge, or a gate already broken.
 	var j := mini(a, b)
 	if j == 0:
-		return absf(p.x) <= SiegeArena.BRIDGE_HALF - WALL_GAP
+		return absf(p.x) <= SiegeArena.BRIDGE_HALF - JAMB_GAP
 	var tier := j - 1
 	for lane in SiegeArena.TIER_LANES[tier]:
-		if absf(p.x - SiegeArena.gate_x(tier, lane)) <= SiegeArena.GATE_HALF - WALL_GAP and SiegeArena.is_open(j, lane):
+		if absf(p.x - SiegeArena.gate_x(tier, lane)) <= SiegeArena.GATE_HALF - JAMB_GAP and SiegeArena.is_open(j, lane):
 			return true
 	return false
 
