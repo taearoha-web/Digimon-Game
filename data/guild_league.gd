@@ -59,6 +59,10 @@ extends RefCounted
 ##   round whose start was told to the hero.
 
 const KEY := "league"
+## The first league round after the world reopening: the guild wars start with the
+## 18:00 round of the opening day (22 Nov 2026 18:00 Thai; the world itself opens at
+## WorldPlayers.START_UNIX). Rounds before it never happen. Mirrored in hosting/worker/league.mjs.
+const LEAGUE_START := 1795345200
 ## Seconds of the Thai day each round starts: 12:00, 18:00 and 20:30 (slot_start).
 const SLOTS: Array[int] = [12 * 3600, 18 * 3600, 20 * 3600 + 30 * 60]
 ## The last round of the day moved from 21:30 to 20:30 Thai from this Thai day on
@@ -204,9 +208,9 @@ static func guilds_at(_at: int) -> Array[int]:
 
 
 ## Whether a round starts at unix `at` (never before the world (re)opened,
-## WorldPlayers.START_UNIX, as the server's league.mjs isSlot).
+## LEAGUE_START, as the server's league.mjs isSlot).
 static func is_round(at: int) -> bool:
-	if at < WorldPlayers.START_UNIX:
+	if at < LEAGUE_START:
 		return false
 	var day := WorldEvents.day_of(float(at))
 	for k in day_slots(day).size():
@@ -300,7 +304,7 @@ static func ended(at: int, t := -1.0) -> bool:
 
 
 ## The start of the latest round over by t (its bell rang); before the world's first
-## round is over, a time before WorldPlayers.START_UNIX.
+## round is over, a time before LEAGUE_START.
 static func last_ended(t: float) -> int:
 	var at := prev_slot(next_slot(t))
 	if not ended(at, t):
@@ -352,7 +356,7 @@ static func side_power(g: int, at: int) -> float:
 ## nobody then but members at Lv.100 by the round counts its might at the round.
 static func week_power(g: int, at: int) -> float:
 	var start := int(week_start(week_of(float(at))))
-	var p := side_power(g, maxi(start, WorldPlayers.START_UNIX))
+	var p := side_power(g, maxi(start, LEAGUE_START))
 	if p <= 0.0:
 		p = side_power(g, at)
 	return p
@@ -373,7 +377,7 @@ static func round_points(kills: int, caps: int) -> int:
 ## {at, g: guilds, k: falls, c: captures, held, own}; {} when fewer than two guilds have
 ## anyone at Lv.100.
 static func sim_round(at: int, own: int) -> Dictionary:
-	if at < WorldPlayers.START_UNIX:
+	if at < LEAGUE_START:
 		return {}
 	var key := "%d|%d%s" % [at, own, sim_salt]
 	if _sim_cache.has(key):
@@ -522,7 +526,7 @@ static func _frozen(r: Dictionary, official := false) -> Array:
 ## (never shown as a result; see events, holder_after). [] when nobody could fight.
 static func round_results(at: int, own: int, real: Array) -> Array:
 	# Before the world (re)opened there was no round: no result, no capture.
-	if at < WorldPlayers.START_UNIX:
+	if at < LEAGUE_START:
 		return []
 	var over := ended(at)
 	if over:
@@ -581,14 +585,14 @@ static func _after(results: Array, own: int) -> int:
 static func _chain_real(real: Array) -> Array:
 	var out: Array = []
 	for e in real:
-		if e is Dictionary and int(e.get("at", 0)) >= WorldPlayers.START_UNIX:
+		if e is Dictionary and int(e.get("at", 0)) >= LEAGUE_START:
 			out.append(e)
 	if Game.has_profile:
 		var d: Variant = Game.profile.get(KEY)
 		if d is Dictionary:
 			for key in ["prev_wars", "wars"]:
 				for e in (d as Dictionary).get(key, []):
-					if e is Dictionary and int(e.get("at", 0)) >= WorldPlayers.START_UNIX and not out.has(e):
+					if e is Dictionary and int(e.get("at", 0)) >= LEAGUE_START and not out.has(e):
 						out.append(e)
 	return out
 
@@ -602,12 +606,12 @@ static func _chain_sig(real: Array) -> String:
 
 
 ## Who holds the castle after the round starting `at` (its bell): the chain of holders
-## from the world's first round (WorldPlayers.START_UNIX), round by round, each begun with
+## from the world's first round (LEAGUE_START), round by round, each begun with
 ## the one before's holder, every round's result frozen once over (round_results). Cached
 ## (followed on from the last round worked out). A round not over yet has no result: the
 ## holder then is the one after the latest round over (nothing is foretold).
 static func holder_after(at: int, real: Array = []) -> int:
-	if at < WorldPlayers.START_UNIX:
+	if at < LEAGUE_START:
 		return 0
 	if not ended(at):
 		return holder_after(last_ended(now()), real)
@@ -620,7 +624,7 @@ static func holder_after(at: int, real: Array = []) -> int:
 	if _chain.has(at):
 		return int(_chain[at])
 	# Walk on from the last round worked out before `at` (or the first round).
-	var r := _chain_last if _chain_last > 0 and _chain_last < at else next_slot(float(WorldPlayers.START_UNIX) - 1.0)
+	var r := _chain_last if _chain_last > 0 and _chain_last < at else next_slot(float(LEAGUE_START) - 1.0)
 	var own := int(_chain.get(r, 0)) if _chain.has(r) else 0
 	if not _chain.has(r):
 		own = _after(round_results(r, 0, all), 0)
@@ -638,7 +642,7 @@ static func holder_after(at: int, real: Array = []) -> int:
 ## the round before. It starts there inside the castle and defends (GuildWarMatch).
 static func start_holder(at: int, real: Array = []) -> int:
 	var prev := prev_slot(at)
-	if prev < WorldPlayers.START_UNIX:
+	if prev < LEAGUE_START:
 		return 0
 	return holder_after(prev, real)
 
@@ -795,7 +799,7 @@ static func champion_of(w: int, real: Array) -> int:
 	if _champ_cache.size() > 16:
 		_champ_cache.clear()
 	var last := prev_slot(int(week_end(w)))
-	var champ := holder_after(last, real) if last >= WorldPlayers.START_UNIX else 0
+	var champ := holder_after(last, real) if last >= LEAGUE_START else 0
 	_champ_cache[key] = champ
 	return champ
 
@@ -822,7 +826,7 @@ static func league_champion_of(w: int, real: Array) -> int:
 ## and its Castle King (holding the castle after the last round); 0 when none is both.
 static func emperor_of(w: int, real: Array) -> int:
 	var fin := final_slot(w)
-	if fin < WorldPlayers.START_UNIX:
+	if fin < LEAGUE_START:
 		return 0
 	var king := holder_after(fin, real)
 	return king if king > 0 and league_champion_of(w, real) == king else 0
@@ -1243,7 +1247,7 @@ static func tick(t := -1.0) -> bool:
 	# The week's placement bonus in league coins (RewardShop), once.
 	RewardShop.week_closed(w - 1)
 	# A season over before the world (re)opened had no round: nobody to announce.
-	var lines := announce_lines(w - 1, real_wars(w - 1)) if week_end(w - 1) > float(WorldPlayers.START_UNIX) else PackedStringArray()
+	var lines := announce_lines(w - 1, real_wars(w - 1)) if week_end(w - 1) > float(LEAGUE_START) else PackedStringArray()
 	for line in lines:
 		Game.say(line, &"quest")
 		Game.post_chat("world", "ประกาศลีกกิลด์", line, CROWN_COLOR)

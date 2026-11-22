@@ -30,6 +30,8 @@ export function slotSecond(day, k) {
 export const EXTRA_ROUNDS = [1795240800];
 export const DURATION = 1200;
 export const START_UNIX = 1795309200;
+/** The first league round (the opening day's 18:00 round), as the game's GuildLeague.LEAGUE_START. */
+export const LEAGUE_START = 1795345200;
 export const GUILDS = [1, 2, 3, 4];
 /** A round may be posted this many seconds before its bell (device clocks drift). */
 export const END_MARGIN = 60;
@@ -71,11 +73,11 @@ function isInt(v, lo, hi) {
 
 /** The world's first round: the first slot starting after START_UNIX - 1. */
 export function firstRound() {
-  const day = Math.floor((START_UNIX - 1 + TZ) / DAY);
+  const day = Math.floor((LEAGUE_START - 1 + TZ) / DAY);
   for (const d of [day, day + 1]) {
     for (let k = 0; k < SLOTS.length; k++) {
       const at = d * DAY - TZ + slotSecond(d, k);
-      if (at > START_UNIX - 1) return at;
+      if (at > LEAGUE_START - 1) return at;
     }
   }
   return 0;

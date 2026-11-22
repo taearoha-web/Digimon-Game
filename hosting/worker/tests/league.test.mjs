@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import worker from '../worker.mjs';
-import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EXTRA_ROUNDS, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE, FOUGHT_GRACE} from '../league.mjs';
+import {handleLeagueRequest, firstRound, isSlot, cleanResult, DURATION, END_MARGIN, LIMITS, SLOTS, TZ, slotSecond, EXTRA_ROUNDS, LEAGUE_START, EARLY_FINAL_DAY, START_UNIX, MAX_RANGE, FOUGHT_GRACE} from '../league.mjs';
 import {D1Sqlite} from '../../accounts/tests/d1-sqlite.mjs';
 
 const ORIGIN = 'https://toon.example';
@@ -244,4 +244,11 @@ test('rounds kept from before the world reopened (START_UNIX) are never handed o
   assert.equal(list.status, 200);
   assert.deepEqual(list.body.rounds.map(r => r.at), [AT], 'only the reopened world\'s rounds');
   assert.notEqual((await h.post({at: old, result: {...result(), at: old}})).status, 201, 'no round before the reopening can be posted');
+});
+
+test('the league starts with the opening day\'s 18:00 round (as GuildLeague.LEAGUE_START)', () => {
+  const league = readFileSync(new URL('../../../data/guild_league.gd', import.meta.url), 'utf8');
+  assert.equal(Number(league.match(/const LEAGUE_START := (\d+)/)[1]), LEAGUE_START);
+  assert.equal(firstRound(), LEAGUE_START);
+  assert.ok(!isSlot(LEAGUE_START - 6 * 3600) && isSlot(LEAGUE_START));
 });

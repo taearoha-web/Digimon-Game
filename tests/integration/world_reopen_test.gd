@@ -245,8 +245,10 @@ func _world_players() -> void:
 
 func _league_and_maze() -> void:
 	var start := WorldPlayers.START_UNIX
-	var first := GuildLeague.next_slot(float(start) - 1.0)
-	check(first >= start and GuildLeague.is_round(first), "the first league round is after the reopening (%d)" % first)
+	var first := GuildLeague.next_slot(float(GuildLeague.LEAGUE_START) - 1.0)
+	check(first >= start and first == GuildLeague.LEAGUE_START and GuildLeague.is_round(first), "the first league round is the opening day's 18:00 (%d)" % first)
+	var noon := GuildLeague.next_slot(float(start) - 1.0)
+	check(noon < first and not GuildLeague.is_round(noon), "the opening day's 12:00 is no league round (%d)" % noon)
 	check(GuildLeague.holder_after(first - 1) == 0, "nobody holds the castle before the first round")
 	check(not GuildLeague.is_round(1795240800) or 1795240800 >= start, "the extra round of 21 Nov was before it")
 	check(LeagueRounds.clean(start - 3600, {"at": start - 3600, "g": [1, 2, 3, 4], "k": [0, 0, 0, 0], "c": [0, 0, 0, 0], "held": 1, "own": 0}).is_empty(), "a round result from before the reopening is never taken")
@@ -295,7 +297,7 @@ func _no_castle_holder() -> void:
 	LeagueRounds.persist = false
 	LeagueRounds.reset()
 	var start := float(WorldPlayers.START_UNIX)
-	var first := GuildLeague.next_slot(start - 1.0)
+	var first := GuildLeague.LEAGUE_START
 	var after_first := float(first) + GuildWarData.DURATION + 60.0
 	_nobody(_titles_at(start - 1200.0), "07:40 before the opening")
 	_nobody(_titles_at(start + 1800.0), "08:30")

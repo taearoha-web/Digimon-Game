@@ -188,9 +188,9 @@ static func _is_int(v: Variant, lo: int, hi: int) -> bool:
 
 ## A well-formed copy of a round result for `at` with int numbers, {} when it is not one
 ## (the server's checks, hosting/worker/league.mjs cleanResult). A round from before the
-## world (re)opened (WorldPlayers.START_UNIX) belongs to the old world: never one.
+## world (re)opened (GuildLeague.LEAGUE_START) belongs to the old world: never one.
 static func clean(at: int, v: Variant) -> Dictionary:
-	if not v is Dictionary or at < WorldPlayers.START_UNIX:
+	if not v is Dictionary or at < GuildLeague.LEAGUE_START:
 		return {}
 	var d: Dictionary = v
 	for key in ["g", "k", "c"]:
@@ -300,7 +300,7 @@ static func want_fetch() -> void:
 
 ## The ended rounds the server is asked for: this season's and the last's.
 static func window(t: float) -> Vector2i:
-	var from := maxi(int(GuildLeague.week_start(GuildLeague.week_of(t) - 1)), WorldPlayers.START_UNIX)
+	var from := maxi(int(GuildLeague.week_start(GuildLeague.week_of(t) - 1)), GuildLeague.LEAGUE_START)
 	return Vector2i(from, int(t))
 
 
