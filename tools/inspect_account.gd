@@ -82,4 +82,8 @@ func _run() -> int:
 			JSON.stringify(para), int((profile.get("paragon", {}) as Dictionary).get("points", 0)), int(gb.get("set_gear", 0)),
 			String(profile.get("mount", "")), int((profile.get("mounts", {}) as Dictionary).get(String(profile.get("mount", "")), 0)) if profile.get("mounts") is Dictionary else 0,
 			" | ".join(names)])
+		# The maze (MazeWar.KEY): the character's own weekly kills and the champions its game saved.
+		var mz: Variant = raw.get(MazeWar.KEY) if raw is Dictionary else null
+		if mz is Dictionary:
+			print("MAZE|slot %s|%s|weeks %s|champs %s|crown %s" % [key, String(profile.get("name", "")), JSON.stringify(mz.get("weeks", {})), JSON.stringify(mz.get("champs", {})), JSON.stringify(profile.get(MazeCrown.KEY, {}))])
 	return 0
