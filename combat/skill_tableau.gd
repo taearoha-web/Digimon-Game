@@ -187,10 +187,11 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	ShadowSkillArt.contact(parent, skill, at, crit)
 	LordSkillArt.contact(parent, skill, at)
 	BardSkillArt.contact(parent, skill, at)
+	MuayThaiArt.contact(parent, skill, at)
 	if MartialSkillArt.handles(skill):
 		MartialSkillArt.contact(parent,skill,at)
 		return
-	if String(skill.id) != "judgment_ray":
+	if String(skill.id) != "judgment_ray" and not MuayThaiArt.owns(skill):
 		SkillCraft.contact(parent, skill, at, crit)
 
 static func anticipate(parent: Node3D, skill: Dictionary, look: Dictionary, origin: Vector3, duration: float, aim: Vector3, visual: HeroVisual = null) -> void:

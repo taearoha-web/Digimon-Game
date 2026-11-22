@@ -363,6 +363,7 @@ func _clear_zone() -> void:
 	SpellSpectacle.release_mesh_cache()
 	VfxArt.release_mesh_cache()
 	BardSkillArt.release_mesh_cache()
+	MuayThaiArt.release_mesh_cache()
 	ShadowSkillArt.release_mesh_cache()
 	LordSkillArt.release_mesh_cache()
 	SkillInk.release_mesh_cache()

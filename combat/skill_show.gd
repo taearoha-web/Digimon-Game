@@ -89,12 +89,19 @@ static func anticipate(parent: Node3D, skill: Dictionary, origin: Vector3, durat
 		if visual:
 			SkillCharge.launch(parent, visual, look, duration)
 		return
+	if MuayThaiArt.owns(skill):
+		# The fighter's own wind-up (MuayThaiArt): the hand's charge light stays.
+		if visual:
+			SkillCharge.launch(parent, visual, look, duration)
+		MuayThaiArt.anticipate(parent, skill, origin, aim, duration, visual)
+		return
 	ClassFlourish.charge(parent, skill, origin, duration)
 	SkillTableau.anticipate(parent, skill, look, origin, duration, aim, visual)
 	EliteSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	ShadowSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	LordSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
 	BardSkillArt.anticipate(parent, skill, origin, aim, duration, visual)
+	MuayThaiArt.anticipate(parent, skill, origin, aim, duration, visual)
 
 
 ## center: target/area; origin: caster's feet. Hero and companions share this path.
@@ -119,8 +126,20 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 		ShadowSkillArt.play(parent, skill, center, origin, wait)
 		LordSkillArt.play(parent, skill, center, origin, wait)
 		BardSkillArt.play(parent, skill, center, origin, wait)
+		MuayThaiArt.play(parent, skill, center, origin, wait)
 		var now_ms := Time.get_ticks_msec()
 		ClassFlourish.cast(parent, skill, center, origin, _recent_shows.filter(func(t: int): return now_ms - t < 1000).size())
+		return
+	if MuayThaiArt.owns(skill):
+		# The Muay Thai fighter's own layered art (MuayThaiArt) is the core of its show:
+		# the shared particle stack stays under it, the generic silhouette and finish
+		# would only bury the fists, rings and fire.
+		var at_ms := Time.get_ticks_msec()
+		_recent_shows = _recent_shows.filter(func(t: int): return at_ms - t < 1000)
+		_recent_shows.append(at_ms)
+		var land := impact_delay if impact_delay >= 0.0 else 0.0
+		SkillLayers.release(parent, skill, center, origin, land)
+		MuayThaiArt.play(parent, skill, center, origin, land)
 		return
 	var look := profile_for(skill)
 	var shape := String(skill.shape)
@@ -155,11 +174,13 @@ static func play(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 				_area(parent, skill, look, at, radius, tier)
 		"single": _single(parent, skill, look, center, origin, tier)
 		"fan", "chain": _multi(parent, skill, look, origin, center, tier)
-	# The Assassin's shadow sculptures, the Dark Lord's royal ones and the Bard's
-	# concert of light, then the grand finish on top.
+	# The Assassin's shadow sculptures, the Dark Lord's royal ones, the Bard's
+	# concert of light and the Muay Thai fighter's fists, rings and fire, then the
+	# grand finish on top.
 	ShadowSkillArt.play(parent, skill, center, origin, wait)
 	LordSkillArt.play(parent, skill, center, origin, wait)
 	BardSkillArt.play(parent, skill, center, origin, wait)
+	MuayThaiArt.play(parent, skill, center, origin, wait)
 	ClassFlourish.cast(parent, skill, center, origin, crowd)
 
 

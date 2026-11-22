@@ -64,6 +64,14 @@ func _ready() -> void:
 				elif SkillSignature.owns(skill):
 					# A regular skill with its own set piece (combat/skill_art) draws on its own roots.
 					check(fx.find_children("*", "Node3D", true, false).size() > 0, "skill signature drew its set piece: " + String(skill.id))
+				elif MuayThaiArt.owns(skill):
+					# The Muay Thai fighter's own layered composition (combat/muay_thai_art.gd).
+					var art := fx.get_node_or_null("MuayArt_" + String(skill.id)) as MuayThaiArt
+					check(art != null and not art.layers.is_empty(), "muay thai composition exists: " + String(skill.id))
+					if art:
+						for layer in art.layers:
+							var mesh: MeshInstance3D = layer.node
+							check(mesh.mesh != null and mesh.material_override != null and mesh.mesh.get_aabb().size.length_squared() > 0.000001, "valid muay thai geometry: " + String(skill.id))
 				elif StarSkillArt.handles(skill):
 					var art := fx.get_node_or_null("StarContact_"+String(skill.id)) as StarSkillArt
 					check(art!=null and not art.layers.is_empty(),"star silhouette exists: "+String(skill.id))
