@@ -51,7 +51,7 @@ const WORDS := [
 	[["คทา", "staff", "wand"], {"label": "คทา", "kind": "equip", "slot": "weapon", "bases": ["staff", "wand", "scepter"]}],
 	[["โคม", "lantern"], {"label": "โคมวิญญาณ", "kind": "equip", "slot": "weapon", "bases": ["lantern"]}],
 	[["พิณ", "lute"], {"label": "พิณ", "kind": "equip", "slot": "weapon", "bases": ["lute"]}],
-	[["นวม", "ผ้าพันมือ", "wraps", "gloves"], {"label": "นวม", "kind": "equip", "slot": "weapon", "bases": ["wraps"]}],
+	[["สนับมือ", "นวม", "ผ้าพันมือ", "knuckle", "duster", "wraps", "gloves"], {"label": "สนับมือ", "kind": "equip", "slot": "weapon", "bases": ["wraps"]}],
 	[["โล่", "shield"], {"label": "โล่", "kind": "equip", "slot": "weapon", "bases": ["greatshield"]}],
 	[["อาวุธ", "weapon"], {"label": "อาวุธ", "kind": "equip", "slot": "weapon"}],
 	[["เกราะ", "เสื้อ", "armor", "armour"], {"label": "เกราะ", "kind": "equip", "slot": "armor"}],

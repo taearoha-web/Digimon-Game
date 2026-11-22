@@ -20,7 +20,7 @@ static func cloth(class_id: String, stars: int) -> Color:
 
 
 static func build(look: String) -> Node3D:
-	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	# The Muay Thai fighter's knuckle dusters are drawn by HandWraps for every look kind.
 	if HandWraps.is_look(look):
 		return HandWraps.build(look)
 	var kind := StarGearData.kind_from_look(look)
@@ -90,6 +90,8 @@ static func build_icon_node(look: String) -> Node3D:
 	if kind in ["sword", "spear", "bow", "staff", "wand", "lantern", "shield", "book", "tome", "greatshield", "dagger", "scepter", "lute", "wraps"]:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
+		if kind == HandWraps.KIND:
+			root.rotation_degrees = HandWraps.ICON_ROTATION
 		return root
 	if kind == "wings":
 		root.add_child(wings(stars, cls))

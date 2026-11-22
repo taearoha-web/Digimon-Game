@@ -1,8 +1,9 @@
 extends Node3D
-## The Muay Thai fighter's hand wraps on every body (8 chibi bodies + KayKit) in idle,
+## The Muay Thai fighter's knuckle dusters on every body (8 chibi bodies + KayKit) in idle,
 ## run and a punch, camera close on the hands, laid out as one sheet.
 ##   godot --rendering-driver opengl3 --resolution 320x320 --path . res://tests/tools/wraps_preview.tscn -- OUT_PNG [LOOK]
-## LOOK: the weapon look to wear (wraps_0 by default, e.g. dragon_wraps_muaythai).
+## LOOK: the weapon look to wear (wraps_0 by default; star_wraps_200, set_wraps_muaythai,
+## divine_wraps_muaythai_200 and dragon_wraps_muaythai too).
 const CELL := 320
 const CLIPS := [["Idle", 0.35, "wide"], ["Idle", 0.35, "fist"], ["Running_A", 0.3, "wide"], ["attack", 0.45, "fist"]]
 
@@ -19,6 +20,15 @@ func _ready() -> void:
 	var weapon: Dictionary
 	if look_id.begins_with("dragon_"):
 		weapon = DragonGearData.weapon(&"muaythai", rng)
+	elif look_id.begins_with("divine_"):
+		weapon = DivineGearData.item(&"muaythai", "weapon", rng)
+	elif look_id.begins_with("set_"):
+		weapon = SetGearData.item("muaythai", "weapon")
+	elif look_id.begins_with("star_"):
+		var stars := StarGearData.stars_from_look(look_id)
+		for piece in StarGearData.catalogue():
+			if String(piece.class) == "muaythai" and String(piece.slot) == "weapon" and StarGearData.stars_from_look(ItemLook.look_of(piece)) == stars:
+				weapon = piece.duplicate(true)
 	else:
 		weapon = ItemData.generate(int(look_id.trim_prefix("wraps_")) * 10 + 5, &"muaythai", rng, 0, "weapon")
 	weapon["plus"] = 0
@@ -55,15 +65,16 @@ func _ready() -> void:
 			cam.look_at(mid, Vector3.UP)
 			await get_tree().process_frame
 			if CLIPS[k][2] == "fist":
-				# Close on the right fist, looking across the forearm at the back of the hand.
+				# Close on the right fist, looking over the back of the hand at the knuckles
+				# (the knuckle dusters' bar and finger rings).
 				var grip: Node3D = null
 				for n in s.get_children():
 					if n is BoneAttachment3D and String(n.name).begins_with("Held_") and (n as BoneAttachment3D).bone_name == "handslot.r":
 						grip = n.get_child(0)
-				var g := grip.global_transform
-				var at := g * Vector3(-0.02, 0, 0.03)
-				var side := (g.basis.z.normalized() * 0.3 + g.basis.y.normalized() * 0.95).normalized()
-				cam.position = at + side * span * 0.9
+				var g := (grip.get_child(0) as Node3D).global_transform
+				var at := g * Vector3(-0.03, -0.018, 0.03)
+				var side := (g.basis.z.normalized() * 0.75 + g.basis.x.normalized() * 0.5 + g.basis.y.normalized() * 0.35).normalized()
+				cam.position = at + side * span * 0.8
 				cam.look_at(at, g.basis.x.normalized() if absf(side.dot(g.basis.x.normalized())) < 0.9 else Vector3.UP)
 				await get_tree().process_frame
 			await RenderingServer.frame_post_draw

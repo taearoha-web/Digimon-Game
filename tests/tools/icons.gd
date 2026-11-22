@@ -100,6 +100,8 @@ func _divine_node(id: String) -> Node3D:
 	else:
 		holder.add_child(WeaponKit.build(id))
 		holder.rotation_degrees.z = -12.0
+		if HandWraps.is_look(id):
+			holder.rotation_degrees = HandWraps.ICON_ROTATION
 	return holder
 
 

@@ -31,7 +31,7 @@ static func _palette(cls: String) -> Dictionary:
 
 ## "set_<kind>_<class>": a held weapon or off-hand (shield, book, tome, dagger).
 static func build(look: String) -> Node3D:
-	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	# The Muay Thai fighter's knuckle dusters are drawn by HandWraps for every look kind.
 	if HandWraps.is_look(look):
 		return HandWraps.build(look)
 	var bits := look.split("_")
@@ -111,6 +111,8 @@ static func build_icon_node(look: String) -> Node3D:
 	if kind in HELD:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
+		if kind == HandWraps.KIND:
+			root.rotation_degrees = HandWraps.ICON_ROTATION
 		return root
 	if kind == "armor":
 		root.add_child(armor_piece("chest", cls))

@@ -64,14 +64,25 @@ func _data() -> void:
 	rng.seed = 3
 	for level in [5, 55, 95]:
 		var w := ItemData.generate(level, MT, rng, 2, "weapon")
-		check(String(w.base) == "wraps" and String(w.name).begins_with("นวม") and ItemLook.look_of(w).begins_with("wraps_"), "a Lv.%d weapon is a pair of wraps (%s)" % [level, w.name])
+		check(String(w.base) == "wraps" and String(w.name).begins_with("สนับมือ") and ItemLook.look_of(w).begins_with("wraps_"), "a Lv.%d weapon is a pair of knuckle dusters (%s)" % [level, w.name])
+	# Knuckle dusters (สนับมือ) everywhere: star, set, divine and dragon names; pieces
+	# dropped as นวม show under the new name, the tier names mapped one to one.
+	var star_names := StarGearData.catalogue().filter(func(i): return String(i.class) == "muaythai" and String(i.slot) == "weapon").map(func(i): return String(i.name))
+	check(star_names.size() == 4 and star_names.all(func(n): return n.begins_with("สนับมือ")), "the star knuckle dusters' names (%s)" % [star_names])
+	check(SetGearData.item_name("muaythai", "weapon").begins_with("สนับมือ") and DivineGearData.item_name("muaythai", "weapon").begins_with("สนับมือ")
+		and DragonGearData.weapon_name("muaythai").begins_with("สนับมือ"), "the set, divine and dragon knuckle dusters' names")
+	check(ItemData.name_of({"kind": "equip", "slot": "weapon", "base": "wraps", "name": "นวมผ้าดิบ ล้ำค่า", "plus": 2}) == "+2 สนับมือเหล็กดิบ ล้ำค่า"
+		and ItemData.name_of({"kind": "equip", "slot": "weapon", "base": "wraps", "name": "นวมเทพมังกรอัคนี"}) == "สนับมือเทพมังกรอัคนี"
+		and ItemData.name_of({"kind": "equip", "slot": "weapon", "base": "wraps", "name": "นวมมวยเทพอัคนี แห่งตำนาน"}) == "สนับมือมวยเทพอัคนี แห่งตำนาน",
+		"old นวม pieces show as สนับมือ")
+	check(ItemData.NAMES.wraps.all(func(n): return String(n).begins_with("สนับมือ")) and ItemData.RENAMED_WRAPS.size() == 10, "the ten tiers are knuckle dusters")
 	check(ItemData.WING_INFO.has("muaythai") and StarWingData.INFO.has("muaythai"), "its wings and star wings")
 	var star_weapons := StarGearData.catalogue().filter(func(i): return String(i.class) == "muaythai" and String(i.slot) == "weapon")
-	check(star_weapons.size() == 4 and star_weapons.all(func(i): return String(i.base) == "wraps"), "four star wraps")
+	check(star_weapons.size() == 4 and star_weapons.all(func(i): return String(i.base) == "wraps"), "four star knuckle dusters")
 	check(SetGearData.THEMES.has("muaythai") and SetGearData.PALETTES.has("muaythai"), "its 250-star set")
 	check(DivineGearData.THEMES.has("muaythai") and DragonGearData.SIGNATURE.has("muaythai"), "its divine and dragon gear")
 	var divine := DivineGearData.item(MT, "weapon", rng)
-	check(not divine.is_empty() and divine.stats.has("atk"), "the divine wraps hit with ATK")
+	check(not divine.is_empty() and divine.stats.has("atk"), "the divine knuckle dusters hit with ATK")
 	for look in ["wraps_0", "wraps_9", "star_wraps_200", "set_wraps_muaythai", "divine_wraps_muaythai_200", "dragon_wraps_muaythai"]:
 		var node := WeaponKit.build(look) if not look.begins_with("star_") else StarGearArt.build(look)
 		var meshes := node.find_children("*", "MeshInstance3D", true, false)
@@ -152,14 +163,14 @@ func _rings() -> void:
 	cheap.setup(MT, "", true, {}, {"gender": 0, "body": 1})
 	check(cheap.rings._cheap, "the lowest quality runs the cheap orbit")
 	GameSettings.quality = q
-	# The wraps on both fists, on every body.
+	# The knuckle dusters on both fists, on every body.
 	for gender in 2:
 		for body in ChibiBodies.count(gender):
 			var v := HeroVisual.new()
 			holder.add_child(v)
 			v.setup(MT, "", true, {"weapon": ItemData.generate(95, MT, RandomNumberGenerator.new(), 2, "weapon")}, {"gender": gender, "body": body})
 			var held := v._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false)
-			check(held.size() == 2 and (held[0] as BoneAttachment3D).bone_name != (held[1] as BoneAttachment3D).bone_name, "body %d/%d wears wraps on both fists" % [gender, body])
+			check(held.size() == 2 and (held[0] as BoneAttachment3D).bone_name != (held[1] as BoneAttachment3D).bone_name, "body %d/%d wears knuckle dusters on both fists" % [gender, body])
 			v.free()
 	holder.queue_free()
 	await _frames(2)
@@ -427,7 +438,7 @@ func _field() -> void:
 	check(MuayThai.buff_total(hero, "hit_heal") >= 0.05, "รำมวยบูชาครู raises the hit-heal")
 	# An AI Muay Thai party member fights and casts its lines.
 	await _ai_party(hero)
-	# The online look: another player's game shows the class, its rings and its wraps.
+	# The online look: another player's game shows the class, its rings and its dusters.
 	var look := PlayerLook.of_profile(Game.profile)
 	var sent: Variant = JSON.parse_string(JSON.stringify(look))
 	var remote := RemotePlayer.new()
@@ -436,7 +447,7 @@ func _field() -> void:
 	remote.apply_look(sent, 70, 0)
 	await _frames(2)
 	check(remote.visual.class_id == MT and is_instance_valid(remote.visual.rings) and remote.visual.rings.multimesh.instance_count == 4, "online: a Muay Thai player shows with 4 rings at Lv.70")
-	check(remote.visual._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).size() == 2, "online: and its wraps")
+	check(remote.visual._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).size() == 2, "online: and its knuckle dusters")
 	remote.queue_free()
 	main.queue_free()
 	await _frames(3)
@@ -502,4 +513,4 @@ func _save_round_trip() -> void:
 	check(Game.class_id() == MT and int(Game.profile.level) == 64 and int(Game.profile.skills.get("jab_cross", 0)) == 4, "its class, level and star ranks survive")
 	var bar := Game.loadout_skills().filter(func(s): return not (s as Dictionary).is_empty()).map(func(s): return String(s.id))
 	check(bar.has("flame_hook") and bar.has("ring_guard"), "its bar casts the Lv.64 stages (%s)" % [bar])
-	check(String(Game.profile.equip.weapon.base) == "wraps", "its starter weapon is a pair of wraps")
+	check(String(Game.profile.equip.weapon.base) == "wraps", "its starter weapon is a pair of knuckle dusters")
