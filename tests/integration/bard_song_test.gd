@@ -223,10 +223,14 @@ func _party() -> void:
 	check(String(BuffBook.song_of(wolf._book.buffs).get("skill_id", "")) == "heroic_anthem", "an AI Bard's song reaches the summons")
 	check(String(BuffBook.song_of(singer._book.buffs).get("skill_id", "")) == "heroic_anthem" and not BuffBook.song_of(singer._book.buffs).ally, "the AI Bard holds its own song")
 	check(buddy._book.buffs.filter(func(b): return BuffBook.is_song(b)).size() <= BuffBook.SONG_LIMIT, "a companion never holds more than two songs")
-	# A non-song buff from an AI member still reaches the hero only.
+	# The party-buff rule (BuffBook.reaches_party): a Mage's buff from an AI member stays on
+	# that member; a Priest's reaches the hero and the other members like a song.
 	var guard := ClassData.find_skill(&"mage", "energy_shield")
 	singer._apply_self(guard)
-	check(BuffBook.contains(hero._buffs, "energy_shield", true) and not BuffBook.contains(buddy._book.buffs, "energy_shield", true), "other AI buffs stay the hero's only")
+	check(BuffBook.contains(singer._book.buffs, "energy_shield", false) and not BuffBook.contains(hero._buffs, "energy_shield", true) and not BuffBook.contains(buddy._book.buffs, "energy_shield", true), "another class's AI buff stays on its caster")
+	var blessing := ClassData.find_skill(&"priest", "blessing_aura")
+	singer._apply_self(blessing)
+	check(BuffBook.contains(hero._buffs, "blessing_aura", true) and BuffBook.contains(buddy._book.buffs, "blessing_aura", true), "a Priest's AI buff reaches the hero and the other members")
 
 
 ## A stance (self_only) stays on its caster, for the hero and for an AI member.
