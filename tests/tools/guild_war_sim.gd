@@ -172,6 +172,9 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 
 	var stuck_max := 0.0
 	var stuck := {}
+	# Players moved by a push / pull / kick this war, and pushes refused by the immunity (WarPush).
+	var pushes0 := WarPush.pushes
+	var refused0 := WarPush.refused
 	var last_pos := {}
 	for f in m.all_fighters():
 		f.fell.connect(func(victim: GuildFighter, killer: Node) -> void:
@@ -349,7 +352,7 @@ func _war(war_seed: int, teams: int, smart: Array, mults: Array, seconds: float,
 		"clock": snappedf(clock, 1.0), "winner": int(r.get("winner", -2)), "score": Array(m.score), "captures_n": Array(m.captures),
 		"owner": m.castle_owner, "capture_log": captures, "kills": kills, "deaths": deaths, "gates": gate_down, "tiers": tier_open,
 		"retakes": captures.filter(func(c): return captures.find(c) > 0).size(), "phases": rounded.map(func(x): return x[0]), "plans": rounded.map(func(x): return x[1]),
-		"points": points, "lone_deaths": lone, "cap_start": cap_start, "cap_broken": cap_broken, "heal_idle": heal_idle, "leaders": lead_stat.map(func(d): return _rounded(d)), "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who,
+		"points": points, "lone_deaths": lone, "cap_start": cap_start, "cap_broken": cap_broken, "heal_idle": heal_idle, "leaders": lead_stat.map(func(d): return _rounded(d)), "places": r.get("places", []), "stuck_max": stuck_max, "stuck_who": stuck_who, "pushes": WarPush.pushes - pushes0, "push_refused": WarPush.refused - refused0,
 		"doctrine_peak_ms": snappedf(float(peak_us) / 1000.0, 0.01), "doctrine_thinks": thinks,
 		"doctrine_think_avg_us": int(float(total_us) / float(maxi(1, thinks))), "doctrine_apply_avg_us": int(float(apply_us) / float(maxi(1, applies))), "orders": orders,
 		"frame_avg_ms": snappedf(frame_sum / float(maxi(1, frames)), 0.01), "frame_peak_ms": snappedf(frame_peak, 0.1),
