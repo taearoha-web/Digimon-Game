@@ -327,11 +327,20 @@ func _buffs(m: GuildWarMatch, hero: Hero) -> void:
 	await _frames(1)
 	check(GuildWarMatch.buff_reaches(hero, a) and not GuildWarMatch.buff_reaches(hero, b) and not GuildWarMatch.buff_reaches(a, b) and GuildWarMatch.buff_reaches(b, b2), "buff_reaches follows the parties")
 	check(GuildWarMatch.buff_reaches(e, e2) and not GuildWarMatch.buff_reaches(e, e3) and not GuildWarMatch.buff_reaches(e, a) and not GuildWarMatch.buff_reaches(hero, e), "and the rival guild's")
-	var focus := _skill(&"warrior", "concentration")
+	# A party buff (the party-buff rule: a Priest's, a Bard's, เบ่งเลือด) is what the
+	# parties decide on; a Warrior's buff never leaves its caster (BuffBook.reaches_party).
+	var focus := _skill(&"priest", "blessing_aura")
+	var own_buff := _skill(&"warrior", "concentration")
+	_reset(everyone, hero)
+	hero._apply_self_fx(own_buff)
+	check(BuffBook.contains(hero._buffs, "concentration", false) and a._atk_boost == 1.0 and a2._atk_boost == 1.0, "hero: a Warrior's buff stays the hero's own, even in its party")
+	_reset(everyone, hero)
+	a._resolve(own_buff, null, Vector3.ZERO)
+	check(a._atk_boost > 1.2 and a2._atk_boost == 1.0 and not BuffBook.contains(hero._buffs, "concentration", true), "ally: a Warrior's buff stays the caster's own")
 	# Hero -> allies: only the hero's party.
 	_reset(everyone, hero)
 	hero._apply_self_fx(focus)
-	check(BuffBook.contains(hero._buffs, "concentration", false), "hero: the caster keeps its own buff")
+	check(BuffBook.contains(hero._buffs, "blessing_aura", false), "hero: the caster keeps its own buff")
 	check(a._atk_boost > 1.2 and a2._atk_boost > 1.2, "hero -> party: both party mates get the buff")
 	check(b._atk_boost == 1.0 and b2._atk_boost == 1.0, "hero -> another party: nothing")
 	check(e._atk_boost == 1.0, "hero -> rival: nothing")
@@ -339,8 +348,8 @@ func _buffs(m: GuildWarMatch, hero: Hero) -> void:
 	_reset(everyone, hero)
 	a._resolve(focus, null, Vector3.ZERO)
 	check(a._atk_boost > 1.2, "ally: the caster keeps its own buff")
-	check(BuffBook.contains(hero._buffs, "concentration", true), "party mate -> hero: the hero gets it (as an ally's buff)")
-	var entry: Dictionary = hero._buffs.filter(func(x): return String(x.get("skill_id", "")) == "concentration").front() if not hero._buffs.is_empty() else {}
+	check(BuffBook.contains(hero._buffs, "blessing_aura", true), "party mate -> hero: the hero gets it (as an ally's buff)")
+	var entry: Dictionary = hero._buffs.filter(func(x): return String(x.get("skill_id", "")) == "blessing_aura").front() if not hero._buffs.is_empty() else {}
 	check(not entry.is_empty() and float(entry.get("total", entry.get("secs", 99.0))) <= 30.0, "party mate -> hero: for 30 s at most")
 	check(a2._atk_boost > 1.2, "party mate -> party mate: gets it")
 	check(b._atk_boost == 1.0 and b2._atk_boost == 1.0 and e._atk_boost == 1.0, "party mate -> other parties and rivals: nothing")
@@ -350,7 +359,7 @@ func _buffs(m: GuildWarMatch, hero: Hero) -> void:
 	check(b2._atk_boost > 1.2 and a._atk_boost == 1.0 and a2._atk_boost == 1.0, "another party -> its own mate only")
 	# The rival guild deals the same way.
 	_reset(everyone, hero)
-	e._resolve(_skill(&"warrior", "holy_valor"), null, Vector3.ZERO)
+	e._resolve(_skill(&"priest", "blessing_aura"), null, Vector3.ZERO)
 	check(e2._atk_boost > 1.2 and e2._def_boost > 1.2, "rival -> its party mate: gets it")
 	check(e3._atk_boost == 1.0 and b._atk_boost == 1.0 and hero._buffs.is_empty(), "rival -> its other party, us: nothing")
 	# Out of reach the party still misses out (12 m as before).
@@ -365,7 +374,7 @@ func _buffs(m: GuildWarMatch, hero: Hero) -> void:
 		f.hp = f.max_hp / 2
 	Game.profile.hp = int(hero.stats.max_hp) / 2
 	var hp_hero := int(Game.profile.hp)
-	a._resolve(_skill(&"warrior", "drastic_spirit"), null, Vector3.ZERO)
+	a._resolve(_skill(&"priest", "miracle"), null, Vector3.ZERO)
 	check(b.hp > b.max_hp / 2 and int(Game.profile.hp) > hp_hero, "heal: a party mate's heal still reaches another party and the hero")
 	check(b._def_boost == 1.0 and a2._def_boost > 1.5, "heal: but its buff only the party")
 	var b_hp := b.hp
