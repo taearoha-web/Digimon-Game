@@ -864,6 +864,17 @@ func respawn() -> void:
 # Moving and fighting
 # ---------------------------------------------------------------------------
 
+## A repel (the hero's, a party member's skill: Mob.shove_out) throws a player too in a
+## war, with the war's limits (WarPush); a monster's own knock-backs still leave it be.
+func shove_out(center: Vector3, radius: float) -> void:
+	WarPush.repel(null, self, center, radius)
+
+
+## A pull (Imperial Judgment: Mob.pull_in) gathers a player in too in a war (WarPush).
+func pull_in(center: Vector3, radius: float) -> void:
+	WarPush.pull(null, self, center, radius)
+
+
 func _physics_process(delta: float) -> void:
 	_view()
 	if _dead:

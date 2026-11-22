@@ -173,7 +173,7 @@ static func skill_fx(attacker: Variant, victim: Variant, fx: Dictionary) -> void
 	if fx.has("combo"):
 		add_combo(attacker, int(fx.combo))
 	if fx.has("kick") and attacker is Node3D:
-		kick(victim, (attacker as Node3D).global_position, float(fx.kick))
+		kick(victim, (attacker as Node3D).global_position, float(fx.kick), attacker)
 
 
 ## Damage multiplier the mantra rings leave on a hit the fighter takes.
@@ -224,9 +224,14 @@ static func ring_show(caster: Variant, skill: Dictionary, center: Vector3) -> vo
 
 
 ## Throws [param victim] [param metres] away from [param from]. A body standing on the
-## guild war altar goes clear of the yellow circle whatever the kick's length.
-static func kick(victim: Variant, from: Vector3, metres: float) -> void:
+## guild war altar goes clear of the yellow circle whatever the kick's length. A player in a
+## guild war or the maze war (a fighter, the hero) is thrown by WarPush (its limits: allies,
+## walls, the floor, the stagger, the push immunity) for [param by].
+static func kick(victim: Variant, from: Vector3, metres: float, by: Variant = null) -> void:
 	if victim == null or not is_instance_valid(victim) or not (victim is Node3D) or metres <= 0.0:
+		return
+	if WarPush.handles(by, victim):
+		WarPush.kick(by, victim as Node3D, from, metres)
 		return
 	var body := victim as Node3D
 	if body is Mob and (body as Mob).is_dead():

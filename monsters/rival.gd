@@ -682,6 +682,9 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	# a guild onto the altar) back (MuayThai.kick).
 	if not fx.is_empty() and _alive(victim):
 		MuayThai.skill_fx(self, victim, fx)
+	# A pull or a repel moves another player too in a guild war or the maze war (WarPush).
+	if (fx.has("pull") or fx.has("repel")) and _alive(victim):
+		WarPush.skill_fx(self, victim, fx)
 	if fx.get("raven_mark") is Array and _alive(victim):
 		ClassRoles.raven_mark(self, victim, fx.raven_mark)
 	if fx.is_empty() or not Mob.carries_mark(fx) or not _alive(victim):

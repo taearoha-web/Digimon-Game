@@ -187,6 +187,10 @@ func shove_out(_center: Vector3, _radius: float) -> void:
 	pass
 
 
+func pull_in(_center: Vector3, _radius: float) -> void:
+	pass
+
+
 ## The leader's fighter fell: it lies down here (the hero scores it when it dealt the blow).
 func mirror_dead(d: Dictionary) -> void:
 	if _dead:
