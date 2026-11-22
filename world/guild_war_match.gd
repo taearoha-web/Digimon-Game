@@ -83,9 +83,10 @@ var mirror_order := ""
 const NEUTRAL_COLOR := Color("fff1b8")
 ## Parties (ปาร์ตี้): everyone in the war fights in a party of at most PARTY_SIZE. The hero
 ## picks up to PARTY_SIZE - 1 teammates before the war (GuildWarScreen); everybody else on
-## both sides is dealt into random parties as even in size as can be. A buff (any buff
-## skill: attack, guard, shield, songs...) reaches only the caster's own party; heals
-## reach everyone near as before.
+## both sides is dealt into random parties as even in size as can be. A party buff (the
+## Priest's, the Bard's songs and buffs, เบ่งเลือด: BuffBook.reaches_party) reaches only the
+## caster's own party (every other class's buff stays on its caster anyway); heals reach
+## everyone near as before.
 const PARTY_SIZE := 5
 ## The hero's party; the other parties of our guild count up from it, team t's (t >= 1)
 ## from ENEMY_PARTY_BASE * t.
@@ -1046,7 +1047,8 @@ func hero_party_members() -> Array[GuildFighter]:
 
 ## The team-buff button (บัฟทีม, GuildWarHud / HUD): every living fighter of the hero's
 ## party casts all its buff skills that are ready (GuildFighter.cast_team_buffs), wherever
-## it stands; a team buff reaches the hero as always when the caster is within
+## it stands (self buffs stay on their casters); a party buff (BuffBook.reaches_party)
+## reaches the hero as always when the caster is within
 ## GuildFighter.BUFF_REACH. Then the button rests TEAM_BUFF_COOLDOWN seconds.
 const TEAM_BUFF_COOLDOWN := 30.0
 var team_buff_left := 0.0

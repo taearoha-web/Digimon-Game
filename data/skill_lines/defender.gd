@@ -18,7 +18,7 @@ const LINES := [
 	["shield_slam", "bastion_crush"],  # single + stun
 	["provoke", "grand_provoke"],  # taunt
 	["ground_quake", "titan_quake", "holy_rampart"],  # area around + stun
-	["iron_wall", "sanctuary_wall"],  # team guard buff
+	["iron_wall", "sanctuary_wall"],  # self guard buff (only เบ่งเลือด reaches the party)
 	["thorn_guard", "unbreakable", "aegis_of_ages"],  # reflect / self guard
 	["meteor_shield", "world_bastion"],  # ultimate
 ]
@@ -68,9 +68,9 @@ static func skills() -> Array:
 		ClassData._sk(d, "ground_quake", "Ground Quake", "ทุบโล่ลงพื้น ศัตรูรอบตัวช้าลง 2 วินาที", 20, 20, 9.0, "burst", 2.4, {"radius": 4.5, "fx": {"slow": 2.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("d8b98a"), "icon": "nova"}),
 		ClassData._sk(d, "titan_quake", "Titan Quake", "ทุบพสุธาด้วยโล่ยักษ์ ศัตรูรอบตัวมึนงง 1 วินาที", 60, 62, 12.0, "burst", 7.5, {"radius": 6.5, "fx": {"stun": 1.0}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ffb06a"), "icon": "spin"}),
 		ClassData._sk(d, "holy_rampart", "Holy Rampart", "กำแพงแสงระเบิดรอบตัว ศัตรูมึนงง 1.5 วินาที", 80, 90, 16.0, "burst", 11.5, {"radius": 7.5, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Spin", "vfx": &"light", "color": Color("fff0a0"), "icon": "nova"}),
-		# team guard buff: iron_wall (30) -> sanctuary_wall (96)
-		ClassData._sk(d, "iron_wall", "Iron Wall", "กำแพงเหล็ก DEF +50% ลดความเสียหาย 15% นาน 1 นาที (ส่งถึงทีม)", 30, 26, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.5, "guard": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("a8c8e8"), "icon": "shield"}),
-		ClassData._sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร DEF +50% ATK +40% ลดความเสียหาย 25% นาน 1 นาที (ส่งถึงทีม)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "def": 0.5, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
+		# self guard buff (not shared): iron_wall (30) -> sanctuary_wall (96)
+		ClassData._sk(d, "iron_wall", "Iron Wall", "กำแพงเหล็ก DEF +50% ลดความเสียหาย 15% นาน 1 นาที (เฉพาะตัว)", 30, 26, 32.0, "self", 0.0, {"fx": {"buff": {"def": 0.5, "guard": 0.15, "secs": 60.0}}, "anim": "Blocking", "color": Color("a8c8e8"), "icon": "shield"}),
+		ClassData._sk(d, "sanctuary_wall", "Sanctuary Wall", "กำแพงวิหาร DEF +50% ATK +40% ลดความเสียหาย 25% นาน 1 นาที (เฉพาะตัว)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.4, "def": 0.5, "guard": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffe9a0"), "icon": "bless"}),
 		# reflect / self guard: thorn_guard (40) -> unbreakable (76) -> aegis_of_ages (88)
 		ClassData._sk(d, "thorn_guard", "Thorn Guard", "โล่หนาม สะท้อนความเสียหาย 20% กลับใส่ผู้โจมตี DEF +20% นาน 1 นาที", 40, 36, 34.0, "self", 0.0, {"fx": {"buff": {"reflect": 0.2, "def": 0.2, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffb46a"), "icon": "shield"}),
 		ClassData._sk(d, "unbreakable", "Unbreakable", "ไม่มีวันแตก DEF +80% ฟื้น HP 30% สะท้อนความเสียหาย 25% นาน 1 นาที", 76, 76, 42.0, "self", 0.0, {"fx": {"heal": 0.3, "buff": {"def": 0.8, "reflect": 0.25, "secs": 60.0}}, "anim": "Blocking", "color": Color("ffd27a"), "icon": "shield"}),

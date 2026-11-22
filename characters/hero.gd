@@ -1502,9 +1502,13 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
 			buff = BuffBook.boost_song(buff, SONG_SET_BOOST)
 		receive_buff(buff, color, String(skill.name), false, String(skill.id))
-		# A stance (self_only) is the caster's own; every other buff reaches the team.
-		if not BuffBook.is_self_only(buff):
+		# The party-buff rule (BuffBook.reaches_party): a Priest's or a Bard's buff and
+		# เบ่งเลือด reach the team; any other class's buff stays the hero's (and its own
+		# summons'); a stance (self_only) is the hero's alone.
+		if BuffBook.reaches_party(buff):
 			_share_buff(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
+		elif not BuffBook.is_self_only(buff):
+			_buff_own_summons(buff, color, String(skill.name), String(skill.id))
 
 
 # --- The Dark Lord's raven and Summon -----------------------------------------
@@ -1638,12 +1642,21 @@ func gather_to(caster: Node3D) -> int:
 	return movers.size()
 
 
-## Buff skills reach the whole team: companions and summoned creatures get them too
-## (in a guild war only the hero's own party and its summons: GuildWarMatch.buff_reaches).
+## A party buff (BuffBook.reaches_party: the Priest's, the Bard's, เบ่งเลือด) reaches the
+## whole team: companions and summoned creatures get it too (in a guild war only the
+## hero's own party and its summons: GuildWarMatch.buff_reaches).
 func _share_buff(buff: Dictionary, color: Color, label: String, skill_id := "") -> void:
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead() and GuildWarMatch.buff_reaches(self, node):
 			node.receive_party_buff(buff, color, label, skill_id)
+
+
+## A self buff (any class but the Priest and the Bard) reaches the hero's own summons
+## only: they are part of its kit. Nobody else's.
+func _buff_own_summons(buff: Dictionary, color: Color, label: String, skill_id := "") -> void:
+	for s in _summons:
+		if is_instance_valid(s) and s.has_method("receive_party_buff") and not s.is_dead():
+			s.receive_party_buff(buff, color, label, skill_id)
 
 
 ## A buff from a skill or from a companion: {atk, def, speed, crit, secs}.

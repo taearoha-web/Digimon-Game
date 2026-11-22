@@ -647,15 +647,22 @@ func _heal_allies(fraction: float) -> void:
 	hero.receive_heal(fraction)
 
 
+## A party buff (BuffBook.reaches_party: a Priest's, a Bard's song or buff, เบ่งเลือด's max
+## HP) reaches the whole party: the hero, the other members and every summon too.
 func _buff_allies(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
 	hero.receive_buff(buff, color, label, true, skill_id)
-	# A Bard's song and a party buff (เบ่งเลือด's max HP) reach the whole party: the other
-	# members and every summon too (other buffs stay the hero's, as they always were).
-	if not (BuffBook.is_song(buff) or buff.get("party") is Array) or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	for node in get_tree().get_nodes_in_group("companions") + get_tree().get_nodes_in_group("summons"):
 		if node != self and is_instance_valid(node) and node.has_method("receive_party_buff") and not node.is_dead():
 			node.receive_party_buff(buff, color, label, skill_id)
+
+
+## A self buff (any class but the Priest and the Bard) reaches the caster's own summons only.
+func _buff_own_summons(buff: Dictionary, color: Color, label: String, skill_id: String) -> void:
+	for s in _summons:
+		if is_instance_valid(s) and s.has_method("receive_party_buff") and not s.is_dead():
+			s.receive_party_buff(buff, color, label, skill_id)
 
 
 ## The song the party plays (the hero's song slot holds it), or {}.
@@ -998,7 +1005,7 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 		return 8.5
 	# The dragon's claw is aimed at an unprotected mate: a party defence buff (a Priest's) now.
 	if String(skill.shape) == "self" and fx.get("buff") is Dictionary and float(fx.buff.get("def", 0.0)) > 0.0 \
-			and not BuffBook.is_self_only(fx.buff) and DragonBoss.wants_ward(self):
+			and BuffBook.reaches_party(fx.buff) and DragonBoss.wants_ward(self):
 		return 9.2
 	match String(skill.shape):
 		"summon":
@@ -1186,9 +1193,13 @@ func _apply_self(skill: Dictionary) -> void:
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
-		# A stance (self_only) stays on the one who cast it.
-		if not BuffBook.is_self_only(buff):
+		# The party-buff rule (BuffBook.reaches_party): only a Priest's or a Bard's buff and
+		# เบ่งเลือด reach the party; any other class's stays on the caster (and its own
+		# summons); a stance (self_only) stays on the one who cast it.
+		if BuffBook.reaches_party(buff):
 			_buff_allies(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
+		elif not BuffBook.is_self_only(buff):
+			_buff_own_summons(buff, color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 

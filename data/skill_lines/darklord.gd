@@ -18,7 +18,7 @@ const LINES := [
 	["earthshake", "earth_dominion"],  # area + stun
 	["electric_spike", "thunder_lord"],  # chain lightning
 	["birds", "raven_storm"],  # the raven: marks the target for the party
-	["commanders_aura", "lord_of_command", "emperors_command"],  # party attack buff
+	["commanders_aura", "lord_of_command", "emperors_command"],  # the Lord's own attack buff (self only)
 	["summon"],  # party warp
 	["infernal_scream", "imperial_judgment"],  # ultimate (Imperial Judgment pulls in)
 ]
@@ -75,10 +75,10 @@ static func skills() -> Array:
 		# the party deals +15% to it for 5 s; on a lone target every raven lands on it.
 		ClassData._sk(k, "birds", "Birds", "ปล่อยฝูงอีกาเงา 5 ตัวโฉบใส่ศัตรู (ถ้ามีตัวเดียว โฉบใส่ตัวนั้นทั้งฝูง) ประทับตราอีกา ทั้งปาร์ตี้ทำดาเมจใส่เป้าหมาย +15% นาน 5 วินาที", 20, 20, 9.0, "fan", 2.4, {"hits": 5, "range": 11.0, "converge": true, "fx": {"raven_mark": RAVEN_MARK}, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
 		ClassData._sk(k, "raven_storm", "Raven Storm", "พายุอีกาเงา 8 ตัวโฉบใส่ศัตรูรอบทิศ (ถ้ามีตัวเดียว โฉบใส่ตัวนั้นทั้งฝูง) ประทับตราอีกา ทั้งปาร์ตี้ทำดาเมจใส่เป้าหมาย +15% นาน 5 วินาที", 88, 96, 13.0, "fan", 4, {"hits": 8, "range": 12.0, "converge": true, "fx": {"raven_mark": RAVEN_MARK}, "anim": "Spellcast_Shoot", "vfx": &"impact", "color": dark, "icon": "triple"}),
-		# 6 party attack buff: Commander's Aura -> Lord of Command (76) -> Emperor's Command (96)
-		ClassData._sk(k, "commanders_aura", "Commander's Aura", "รัศมีผู้บัญชาการ ทีม ATK +35% DEF +20% นาน 1 นาที", 30, 26, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.35, "def": 0.2, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
-		ClassData._sk(k, "lord_of_command", "Lord of Command", "จ้าวบัญชาการ ทีม ATK +35% คริ +15% DEF +25% ฟื้น HP 20% นาน 1 นาที", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.15, "def": 0.25, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
-		ClassData._sk(k, "emperors_command", "Emperor's Command", "ราชโองการจักรพรรดิ ทีม ATK +55% คริ +20% วิ่งเร็ว +15% นาน 1 นาที", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
+		# 6 self attack buff (BuffBook.reaches_party: not shared): Commander's Aura -> Lord of Command (76) -> Emperor's Command (96)
+		ClassData._sk(k, "commanders_aura", "Commander's Aura", "รัศมีผู้บัญชาการ ATK +35% DEF +20% นาน 1 นาที (เฉพาะตัว)", 30, 26, 36.0, "self", 0.0, {"fx": {"buff": {"atk": 0.35, "def": 0.2, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
+		ClassData._sk(k, "lord_of_command", "Lord of Command", "จ้าวบัญชาการ ATK +35% คริ +15% DEF +25% ฟื้น HP 20% นาน 1 นาที (บัฟเฉพาะตัว)", 76, 76, 40.0, "self", 0.0, {"fx": {"heal": 0.2, "buff": {"atk": 0.35, "crit": 0.15, "def": 0.25, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
+		ClassData._sk(k, "emperors_command", "Emperor's Command", "ราชโองการจักรพรรดิ ATK +55% คริ +20% วิ่งเร็ว +15% นาน 1 นาที (เฉพาะตัว)", 96, 110, 50.0, "self", 0.0, {"fx": {"buff": {"atk": 0.55, "crit": 0.2, "speed": 0.15, "secs": 60.0}}, "anim": "Cheer", "color": royal, "icon": "bless"}),
 		# 7 party warp: Summon
 		ClassData._sk(k, "summon", "Summon", "วาร์ปเพื่อนทั้งปาร์ตี้มาอยู่ข้างตัวทันที ฟื้น HP ทีม 10%", 40, 30, 20.0, "self", 0.0, {"fx": {"recall": true, "heal": 0.1}, "anim": "Spellcast_Raise", "vfx": &"aura", "color": dark, "icon": "bless"}),
 		# 8 ultimate: Infernal Scream (50) -> Imperial Judgment (100), which pulls the

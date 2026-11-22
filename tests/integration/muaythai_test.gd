@@ -91,7 +91,7 @@ func _lines() -> void:
 	check(ClassData.find_skill(MT, "push_kick").fx.has("kick") and ClassData.find_skill(MT, "body_throw").fx.has("stun"), "the kick and the throw")
 	check(ClassData.find_skill(MT, "thousand_ring_fist").fx.has("combo_power") and ClassData.find_skill(MT, "muay_king").fx.has("combo_power"), "the ultimates grow with the combo")
 	check(BuffBook.is_self_only(ClassData.find_skill(MT, "ring_guard").fx.buff) and float(ClassData.find_skill(MT, "iron_prajiad").fx.buff.reflect) > 0.0, "the ring guard is the fighter's own and reflects at its second stage")
-	check((ClassData.find_skill(MT, "sacred_mongkhon").fx.buff.party as Array) == ["atk"], "มงคลศักดิ์สิทธิ์ gives the party its ATK part")
+	check(not BuffBook.reaches_party(ClassData.find_skill(MT, "sacred_mongkhon").fx.buff), "มงคลศักดิ์สิทธิ์ is the fighter's own (party-buff rule: only Priest, Bard, เบ่งเลือด reach the party)")
 	# Passives: hit-heal and the combo window.
 	var p := {"class": MT, "level": 100, "adv": 4, "skills": {"fighter_heart": 5, "muay_rhythm": 5}, "equip": {}, "attrs": {}}
 	var bonus := HeroStats.passive_bonus(p)

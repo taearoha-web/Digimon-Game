@@ -1287,7 +1287,7 @@ func _upkeep_score(skill: Dictionary, distance: float) -> float:
 	# The class's signature buff (the Defender's เบ่งเลือด) always goes up first.
 	if ClassData.is_signature(skill):
 		score += 2.0
-	if not BuffBook.is_self_only(buff) and party_near(BUFF_REACH) >= 2:
+	if BuffBook.reaches_party(buff) and party_near(BUFF_REACH) >= 2:
 		score += 0.5 if BuffBook.is_song_skill(skill) else 0.8
 	return score
 
@@ -1551,10 +1551,12 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 			_recall_party()
 		_summon_to_hero = false
 	if String(skill.shape) == "self" and skill.get("fx", {}).has("buff"):
-		var buff: Dictionary = skill.fx.buff
-		# A stance (self_only) stays on the fighter who cast it.
-		if BuffBook.is_self_only(buff):
+		# The party-buff rule (BuffBook.reaches_party): only a Priest's or a Bard's buff and
+		# เบ่งเลือด (its max HP: BuffBook.party_part) reach the fighter's mates; any other
+		# class's buff (and a stance) stays on the fighter who cast it.
+		if not BuffBook.reaches_party(skill.fx.buff):
 			return
+		var buff := BuffBook.party_part(skill.fx.buff)
 		for ally in _teammates():
 			if _flat_distance(ally.global_position) > BUFF_REACH:
 				continue

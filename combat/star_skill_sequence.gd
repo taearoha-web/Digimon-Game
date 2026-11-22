@@ -187,9 +187,12 @@ func _hit(h: Hero, index: int, count: int) -> void:
 			var fx:Dictionary=skill.get("fx",{})
 			if fx.has("buff"):
 				h.receive_buff(fx.buff,skill.color,skill.name,false,skill.id)
-				if id!="sylph_step":
-					for ally in h.get_tree().get_nodes_in_group("companions")+h.get_tree().get_nodes_in_group("summons"):
-						if is_instance_valid(ally) and not ally.is_dead() and ally.global_position.distance_to(origin)<=12.0 and GuildWarMatch.buff_reaches(h,ally): ally.receive_party_buff(fx.buff,skill.color,skill.name,skill.id)
+				# The party-buff rule (BuffBook.reaches_party): a Priest's or a Bard's star buff
+				# reaches the team in range; every other class's stays the hero's and its own summons'.
+				var team:=BuffBook.reaches_party(fx.buff)
+				for ally in h.get_tree().get_nodes_in_group("companions")+h.get_tree().get_nodes_in_group("summons"):
+					if not (team or h._summons.has(ally)) or BuffBook.is_self_only(fx.buff): continue
+					if is_instance_valid(ally) and not ally.is_dead() and ally.global_position.distance_to(origin)<=12.0 and GuildWarMatch.buff_reaches(h,ally): ally.receive_party_buff(BuffBook.party_part(fx.buff),skill.color,skill.name,skill.id)
 		if id=="sacred_sanctuary":
 			# The field belongs to its buff; replacement ends healing immediately.
 			if not BuffBook.contains(h._buffs,id,false): return

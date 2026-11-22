@@ -32,9 +32,19 @@ static func identity(buff: Dictionary) -> String:
 static func is_song(buff: Dictionary) -> bool:
 	return bool(buff.get("song", false))
 
-## A stance (the Bard's Virtuoso): it stays on its caster and is never shared.
+## A stance (the Bard's Virtuoso, the Muay Thai rituals): it stays on its caster and is
+## never shared, not even with the caster's own summons; its heal is the caster's too.
 static func is_self_only(buff: Dictionary) -> bool:
 	return bool(buff.get("self_only", false))
+
+## The party-buff rule: a buff reaches the caster's party only when it is the Priest's or
+## the Bard's (songs too) or the Defender's เบ่งเลือด: ClassData marks those "team"
+## (ClassData.PARTY_BUFF_CLASSES / PARTY_BUFF_SKILLS). Every other class's buff (the
+## Warrior's, Iron Wall, the Dark Lord's commands, the Muay Thai rituals...) buffs its
+## caster only, and its own summons (they are part of the caster's kit). Heals are no
+## buffs: a skill's heal follows its own rules (a stance keeps it to its caster).
+static func reaches_party(buff: Dictionary) -> bool:
+	return not is_self_only(buff) and (bool(buff.get("team", false)) or is_song(buff))
 
 ## What of [param buff] reaches the party: a buff naming "party" keys (เบ่งเลือด: only its
 ## max HP) shares just those and its duration; any other buff is shared whole.
@@ -44,7 +54,7 @@ static func party_part(buff: Dictionary) -> Dictionary:
 	var keys: Array = buff.party
 	var out := {}
 	for key in buff:
-		if key in keys or key in ["secs", "song", "name", "skill_id", "party"]:
+		if key in keys or key in ["secs", "song", "team", "name", "skill_id", "party"]:
 			out[key] = buff[key]
 	return out
 

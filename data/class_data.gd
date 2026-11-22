@@ -134,7 +134,7 @@ const CLASSES := {
 		"name": "ผู้เรียกอสูร",
 		"title": "ผู้ผูกพันกับป่าและสัตว์",
 		"badge": "S",
-		"desc": "สายเรียกอสูร — เรียกสัตว์ป่าและเทพพิทักษ์มาสู้เคียงข้าง เสริมพลังให้ทั้งทีม ตัวเองสู้ด้วยเวทธรรมชาติ ยิ่งเรียกมาก ยิ่งแรง แต่ตัวเองเลือดไม่เยอะ",
+		"desc": "สายเรียกอสูร — เรียกสัตว์ป่าและเทพพิทักษ์มาสู้เคียงข้าง เสริมพลังตัวเองและอสูร ภูตินางฟ้าฟื้นเลือดให้ทีม ตัวเองสู้ด้วยเวทธรรมชาติ ยิ่งเรียกมาก ยิ่งแรง แต่ตัวเองเลือดไม่เยอะ",
 		"model": "Barbarian",
 		"weapon": "lantern",
 		"offhand": "tome",
@@ -218,7 +218,7 @@ const CLASSES := {
 		"name": "ดาร์กลอร์ด",
 		"title": "จอมราชันผู้บัญชาการ",
 		"badge": "K",
-		"desc": "ดาร์กลอร์ด — ราชันผู้บัญชาการแบบ MU Online ถือคทาราชันมือหนึ่ง อีกแขนมีอีกาคู่ใจเกาะอยู่ สั่งให้อีกาพุ่งไปโจมตีเองได้ ใช้พลังมืด ไฟ และสายฟ้า สั่นแผ่นดิน เสริมพลังทั้งทีม และวาร์ปเพื่อนทั้งปาร์ตี้มาหาตัวได้ (STR ตีแรง INT เสริมเป็นรอง)",
+		"desc": "ดาร์กลอร์ด — ราชันผู้บัญชาการแบบ MU Online ถือคทาราชันมือหนึ่ง อีกแขนมีอีกาคู่ใจเกาะอยู่ สั่งให้อีกาพุ่งไปโจมตีเองได้ ใช้พลังมืด ไฟ และสายฟ้า สั่นแผ่นดิน เสริมพลังตัวเอง และวาร์ปเพื่อนทั้งปาร์ตี้มาหาตัวได้ (STR ตีแรง INT เสริมเป็นรอง)",
 		"model": "Knight",
 		"weapon": "scepter",
 		"offhand": "",
@@ -560,6 +560,22 @@ static func _heals_and_buffs(skill: Dictionary) -> bool:
 	return fx is Dictionary and (fx as Dictionary).has("heal") and (fx as Dictionary).get("buff") is Dictionary
 
 
+## The owner's party-buff rule: every class's buffs buff only their caster (and its own
+## summons), EXCEPT the Priest's and the Bard's (songs too) and the Defender's เบ่งเลือด,
+## which reach the whole party. _build_pools marks those buffs "team" (BuffBook.reaches_party);
+## a stance (self_only) stays the caster's whatever its class.
+const PARTY_BUFF_CLASSES := [&"priest", &"bard"]
+const PARTY_BUFF_SKILLS := ["brace"]
+
+
+## Whether [param skill] of class [param cls] is a buff that reaches the party.
+static func is_party_buff_skill(cls: StringName, skill: Dictionary) -> bool:
+	var fx: Variant = skill.get("fx")
+	if not (fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary) or bool(fx.buff.get("self_only", false)):
+		return false
+	return PARTY_BUFF_CLASSES.has(cls) or PARTY_BUFF_SKILLS.has(String(skill.get("id", "")))
+
+
 ## A class's signature buff, always in its AI kit and kept up first (เบ่งเลือด).
 const SIGNATURE_BUFFS := {&"defender": "brace"}
 
@@ -753,3 +769,9 @@ static func _build_pools() -> void:
 		_pools[line_class] = _line_pool(line_class)
 	for star_class in IDS:
 		_pools[star_class].append_array(StarSkillData.pool(star_class))
+	# The party-buff rule (BuffBook.reaches_party): only these buffs reach the party.
+	for cls in _pools:
+		for skill in _pools[cls]:
+			if is_party_buff_skill(cls, skill):
+				skill["fx"] = (skill.fx as Dictionary).duplicate(true)
+				skill.fx.buff["team"] = true

@@ -639,7 +639,7 @@ func _build_party() -> void:
 	var back := UIUtil.button("กลับ", &"", Vector2(120, 54))
 	back.pressed.connect(_build_lobby)
 	head.add_child(back)
-	var rules := UIUtil.label("ปาร์ตี้ละไม่เกิน %d คน · บัฟจากสกิลถึงเฉพาะคนในปาร์ตี้เดียวกัน (ฮีลยังถึงทุกคนที่อยู่ใกล้เหมือนเดิม) · เพื่อนที่ไม่ได้เลือกและกิลด์คู่แข่งจะถูกสุ่มจัดเป็นปาร์ตี้ละไม่เกิน %d คน" % [PARTY_SIZE, PARTY_SIZE], &"SmallLabel")
+	var rules := UIUtil.label("ปาร์ตี้ละไม่เกิน %d คน · บัฟทีม (นักบวช นักดนตรี และเบ่งเลือดของผู้พิทักษ์) ถึงเฉพาะคนในปาร์ตี้เดียวกัน อาชีพอื่นบัฟได้เฉพาะตัวเอง (ฮีลยังถึงทุกคนที่อยู่ใกล้เหมือนเดิม) · เพื่อนที่ไม่ได้เลือกและกิลด์คู่แข่งจะถูกสุ่มจัดเป็นปาร์ตี้ละไม่เกิน %d คน" % [PARTY_SIZE, PARTY_SIZE], &"SmallLabel")
 	rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rules.add_theme_color_override("font_color", UIPalette.TEXT_DIM)
 	column.add_child(rules)

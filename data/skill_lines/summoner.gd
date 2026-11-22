@@ -18,7 +18,7 @@ const LINES := [
 	["entangle", "world_tree"],  # area + slow
 	["spore_burst", "earth_shatter", "cataclysm"],  # area around + slow
 	["thorn_storm"],  # rain of thorns
-	["forest_blessing", "spirit_link", "gaia_blessing"],  # team buff (ATK/DEF)
+	["forest_blessing", "spirit_link", "gaia_blessing"],  # self + own summons buff (ATK/DEF)
 	["regrowth", "life_bloom", "fairy_spirit"],  # heal (at Lv.84 the healing fairy heals on her own)
 	["wolf_pack", "alpha_wolves", "primal_legion", "elder_dragon"],  # ultimate: the beast summon
 ]
@@ -68,10 +68,10 @@ static func skills() -> Array:
 		ClassData._sk(s, "cataclysm", "Cataclysm", "ธรรมชาติพิโรธ ถล่มรอบตัวอย่างรุนแรง ศัตรูมึนงง 1.2 วินาทีและช้าลง 3 วินาที", 96, 118, 16.0, "burst", 22.0, {"radius": 9.0, "fx": {"stun": 1.2, "slow": 3.0}, "vfx": &"leaf", "color": Color("b8ff7a"), "icon": "spin"}),
 		# rain of thorns: thorn_storm (20)
 		ClassData._sk(s, "thorn_storm", "Thorn Storm", "พายุหนามถล่มพื้นที่เป้าหมาย", 20, 24, 12.0, "blast", 7.0, {"radius": 6.0, "special": "rain", "vfx": &"leaf", "color": Color("8fe07a"), "icon": "rain"}),
-		# team buff (ATK/DEF): forest_blessing (30) -> spirit_link (72) -> gaia_blessing (88)
-		ClassData._sk(s, "forest_blessing", "Forest Blessing", "พลังป่าคุ้มครอง DEF +25% ATK +12% นาน 1 นาที (ส่งถึงทีมและอสูร)", 30, 26, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.25, "atk": 0.12, "secs": 60.0}}, "color": Color("7ddc6a"), "icon": "bless"}),
-		ClassData._sk(s, "spirit_link", "Spirit Link", "เชื่อมวิญญาณ ATK +50% วิ่งเร็ว +20% DEF +30% นาน 1 นาที (ส่งถึงทีมและอสูร)", 72, 76, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "speed": 0.2, "def": 0.3, "secs": 60.0}}, "color": Color("a8ffd0"), "icon": "bless"}),
-		ClassData._sk(s, "gaia_blessing", "Gaia's Blessing", "ฟื้นฟู HP 40% DEF +60% ATK +40% นาน 1 นาที (ส่งถึงทีมและอสูร)", 88, 96, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.6, "atk": 0.4, "secs": 60.0}}, "vfx": &"heal", "color": Color("d8ffb0"), "icon": "bless"}),
+		# self + own summons buff (ATK/DEF): forest_blessing (30) -> spirit_link (72) -> gaia_blessing (88)
+		ClassData._sk(s, "forest_blessing", "Forest Blessing", "พลังป่าคุ้มครอง DEF +25% ATK +12% นาน 1 นาที (เฉพาะตัวและอสูรของตัวเอง)", 30, 26, 30.0, "self", 0.0, {"fx": {"buff": {"def": 0.25, "atk": 0.12, "secs": 60.0}}, "color": Color("7ddc6a"), "icon": "bless"}),
+		ClassData._sk(s, "spirit_link", "Spirit Link", "เชื่อมวิญญาณ ATK +50% วิ่งเร็ว +20% DEF +30% นาน 1 นาที (เฉพาะตัวและอสูรของตัวเอง)", 72, 76, 40.0, "self", 0.0, {"fx": {"buff": {"atk": 0.5, "speed": 0.2, "def": 0.3, "secs": 60.0}}, "color": Color("a8ffd0"), "icon": "bless"}),
+		ClassData._sk(s, "gaia_blessing", "Gaia's Blessing", "ฟื้นฟู HP 40% DEF +60% ATK +40% นาน 1 นาที (เฉพาะตัวและอสูรของตัวเอง)", 88, 96, 45.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.6, "atk": 0.4, "secs": 60.0}}, "vfx": &"heal", "color": Color("d8ffb0"), "icon": "bless"}),
 		# heal (at Lv.84 the healing fairy heals on her own): regrowth (40) -> life_bloom (60) -> fairy_spirit (84)
 		ClassData._sk(s, "regrowth", "Regrowth", "ฟื้นฟู HP 35% และ DEF +15% นาน 1 นาที", 40, 36, 20.0, "self", 0.0, {"fx": {"heal": 0.35, "buff": {"def": 0.15, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),
 		ClassData._sk(s, "life_bloom", "Life Bloom", "ฟื้นฟู HP 40% DEF +30% นาน 1 นาที", 60, 56, 28.0, "self", 0.0, {"fx": {"heal": 0.4, "buff": {"def": 0.3, "secs": 60.0}}, "vfx": &"heal", "color": Color("6dff9a"), "icon": "heal"}),

@@ -611,7 +611,8 @@ func _heal_allies(fraction: float) -> void:
 		party_say(HEAL_LINES)
 
 
-## A buff reaches the party's people near it (in the hero's party, the hero and the party).
+## A party buff (BuffBook.reaches_party: a Priest's, a Bard's, เบ่งเลือด) reaches the
+## party's people near it (in the hero's party, the hero and the party).
 func _buff_allies(buff: Dictionary, color: Color, label_text: String, skill_id: String) -> void:
 	if party_mode:
 		super._buff_allies(buff, color, label_text, skill_id)
