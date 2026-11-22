@@ -111,6 +111,8 @@ static func warm_shaders(parent: Node3D, pos: Vector3, slicer: SceneTree = null)
 	await FrameSlicer.pace(slicer)
 	BardSkillArt.warm_up(parent, pos)
 	await FrameSlicer.pace(slicer)
+	MuayThaiArt.warm_up(parent, pos)
+	await FrameSlicer.pace(slicer)
 	BuffAura.warm_up(parent, pos)
 	SongWingArt.warm_up(parent, pos)
 
