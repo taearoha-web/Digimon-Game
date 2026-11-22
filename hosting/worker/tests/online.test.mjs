@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Room, CLOSE_ELSEWHERE, CLOSE_IDLE, PARTY_GRACE_MS, INSTANCED_ZONES, PET_SKILLS, PET_ACTS_PER_SECOND, PETS,
   ANNOUNCE_KINDS, ANNOUNCE_ZONES, ANNOUNCE_STARS, ANNOUNCE_CLASSES, ANNOUNCE_PER_MINUTE, ANNOUNCE_GAP_MS, ANNOUNCE_RARE_GAP_MS,
-  BOSS_GAP_MS, BOSS_KEEP_MS, MAZE_CREDIT_GAP_MS, MAZE_REKILL_MS, MAZE_HITS_PER_SECOND, mazeWeek} from '../online/room.mjs';
+  BOSS_GAP_MS, BOSS_KEEP_MS, MAZE_CREDIT_GAP_MS, MAZE_REKILL_MS, MAZE_HITS_PER_SECOND, MAZE_OPEN_MS, mazeWeek} from '../online/room.mjs';
 import {readFileSync} from 'node:fs';
 import {WorldRoom, fitAttachment} from '../online/world_room.mjs';
 import worker from '../worker.mjs';
@@ -1277,6 +1277,7 @@ test('maze_hit: relayed only between two players standing in the maze, rate-limi
 
 test('maze_kill / maze_down: the week\'s board of real players, credited by the server, the same pair once a minute', () => {
   const {connect, clock, room} = world();
+  clock.t = MAZE_OPEN_MS + 3_600_000;
   const a = connect('1').hello({name: 'Alice', zone: 'maze_war'});
   const b = connect('2').hello({name: 'Bob', zone: 'maze_war'});
   const c = connect('3').hello({name: 'Carol', zone: 'meadow'});
@@ -1321,10 +1322,23 @@ test('maze_kill / maze_down: the week\'s board of real players, credited by the 
   const board = d.last('maze_board');
   assert.deepEqual(board.rows.map(r => [r.name, r.kills]).sort(), [['Alice', 3], ['Bob', 1]]);
   // A new week starts again and keeps the champion.
-  clock.t += 8 * 86_400_000;
+  clock.t += 7 * 86_400_000;
   const e = connect('5');
   assert.equal(e.frames('maze_board').length, 0, 'the new week\'s board is empty');
   assert.deepEqual(room.exportMaze().champs[0], {week: mazeWeek(clock.t) - 1, name: 'Alice', kills: 3});
+});
+
+test('maze: kills and champions from before the world reopened are off the board', () => {
+  const {connect, clock, room} = world();
+  clock.t = MAZE_OPEN_MS + 3_600_000;
+  room.importMaze({week: mazeWeek(clock.t), board: [
+    {name: 'OldKing', kills: 99, at: MAZE_OPEN_MS - 3_600_000},
+    {name: 'Fresh', kills: 2, at: MAZE_OPEN_MS + 60_000},
+  ], champs: [{week: mazeWeek(MAZE_OPEN_MS) - 1, name: 'OldKing', kills: 500}]});
+  const board = connect('1').last('maze_board');
+  assert.deepEqual(board.rows.map(r => r.name), ['Fresh']);
+  assert.deepEqual(board.champs, []);
+  assert.deepEqual(room.exportMaze().champs, []);
 });
 
 test('WorldRoom: the maze\'s board outlives a restart (storage)', async () => {

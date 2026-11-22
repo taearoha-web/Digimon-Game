@@ -63,6 +63,8 @@ export const MAZE_REKILL_MS = 60_000;      // the same killer on the same victim
 export const MAZE_HITS_PER_SECOND = 15;
 export const MAZE_HIT_MAX = 1e9;
 export const MAZE_CHAMPS_MAX = 12;
+/** The world's reopening (WorldPlayers.START_UNIX, ms): kills before it are off the board. */
+export const MAZE_OPEN_MS = 1795309200 * 1000;
 const DAY_MS = 86_400_000;
 const TZ_MS = 7 * 3_600_000;
 /** The week index of unix ms `ms`: weeks from Monday 00:00 Thai time (GuildLeague.week_of). */
@@ -664,6 +666,7 @@ export class Room {
     if (week === this.maze.week) return;
     let top = null;
     for (const [name, e] of this.maze.board) {
+      if (e.at < MAZE_OPEN_MS) continue;
       if (!top || e.kills > top.kills || (e.kills === top.kills && e.at < top.at)) top = {name, kills: e.kills, at: e.at};
     }
     if (top) this.maze.champs = [{week: this.maze.week, name: top.name, kills: top.kills}, ...this.maze.champs].slice(0, MAZE_CHAMPS_MAX);
@@ -676,8 +679,8 @@ export class Room {
   /** The week's board as the clients get it (`ago`: how long since each reached its count). */
   mazeBoard() {
     const now = this.now();
-    const rows = [...this.maze.board].map(([name, e]) => ({name, kills: e.kills, ago: Math.max(0, now - e.at)}));
-    return {t: 'maze_board', week: this.maze.week, rows, champs: this.maze.champs.slice()};
+    const rows = [...this.maze.board].filter(([, e]) => e.at >= MAZE_OPEN_MS).map(([name, e]) => ({name, kills: e.kills, ago: Math.max(0, now - e.at)}));
+    return {t: 'maze_board', week: this.maze.week, rows, champs: this.maze.champs.filter(c => c.week >= mazeWeek(MAZE_OPEN_MS))};
   }
 
   /** Credits player `credited` (a session) with a kill of `victim` (a name) in the maze,
@@ -716,10 +719,10 @@ export class Room {
     if (Array.isArray(saved.board)) {
       for (const e of saved.board.slice(0, MAZE_NAMES_MAX)) {
         const name = dict(e) ? str(e.name, AI_SPEAKER_MAX) : '';
-        if (name && Number.isSafeInteger(e.kills) && e.kills > 0 && finite(e.at)) board.set(name, {kills: Math.min(e.kills, 1e6), at: e.at});
+        if (name && Number.isSafeInteger(e.kills) && e.kills > 0 && finite(e.at) && e.at >= MAZE_OPEN_MS) board.set(name, {kills: Math.min(e.kills, 1e6), at: e.at});
       }
     }
-    const champs = Array.isArray(saved.champs) ? saved.champs.filter(c => dict(c) && Number.isSafeInteger(c.week) && str(c.name, AI_SPEAKER_MAX) && Number.isSafeInteger(c.kills))
+    const champs = Array.isArray(saved.champs) ? saved.champs.filter(c => dict(c) && Number.isSafeInteger(c.week) && c.week >= mazeWeek(MAZE_OPEN_MS) && str(c.name, AI_SPEAKER_MAX) && Number.isSafeInteger(c.kills))
       .slice(0, MAZE_CHAMPS_MAX).map(c => ({week: c.week, name: str(c.name, AI_SPEAKER_MAX), kills: c.kills})) : [];
     this.maze = {week: saved.week, board, champs};
     this.mazeRoll();

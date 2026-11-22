@@ -779,7 +779,12 @@ static func receive(msg: Dictionary) -> String:
 		if name == "" or not (kills is int or kills is float) or bool(e.get("ai", false)):
 			continue
 		var ago := float(e.get("ago", 0)) / 1000.0 if (e.get("ago") is int or e.get("ago") is float) else 0.0
-		board[name] = {"kills": clampi(int(kills), 0, KILLS_MAX), "at": t - clampf(ago, 0.0, 8.0 * 86400.0)}
+		var at := t - clampf(ago, 0.0, 8.0 * 86400.0)
+		# Kills from before the world's reopening (an old world's heroes) are off the board.
+		if at < float(OPEN_UNIX):
+			board.erase(name)
+			continue
+		board[name] = {"kills": clampi(int(kills), 0, KILLS_MAX), "at": at}
 	for w in _real.keys():
 		if int(w) < week_of(t) - 1:
 			_real.erase(w)
