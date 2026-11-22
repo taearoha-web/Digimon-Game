@@ -11,7 +11,11 @@ extends Node
 ##   a backup of an old character is refused;
 ## - the world: exactly the ROSTER's 100 players, no daily newcomers, everyone Lv.1 with no
 ##   guild at the reopening and nobody online before it; no league round, frozen result or
-##   maze week from before it.
+##   maze week from before it;
+## - nobody holds the castle at the reopening: no holder, no Castle King (ราชันปราสาท), no
+##   emperor or League Champion, no crown plate, no Castle King EXP or ranks before 08:00,
+##   at 08:30 and after a first round nobody took; a capture in a round after the opening
+##   makes that guild the holder (and the next week's Castle King).
 ##   godot --headless --path . res://tests/integration/world_reopen_test.tscn
 var failures := 0
 var checks := 0
@@ -36,6 +40,7 @@ func _ready() -> void:
 	_old_codes_and_backups()
 	_world_players()
 	_league_and_maze()
+	_no_castle_holder()
 	print("WORLD_REOPEN: %s | %d checks, %d failures (%d ms)" % ["PASS" if failures == 0 else "FAIL", checks, failures, Time.get_ticks_msec() - started])
 	get_tree().quit(0 if failures == 0 else 1)
 
@@ -252,3 +257,76 @@ func _league_and_maze() -> void:
 	check(MazeWar.sim_kills(week, float(start)).is_empty(), "no maze kills at the reopening")
 	check(MazeWar.champion(week - 1).is_empty(), "no maze champion of the week before")
 	MazeWar.ai_mode = -1
+
+
+## Every holder / title query at the world clock t (WorldPresence.clock_offset pinned).
+func _titles_at(t: float) -> Dictionary:
+	WorldPresence.clock_offset = t - WorldPlayers.now()
+	ChatFacts._king = {}
+	ChatFacts._league = {}
+	var w := GuildLeague.week_of(t)
+	var crowned: Array = []
+	for g in GuildLeague.ids():
+		if GuildLeague.crowned(g):
+			crowned.append(g)
+	var ranked: Array = []
+	for g in GuildLeague.ids():
+		if GuildLeague.rank_of(w - 1, [], g) > 0:
+			ranked.append(g)
+	return {"holder": GuildLeague.holder(w, []), "next_owner": GuildLeague.start_holder(GuildLeague.next_slot(t)),
+		"king": GuildLeague.champion_now(t), "king_now": GuildLeague.champion_of(w, []), "league": GuildLeague.league_champion_now(t),
+		"emperor": GuildLeague.emperor_now(t), "emperor_now": GuildLeague.emperor_of(w, []), "crowned": crowned, "ranked_last": ranked,
+		"chat_king": ChatFacts.castle_king(t), "chat_holder": int(ChatFacts.league(t).holder), "exp": GuildLeague.exp_mult(t), "chip": GuildLeague.chip_text(t),
+		"owner_text": GuildLeague.owner_text(GuildLeague.next_slot(t))}
+
+
+func _nobody(r: Dictionary, label: String) -> void:
+	check(int(r.holder) == 0 and int(r.next_owner) == 0, "%s: nobody holds the castle (%s)" % [label, str(r)])
+	check(int(r.king) == 0 and int(r.king_now) == 0 and int(r.chat_king) == 0 and int(r.chat_holder) == 0, "%s: no Castle King anywhere (%s)" % [label, str(r)])
+	check(int(r.emperor) == 0 and int(r.emperor_now) == 0 and int(r.league) == 0, "%s: no emperor or League Champion" % label)
+	check((r.crowned as Array).is_empty() and (r.ranked_last as Array).is_empty(), "%s: no crown plate, no ranked guild of last week (%s)" % [label, str(r)])
+	check(is_equal_approx(float(r.exp), 1.0) and String(r.chip) == "", "%s: no Castle King EXP bonus or chip" % label)
+	check(String(r.owner_text).begins_with("ยังไม่มีใครครองปราสาท"), "%s: the war desk says nobody holds it (%s)" % [label, r.owner_text])
+
+
+func _no_castle_holder() -> void:
+	var was_offset := WorldPresence.clock_offset
+	var was_persist := LeagueRounds.persist
+	LeagueRounds.persist = false
+	LeagueRounds.reset()
+	var start := float(WorldPlayers.START_UNIX)
+	var first := GuildLeague.next_slot(start - 1.0)
+	var after_first := float(first) + GuildWarData.DURATION + 60.0
+	_nobody(_titles_at(start - 1200.0), "07:40 before the opening")
+	_nobody(_titles_at(start + 1800.0), "08:30")
+	# The first round ended with nobody holding the castle (the server's result).
+	check(LeagueRounds.adopt(first, {"at": first, "g": [1, 2, 3, 4], "k": [10, 8, 6, 4], "c": [0, 0, 0, 0], "held": 0, "own": 0}), "a no-capture first round is taken")
+	_nobody(_titles_at(after_first), "12:21 after a first round nobody took")
+	check(GuildLeague.holder_after(first) == 0, "nobody holds it after that round")
+	var table: Array = GuildLeague.table(GuildLeague.week_of(after_first), [], after_first)
+	check(int(table[0].held) == 0, "no guild is counted as holding at the bell")
+	# The first round ended with Neverdie (2) holding the castle: it is the holder from then.
+	check(LeagueRounds.adopt(first, {"at": first, "g": [1, 2, 3, 4], "k": [10, 8, 6, 4], "c": [0, 2, 0, 0], "held": 2, "own": 0}), "a captured first round is taken")
+	var r := _titles_at(after_first)
+	check(int(r.holder) == 2 and int(r.next_owner) == 2 and GuildLeague.holder_after(first) == 2, "the guild that captured it in the first round holds the castle (%s)" % str(r))
+	check(int(r.chat_holder) == 2, "the chat knows the holder")
+	check(int(r.king) == 0 and (r.crowned as Array).is_empty(), "still no Castle King this week (the title is last week's)")
+	var monday := GuildLeague.week_start(GuildLeague.week_of(start) + 1) + 600.0
+	r = _titles_at(monday)
+	var king := GuildLeague.holder_after(GuildLeague.final_slot(GuildLeague.week_of(start)))
+	check(king > 0 and int(r.king) == king and (r.crowned as Array) == [king], "the next Monday the holder after Sunday's last round is Castle King and wears the crown (%s)" % str(r))
+	# Every round of the opening day ended with nobody holding the castle: still nobody on
+	# Monday (no stand-in guild, no table leader as Castle King).
+	LeagueRounds.reset()
+	for m in GuildLeague.schedule(GuildLeague.week_of(start)):
+		if int(m.at) < WorldPlayers.START_UNIX:
+			check(GuildLeague.round_results(int(m.at), 0, []).is_empty() and GuildLeague.sim_round(int(m.at), 0).is_empty(), "a calendar slot before the opening has no result (%d)" % int(m.at))
+			continue
+		LeagueRounds.adopt(int(m.at), {"at": int(m.at), "g": [1, 2, 3, 4], "k": [0, 0, 0, 0], "c": [0, 0, 0, 0], "held": 0, "own": 0})
+	r = _titles_at(monday)
+	check(int(r.holder) == 0 and int(r.king) == 0 and int(r.chat_king) == 0 and (r.crowned as Array).is_empty() and int(r.emperor) == 0, "the next Monday after an opening day nobody took: no holder, Castle King or crown (%s)" % str(r))
+	WorldPresence.clock_offset = was_offset
+	ChatFacts._king = {}
+	ChatFacts._league = {}
+	LeagueRounds.persist = was_persist
+	LeagueRounds.reset()

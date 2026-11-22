@@ -29,8 +29,8 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	box.add_child(UIUtil.label("ลีกกิลด์รายสัปดาห์", &"SubHeaderLabel"))
 	var left := int(GuildLeague.week_end(w) - t)
 	var holder := GuildLeague.holder(w, GuildLeague.real_wars(w), t)
-	var info := UIUtil.label("ฤดูกาลนี้ (จันทร์ 00:00 – อาทิตย์ 23:59 เวลาไทย) จบใน %d วัน %d ชม. · ผู้ครองปราสาทตอนนี้: กิลด์ %s — 2 ตำแหน่งทุกสัปดาห์: %s = แต้มรวมอันดับ 1 (รับรางวัลอันดับ 1) · %s = ผู้ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 20:30 (ป้ายมงกุฎ EXP +%d%% ร้านลับ) · ได้ทั้งสองเป็น%s" % [
-		left / 86400, (left % 86400) / 3600, GuildLeague.name_of(holder), GuildLeague.LEAGUE_TITLE, GuildLeague.CASTLE_TITLE,
+	var info := UIUtil.label("ฤดูกาลนี้ (จันทร์ 00:00 – อาทิตย์ 23:59 เวลาไทย) จบใน %d วัน %d ชม. · ผู้ครองปราสาทตอนนี้: %s — 2 ตำแหน่งทุกสัปดาห์: %s = แต้มรวมอันดับ 1 (รับรางวัลอันดับ 1) · %s = ผู้ครองปราสาทหลังรอบชี้ขาด อาทิตย์ 20:30 (ป้ายมงกุฎ EXP +%d%% ร้านลับ) · ได้ทั้งสองเป็น%s" % [
+		left / 86400, (left % 86400) / 3600, "กิลด์ " + GuildLeague.name_of(holder) if holder > 0 else "ยังไม่มีกิลด์ครอง", GuildLeague.LEAGUE_TITLE, GuildLeague.CASTLE_TITLE,
 		int(GuildLeague.EXP_BONUS * 100.0), GuildLeague.EMPEROR_TITLE], &"SmallLabel")
 	info.name = "LeagueInfo"
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -48,7 +48,9 @@ static func build(parent: Control, refresh: Callable) -> Control:
 	var league_champ := GuildLeague.league_champion_now(t)
 	var last := UIUtil.label("สัปดาห์ที่แล้ว · %s (แต้มรวมอันดับ 1): กิลด์ %s · %s %s (ครองปราสาทหลังรอบชี้ขาด): กิลด์ %s — สมาชิก%sได้ป้ายชื่อมงกุฎทอง EXP +%d%% และร้านลับ%sตลอดสัปดาห์นี้" % [
 		GuildLeague.LEAGUE_TITLE, GuildLeague.name_of(league_champ) if league_champ > 0 else "-", GuildLeague.CROWN, GuildLeague.CASTLE_TITLE,
-		GuildLeague.name_of(champ), GuildLeague.CASTLE_TITLE, int(GuildLeague.EXP_BONUS * 100.0), GuildLeague.CASTLE_TITLE], &"BoldLabel")
+		GuildLeague.name_of(champ), GuildLeague.CASTLE_TITLE, int(GuildLeague.EXP_BONUS * 100.0), GuildLeague.CASTLE_TITLE], &"BoldLabel") if champ > 0 else \
+		UIUtil.label("สัปดาห์ที่แล้ว · %s: %s · %s %s: ยังไม่มีกิลด์ใดครองปราสาท — กิลด์แรกที่ยึดปราสาทได้ในรอบลีกจะเป็น%s" % [
+		GuildLeague.LEAGUE_TITLE, "กิลด์ " + GuildLeague.name_of(league_champ) if league_champ > 0 else "-", GuildLeague.CROWN, GuildLeague.CASTLE_TITLE, GuildLeague.CASTLE_TITLE], &"BoldLabel")
 	last.name = "LeagueChampion"
 	last.add_theme_color_override("font_color", GuildLeague.CROWN_COLOR)
 	last.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -140,7 +142,10 @@ static func _reward_card(refresh: Callable, mine: int) -> Control:
 	elif reward.is_empty():
 		var w := GuildLeague.week_of(WorldPresence.clock()) - 1
 		var rank := GuildLeague.rank_of(w, GuildLeague.real_wars(w), mine)
-		text = "สัปดาห์ที่แล้วกิลด์ของคุณได้อันดับ %d" % rank + (" · รับรางวัลแล้ว" if rank <= 3 else " · 3 อันดับแรกได้ทองและเพชรทุกสัปดาห์")
+		if rank <= 0:
+			text = "สัปดาห์ที่แล้วกิลด์ของคุณยังไม่มีคะแนนลีก · 3 อันดับแรกได้ทองและเพชรทุกสัปดาห์"
+		else:
+			text = "สัปดาห์ที่แล้วกิลด์ของคุณได้อันดับ %d" % rank + (" · รับรางวัลแล้ว" if rank <= 3 else " · 3 อันดับแรกได้ทองและเพชรทุกสัปดาห์")
 	else:
 		text = "สัปดาห์ที่แล้วกิลด์ของคุณได้อันดับ %d%s! รางวัล: %s" % [int(reward.rank),
 			" (%s)" % GuildLeague.LEAGUE_TITLE if int(reward.rank) == 1 else "", GuildLeague.reward_text(reward)]

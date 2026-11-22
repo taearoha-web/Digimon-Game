@@ -373,6 +373,8 @@ static func round_points(kills: int, caps: int) -> int:
 ## {at, g: guilds, k: falls, c: captures, held, own}; {} when fewer than two guilds have
 ## anyone at Lv.100.
 static func sim_round(at: int, own: int) -> Dictionary:
+	if at < WorldPlayers.START_UNIX:
+		return {}
 	var key := "%d|%d%s" % [at, own, sim_salt]
 	if _sim_cache.has(key):
 		return _sim_cache[key]
@@ -519,6 +521,9 @@ static func _frozen(r: Dictionary, official := false) -> Array:
 ## never worked out again). A round not over: the hero's real one, else the seeded one
 ## (never shown as a result; see events, holder_after). [] when nobody could fight.
 static func round_results(at: int, own: int, real: Array) -> Array:
+	# Before the world (re)opened there was no round: no result, no capture.
+	if at < WorldPlayers.START_UNIX:
+		return []
 	var over := ended(at)
 	if over:
 		var off := LeagueRounds.official_of(at)
@@ -574,13 +579,16 @@ static func _after(results: Array, own: int) -> int:
 ## The hero's real records the chain of holders reads: `real` and, with a profile, both
 ## seasons it keeps.
 static func _chain_real(real: Array) -> Array:
-	var out: Array = real.duplicate()
+	var out: Array = []
+	for e in real:
+		if e is Dictionary and int(e.get("at", 0)) >= WorldPlayers.START_UNIX:
+			out.append(e)
 	if Game.has_profile:
 		var d: Variant = Game.profile.get(KEY)
 		if d is Dictionary:
 			for key in ["prev_wars", "wars"]:
 				for e in (d as Dictionary).get(key, []):
-					if not out.has(e):
+					if e is Dictionary and int(e.get("at", 0)) >= WorldPlayers.START_UNIX and not out.has(e):
 						out.append(e)
 	return out
 
@@ -773,8 +781,9 @@ static func holder(w: int, real: Array, until := INF) -> int:
 
 
 ## The Castle King (ราชันปราสาท) of season w: the castle holder after its last round
-## (Sunday 20:30; the top guild if nobody held it). Before the season ends: the holder (and
-## table) so far.
+## (Sunday 20:30); 0 when nobody holds it then (no stand-in guild: a guild is Castle King
+## only after it really took the castle in a round after the world opened). Before the
+## season ends: the holder so far.
 static func champion_of(w: int, real: Array) -> int:
 	var last_at := 0
 	for e in real:
@@ -786,9 +795,7 @@ static func champion_of(w: int, real: Array) -> int:
 	if _champ_cache.size() > 16:
 		_champ_cache.clear()
 	var last := prev_slot(int(week_end(w)))
-	var champ := holder_after(last, real)
-	if champ == 0:
-		champ = int(table(w, real)[0].g)
+	var champ := holder_after(last, real) if last >= WorldPlayers.START_UNIX else 0
 	_champ_cache[key] = champ
 	return champ
 
@@ -814,14 +821,19 @@ static func league_champion_of(w: int, real: Array) -> int:
 ## The emperor (จักรพรรดิแห่งสัปดาห์) of season w: the guild that is both its League Champion
 ## and its Castle King (holding the castle after the last round); 0 when none is both.
 static func emperor_of(w: int, real: Array) -> int:
-	var king := holder_after(final_slot(w), real)
+	var fin := final_slot(w)
+	if fin < WorldPlayers.START_UNIX:
+		return 0
+	var king := holder_after(fin, real)
 	return king if king > 0 and league_champion_of(w, real) == king else 0
 
 
+## Guild g's place in season w's table (1 best); 0 while it has no points (a season
+## with no round, e.g. before the world opened, ranks nobody).
 static func rank_of(w: int, real: Array, g: int) -> int:
 	for r in table(w, real):
 		if int(r.g) == g:
-			return int(r.rank)
+			return int(r.rank) if int(r.points) > 0 else 0
 	return 0
 
 
@@ -1230,7 +1242,9 @@ static func tick(t := -1.0) -> bool:
 	Game.mark_dirty()
 	# The week's placement bonus in league coins (RewardShop), once.
 	RewardShop.week_closed(w - 1)
-	for line in announce_lines(w - 1, real_wars(w - 1)):
+	# A season over before the world (re)opened had no round: nobody to announce.
+	var lines := announce_lines(w - 1, real_wars(w - 1)) if week_end(w - 1) > float(WorldPlayers.START_UNIX) else PackedStringArray()
+	for line in lines:
 		Game.say(line, &"quest")
 		Game.post_chat("world", "ประกาศลีกกิลด์", line, CROWN_COLOR)
 	if hero_champion(t):
