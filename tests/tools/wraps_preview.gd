@@ -1,5 +1,5 @@
 extends Node3D
-## The Muay Thai fighter's hand wraps on every body (8 chibi bodies + KayKit) in idle,
+## The Muay Thai fighter's knuckle dusters on every body (8 chibi bodies + KayKit) in idle,
 ## run and a punch, camera close on the hands, laid out as one sheet.
 ##   godot --rendering-driver opengl3 --resolution 320x320 --path . res://tests/tools/wraps_preview.tscn -- OUT_PNG [LOOK]
 ## LOOK: the weapon look to wear (wraps_0 by default; star_wraps_200, set_wraps_muaythai,

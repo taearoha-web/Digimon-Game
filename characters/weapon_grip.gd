@@ -17,7 +17,7 @@ static func mount(kind: String) -> Basis:
 			# string (strums the lute).
 			return Basis(Vector3.RIGHT, PI * 0.5)
 		"wraps":
-			# A wrapped fist (HandWraps): the knuckle guard faces forward on either hand.
+			# A fist in knuckle dusters (HandWraps): the knuckle bar faces forward on either hand.
 			return Basis.IDENTITY
 	return Basis(Vector3.UP, PI)
 

@@ -224,12 +224,15 @@ func _ready() -> void:
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
 					if family == &"muaythai":
 						# The knuckle dusters on both fists: the fist centred on the hand and
-						# the knuckle bar on the finger line (KayKit's round mitt: the bar a
-						# little forward on its face, KAYKIT_FIST).
+						# the knuckle bar on the finger line. KayKit's mitt has no finger bones
+						# and its hand bone's root sits deep in the wrist: the dusters ride on
+						# the round mitt's face (KAYKIT_FIST, KAYKIT_SIZE), about 1.8 of its
+						# short hand lengths out from that root.
 						var fist_limit := 0.6 if rig != 2 else 1.0
+						var bar_limit := 0.6 if rig != 2 else 2.2
 						var off := knuckles_off_hand(hero, held(hero, kind), "r")
 						check(float(off[0]) < fist_limit, "%s tier%d %s the right knuckle dusters sit on the fist (%.2f hand lengths off)" % [tag, tier, clip, off[0]])
-						check(float(off[1]) < 0.6, "%s tier%d %s the right knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
+						check(float(off[1]) < bar_limit, "%s tier%d %s the right knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
 						# The second pair, on the left fist.
 						var left := hero._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).filter(func(n): return (n as BoneAttachment3D).bone_name == "handslot.l")
 						check(left.size() == 1, "%s tier%d knuckle dusters on the left fist" % [tag, tier])
@@ -239,7 +242,7 @@ func _ready() -> void:
 							check(error < 0.015, "%s tier%d %s left knuckle dusters grip %.4fm" % [tag, tier, clip, error])
 							off = knuckles_off_hand(hero, left[0], "l")
 							check(float(off[0]) < fist_limit, "%s tier%d %s the left knuckle dusters sit on the fist (%.2f hand lengths off)" % [tag, tier, clip, off[0]])
-							check(float(off[1]) < 0.6, "%s tier%d %s the left knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
+							check(float(off[1]) < bar_limit, "%s tier%d %s the left knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
 					if family == &"warrior":
 						error = grip(held(hero, "shield"), "shield").distance_to(palm(hero, "l"))
 						note(body_tag, "grip", error)

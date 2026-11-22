@@ -1065,7 +1065,7 @@ func _hold_gear() -> void:
 	_hold(weapon_look, WeaponGrip.hand_for(String(data.weapon_kind)), int(equip.get("weapon", {}).get("plus", 0)))
 	var plus := int(equip.get("weapon", {}).get("plus", 0))
 	if String(data.weapon_kind) == "wraps":
-		# The hand wraps are worn on both fists (every look: tier, star, set, divine, dragon).
+		# The knuckle dusters are worn on both fists (every look: tier, star, set, divine, dragon).
 		_hold(weapon_look, "handslot.l", plus, true)
 		return
 	if DivineGearData.is_item(equip.get("weapon")):
@@ -1129,7 +1129,7 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	var kind := StarGearData.kind_from_look(look)
 	if kind == HandWraps.KIND:
 		item = HandWraps.build(look)
-		# The Dragon God's wraps breathe round both fists.
+		# The Dragon God's knuckle dusters breathe round both fists.
 		if look.begins_with("dragon_"):
 			DragonGearArt.breath(item, decor_light)
 	elif look.begins_with("divine_"):
@@ -1164,7 +1164,7 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 	attach.add_child(pivot)
 	pivot.add_child(item)
 	if kind == HandWraps.KIND:
-		# The tape wraps this body's own hand: mirrored on the left, sized to the hand.
+		# The dusters sit on this body's own fist: mirrored on the left, sized to the hand.
 		HandWraps.fit(item, _hand_in_grip(bone, pivot), bone.ends_with(".l"), not chibi)
 	if kind not in ["shield","book","tome"] and not offhand:
 		_emission_grip = pivot

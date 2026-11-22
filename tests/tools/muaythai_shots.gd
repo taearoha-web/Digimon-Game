@@ -1,7 +1,7 @@
 extends Node
 ## Screenshots of the Muay Thai fighter (นักมวยประเจียด): standing in the village with
 ## its mantra rings orbiting (Lv.95: six rings), in a fight in the meadow throwing its
-## skills, and its hand wraps on every chibi body (and the KayKit body) side by side.
+## skills, and its knuckle dusters on every chibi body (and the KayKit body) side by side.
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . res://tests/tools/muaythai_shots.tscn -- <out_dir> [town|fight|bodies|all]
 var main: Node
 var out_dir := ""

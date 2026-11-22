@@ -20,7 +20,7 @@ static func cloth(class_id: String, stars: int) -> Color:
 
 
 static func build(look: String) -> Node3D:
-	# The Muay Thai fighter's hand wraps are drawn by HandWraps for every look kind.
+	# The Muay Thai fighter's knuckle dusters are drawn by HandWraps for every look kind.
 	if HandWraps.is_look(look):
 		return HandWraps.build(look)
 	var kind := StarGearData.kind_from_look(look)
