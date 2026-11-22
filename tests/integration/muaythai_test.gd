@@ -302,6 +302,9 @@ func _guild_war() -> void:
 		lead.global_position = SiegeArena.ALTAR + Vector3(0.4, 0.3, 0.6)
 		lead.velocity = Vector3.ZERO
 		lead._stun = 0.0
+		# A fresh kick each round (a pushed player is immune for a moment: WarPush).
+		lead.remove_meta(WarPush.META)
+		lead._guard_until = 0
 		if not m.capture.is_empty():
 			m._cancel_capture()
 		m._start_capture(GuildFighter.TEAM_ENEMY, lead)
