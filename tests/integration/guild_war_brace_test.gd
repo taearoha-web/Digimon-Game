@@ -49,6 +49,10 @@ func _ready() -> void:
 		for g in m.allies + m.enemies:
 			g.hp = g.max_hp
 		f.cooldowns.clear()
+		# Nothing running yet either: the war ran while the previous Defender was judged,
+		# and this one may already wear its own เบ่งเลือด (then it rightly picks another skill).
+		f._buff_art.clear(f)
+		f._buff_until = 0.0
 		# Lower-ranked fighters skip a random share of their picks (Rival._try_skill):
 		# judge the choice itself, at full rank with MP to spare.
 		var rank := f.difficulty
