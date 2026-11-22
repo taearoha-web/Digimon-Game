@@ -1337,7 +1337,7 @@ func _buff_durations() -> void:
 
 
 func _team_buffs() -> void:
-	print("== Buffs reach the team")
+	print("== Buffs: a Warrior's stays its own, a Priest's reaches the team")
 	await _start(&"warrior")
 	await main.go(&"meadow", true)
 	await _wait(0.6)
@@ -1364,17 +1364,23 @@ func _team_buffs() -> void:
 	check(hero.use_skill(0) == "", "the buff skill is cast")
 	await _wait(0.8)
 	check(hero._auras.has("holy_valor:false"), "the hero shows one Holy Valor aura for both stats")
-	check(buddy._book.total("def") > 0.0 and buddy._book.total("atk") > 0.0, "the companion gets the defence and attack buff (def +%.2f)" % buddy._book.total("def"))
-	check(buddy._book.auras.has("holy_valor:true"), "the companion shows the barrier too")
+	# The party-buff rule (BuffBook.reaches_party): a Warrior's buff is the hero's own (and
+	# its own summons'); only a Priest's, a Bard's or เบ่งเลือด reach the companions.
+	check(not BuffBook.contains(buddy._book.buffs, "holy_valor", true) and buddy._book.total("def") == 0.0, "a Warrior's buff stays off the companion (def +%.2f)" % buddy._book.total("def"))
 	var hero_buffs_before := hero._buffs.size()
-	var buddy_buffs_before := buddy._book.buffs.size()
+	var wolf_buffs_before := wolf._book.buffs.size()
 	hero.cooldowns.clear()
 	Game.profile.mp = int(hero.stats.max_mp)
 	hero.use_skill(0)
 	await _wait(0.8)
-	check(hero._buffs.size() == hero_buffs_before and buddy._book.buffs.size() == buddy_buffs_before, "casting the same buff again refreshes it instead of stacking")
+	check(hero._buffs.size() == hero_buffs_before and wolf._book.buffs.size() == wolf_buffs_before, "casting the same buff again refreshes it instead of stacking")
 	check(float(hero.timer_status()[0].total) >= 60.0, "the buff lasts a full minute")
-	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("holy_valor:true"), "the summon gets the defence buff and shows the barrier")
+	check(wolf._book.total("def") > 0.0 and wolf._book.auras.has("holy_valor:true"), "the hero's own summon gets the defence buff and shows the barrier")
+	# A party buff (a Priest's) reaches the companion: both stats, the barrier, harder hits.
+	hero._apply_self_fx(ClassData.find_skill(&"priest", "blessing_aura"))
+	await _wait(0.4)
+	check(buddy._book.total("def") > 0.0 and buddy._book.total("atk") > 0.0, "the companion gets a Priest's defence and attack buff (def +%.2f)" % buddy._book.total("def"))
+	check(buddy._book.auras.has("blessing_aura:true"), "the companion shows the barrier too")
 	check(buddy._buffed_atk() > float(buddy.stats.atk) * 1.3, "the companion hits harder while buffed (%.0f vs %.0f)" % [buddy._buffed_atk(), float(buddy.stats.atk)])
 	var buddy_buffs_end := Time.get_ticks_msec() + 200
 	for buff in buddy._book.buffs:
