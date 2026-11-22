@@ -209,6 +209,11 @@ static func settle(t := -1.0) -> void:
 		t = now()
 	var d := record()
 	var last := MazeWar.week_of(t) - 1
+	# A week settled on a stale champion (an older build's roster) is settled again.
+	var stale := MazeWar.purge_stale_champs()
+	if stale >= 0 and int(d.get("done", -1)) >= stale:
+		d["done"] = stale - 1
+		clear_cache()
 	var done := int(d.get("done", -1))
 	if done < last:
 		var from := last if done < 0 else maxi(done + 1, last - MAX_BACK + 1)

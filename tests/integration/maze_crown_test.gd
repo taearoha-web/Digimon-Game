@@ -41,6 +41,7 @@ func _ready() -> void:
 	_expiry()
 	_ai_holder()
 	_saves()
+	_stale()
 	WorldPresence.clock_offset = base_offset
 	MazeCrown.test_champions.clear()
 	MazeCrown.reset_session()
@@ -366,3 +367,36 @@ func _server(text: String, want: bool, label: String) -> void:
 		print("node not found: the server check is skipped")
 		return
 	check((code == 0) == want, "%s: %s" % [label, output[0] if output.size() > 0 else ""])
+
+
+## A champion saved by an older build names a world player no longer on the roster (its
+## index holds another name now): it is dropped, the week settled again, and the hero who
+## really killed the most gets the crown.
+func _stale() -> void:
+	_reset()
+	WorldPresence.clock_offset = base_offset
+	MazeCrown.test_champions.clear()
+	MazeCrown.reset_session()
+	MazeCrown.clear_cache()
+	MazeWar.reset()
+	var w := MazeWar.week_of(MazeCrown.now()) - 1
+	if MazeWar.week_end(w) <= float(MazeWar.OPEN_UNIX):
+		check(true, "stale champion: no week ended since the opening yet (skipped)")
+		return
+	Game.slot = 2
+	Game.new_profile(&"muaythai", "Stale QA", FaceKit.default_look())
+	Game.profile.level = 100
+	Game.profile[MazeWar.KEY] = {"weeks": {str(w): {"k": 99, "at": int(MazeWar.week_end(w)) - 600, "d": 0, "live": {}, "held": {}}},
+		"champs": {str(w): {"name": "Raijin", "kills": 15, "hero": false, "index": 19}}}
+	Game.profile[MazeCrown.KEY] = {"done": w, "until": 0, "wins": 0, "last": -1}
+	check(MazeWar.stale_champ({"name": "Raijin", "kills": 15, "hero": false, "index": 19}), "a name not at its index is stale")
+	check(not MazeWar.stale_champ({"name": String(WorldPlayers.entry(19).name), "kills": 15, "hero": false, "index": 19}), "the name at its index is not")
+	check(not MazeWar.stale_champ({"name": "Someone", "kills": 15, "hero": false, "index": -1}), "a real player is not")
+	MazeCrown.settle()
+	var c := MazeWar.champion(w)
+	check(bool(c.get("hero", false)) and int(c.get("kills", 0)) == 99, "the week's champion is worked out again: the hero (%s)" % [c])
+	check(MazeCrown.wears_title(Game.profile) and RewardShop.worn_costume() == MazeCrown.COSTUME_ID, "the hero gets the title and the costume")
+	check(int(MazeCrown.record().done) == w and int(MazeCrown.record().wins) == 1, "the week is settled once more (%s)" % [MazeCrown.record()])
+	var again := _all_crowns()
+	MazeCrown.settle()
+	check(_all_crowns() == again and int(MazeCrown.record().wins) == 1, "settling again changes nothing")

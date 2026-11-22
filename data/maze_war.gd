@@ -492,6 +492,9 @@ static func champion(week: int) -> Dictionary:
 	var key := str(week)
 	if Game.has_profile:
 		var saved: Dictionary = _data().get("champs", {})
+		if saved.has(key) and stale_champ(saved[key]):
+			saved.erase(key)
+			_champs.erase(week)
 		if saved.has(key):
 			return (saved[key] as Dictionary).duplicate()
 	if _champs.has(week):
@@ -514,6 +517,34 @@ static func champion(week: int) -> Dictionary:
 		_data()["champs"] = champs
 		Game.mark_dirty()
 	return out
+
+
+## True when a saved champion names a world player who is not the one at its index now
+## (worked out by an older build, against a roster since replaced): it is worked out again.
+static func stale_champ(c: Variant) -> bool:
+	if not c is Dictionary or bool((c as Dictionary).get("hero", false)):
+		return false
+	var i := int((c as Dictionary).get("index", -1))
+	if i < 0:
+		return false
+	return i >= WorldPlayers.size() or String(WorldPlayers.entry(i).name) != String((c as Dictionary).get("name", ""))
+
+
+## Drops the saved champions that are stale (stale_champ); the earliest such week, -1 none.
+static func purge_stale_champs() -> int:
+	if not Game.has_profile:
+		return -1
+	var saved: Dictionary = _data().get("champs", {})
+	var first := -1
+	for key in saved.keys():
+		if stale_champ(saved[key]):
+			saved.erase(key)
+			_champs.erase(int(key))
+			first = int(key) if first < 0 else mini(first, int(key))
+	if first >= 0:
+		revision += 1
+		Game.mark_dirty()
+	return first
 
 
 ## The champions of the last `count` ended weeks, newest first: [{week, name, kills, hero, index}].
