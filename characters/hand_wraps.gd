@@ -1,60 +1,80 @@
 class_name HandWraps
 extends RefCounted
-## The Muay Thai fighter's hand wraps (ผ้าพันมือ / นวมประเจียด): worn on both fists
-## (HeroVisual holds the same look in each hand). Built in code from a few shared
-## low-poly meshes, cheap on a phone: a wrapped fist (a capsule round the hand slot),
-## two cloth bands, and from the higher tiers a gold knuckle guard, a mantra band at
-## the wrist and (Lv.90+, star, set, divine, dragon) a soft glow. Every look kind is
-## handled here so the weapon reads the same whoever draws it:
+## The Muay Thai fighter's knuckle dusters (สนับมือ): worn on both fists (HeroVisual holds
+## the same look in each hand). The weapon kind stays "wraps" inside the game (saved
+## items, looks, icons) though the art is a pair of knuckle dusters now: a metal knuckle
+## bar across the striking face with four finger rings behind it, a palm grip joined to
+## the ends of the bar, rising in grandeur by tier: plain iron and steel with a grip
+## bound in the tier's colour (Lv.1-30), studded steel (Lv.31-60), gold with set gems
+## (Lv.61-100), and for the top weapons (star 150+, set, divine) glowing inlays down the
+## bar, a crest of blades over it and a band of mantra script (ประเจียด) on the grip.
+## Every look kind is handled here so the weapon reads the same whoever draws it:
 ##   wraps_<0-9>                the ten gear tiers (ItemData)
 ##   star_wraps_<50..200>       star gear (StarGearData)
 ##   set_wraps_muaythai         the 250-star class set (SetGearData)
 ##   divine_wraps_muaythai_200  the divine weapon (DivineGearData)
 ##   dragon_wraps_muaythai      the Dragon God weapon (DragonGearData), built by
-##                              DragonGearArt (dragon-scale wraps with the dragon coiled
-##                              round the fist) in this same layout
+##                              DragonGearArt (jade-and-gold dusters from pieces, the
+##                              dragon rearing its head over the knuckles) in this layout
 ## Model convention: the grip (the hand slot, where a held handle would pass through the
 ## closed fingers) at the origin, as a RIGHT fist sits in the grip space every rig shares
 ## (HeroVisual's slot fix lines the chibi slots up with KayKit's): the forearm runs to
 ## -X (the wrist at about (-0.063, 0, 0.038) on the original chibi boy), the fingers'
 ## striking face looks +X, the knuckles stack along Y and the back of the hand faces +Z.
-## The tape circles the hand's own axis (X), so it wraps hand and wrist. HeroVisual
-## mirrors it for the left fist and sizes it to each body's hand (fit).
+## The finger rings stand along that knuckle line (one per finger, the finger through
+## each along Z) and the bar rides in front of them. HeroVisual mirrors the piece for the
+## left fist and sizes it to each body's hand (fit).
 
 const KIND := "wraps"
-## Cloth / band / accent colours of the ten tiers (plain cotton to god-gold fire).
+## [metal, accent (the grip binding, trims), gem / stud] of the ten tiers: iron, steel
+## and blued steel; studded steel (fire, onyx, ice); gold with gems (shadow, holy,
+## lightning, the god of boxing).
 const TIERS := [
-	[Color("efe6d2"), Color("b8a27a"), Color("8a6a40")],
-	[Color("f4ecd8"), Color("c0392b"), Color("8a6a40")],
-	[Color("e8d6b0"), Color("2b5ea8"), Color("c9a44a")],
-	[Color("f2e2c0"), Color("d35400"), Color("d6b25a")],
-	[Color("3a2a22"), Color("e74c3c"), Color("f0c050")],
-	[Color("d8f0ff"), Color("4aa8e8"), Color("e0e8f0")],
-	[Color("2a1f3a"), Color("8a4dff"), Color("d0b0ff")],
-	[Color("fff6dc"), Color("f0c040"), Color("fff0a0")],
-	[Color("1e2a4a"), Color("ffd84a"), Color("8fd8ff")],
-	[Color("fff0c8"), Color("ff8a2a"), Color("ffd84a")],
+	[Color("7d8187"), Color("8a6a40"), Color("9a9ea4")],
+	[Color("a3abb4"), Color("c0392b"), Color("c9ced4")],
+	[Color("7f97b0"), Color("2b5ea8"), Color("cfdbe8")],
+	[Color("b8bfc7"), Color("d35400"), Color("f0c050")],
+	[Color("3b3b42"), Color("e74c3c"), Color("f0c050")],
+	[Color("d6eaf6"), Color("4aa8e8"), Color("8fe0ff")],
+	[Color("c9a44a"), Color("2a1f3a"), Color("9a5dff")],
+	[Color("f0c040"), Color("fff6dc"), Color("f4fbff")],
+	[Color("ffd84a"), Color("1e2a4a"), Color("8fd8ff")],
+	[Color("ffcf3a"), Color("a8300f"), Color("ff3a2a")],
 ]
 
-## The hand's middle in the grip space (the tape's centre line), its half-height (across
+## The hand's middle in the grip space (the fist's centre line), its half-height (across
 ## the knuckles, Y) and half-thickness (palm to back, Z) on the reference hand, and the
-## wrist's radius.
+## wrist's radius. fit centres the hand here; the tests measure the fit from it.
 const HAND_CENTRE := Vector3(-0.062, -0.018, 0.028)
 const HAND_RY := 0.088
 const HAND_RZ := 0.058
 const WRIST_R := 0.05
-## The knuckle guard over the striking face of the fingers.
-const KNUCKLES := Vector3(-0.004, -0.018, 0.02)
+## The middle of the knuckle bar on the striking face.
+const KNUCKLES := Vector3(-0.014, -0.016, -0.008)
+## The four finger rings' spacing along the knuckle line (Y) and their centre behind
+## the bar (X; the ring's front edge runs inside the bar).
+const RING_STEP := 0.045
+const RING_X := KNUCKLES.x - 0.024
+## The palm grip's middle (in the palm, behind the curled fingers).
+const GRIP := KNUCKLES + Vector3(-0.052, 0.0, -0.03)
 ## The reference hand: the distance from the grip to the hand bone's root (the chibi
 ## boy's RightHand) that the pieces are authored for.
 const REF_HAND := 0.0735
-## Where the tape's centre sits from the hand bone's root (reference hand units).
+## Where the fist's centre sits from the hand bone's root (reference hand units).
 const CHIBI_FIST := Vector3(0.0, -0.018, -0.01)
-const KAYKIT_FIST := Vector3(0.03, 0.0, -0.02)
+const KAYKIT_FIST := Vector3(0.05, 0.0, -0.01)
+## KayKit's round mitt is bigger than a chibi fist: the dusters grow to cover it.
+const KAYKIT_SIZE := 1.25
+## The icon's roll: the bar on top, the rings in a row, the grip below.
+const ICON_ROLL := 90.0
 
-static var _fist: CapsuleMesh
-static var _band: TorusMesh
+static var _ring: TorusMesh
+static var _bump: CylinderMesh
 static var _plate: BoxMesh
+static var _grip: CapsuleMesh
+static var _stud: CylinderMesh
+static var _gem: SphereMesh
+static var _blade: CylinderMesh
 static var _mats := {}
 
 
@@ -62,19 +82,19 @@ static func is_look(look: String) -> bool:
 	return StarGearData.kind_from_look(look) == KIND
 
 
-## [cloth, band, accent, glow (0 none)] for a look.
+## [metal, accent, gem, glow (0 none)] for a look.
 static func palette(look: String) -> Array:
 	if look.begins_with("star_"):
 		var stars := StarGearData.stars_from_look(look)
 		var p := StarGearData.palette(stars, "muaythai")
-		return [p.cloth, p.metal, p.gem, 0.6 + float(stars) / 200.0]
+		return [p.metal, p.cloth, p.gem, 0.6 + float(stars) / 200.0]
 	if look.begins_with("divine_"):
-		return [Color("fff8e8"), Color("ffc24a"), Color("ff7a1a"), 1.6]
+		return [Color("ffd24a"), Color("fff8e8"), Color("ff7a1a"), 1.6]
 	if look.begins_with("set_"):
 		var s: Dictionary = SetGearData.PALETTES.get("muaythai", SetGearData.PALETTES.warrior)
-		return [s.cloth, s.metal, s.glow, 1.2]
+		return [s.metal, s.cloth, s.glow, 1.2]
 	if look.begins_with("dragon_"):
-		return [Color("0f3a30"), Color("2fd8a0"), Color("ffd84a"), 1.3]
+		return [DragonGearData.GOLD, DragonGearData.JADE_DEEP, DragonGearData.GLOW, 1.3]
 	var tier := clampi(int(look.rsplit("_", true, 1)[-1]), 0, TIERS.size() - 1)
 	var row: Array = TIERS[tier]
 	return [row[0], row[1], row[2], 0.0 if tier < 8 else 0.8 + 0.4 * float(tier - 8)]
@@ -90,12 +110,14 @@ static func grade(look: String) -> int:
 	return 0 if tier < 3 else (1 if tier < 6 else 2)
 
 
-static func _material(color: Color, glow := 0.0) -> StandardMaterial3D:
-	var key := "%s|%.2f" % [color.to_html(), glow]
+static func _material(color: Color, glow := 0.0, metal := false) -> StandardMaterial3D:
+	var key := "%s|%.2f|%s" % [color.to_html(), glow, metal]
 	if not _mats.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = color
-		m.roughness = 0.85
+		m.roughness = 0.38 if metal else 0.8
+		m.metallic = 0.45 if metal else 0.0
+		m.metallic_specular = 0.7 if metal else 0.5
 		if glow > 0.0:
 			m.emission_enabled = true
 			m.emission = color
@@ -105,39 +127,125 @@ static func _material(color: Color, glow := 0.0) -> StandardMaterial3D:
 
 
 static func _meshes() -> void:
-	if _fist != null:
+	if _ring != null:
 		return
-	_fist = CapsuleMesh.new()
-	_fist.radius = 0.062
-	_fist.height = 0.17
-	_fist.radial_segments = 8
-	_fist.rings = 2
-	_band = TorusMesh.new()
-	_band.inner_radius = 0.058
-	_band.outer_radius = 0.072
-	_band.rings = 16
-	_band.ring_segments = 4
+	_ring = TorusMesh.new()
+	_ring.inner_radius = 0.013
+	_ring.outer_radius = 0.022
+	_ring.rings = 12
+	_ring.ring_segments = 5
+	_bump = CylinderMesh.new()
+	_bump.top_radius = 0.0165
+	_bump.bottom_radius = 0.0165
+	_bump.height = 0.05
+	_bump.radial_segments = 8
+	_bump.rings = 1
 	_plate = BoxMesh.new()
-	_plate.size = Vector3(0.05, 0.15, 0.035)
+	_plate.size = Vector3.ONE
+	_grip = CapsuleMesh.new()
+	_grip.radius = 0.011
+	_grip.height = 0.15
+	_grip.radial_segments = 6
+	_grip.rings = 1
+	_stud = CylinderMesh.new()
+	_stud.top_radius = 0.0
+	_stud.bottom_radius = 0.009
+	_stud.height = 0.02
+	_stud.radial_segments = 4
+	_stud.rings = 0
+	_gem = SphereMesh.new()
+	_gem.radius = 0.5
+	_gem.height = 1.0
+	_gem.radial_segments = 6
+	_gem.rings = 3
+	_blade = CylinderMesh.new()
+	_blade.top_radius = 0.0
+	_blade.bottom_radius = 0.5
+	_blade.height = 1.0
+	_blade.radial_segments = 3
+	_blade.rings = 0
 
 
-## One turn of tape at [param x] along the hand: the band mesh (a ring round Y, radius
-## about 0.065) laid round X, stretched to the half-sizes [param ry] x [param rz], its
-## tape [param thick] times the mesh's width.
-static func _turn(x: float, ry: float, rz: float, thick: float, centre := HAND_CENTRE) -> Transform3D:
-	var r := 0.065
-	# Ring X -> -Y, ring axis Y -> X, ring Z -> Z (a proper turn, no mirror).
-	var basis := Basis(Vector3(0, -ry / r, 0), Vector3(thick, 0, 0), Vector3(0, 0, rz / r))
-	return Transform3D(basis, Vector3(x, centre.y, centre.z))
+## A transform laying a mesh's own Y axis along [param axis] at [param at], scaled by
+## [param size] (x, y along the axis, z).
+static func _along(at: Vector3, axis: Vector3, size: Vector3) -> Transform3D:
+	var y := axis.normalized()
+	var x := y.cross(Vector3.BACK if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+	var z := x.cross(y).normalized()
+	return Transform3D(Basis(x * size.x, y * size.y, z * size.z), at)
 
 
-## Fits a built wraps [param root] (build / DragonGearArt) to a hand: [param hand] is the
-## hand bone's root in the grip space as for a right hand (HeroVisual._hand_in_grip),
-## [param left] mirrors it. The tape is sized to the hand (its distance from the grip
-## against REF_HAND) and centred on the hand's root, where every chibi body's fist sits
-## (a little toward the palm); KayKit's round mitt sits further out (kaykit).
+## The y of finger ring [param k] (0 the little finger's .. 3 the index's).
+static func ring_y(k: int) -> float:
+	return KNUCKLES.y + (float(k) - 1.5) * RING_STEP
+
+
+## Every piece of the dusters as [mesh, role, transform]; role is "metal", "accent",
+## "gem" or "glow" (lit). [param level] is grade's 0..3; [param studs] puts studs
+## (tiers 3-5) instead of set gems on the bar.
+static func pieces(level: int, studs: bool) -> Array:
+	_meshes()
+	var out: Array = []
+	var top := ring_y(3) + RING_STEP * 0.5
+	var bottom := ring_y(0) - RING_STEP * 0.5
+	for k in 4:
+		var y := ring_y(k)
+		# The finger ring (axis Z: the finger passes through it), a flat band of metal.
+		out.append([_ring, "metal", Transform3D(Basis(Vector3.RIGHT, Vector3.BACK * 2.6, Vector3.DOWN), Vector3(RING_X, y, KNUCKLES.z))])
+		# Its bump on the knuckle bar (a flattened cylinder): the bar's scalloped face.
+		out.append([_bump, "metal", Transform3D(Basis(Vector3.RIGHT * 0.52, Vector3.BACK, Vector3.DOWN * 1.27), Vector3(KNUCKLES.x, y, KNUCKLES.z))])
+	# The web joining the rings to the bar, along the whole knuckle line.
+	out.append([_plate, "metal", Transform3D(Basis.from_scale(Vector3(0.012, top - bottom - 0.006, 0.04)), Vector3(KNUCKLES.x - 0.007, KNUCKLES.y, KNUCKLES.z))])
+	# The palm grip (in the palm, behind the curled fingers), bound in the accent colour,
+	# and the two ends of the frame joining it to the bar.
+	var grip_at := GRIP
+	out.append([_grip, "accent", Transform3D(Basis.from_scale(Vector3(1.0, 1.05, 1.0)), grip_at)])
+	for y in [top - 0.004, bottom + 0.004]:
+		var from := Vector3(KNUCKLES.x - 0.01, y, KNUCKLES.z - 0.004)
+		var to := Vector3(grip_at.x, y, grip_at.z)
+		out.append([_plate, "metal", _along((from + to) * 0.5, to - from, Vector3(0.016, from.distance_to(to) + 0.012, 0.03))])
+		# The grip's metal caps.
+		out.append([_gem, "metal", Transform3D(Basis.from_scale(Vector3.ONE * 0.026), Vector3(grip_at.x, y, grip_at.z))])
+	if level >= 1 and studs:
+		# Studded steel: a pyramid stud on every knuckle.
+		for k in 4:
+			out.append([_stud, "gem", _along(Vector3(KNUCKLES.x + 0.019, ring_y(k), KNUCKLES.z), Vector3.RIGHT, Vector3.ONE)])
+	if level >= 2 or (level >= 1 and not studs):
+		# Gold with set gems: a cut stone in an accent bezel on every knuckle.
+		for k in 4:
+			out.append([_ring, "accent", Transform3D(Basis(Vector3.BACK * 0.72, Vector3.RIGHT * 0.5, Vector3.UP * 0.72), Vector3(KNUCKLES.x + 0.01, ring_y(k), KNUCKLES.z))])
+			out.append([_gem, "gem", Transform3D(Basis.from_scale(Vector3(0.012, 0.019, 0.019)), Vector3(KNUCKLES.x + 0.011, ring_y(k), KNUCKLES.z))])
+		# A trim of the accent along both edges of the bar.
+		for z in [KNUCKLES.z + 0.024, KNUCKLES.z - 0.024]:
+			out.append([_plate, "accent", Transform3D(Basis.from_scale(Vector3(0.02, top - bottom, 0.005)), Vector3(KNUCKLES.x - 0.002, KNUCKLES.y, z))])
+	if level >= 3:
+		# Glowing inlays down the bar between the stones and on the frame's ends.
+		for k in 3:
+			var y := (ring_y(k) + ring_y(k + 1)) * 0.5
+			out.append([_gem, "glow", Transform3D(Basis.from_scale(Vector3(0.008, 0.012, 0.036)), Vector3(KNUCKLES.x + 0.004, y, KNUCKLES.z))])
+		# A crest of three blades over the bar's top end, swept toward the punch.
+		for i in 3:
+			var at := Vector3(KNUCKLES.x - 0.012 * i, top + 0.006, KNUCKLES.z + 0.012 * (i - 1))
+			out.append([_blade, "metal", _along(at + Vector3(0.008, 0.012, 0), Vector3(0.7, 1.0, 0.1 * (i - 1)), Vector3(0.014, 0.034 - 0.006 * i, 0.007))])
+		# The mantra script (ประเจียด) round the grip: a band of light with glyph strokes.
+		out.append([_ring, "glow", Transform3D(Basis(Vector3.RIGHT * 0.95, Vector3.UP * 0.6, Vector3.BACK * 0.95), grip_at)])
+		for i in 5:
+			var a := TAU * float(i) / 5.0
+			var y := grip_at.y + (float(i) - 2.0) * 0.022
+			var at := grip_at + Vector3(cos(a) * 0.012, y - grip_at.y, sin(a) * 0.012)
+			out.append([_plate, "glow", Transform3D(Basis.from_euler(Vector3(0, -a, 0.6 * (i % 2) - 0.3)) * Basis.from_scale(Vector3(0.003, 0.012, 0.004)), at)])
+	return out
+
+
+## Fits a built dusters [param root] (build / DragonGearArt) to a hand: [param hand] is
+## the hand bone's root in the grip space as for a right hand (HeroVisual._hand_in_grip),
+## [param left] mirrors it. The piece is sized to the hand (its distance from the grip
+## against REF_HAND) and the fist centred on the hand's root, where every chibi body's
+## fist sits (a little toward the palm); KayKit's round mitt sits further out (kaykit).
 static func fit(root: Node3D, hand: Vector3, left: bool, kaykit := false) -> void:
 	var k := clampf(hand.length() / REF_HAND, 0.5, 3.0) if hand != Vector3.ZERO else 1.0
+	if kaykit:
+		k *= KAYKIT_SIZE
 	var at := Vector3.ZERO
 	if hand != Vector3.ZERO:
 		var want := hand + (KAYKIT_FIST if kaykit else CHIBI_FIST) * k
@@ -146,8 +254,8 @@ static func fit(root: Node3D, hand: Vector3, left: bool, kaykit := false) -> voi
 	root.transform = Transform3D(Basis.from_scale(Vector3.ONE * k * flip), at * flip)
 
 
-## Each look's wrapped fist baked into ONE mesh (a surface per material), cached: a fist
-## is then a single MeshInstance3D, so a crowd of fighters stays inside the phone's node
+## Each look's dusters baked into ONE mesh (a surface per material), cached: a fist is
+## then a single MeshInstance3D, so a crowd of fighters stays inside the phone's node
 ## budget (phone_budget_test).
 static var _baked := {}
 
@@ -155,35 +263,21 @@ static var _baked := {}
 static func _bake(look: String) -> ArrayMesh:
 	if _baked.has(look):
 		return _baked[look]
-	_meshes()
 	var colors := palette(look)
 	var level := grade(look)
 	var glow := float(colors[3])
-	# [mesh, material, transform] of every piece, as the look stacks them.
-	var parts: Array = []
-	# The tape wound round the hand: three cloth turns from the wrist to the knuckles and
-	# two coloured bands between them, each circling the hand's own axis (X).
-	for x in [-0.092, -0.062, -0.032]:
-		parts.append([_band, _material(colors[0]), _turn(x, HAND_RY, HAND_RZ, 2.2)])
-	for x in [-0.077, -0.047]:
-		parts.append([_band, _material(colors[1], glow * 0.5), _turn(x, HAND_RY * 1.04, HAND_RZ * 1.06, 1.1)])
-	# Two turns round the wrist, where the tape starts.
-	parts.append([_band, _material(colors[0]), _turn(-0.122, WRIST_R, WRIST_R, 2.2, Vector3(0, 0, 0.034))])
-	parts.append([_band, _material(colors[0]), _turn(-0.147, WRIST_R * 0.96, WRIST_R * 0.96, 2.2, Vector3(0, 0, 0.034))])
-	if level >= 1:
-		# The knuckle guard over the fist's striking face.
-		parts.append([_plate, _material(colors[2], glow * 0.6), Transform3D(Basis.from_scale(Vector3(0.5, 1.07, 2.0)), KNUCKLES)])
-	if level >= 2:
-		# The mantra band (ประเจียด) round the wrist.
-		parts.append([_band, _material(colors[2], maxf(glow, 0.5)), _turn(-0.135, WRIST_R * 1.12, WRIST_R * 1.12, 1.4, Vector3(0, 0, 0.034))])
-	if level >= 3:
-		# A ring of light round the knuckles (the top weapons).
-		parts.append([_band, _material(colors[1], maxf(glow, 1.2)), _turn(-0.014, HAND_RY * 1.18, HAND_RZ * 1.25, 0.7)])
+	var tier := int(look.rsplit("_", true, 1)[-1]) if look.begins_with(KIND + "_") else -1
+	var roles := {
+		"metal": _material(colors[0], glow * 0.15, true),
+		"accent": _material(colors[1], glow * 0.3, level >= 2),
+		"gem": _material(colors[2], maxf(glow, 0.35 if level >= 2 else 0.0), level == 1),
+		"glow": _material(colors[2], maxf(glow, 1.2)),
+	}
 	# One surface per material: pieces sharing a material share a surface.
 	var tools := {}
 	var order: Array = []
-	for part in parts:
-		var mat: Material = part[1]
+	for part in pieces(level, tier >= 3 and tier <= 5):
+		var mat: Material = roles[part[1]]
 		if not tools.has(mat):
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -198,17 +292,17 @@ static func _bake(look: String) -> ArrayMesh:
 	return mesh
 
 
-## The wrapped fist of [param look]: a root (named after the look) holding one model node
+## The dusters of [param look]: a root (named after the look) holding one model node
 ## (a single baked mesh, see _bake).
 static func build(look: String) -> Node3D:
-	# The Dragon God's wraps are a dragon weapon (DragonGearArt: two surfaces, the dragon
-	# coiled round the fist, its pulse of light and breath), laid out in this grip space.
+	# The Dragon God's dusters are a dragon weapon (DragonGearArt: two surfaces, the
+	# dragon over the knuckles, its pulse of light and breath), laid out in this grip space.
 	if look.begins_with("dragon_"):
 		return DragonGearArt.build(look)
 	var root := Node3D.new()
 	root.name = look
 	var model := MeshInstance3D.new()
-	model.name = "Wraps"
+	model.name = "Knuckles"
 	model.mesh = _bake(look)
 	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(model)
