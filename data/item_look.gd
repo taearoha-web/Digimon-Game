@@ -187,6 +187,8 @@ static func build_icon_node(id: String) -> Node3D:
 		holder.add_child(w)
 		if kind == "bow":
 			w.rotation_degrees = Vector3(90, 0, 0)
+		elif kind == HandWraps.KIND:
+			holder.rotation_degrees = HandWraps.ICON_ROTATION
 		else:
 			holder.rotation_degrees = Vector3(0, 0, -38)
 		if (kind == "staff" or kind == "spear") and not WeaponKit.has_model(kind):

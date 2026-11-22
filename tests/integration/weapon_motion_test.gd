@@ -101,8 +101,9 @@ func grip(item: Node3D, kind: String) -> Vector3:
 	# field_efficiency_test separately checks every triangle/material survives merging.
 	var look := String(item.name).trim_prefix("Held_")
 	if kind == "wraps":
-		# The Muay Thai fighter's hand wraps (HandWraps) are mounted at the grip (the Grip
-		# pivot's origin) and fitted from there onto the hand (wrap_centre): no source model.
+		# The Muay Thai fighter's knuckle dusters (HandWraps) are mounted at the grip (the
+		# Grip pivot's origin) and fitted from there onto the hand (knuckles_off_hand): no
+		# source model.
 		return posed_transform(item.get_child(0) as Node3D).origin
 	if not _source_grips.has(look):
 		var source := (load(WeaponKit.MODEL_DIR + look + ".glb") as PackedScene).instantiate() as Node3D
@@ -112,19 +113,32 @@ func grip(item: Node3D, kind: String) -> Vector3:
 	return posed_transform(model) * (_source_grips[look] as Vector3)
 
 
-## Where a held wrap's tape is centred (HandWraps.HAND_CENTRE through the fitted root),
-## posed, and how far that is from the hand bone's root, against the hand's own size
-## (its root's distance from the grip): the tape must wrap the hand, not float off it.
-func wrap_off_hand(hero: HeroVisual, item: Node3D, side: String) -> float:
+## Where a held pair of knuckle dusters sits, posed, against the hand's own size (the
+## hand bone root's distance from the grip): [fist, knuckles]. fist: the fitted fist's
+## centre (HandWraps.HAND_CENTRE through the fitted root) from the hand bone's root.
+## knuckles: the knuckle bar's middle (HandWraps.KNUCKLES) from the middle finger's
+## first bone (its middle, where the ring goes) on the chibi rigs; KayKit's mitt has no
+## finger bones, so there it is the bar from the hand's root (-1 when neither).
+func knuckles_off_hand(hero: HeroVisual, item: Node3D, side: String) -> Array:
 	var s := hero._skeleton
+	var chibi := s.find_bone("RightHand" if side == "r" else "LeftHand") >= 0
 	var hand := s.find_bone("RightHand" if side == "r" else "LeftHand")
 	if hand < 0:
 		hand = s.find_bone("hand." + side)
 	var root := item.get_child(0).get_child(0) as Node3D
-	var centre := posed_transform(root) * HandWraps.HAND_CENTRE
+	var fitted := posed_transform(root)
 	var hand_at := s.global_transform * s.get_bone_global_pose(hand).origin
-	var grip_at := posed_transform(item.get_child(0) as Node3D).origin
-	return centre.distance_to(hand_at) / maxf(grip_at.distance_to(hand_at), 0.001)
+	var size := maxf(posed_transform(item.get_child(0) as Node3D).origin.distance_to(hand_at), 0.001)
+	var bar := fitted * HandWraps.KNUCKLES
+	var finger := hand_at
+	if chibi:
+		var prefix := "Right" if side == "r" else "Left"
+		var a := s.find_bone(prefix + "Middle1")
+		var b := s.find_bone(prefix + "Middle2")
+		if a < 0 or b < 0:
+			return [(fitted * HandWraps.HAND_CENTRE).distance_to(hand_at) / size, -1.0]
+		finger = s.global_transform * ((s.get_bone_global_pose(a).origin + s.get_bone_global_pose(b).origin) * 0.5)
+	return [(fitted * HandWraps.HAND_CENTRE).distance_to(hand_at) / size, bar.distance_to(finger) / size]
 
 
 func _source_grip(item: Node3D, kind: String) -> Vector3:
@@ -209,17 +223,23 @@ func _ready() -> void:
 					note(body_tag, "grip", error)
 					check(error < 0.015, "%s tier%d %s actual grip %.4fm" % [tag, tier, clip, error])
 					if family == &"muaythai":
-						var off := wrap_off_hand(hero, held(hero, kind), "r")
-						check(off < 0.6, "%s tier%d %s the right wrap wraps the hand (%.2f hand lengths off)" % [tag, tier, clip, off])
-						# The second wrap, on the left fist.
+						# The knuckle dusters on both fists: the fist centred on the hand and
+						# the knuckle bar on the finger line (KayKit's round mitt: the bar a
+						# little forward on its face, KAYKIT_FIST).
+						var fist_limit := 0.6 if rig != 2 else 1.0
+						var off := knuckles_off_hand(hero, held(hero, kind), "r")
+						check(float(off[0]) < fist_limit, "%s tier%d %s the right knuckle dusters sit on the fist (%.2f hand lengths off)" % [tag, tier, clip, off[0]])
+						check(float(off[1]) < 0.6, "%s tier%d %s the right knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
+						# The second pair, on the left fist.
 						var left := hero._skeleton.find_children("Held_wraps_*", "BoneAttachment3D", false, false).filter(func(n): return (n as BoneAttachment3D).bone_name == "handslot.l")
-						check(left.size() == 1, "%s tier%d a wrap on the left fist" % [tag, tier])
+						check(left.size() == 1, "%s tier%d knuckle dusters on the left fist" % [tag, tier])
 						if left.size() == 1:
 							error = grip(left[0], "wraps").distance_to(palm(hero, "l"))
 							note(body_tag, "grip", error)
-							check(error < 0.015, "%s tier%d %s left wrap grip %.4fm" % [tag, tier, clip, error])
-							off = wrap_off_hand(hero, left[0], "l")
-							check(off < 0.6, "%s tier%d %s the left wrap wraps the hand (%.2f hand lengths off)" % [tag, tier, clip, off])
+							check(error < 0.015, "%s tier%d %s left knuckle dusters grip %.4fm" % [tag, tier, clip, error])
+							off = knuckles_off_hand(hero, left[0], "l")
+							check(float(off[0]) < fist_limit, "%s tier%d %s the left knuckle dusters sit on the fist (%.2f hand lengths off)" % [tag, tier, clip, off[0]])
+							check(float(off[1]) < 0.6, "%s tier%d %s the left knuckle bar sits on the knuckles (%.2f hand lengths off)" % [tag, tier, clip, off[1]])
 					if family == &"warrior":
 						error = grip(held(hero, "shield"), "shield").distance_to(palm(hero, "l"))
 						note(body_tag, "grip", error)

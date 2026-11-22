@@ -111,6 +111,8 @@ static func build_icon_node(look: String) -> Node3D:
 	if kind in HELD:
 		root.add_child(build(look))
 		root.rotation_degrees.z = -27.0 if kind not in ["bow", "shield", "greatshield"] else -12.0
+		if kind == HandWraps.KIND:
+			root.rotation_degrees = HandWraps.ICON_ROTATION
 		return root
 	if kind == "armor":
 		root.add_child(armor_piece("chest", cls))

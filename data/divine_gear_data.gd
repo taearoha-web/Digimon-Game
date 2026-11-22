@@ -9,7 +9,7 @@ const PREMIUM := 1.4
 ## Mythic gear carries four bonus lines (spread over hp, mp, crit, atk, def).
 const MYTHIC_LINES := 4.0
 const THEMES := {"warrior":"พันดาบเทวะ", "archer":"พฤกษาเทพ", "lancer":"มังกรเทพเพลิง", "mage":"นภาจักรวาล", "priest":"เซราฟิม", "summoner":"ราชินีผีเสื้อ", "defender":"ดาราจักรนิรันดร์", "assassin":"ราตรีสุริยคราส", "darklord":"จักรพรรดิอีกาทมิฬ", "bard":"คีตาสวรรค์", "muaythai":"มวยเทพอัคนี"}
-const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา", "bard":"พิณ", "muaythai":"นวม"}
+const PREFIXES := {"warrior":"ดาบ", "archer":"ธนู", "lancer":"หอก", "mage":"คทา", "priest":"คทา", "summoner":"โคม", "defender":"โล่", "assassin":"มีดคู่", "darklord":"คทา", "bard":"พิณ", "muaythai":"สนับมือ"}
 
 static func is_item(value: Variant) -> bool:
 	return value is Dictionary and value.get("collection", "") == COLLECTION

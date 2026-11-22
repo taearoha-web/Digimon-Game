@@ -7,7 +7,7 @@ extends RefCounted
 ## the ends of the bar, rising in grandeur by tier: plain iron and steel with a grip
 ## bound in the tier's colour (Lv.1-30), studded steel (Lv.31-60), gold with set gems
 ## (Lv.61-100), and for the top weapons (Lv.91-100, star 150+, set, divine) glowing inlays down the
-## bar, a crest of blades over it and a band of mantra script (ประเจียด) on the grip.
+## bar, a crest of blades at its top end and a line of mantra script (ประเจียด) along it.
 ## Every look kind is handled here so the weapon reads the same whoever draws it:
 ##   wraps_<0-9>                the ten gear tiers (ItemData)
 ##   star_wraps_<50..200>       star gear (StarGearData)
@@ -65,8 +65,10 @@ const CHIBI_FIST := Vector3(0.0, -0.018, -0.01)
 const KAYKIT_FIST := Vector3(0.05, 0.0, -0.01)
 ## KayKit's round mitt is bigger than a chibi fist: the dusters grow to cover it.
 const KAYKIT_SIZE := 1.25
-## The icon's roll: the bar on top, the rings in a row, the grip below.
-const ICON_ROLL := 90.0
+## The icon's turn: the bar on top, the four rings in a row facing out, the grip below,
+## turned a little to show the bar's depth (every icon path: tier, star, set, divine,
+## dragon).
+const ICON_ROTATION := Vector3(0, 28, 90)
 
 static var _ring: TorusMesh
 static var _bump: CylinderMesh
@@ -226,12 +228,11 @@ static func pieces(level: int, studs: bool) -> Array:
 			var at := Vector3(KNUCKLES.x - 0.012 * i, top + 0.006, KNUCKLES.z + 0.012 * (i - 1))
 			out.append([_blade, "metal", _along(at + Vector3(0.008, 0.012, 0), Vector3(0.7, 1.0, 0.1 * (i - 1)), Vector3(0.014, 0.034 - 0.006 * i, 0.007))])
 		# The mantra script (ประเจียด): a line of glyph strokes of light along the top of
-		# the bar (toward the back of the hand), and a band of light round the grip.
+		# the bar (toward the back of the hand).
 		for i in 9:
 			var y := bottom + 0.012 + (top - bottom - 0.024) * float(i) / 8.0
 			var tilt := Basis.from_euler(Vector3(0, 0, 0.55 if i % 2 == 0 else -0.35))
 			out.append([_plate, "glow", Transform3D(tilt * Basis.from_scale(Vector3(0.0045, 0.012, 0.004)), Vector3(KNUCKLES.x - 0.001, y, KNUCKLES.z + 0.026))])
-		out.append([_ring, "glow", Transform3D(Basis(Vector3.RIGHT * 0.95, Vector3.UP * 0.6, Vector3.BACK * 0.95), grip_at)])
 	return out
 
 

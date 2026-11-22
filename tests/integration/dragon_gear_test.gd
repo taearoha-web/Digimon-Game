@@ -462,7 +462,7 @@ func _visuals() -> void:
 			await get_tree().process_frame
 			var held := hero.find_children("Held_dragon_*", "", true, false)
 			# (The Assassin's twin dagger shares the main one's node name: counted once here.
-			# The Muay Thai fighter's wraps are worn on both fists, the left one "_l".)
+			# The Muay Thai fighter's knuckle dusters are worn on both fists, the left one "_l".)
 			var want_held := 2 if c in ["warrior", "priest", "summoner", "muaythai"] else 1
 			check(held.size() == want_held, "q%d %s holds the dragon weapon%s (%d)" % [quality, c, " and its off-hand" if want_held == 2 else "", held.size()])
 			var aura := hero.find_child("SetAura", true, false)

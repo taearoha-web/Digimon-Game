@@ -158,7 +158,7 @@ const ROSTER: Array[Dictionary] = [
 	{"name": "MagicCorner", "class": &"summoner", "gender": 1, "body": 0, "style": "afk"},
 	{"name": "แผงลูกธนูพี่ต่าย", "class": &"archer", "gender": 1, "body": 1, "style": "afk"},
 	{"name": "BlackMarket_Z", "class": &"darklord", "gender": 0, "body": 1, "style": "afk"},
-	{"name": "ร้านนวมมือสอง", "class": &"muaythai", "gender": 0, "body": 1, "style": "afk"},
+	{"name": "ร้านสนับมือมือสอง", "class": &"muaythai", "gender": 0, "body": 1, "style": "afk"},
 	# Newcomers: they log in for the first time some real days after the opening (join).
 	{"name": "Ukulele_Ice", "class": &"bard", "gender": 0, "body": 0, "style": "hardcore", "voice": "weekend", "join": 6},
 	{"name": "Golem_Daddy", "class": &"summoner", "gender": 0, "body": 1, "style": "hardcore", "voice": "daytime", "join": 11},
