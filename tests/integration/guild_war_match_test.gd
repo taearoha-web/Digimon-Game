@@ -748,7 +748,9 @@ func _team_buff(m: GuildWarMatch, zone: Zone, hero: Hero, label: String) -> void
 			buffed += 1
 	check(buffed == members.size(), "%s: every party member has its buffs on after บัฟทีม (%d/%d)" % [label, buffed, members.size()])
 	var shared := hero._buffs.filter(func(b): return bool(b.get("ally", false)))
-	check(not shared.is_empty(), "%s: the party's team buffs reach the hero (%d)" % [label, shared.size()])
+	# Only a priest's, a bard's or the defender's เบ่งเลือด reach the party (ClassData.PARTY_BUFF_CLASSES).
+	var sharer := members.any(func(f): return f.class_data.skills.any(func(sk): return ClassData.is_party_buff_skill(StringName(f.member["class"]), sk)))
+	check(shared.is_empty() != sharer, "%s: the party's team buffs reach the hero only from a party buffer (%d, buffer in party %s)" % [label, shared.size(), sharer])
 	check(not members.is_empty() and members[0].mp < mp_before and not members[0].cooldowns.is_empty(), "%s: the casts paid MP and started cooldowns" % label)
 	check(toasts.has("ทีมบัฟแล้ว %d คน" % members.size()), "%s: a toast tells who buffed (%s)" % [label, toasts])
 	# The rest: greyed with a countdown, a second press does nothing.

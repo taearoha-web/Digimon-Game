@@ -217,13 +217,7 @@ func _ready() -> void:
 		add_to_group("companions")
 	# Just the name, coloured by guild (the full "[guild] name" overlapped when fighters bunched up).
 	_label.font_size = 36
-	if in_hero_party():
-		# The hero's party: a diamond before the name and the party's green.
-		_label.text = "◆ " + shown_name()
-		_label.modulate = GuildWarMatch.PARTY_COLOR
-	else:
-		_label.text = shown_name()
-		_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
+	refresh_name_color()
 	_label.visibility_range_end = 30.0
 	# Fifty fighters on one field: far ones stop animating like far monsters do.
 	if _rv != null and _rv.hero_visual != null:
@@ -234,6 +228,22 @@ func _ready() -> void:
 	ride_id = _owned_mount()
 	ride()
 	_start_guard()
+
+
+## Its name plate: the hero's party a diamond before the name; coloured by its guild in a
+## war between real guilds (GuildWarMatch.team_color: the same as its camp and crown, so
+## 3DLnw is green on every side), else the party's green / ally blue / enemy rose.
+func refresh_name_color() -> void:
+	if _label == null or is_leader:
+		return
+	var party_mark := in_hero_party()
+	_label.text = ("◆ " if party_mark else "") + shown_name()
+	if siege != null and is_instance_valid(siege) and siege.guild_colored():
+		_label.modulate = siege.team_color(team).lerp(Color.WHITE, 0.2)
+	elif party_mark:
+		_label.modulate = GuildWarMatch.PARTY_COLOR
+	else:
+		_label.modulate = Color("8fd0ff") if team == TEAM_ALLY else Color("ff9a8a")
 
 
 ## Makes it its guild's leader (หัวหน้ากิลด์): the one of its side who may take the

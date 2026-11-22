@@ -323,7 +323,7 @@ func _tell_gate(m: GuildWarMatch, force: bool) -> void:
 
 func _on_feed(text: String, team: int) -> void:
 	var color := NEWS_COLOR if team < 0 else (ALLY_COLOR if team == GuildFighter.TEAM_ALLY else ENEMY_COLOR)
-	if team > 0 and match_node != null and is_instance_valid(match_node) and match_node.team_count() > 2:
+	if team >= 0 and match_node != null and is_instance_valid(match_node) and (match_node.guild_colored() or match_node.team_count() > 2):
 		color = match_node.team_color(team).lerp(Color.WHITE, 0.3)
 	_post(text, color)
 

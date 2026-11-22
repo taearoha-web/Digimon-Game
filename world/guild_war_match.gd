@@ -606,7 +606,7 @@ static func arena_colors() -> Array:
 	var order: Array = league_order(Game.guildwar_league).get("guilds", [])
 	if order.is_empty() and Game.guildwar_resuming:
 		order = Game.guildwar_checkpoint().get("league", [])
-	if order.size() >= 2 and Game.guild() > 0:
+	if order.size() >= 2:
 		for g in order:
 			out.append(WorldPlayers.GUILD_COLORS.get(int(g), Color.WHITE))
 		return out
@@ -647,6 +647,7 @@ func _take_roster() -> void:
 		var sd: Dictionary = list[t]
 		team_names[t] = String(sd.get("name", ""))
 		team_guilds[t] = int(sd.get("guild", 0)) if bool(roster.get("guilds", false)) else 0
+	_repaint_names()
 	# The first two sides are the roster's ally / enemy too (the same arrays).
 	roster["ally"] = list[0].lineup
 	roster["enemy"] = list[1].lineup
@@ -2378,12 +2379,31 @@ func team_color(team: int) -> Color:
 	# whatever guild the hero is in.
 	if not _watch_colors.is_empty():
 		return _watch_colors[clampi(team, 0, _watch_colors.size() - 1)]
+	# A real guild's side (a league round, here or mirrored online): always its own colour
+	# (Alpha gold, Neverdie rose, Titan blue, 3DLnw green), never the team order's.
 	var guild := team_guilds[team] if team < team_guilds.size() else 0
-	if guild == 0 and team == GuildFighter.TEAM_ALLY:
+	if guild == 0 and team == GuildFighter.TEAM_ALLY and bool(roster.get("guilds", false)):
 		guild = int(roster.get("ally_guild", 0))
-	if Game.guild() > 0 and bool(roster.get("guilds", false)) and guild > 0:
-		return WorldPlayers.GUILD_COLORS.get(guild, NEUTRAL_COLOR)
+	if guild > 0 and WorldPlayers.GUILD_COLORS.has(guild):
+		return WorldPlayers.GUILD_COLORS[guild]
 	return HIRED_COLORS[team % HIRED_COLORS.size()]
+
+
+## True when the sides wear their guilds' colours (a war between real guilds, or a watched
+## one): names, feed lines and crowns take team_color then, not ally blue / enemy rose.
+func guild_colored() -> bool:
+	if not _watch_colors.is_empty():
+		return true
+	for g in team_guilds:
+		if g > 0:
+			return true
+	return bool(roster.get("guilds", false)) and int(roster.get("ally_guild", 0)) > 0
+
+
+## Repaints every fighter's name (after the sides' guilds are known).
+func _repaint_names() -> void:
+	if is_inside_tree():
+		get_tree().call_group("gw_fighters", "refresh_name_color")
 
 
 ## The altar's crystal and the castle's banners take the holder's colour.
@@ -2730,6 +2750,7 @@ func _build_league_mirror(info: Dictionary) -> void:
 	for t in team_count():
 		team_guilds[t] = int(order[t])
 		team_names[t] = GuildLeague.name_of(int(order[t]))
+	_repaint_names()
 	var held := int(info.get("owner", 0))
 	start_owner = order.find(held) if held > 0 else -1
 	BurstGuard.clear()

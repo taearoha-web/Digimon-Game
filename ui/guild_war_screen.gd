@@ -467,7 +467,7 @@ func _build_result(result: Dictionary) -> void:
 			var shown := "ตัวละครของคุณ" if int(r.grade) < 0 else (String(r.get("tag", "")) if String(r.get("tag", "")) != "" else GuildWarData.grade_label(int(r.grade)))
 			var name_label := UIUtil.label("%s  ·  %s" % [r.name, shown], &"SmallLabel")
 			name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			name_label.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
+			name_label.add_theme_color_override("font_color", _side_color(String(team_names[team]), team))
 			line.add_child(name_label)
 			line.add_child(UIUtil.label("ล้ม %d   ถูกล้ม %d   ช่วย %d" % [int(r.kills), int(r.deaths), int(r.assists)], &"SmallLabel"))
 			list.add_child(line)
@@ -591,7 +591,7 @@ func _last_war(box: VBoxContainer) -> void:
 			return int(a.deaths) < int(b.deaths))
 		var guild_name := String(last.get("our_guild", "")) if team == GuildFighter.TEAM_ALLY else their_names[team - 1]
 		var title := UIUtil.label("กิลด์ %s%s" % [guild_name, " (ฝั่งเรา)" if team == GuildFighter.TEAM_ALLY else ""], &"SmallLabel")
-		title.add_theme_color_override("font_color", Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a"))
+		title.add_theme_color_override("font_color", _side_color(guild_name, team))
 		box.add_child(title)
 		for r in side:
 			var line := UIUtil.hbox(8)
@@ -893,3 +893,12 @@ static func _our_leader_text(mine: int) -> String:
 	if who != "" and Game.guild_war_alt_leader(mine) > 0:
 		return "%s (%s)" % [who, Game.ALT_WAR_TAG]
 	return "คุณ" if who == "" else who
+
+
+## A side's colour in the war's lists: its guild's own (Alpha gold, Neverdie rose, Titan
+## blue, 3DLnw green) when `guild_name` names one of the four, else ally blue / enemy rose.
+static func _side_color(guild_name: String, team: int) -> Color:
+	for g in WorldPlayers.GUILD_NAMES:
+		if String(WorldPlayers.GUILD_NAMES[g]) == guild_name.strip_edges():
+			return (WorldPlayers.GUILD_COLORS[g] as Color).lerp(Color.WHITE, 0.2)
+	return Color("8fd0ff") if team == GuildFighter.TEAM_ALLY else Color("ff9a8a")

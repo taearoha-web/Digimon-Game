@@ -166,7 +166,10 @@ func _check_war_parties(m: GuildWarMatch, label: String) -> void:
 	check(m.hero_party_members().size() + 1 == int(counts[GuildWarMatch.HERO_PARTY]), "%s: the hero's party is told" % label)
 	for f in m.allies:
 		var tagged := f._label.text.begins_with("◆ ")
-		check(tagged == (f.party == GuildWarMatch.HERO_PARTY) and (f._label.modulate == GuildWarMatch.PARTY_COLOR) == tagged, "%s: %s's name tag shows the hero's party (%s)" % [label, f.rival_name, f._label.text])
+		# A war between real guilds colours every name by its guild (3DLnw green on every side);
+		# the diamond marks the hero's party. A practice war keeps the party's green.
+		var want := m.team_color(f.team).lerp(Color.WHITE, 0.2) if m.guild_colored() else (GuildWarMatch.PARTY_COLOR if tagged else Color("8fd0ff"))
+		check(f.is_leader or (tagged == (f.party == GuildWarMatch.HERO_PARTY) and f._label.modulate.is_equal_approx(want)), "%s: %s's name tag shows the hero's party and its colour (%s)" % [label, f.rival_name, f._label.text])
 	for f in m.enemies:
 		check(not f._label.text.begins_with("◆"), "%s: no rival wears our party mark" % label)
 
