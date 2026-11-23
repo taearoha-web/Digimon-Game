@@ -378,7 +378,14 @@ func _guild_column(g: int, mine: int, t: float) -> Control:
 	pick.disabled = states.is_empty() and alts.is_empty() and mine != g
 	pick.pressed.connect(func(): open_leader_picker(g))
 	lead_row.add_child(pick)
-	var join := UIUtil.button("", &"PrimaryButton" if mine != g else &"", Vector2(0, 58))
+	# Another character of the account leads our guild (it keeps the seat while it is not
+	# played): the one played takes it over only by asking (Game.take_guild_leadership).
+	if mine == g and String(lead.kind) == "alt":
+		var take := UIUtil.button("รับตำแหน่งหัวหน้ากิลด์", &"PrimaryButton", Vector2(0, 58))
+		take.name = "TakeLeader%s" % WorldPlayers.guild_name(g)
+		take.pressed.connect(func(): open_take_leader(g))
+		col.add_child(take)
+	var join :=UIUtil.button("", &"PrimaryButton" if mine != g else &"", Vector2(0, 58))
 	join.name = "Join%s" % WorldPlayers.guild_name(g)
 	if mine == g:
 		join.text = "กิลด์ของคุณ"
@@ -688,6 +695,45 @@ func _choice_card(g: int, r: Dictionary, k: int) -> Control:
 	choose.pressed.connect(func(): choose_leader(g, String(r.pick), String(r.name)))
 	line.add_child(choose)
 	return panel
+
+
+## Asks before the character played takes the lead of its guild from another character
+## of the account (รับตำแหน่งหัวหน้ากิลด์ · ยืนยัน / ยกเลิก).
+func open_take_leader(g: int) -> void:
+	close_leader_picker()
+	var lead := Game.guild_leader_of(g)
+	if String(lead.kind) != "alt":
+		return
+	var box := UIUtil.vbox(10)
+	var ask := UIUtil.label("ตอนนี้ %s (ตัวละครอื่นในบัญชีของคุณ) เป็นหัวหน้ากิลด์ %s\nให้ %s ที่คุณเล่นอยู่รับตำแหน่งหัวหน้ากิลด์แทนไหม? %s จะเป็นสมาชิกธรรมดา (ปีกตำนานแห่งกิลด์ยังอยู่กับตัวละครที่ได้รับ)" % [String(lead.name), WorldPlayers.guild_name(g), String(Game.profile.get("name", "")), String(lead.name)], &"BoldLabel")
+	ask.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(ask)
+	var buttons := UIUtil.hbox(12)
+	box.add_child(buttons)
+	var yes := UIUtil.button("ยืนยัน · รับตำแหน่ง", &"PrimaryButton", Vector2(240, 64))
+	yes.name = "ConfirmTakeLeader"
+	yes.pressed.connect(func(): take_leader(g))
+	buttons.add_child(yes)
+	var no := UIUtil.button("ยกเลิก", &"", Vector2(160, 64))
+	no.name = "CancelTakeLeader"
+	no.pressed.connect(close_leader_picker)
+	buttons.add_child(no)
+	var sheet_size := Vector2(minf(820.0, maxf(520.0, _root.size.x - 80.0)), minf(340.0, maxf(260.0, _root.size.y - 60.0)))
+	_picker = OverlaySheet.open(_root, "รับตำแหน่งหัวหน้ากิลด์ %s" % WorldPlayers.guild_name(g), box, sheet_size)
+	_picker.name = "TakeLeaderConfirm"
+	_picker.closed.connect(func(): _picker = null)
+
+
+## The confirmed take-over: the one played leads its guild now.
+func take_leader(g: int) -> bool:
+	if g != Game.guild() or not Game.take_guild_leadership():
+		Game.say("รับตำแหน่งหัวหน้ากิลด์ไม่ได้", &"warning")
+		close_leader_picker()
+		return false
+	AudioManager.play_ui(&"ui_open")
+	Game.say("คุณเป็นหัวหน้ากิลด์ %s แล้ว" % WorldPlayers.guild_name(g), &"success")
+	close_leader_picker()
+	return true
 
 
 ## Saves the pick, closes the picker and updates the leader line.

@@ -984,11 +984,23 @@ func load_game(from_slot := -1) -> bool:
 		if _write_profile(clean, slot):
 			_queue_cloud_save()
 	_migrate_costume_items()
+	_settle_account_guild()
 	# หนึ่งในใต้หล้า's crown: the weeks ended while away, and every crown past its end.
 	MazeCrown.settle()
 	profile_changed.emit()
 	inventory_changed.emit()
 	return true
+
+
+## One guild leader an account (_sync_guild_leaders) and the Legendary Guild Wings
+## record of the one played naming the character that holds each pair
+## (LegendWings.settle_holders): an old save is put right on its load, written at once.
+func _settle_account_guild() -> void:
+	var changed := _sync_guild_leaders()
+	if LegendWings.settle_holders():
+		changed = true
+	if changed:
+		save()
 
 
 ## Costumes bought before they were items become items once (RewardShop.migrate_items),
@@ -3950,14 +3962,20 @@ func join_guild(g: int) -> bool:
 	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g) or guild() == g or int(profile.level) < GUILD_LEVEL:
 		return false
 	var before := guild()
+	var t := WorldPresence.clock()
+	# Read before the move: who leads the new guild and the old one for the account.
+	var lead_new := account_guild_leader(g, t)
+	var lead_old := account_guild_leader(before, t) if before > 0 else {}
 	profile["flags"][GUILD_FLAG] = g
-	# A new guild: the hero leads it until the player picks someone else, and the guild
-	# it left goes back to its own leader (its strongest member).
-	var leaders := _guild_leader_picks()
-	leaders[str(g)] = ""
-	if before > 0:
-		leaders.erase(str(before))
-	profile["guild_leaders"] = leaders
+	# A new guild: the hero leads it until the player picks someone else, unless another
+	# character of the account leads it already (it keeps the seat: a character joining
+	# never takes it; รับตำแหน่งหัวหน้ากิลด์ does). The guild it left goes back to its own
+	# leader (its strongest member), unless another character of the account leads it.
+	var decided := {}
+	decided[g] = lead_new if lead_new.has("slot") and int(lead_new.slot) != slot else {"slot": slot}
+	if before > 0 and not (lead_old.has("slot") and int(lead_old.slot) != slot):
+		decided[before] = {}
+	_sync_guild_leaders(decided, t)
 	mark_dirty()
 	guild_changed.emit()
 	return true
@@ -4083,23 +4101,193 @@ func guild_leader_label(g: int, t := -1.0) -> String:
 
 ## Saves who leads guild `g`: "" for the hero (own guild) or the default (other guild),
 ## a member of that guild, or alt_pick(slot) for another character of the player in it.
-## False when the pick cannot lead it.
+## The pick is the account's: every other character's save says the same in its own
+## words (_sync_guild_leaders), so the leader stays the leader while another character
+## is played. False when the pick cannot lead it.
 func set_guild_leader(g: int, pick: String, t := -1.0) -> bool:
 	if not has_profile or not WorldPlayers.GUILD_NAMES.has(g):
 		return false
 	if t < 0.0:
 		t = WorldPresence.clock()
+	var decided := {}
 	if pick.begins_with(ALT_PICK):
 		if _alt_of_pick(g, pick).is_empty():
 			return false
-	elif pick != "" and not is_guild_member(g, pick, t):
-		return false
-	var leaders := _guild_leader_picks()
-	leaders[str(g)] = pick
-	profile["guild_leaders"] = leaders
+		decided[g] = {"slot": int(pick.substr(1))}
+	elif pick != "":
+		if not is_guild_member(g, pick, t):
+			return false
+		decided[g] = {"name": pick}
+	else:
+		decided[g] = {"slot": slot} if g == guild() else {}
+	_sync_guild_leaders(decided, t)
 	mark_dirty()
 	guild_changed.emit()
 	return true
+
+
+## รับตำแหน่งหัวหน้ากิลด์: the character played takes the lead of its own guild from
+## another character of the account that leads it (the only way the seat moves to it;
+## the guild screen asks first). The Legendary Guild Wings stay with whoever holds them.
+## False when it is not in a guild or another character of the account does not lead it.
+func take_guild_leadership(t := -1.0) -> bool:
+	var g := guild()
+	if g <= 0 or String(guild_leader_of(g, t).kind) != "alt":
+		return false
+	return set_guild_leader(g, "", t)
+
+
+# --- One leader an account (หัวหน้ากิลด์ของบัญชี) ----------------------------------
+# Each save keeps its own guild_leaders, in its own words ("" itself, "@<slot>" another
+# character, a world player's name). An account has one leader a guild: every explicit
+# change (set_guild_leader, join_guild) writes it into every saved character's picks, and
+# a load (load_game) settles saves that disagree (written before this: each character in
+# a guild thought it led it, so switching slot handed the seat to the one played, or to
+# the AI for a guild the one played is not in). Nothing is written when all agree.
+
+## Every saved character of the account: {slot: {guild (0: none or under Lv.100),
+## picks, score, legend: the latest Legendary Guild Wings week it holds, by guild}}.
+func _account_characters() -> Dictionary:
+	var out := {}
+	for i in range(1, SLOT_COUNT + 1):
+		var p: Dictionary = profile if has_profile and i == slot else _read_slot(i)
+		if p.is_empty():
+			continue
+		var g := 0
+		if has_profile and i == slot:
+			g = guild()
+		else:
+			var flags: Variant = p.get("flags", {})
+			if flags is Dictionary and int((flags as Dictionary).get(GUILD4_FLAG, 0)) > 0:
+				g = int((flags as Dictionary).get(GUILD_FLAG, 0))
+		var level := int(p.get("level", 1)) if p.get("level") is int or p.get("level") is float else 1
+		if level < GUILD_LEVEL or not WorldPlayers.GUILD_NAMES.has(g):
+			g = 0
+		var para: Variant = p.get("paragon", {})
+		var stars := int((para as Dictionary).get("level", 0)) if para is Dictionary else 0
+		var legend := {}
+		var lists: Array = [p.get("inv", []), p.get("storage", []), (p.get("equip", {}) as Dictionary).values() if p.get("equip") is Dictionary else []]
+		for list in lists:
+			if not list is Array:
+				continue
+			for piece in list:
+				if LegendWings.is_item(piece):
+					var lg := str(int(piece.get("legend_guild", 0)))
+					legend[lg] = maxi(int(legend.get(lg, 0)), int(piece.legend_week))
+		var picks: Variant = p.get("guild_leaders", {})
+		out[i] = {"guild": g, "picks": (picks as Dictionary) if picks is Dictionary else {}, "score": level * 1000 + stars, "legend": legend}
+	return out
+
+
+## Who leads guild `g` for the account, read from every saved character's picks:
+## {"slot": k} (a character of the account), {"name": n} (a world player) or {} (none
+## chosen: the default). When saves disagree (an old save): the character holding this
+## guild's Legendary Guild Wings (the latest), then the most saves naming it, then an own
+## character over a world player, then the strongest, then the lowest slot.
+func account_guild_leader(g: int, t := -1.0, chars := {}) -> Dictionary:
+	if not WorldPlayers.GUILD_NAMES.has(g):
+		return {}
+	if t < 0.0:
+		t = WorldPresence.clock()
+	if chars.is_empty():
+		chars = _account_characters()
+	var votes := {}
+	for s in chars:
+		var picks: Dictionary = chars[s].picks
+		if not picks.has(str(g)) or not picks[str(g)] is String:
+			continue
+		var p := String(picks[str(g)])
+		var key := ""
+		if p == "":
+			if int(chars[s].guild) == g:
+				key = "s%d" % int(s)
+		elif p.begins_with(ALT_PICK):
+			var k := int(p.substr(1)) if p.substr(1).is_valid_int() else 0
+			if k != int(s) and chars.has(k) and int(chars[k].guild) == g:
+				key = "s%d" % k
+		elif is_guild_member(g, p, t):
+			key = "n" + p
+		if key != "":
+			votes[key] = int(votes.get(key, 0)) + 1
+	if votes.is_empty():
+		return {}
+	var best := ""
+	for key in votes:
+		if best == "" or _leader_vote_beats(String(key), best, g, votes, chars):
+			best = String(key)
+	return {"slot": int(best.substr(1))} if best.begins_with("s") else {"name": best.substr(1)}
+
+
+func _leader_vote_beats(a: String, b: String, g: int, votes: Dictionary, chars: Dictionary) -> bool:
+	var wa := int(chars[int(a.substr(1))].legend.get(str(g), 0)) if a.begins_with("s") else 0
+	var wb := int(chars[int(b.substr(1))].legend.get(str(g), 0)) if b.begins_with("s") else 0
+	if wa != wb:
+		return wa > wb
+	if int(votes[a]) != int(votes[b]):
+		return int(votes[a]) > int(votes[b])
+	if a.begins_with("s") != b.begins_with("s"):
+		return a.begins_with("s")
+	if a.begins_with("s"):
+		var sa := int(chars[int(a.substr(1))].score)
+		var sb := int(chars[int(b.substr(1))].score)
+		if sa != sb:
+			return sa > sb
+		return int(a.substr(1)) < int(b.substr(1))
+	return a < b
+
+
+## The account's leader of a guild in save slot `for_slot`'s words (null: no pick).
+static func _leader_pick_for(lead: Dictionary, for_slot: int) -> Variant:
+	if lead.has("slot"):
+		return "" if int(lead.slot) == for_slot else alt_pick(int(lead.slot))
+	if lead.has("name"):
+		return String(lead.name)
+	return null
+
+
+## Makes every saved character's picks say the account's leader of each guild: `decided`
+## {g: lead} for a change made now ({} = back to the default), the others as the saves
+## agree (account_guild_leader). The one played changes in memory (dirty), the others are
+## written to their slots (never loaded). True when anything changed.
+func _sync_guild_leaders(decided := {}, t := -1.0) -> bool:
+	if not has_profile:
+		return false
+	if t < 0.0:
+		t = WorldPresence.clock()
+	var chars := _account_characters()
+	var leads := {}
+	for g in WorldPlayers.GUILD_NAMES:
+		if decided.has(g):
+			leads[g] = decided[g]
+		else:
+			var lead := account_guild_leader(int(g), t, chars)
+			if not lead.is_empty():
+				leads[g] = lead
+	var changed := false
+	for s in chars:
+		var want: Dictionary = (chars[s].picks as Dictionary).duplicate()
+		for g in leads:
+			var pick: Variant = _leader_pick_for(leads[g], int(s))
+			if pick == null:
+				want.erase(str(g))
+			else:
+				want[str(g)] = pick
+		if want == chars[s].picks:
+			continue
+		if int(s) == slot:
+			profile["guild_leaders"] = want
+			mark_dirty()
+			changed = true
+			continue
+		var raw: Variant = _read_slot_json(int(s))
+		if not raw is Dictionary or not _valid_profile(raw):
+			continue  # a damaged save is never written here (it is salvaged on its load)
+		raw["guild_leaders"] = want
+		if _write_profile(raw, int(s)):
+			changed = true
+	if changed:
+		_queue_cloud_save()
+	return changed
 
 
 ## The player's other characters (the other save slots, read without loading them)

@@ -45,7 +45,7 @@ func _ready() -> void:
 	await _fixed_war()
 	await _alt_leaders()
 	for s in [ALLY_SLOT, RIVAL_SLOT]:
-		check(FileAccess.get_file_as_string(Game.save_path(s)) == String(_files[s]), "slot %d's save was never written" % s)
+		check(_but_leaders(FileAccess.get_file_as_string(Game.save_path(s))) == _but_leaders(String(_files[s])), "slot %d's save was never written (but the account's guild leader picks)" % s)
 	WorldPresence.clock_offset = 0.0
 	print("GUILD WAR ALTS: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
@@ -75,18 +75,31 @@ func _dress(cls: StringName, stars: int, plus: int, seed_value: int) -> void:
 	Game.profile.equip["wings"] = StarWingData.item(String(cls), rng, 4)
 
 
+## A save's JSON without its guild_leaders (set_guild_leader writes the account's pick
+## into every character's save).
+static func _but_leaders(text: String) -> Variant:
+	var d: Variant = JSON.parse_string(text)
+	if d is Dictionary:
+		(d as Dictionary).erase("guild_leaders")
+	return d
+
+
 ## One other character in Alpha (the hero's guild), one in Neverdie (the rival), then the
 ## one played (Alpha).
 func _make_characters() -> void:
 	Game.slot = ALLY_SLOT
 	_hero(&"archer", ALLY_NAME, 150, 4)
 	_dress(&"archer", 150, ALLY_PLUS, 11)
-	check(Game.join_guild(WorldPlayers.ALPHA), "the ally character joins Alpha")
+	# In the guild, never its leader (one that joined first would keep leading it for the
+	# account: account_guild_test).
+	Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
+	check(Game.guild() == WorldPlayers.ALPHA, "the ally character is in Alpha")
 	check(Game.save(), "the ally character is saved")
 	Game.slot = RIVAL_SLOT
 	_hero(&"mage", RIVAL_NAME, 100, 3)
 	_dress(&"mage", 100, RIVAL_PLUS, 22)
-	check(Game.join_guild(WorldPlayers.NEVERDIE), "the rival character joins Neverdie")
+	Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.NEVERDIE
+	check(Game.guild() == WorldPlayers.NEVERDIE, "the rival character is in Neverdie")
 	check(Game.save(), "the rival character is saved")
 	Game.slot = MAIN_SLOT
 	_hero(&"warrior", "GL", 200, 4)
