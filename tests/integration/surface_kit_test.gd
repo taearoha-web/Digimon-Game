@@ -96,9 +96,18 @@ func _ready() -> void:
 		kinds[int(roundf((1.0 - c.a) * SurfaceKit.KIND_STEPS))] = true
 	check(kinds.has(SurfaceKit.KIND_PLASTER) and kinds.has(SurfaceKit.KIND_STONE) and kinds.has(SurfaceKit.KIND_WOOD) and kinds.has(SurfaceKit.KIND_ROOF),
 		"plaster, stone, wood and roof tiles each get their texture")
-	check(SurfaceKit.kind_for(SiegeArena.TILE) == SurfaceKit.KIND_ROOF and SurfaceKit.kind_for(SiegeArena.WOOD) == SurfaceKit.KIND_WOOD
-		and SurfaceKit.kind_for(SiegeArena.PLASTER) == SurfaceKit.KIND_PLASTER and SurfaceKit.kind_for(SiegeArena.STONE_CORE) == SurfaceKit.KIND_STONE,
+	# The guild war castle's dark palette picks its own kinds (SiegeArena.surface_kind).
+	check(SiegeArena.surface_kind(SiegeArena.TILE) == SurfaceKit.KIND_ROOF and SiegeArena.surface_kind(SiegeArena.WOOD) == SurfaceKit.KIND_WOOD
+		and SiegeArena.surface_kind(SiegeArena.PLASTER) == SurfaceKit.KIND_PLASTER and SiegeArena.surface_kind(SiegeArena.STONE_CORE) == SurfaceKit.KIND_STONE
+		and SiegeArena.surface_kind(SiegeArena.STONE) == SurfaceKit.KIND_STONE and SiegeArena.surface_kind(SiegeArena.PAVING) == SurfaceKit.KIND_STONE
+		and SiegeArena.surface_kind(SiegeArena.GOLD) == SurfaceKit.KIND_NONE,
 		"the castle's palette maps to its surfaces")
+	JapanKit.kind_picker = SiegeArena.surface_kind
+	var dark := JapanKit.Batch.new()
+	dark.box(Vector3.ZERO, Vector3.ONE, SiegeArena.STONE)
+	JapanKit.kind_picker = Callable()
+	var dark_cols: PackedColorArray = dark.mesh().surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	check(int(roundf((1.0 - dark_cols[0].a) * SurfaceKit.KIND_STEPS)) == SurfaceKit.KIND_STONE, "a batch built under the castle's picker takes its kinds")
 	check(SurfaceKit.kind_for(JapanKit.VERMILION) == SurfaceKit.KIND_NONE and SurfaceKit.kind_for(JapanKit.GOLD) == SurfaceKit.KIND_NONE,
 		"lacquer and gold stay painted")
 

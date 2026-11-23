@@ -109,21 +109,34 @@ const BANNER_META := "siege_banner_material"
 ## the way through goes by an open one. Set by GuildWarMatch (all shut when a war starts).
 static var lane_open: Array = [[false, false], [false, false]]
 
-const STONES: Array[Color] = [Color("a39f94"), Color("8f8b81"), Color("b3ada0"), Color("7d7a72"), Color("9c958a"), Color("c0b9aa")]
-const STONE := Color("a7a39a")
-const STONE_CORE := Color("77736b")
-const PLASTER := Color("f4efe4")
-const TILE := Color("39414f")
-const TILE_EDGE := Color("2a303b")
-const WOOD := Color("4a2f20")
-const PAVING := Color("bdb6a4")
+## A brooding fortress: charcoal and slate stone with darker mortar and edges, cool steel
+## lines in the floors, so the gold, the lacquer red, the altar and the guilds' colours stand
+## out against it. Every dressed block takes one of STONES, drifting towards ASH.
+const STONES: Array[Color] = [Color("4a4e57"), Color("42454d"), Color("535760"), Color("3a3d44"), Color("474b53"), Color("5a5e66")]
+const ASH := Color("6b6e72")
+const STONE := Color("565a63")
+const STONE_CORE := Color("2f3238")
+## The keeps' and turrets' walls: dark lacquered plaster (a "crow castle").
+const PLASTER := Color("43474f")
+const TILE := Color("2d333d")
+const TILE_EDGE := Color("1d2026")
+const WOOD := Color("3f2b20")
+## The yards', the bridge's and the court's floor: dark slate.
+const PAVING := Color("3a3e46")
+## The bands and kerbs laid across the floors: steel grey, and a deeper one.
+const STEEL := Color("6a707a")
+const STEEL_DEEP := Color("585d66")
 const GOLD := Color("e8c050")
 ## Deeper golds that SurfaceKit still reads as metal (a darkened GOLD would be drawn as wood).
 const GOLD_DEEP := Color("d9aa38")
 const GOLD_DARK := Color("cc9a2c")
 ## The great keep's roofs: weathered copper over the grey tiles of the walls.
 const KEEP_ROOF := Color("3d7468")
-const LOOPHOLE := Color("2b2622")
+const LOOPHOLE := Color("17181b")
+## The castle town beyond the walls: weathered grey plaster (a step lighter than the keep, its
+## lit windows warm against it), its terraces paved in dark ash.
+const TOWN_PLASTER := Color("8c8b88")
+const TOWN_PAVING := Color("575a60")
 
 
 ## Where team `team`'s camp is (CAMPS; teams past the fourth wrap round).
@@ -280,8 +293,9 @@ static func on_altar(p: Vector3) -> bool:
 ## moat and the wide bridge, the castle with its walls, turrets, gatehouses, the grand
 ## staircase and the raised throne court, the keeps and the kingdom beyond, and their colliders.
 static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> void:
-	# The clear air of a high country (the kingdom and its mountains stand far off).
-	Scenery.environment(zone, Color("5f8fd8"), Color("d6e4f2"), Color(0.9, 0.92, 1.0), Color(1.0, 0.95, 0.85), {"theme": &"sky"})
+	# The air of a high country, a shade greyer over the dark fortress (the kingdom and its
+	# mountains stand far off); the light on the fighters stays as bright as anywhere.
+	Scenery.environment(zone, Color("5884c8"), Color("cdd6e0"), Color(0.9, 0.92, 1.0), Color(1.0, 0.95, 0.85), {"theme": &"sky"})
 	var paths: Array[PackedVector2Array] = [PackedVector2Array([Vector2(PLAZA.x, PLAZA.z), Vector2(0.0, MOAT_SOUTH)])]
 	var clearings: Array[Vector3] = [Vector3(PLAZA.x, PLAZA.z, 16.0)]
 	var count := clampi(colors.size(), 2, CAMPS.size())
@@ -293,7 +307,7 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 		clearings.append(Vector3(c.x, c.z, 14.0))
 	# The pilgrims' way under the torii from the south (AVENUE) to the plaza.
 	paths.append(PackedVector2Array([Vector2(0.0, AVENUE_Z1 + 8.0), Vector2(PLAZA.x, PLAZA.z)]))
-	Scenery.ground(zone, 215.0, Color("6fae54"), Color("86c063"), 41, Color("cdb88a"), paths, 7.0, clearings, &"meadow")
+	Scenery.ground(zone, 215.0, Color("64a252"), Color("7cb75f"), 41, Color("b3a98f"), paths, 7.0, clearings, &"meadow")
 	var root := Node3D.new()
 	root.name = "Siege"
 	zone.add_child(root)
@@ -310,6 +324,8 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	# The new scenery's own stream of numbers (the zone's is left to the stone and the pines).
 	var art := RandomNumberGenerator.new()
 	art.seed = 90417
+	# The dark stone keeps its textures (SurfaceKit.kind_for reads cool dark greys as tiles).
+	JapanKit.kind_picker = SiegeArena.surface_kind
 	_moat(root, masonry)
 	_bridge(root, masonry)
 	_castle(root, masonry)
@@ -328,10 +344,23 @@ static func build(zone: Node3D, rng: RandomNumberGenerator, colors: Array) -> vo
 	_altar_beam(root)
 	_court_floor(root)
 	_flags = null
+	JapanKit.kind_picker = Callable()
 	# Grass, flowers, bushes, torches, weapon racks and the guilds' banners (visual only).
 	PropDressing.siege(root, colors, count)
 	# Effects drawn for flat ground are lifted onto the stairs and the court (SiegeLift).
 	SiegeLift.attach(zone)
+
+
+## The textured surface of a castle colour: its plasters as plaster, the tiles as tiles,
+## every other grey (stone, paving, steel bands) as stone; the rest as SurfaceKit.kind_for.
+static func surface_kind(color: Color) -> int:
+	if color == PLASTER or color == TOWN_PLASTER:
+		return SurfaceKit.KIND_PLASTER
+	if color == TILE or color == TILE_EDGE or color == KEEP_ROOF:
+		return SurfaceKit.kind_for(color)
+	if color.s < 0.2 and color.v >= 0.14 and color.v <= 0.85:
+		return SurfaceKit.KIND_STONE
+	return SurfaceKit.kind_for(color)
 
 
 ## The torii avenue south of the plaza (decoration: no colliders), from z0 to z1.
@@ -387,7 +416,7 @@ class Masonry:
 					var basis := Basis(Vector3.UP, yaw).scaled(Vector3(to - from - 0.07, h - 0.06, 0.5))
 					transforms.append(Transform3D(basis, center))
 					var tone: Color = STONES[rng.randi() % STONES.size()]
-					colors.append(tone.lerp(Color("c9b89a"), rng.randf() * 0.18).darkened(rng.randf() * 0.12))
+					colors.append(tone.lerp(ASH, rng.randf() * 0.16).darkened(rng.randf() * 0.12))
 				s += w
 			y += h
 			row += 1
@@ -766,18 +795,18 @@ static func _castle(root: Node3D, m: Masonry) -> void:
 	_trim.box(Vector3(0, 0.04, (MOAT_NORTH + GATE_Z[0]) * 0.5), Vector3(BRIDGE_HALF * 2.0 + 4.0, 0.06, MOAT_NORTH - GATE_Z[0] + 1.0), PAVING)
 	for k in 2:
 		for f in [0.3, 0.5, 0.7]:
-			_trim.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
+			_trim.box(Vector3(0, 0.08, GATE_Z[k] - GATE_GAP * f), Vector3(HALL_HALF * 2.0 - 3.6, 0.04, 0.12), STEEL)
 		# A darker border round each yard and a paved band down each lane to the next gate.
 		for s in [-1.0, 1.0]:
-			_trim.box(Vector3(float(s) * (HALL_HALF - 5.2), 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.5, 0.04, GATE_GAP - 8.0), Color("8d8676"))
+			_trim.box(Vector3(float(s) * (HALL_HALF - 5.2), 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.5, 0.04, GATE_GAP - 8.0), STEEL_DEEP)
 			_trim.box(Vector3(float(s) * LANE_X, 0.07, GATE_Z[k] - GATE_GAP * 0.5), Vector3(6.0, 0.03, GATE_GAP - 5.0), PAVING.lightened(0.14))
 			for e in [-1.0, 1.0]:
-				_trim.box(Vector3(float(s) * LANE_X + float(e) * 3.2, 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.3, 0.03, GATE_GAP - 5.0), Color("8d8676"))
+				_trim.box(Vector3(float(s) * LANE_X + float(e) * 3.2, 0.075, GATE_Z[k] - GATE_GAP * 0.5), Vector3(0.3, 0.03, GATE_GAP - 5.0), STEEL_DEEP)
 			for i in 5:
 				_trim.box(Vector3(float(s) * LANE_X, 0.09, GATE_Z[k] - 6.0 - float(i) * 6.0), Vector3(1.5, 0.03, 1.5), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
 		# The yard's medallion between the lanes.
 		var heart := Vector3(0, 0, GATE_Z[k] - GATE_GAP * 0.5)
-		_trim.cyl(heart + Vector3(0, 0.07, 0), 4.6, 0.06, Color("8d8676"), Vector3.ZERO, 24)
+		_trim.cyl(heart + Vector3(0, 0.07, 0), 4.6, 0.06, STEEL_DEEP, Vector3.ZERO, 24)
 		_trim.cyl(heart + Vector3(0, 0.08, 0), 4.2, 0.08, PAVING.lightened(0.16), Vector3.ZERO, 24)
 		_trim.cyl(heart + Vector3(0, 0.09, 0), 2.6, 0.1, GOLD_DEEP, Vector3.ZERO, 24)
 		_trim.cyl(heart + Vector3(0, 0.1, 0), 2.0, 0.12, Color("c0392b"), Vector3.ZERO, 24)
@@ -876,9 +905,9 @@ static func _court(b: JapanKit.Batch, root: Node3D) -> void:
 	var head := STAIR_Z1 + STAIR_LEAD
 	_trim.box(Vector3(0, COURT_H - 0.02, (STAIR_Z1 + BACK_Z) * 0.5), Vector3(THRONE_HALF * 2.0, 0.1, STAIR_Z1 - BACK_Z), PAVING)
 	for i in 4:
-		_trim.box(Vector3(0, COURT_H + 0.05, head - 5.0 - float(i) * 8.4), Vector3(THRONE_HALF * 2.0 - 3.6, 0.04, 0.12), Color("9e9787"))
+		_trim.box(Vector3(0, COURT_H + 0.05, head - 5.0 - float(i) * 8.4), Vector3(THRONE_HALF * 2.0 - 3.6, 0.04, 0.12), STEEL)
 	for s in [-1.0, 1.0]:
-		_trim.box(Vector3(float(s) * (THRONE_HALF * 0.62 - 2.4), COURT_H + 0.05, (head + BACK_Z) * 0.5), Vector3(0.5, 0.04, head - BACK_Z - 6.0), Color("8d8676"))
+		_trim.box(Vector3(float(s) * (THRONE_HALF * 0.62 - 2.4), COURT_H + 0.05, (head + BACK_Z) * 0.5), Vector3(0.5, 0.04, head - BACK_Z - 6.0), STEEL_DEEP)
 	for i in 4:
 		for s in [-1.0, 1.0]:
 			_trim.box(Vector3(float(s) * 5.4, COURT_H + 0.06, head - 3.0 - float(i) * 6.4), Vector3(1.3, 0.03, 1.3), GOLD_DARK if i % 2 == 0 else Color("b5483a"), Vector3(0, 45, 0))
@@ -1145,7 +1174,7 @@ static func _bridge(root: Node3D, m: Masonry) -> void:
 		b.box(Vector3(0, 0.0, z), Vector3(BRIDGE_HALF * 2.0 - 0.6, 0.6, 1.4), STONE_CORE)
 	for s in [-1.0, 1.0]:
 		b.box(Vector3(float(s) * LANE_X, 0.31, mid), Vector3(7.0, 0.03, length), PAVING.lightened(0.12))
-	b.box(Vector3(0, 0.315, mid), Vector3(1.2, 0.03, length), Color("8d8676"))
+	b.box(Vector3(0, 0.315, mid), Vector3(1.2, 0.03, length), STEEL_DEEP)
 	for xs in [-1.0, 1.0]:
 		var x: float = float(xs) * (BRIDGE_HALF - 0.3)
 		b.box(Vector3(x, 0.55, mid), Vector3(0.5, 0.5, length), STONE)
@@ -1220,12 +1249,12 @@ static func _plaza(root: Node3D) -> void:
 	var b := JapanKit.Batch.new()
 	b.cyl(Vector3(PLAZA.x, 0.03, PLAZA.z), 14.6, 0.06, STONE_CORE.lightened(0.1), Vector3.ZERO, 36)
 	b.cyl(Vector3(PLAZA.x, 0.04, PLAZA.z), 14.0, 0.08, PAVING, Vector3.ZERO, 36)
-	b.cyl(Vector3(PLAZA.x, 0.05, PLAZA.z), 10.6, 0.1, Color("8d8676"), Vector3.ZERO, 36)
+	b.cyl(Vector3(PLAZA.x, 0.05, PLAZA.z), 10.6, 0.1, STEEL_DEEP, Vector3.ZERO, 36)
 	b.cyl(Vector3(PLAZA.x, 0.055, PLAZA.z), 10.2, 0.11, PAVING.lightened(0.1), Vector3.ZERO, 36)
 	b.cyl(Vector3(PLAZA.x, 0.06, PLAZA.z), 7.0, 0.12, STONE.lightened(0.1), Vector3.ZERO, 36)
 	for i in 8:
 		var angle := TAU * float(i) / 8.0
-		b.box(PLAZA + Vector3(cos(angle) * 10.4, 0.105, sin(angle) * 10.4), Vector3(0.5, 0.03, 7.0), Color("8d8676"), Vector3(0, 90.0 - rad_to_deg(angle), 0))
+		b.box(PLAZA + Vector3(cos(angle) * 10.4, 0.105, sin(angle) * 10.4), Vector3(0.5, 0.03, 7.0), STEEL_DEEP, Vector3(0, 90.0 - rad_to_deg(angle), 0))
 		b.box(PLAZA + Vector3(cos(angle + TAU / 16.0) * 5.0, 0.125, sin(angle + TAU / 16.0) * 5.0), Vector3(1.3, 0.03, 1.3), GOLD_DARK, Vector3(0, 45.0 - rad_to_deg(angle + TAU / 16.0), 0))
 	b.cyl(Vector3(PLAZA.x, 0.07, PLAZA.z), 3.2, 0.14, GOLD_DEEP, Vector3.ZERO, 24)
 	b.cyl(Vector3(PLAZA.x, 0.08, PLAZA.z), 2.5, 0.16, Color("c0392b"), Vector3.ZERO, 24)
@@ -1354,7 +1383,7 @@ static func _batch(root: Node3D, node_name: String, mesh: Mesh, transforms: Arra
 
 ## A town house seen from afar: a plastered body under a hipped roof (two boxes' worth).
 static func _town_house(b: JapanKit.Batch, at: Vector3, w: float, d: float, h: float, roof: Color, lit := false) -> void:
-	b.box(at + Vector3(0, h * 0.5, 0), Vector3(w, h, d), PLASTER)
+	b.box(at + Vector3(0, h * 0.5, 0), Vector3(w, h, d), TOWN_PLASTER)
 	b.roof(at + Vector3(0, h + 0.95, 0), w + 2.0, d + 2.0, 1.9, roof, 0.5)
 	if lit:
 		b.box(at + Vector3(0, h * 0.68, d * 0.5 + 0.06), Vector3(w * 0.5, h * 0.28, 0.06), Color("ffd98a"), Vector3.ZERO, true)
@@ -1393,7 +1422,7 @@ static func _kingdom(root: Node3D, art: RandomNumberGenerator) -> void:
 		for e in [-1.0, 1.0]:
 			var cx: float = float(e) * (x0 + x1) * 0.5
 			b.box(Vector3(cx, h * 0.5, (zs + zn) * 0.5), Vector3(x1 - x0, h, zs - zn), STONE.darkened(0.06))
-			b.box(Vector3(cx, h + 0.02, (zs + zn) * 0.5), Vector3(x1 - x0 - 0.4, 0.06, zs - zn - 0.4), Color("b7ad94"))
+			b.box(Vector3(cx, h + 0.02, (zs + zn) * 0.5), Vector3(x1 - x0 - 0.4, 0.06, zs - zn - 0.4), TOWN_PAVING)
 			b.box(Vector3(cx, h + 0.7, zs - 0.5), Vector3(x1 - x0, 1.4, 0.7), PLASTER)
 			b.box(Vector3(cx, h + 1.5, zs - 0.5), Vector3(x1 - x0 + 0.3, 0.3, 1.3), TILE)
 			# Two or three rows of houses along the terrace.
@@ -1421,7 +1450,7 @@ static func _kingdom(root: Node3D, art: RandomNumberGenerator) -> void:
 		b.xform = Transform3D.IDENTITY
 		var hall := Vector3(float(e) * 150.0, 8.0, -160.0)
 		b.box(hall + Vector3(0, 1.0, 0), Vector3(26.0, 2.0, 18.0), STONE)
-		b.box(hall + Vector3(0, 4.6, 0), Vector3(21.0, 5.2, 13.0), PLASTER)
+		b.box(hall + Vector3(0, 4.6, 0), Vector3(21.0, 5.2, 13.0), TOWN_PLASTER)
 		for k in 5:
 			b.cyl(hall + Vector3((float(k) - 2.0) * 5.0, 4.6, 6.7), 0.5, 5.2, JapanKit.VERMILION)
 		b.roof(hall + Vector3(0, 9.2, 0), 28.0, 20.0, 4.0, TILE, 0.55)
