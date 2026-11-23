@@ -929,8 +929,7 @@ func _top_tier() -> int:
 	return top
 
 
-## Sparkles around the hero for legendary gear (violet), a weapon at +7 or more (gold)
-## and, from gear tier 6 up (Lv.61+), a bigger and bigger aura plus a halo.
+## Sparkles around the hero for legendary gear (violet), the whole set's + aura and, from gear tier 6 up (Lv.61+), a bigger and bigger aura plus a halo.
 func _make_aura() -> void:
 	if story_aura:
 		var shadow_star := StoryChapter2Art.aura(decor_light)

@@ -53,7 +53,7 @@ const PIECE_PREFIX := {"armor": "เกราะ", "helm": "มงกุฎ", "b
 
 ## Worn pieces of one class's set: cumulative shares added by HeroStats.compute.
 const BONUS := {2: {"hp": 0.06}, 4: {"atk": 0.06, "def": 0.06}, 6: {"atk": 0.06, "crit": 0.04, "crit_dmg": 0.15}}
-const BONUS_TEXT := ["2 ชิ้น: HP สูงสุด +6%", "4 ชิ้น: พลังโจมตี +6% พลังป้องกัน +6%", "6 ชิ้น: พลังโจมตีอีก +6% คริติคอล +4% ดาเมจคริติคอล +15% และออร่าเซตรอบตัว"]
+const BONUS_TEXT := ["2 ชิ้น: HP สูงสุด +6%", "4 ชิ้น: พลังโจมตี +6% พลังป้องกัน +6% และออร่าเซตรอบตัว", "6 ชิ้น: พลังโจมตีอีก +6% คริติคอล +4% ดาเมจคริติคอล +15%"]
 ## Worn pieces from which the class aura shows (HeroVisual).
 const AURA_PIECES := 4
 

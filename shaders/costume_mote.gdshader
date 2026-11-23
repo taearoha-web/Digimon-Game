@@ -4,7 +4,7 @@ shader_type spatial;
 // vertices sit on its mote's home (VERTEX), UV is the corner, UV2 = (phase, size in
 // metres) and COLOR its colour. The vertex stage moves each mote (orbit, rise or
 // fall, bob) and turns it to the camera, so no script runs per frame.
-render_mode unshaded, blend_premul_alpha, depth_draw_never, cull_disabled, skip_vertex_transform, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, depth_draw_never, cull_disabled, skip_vertex_transform, shadows_disabled, fog_disabled;
 
 // Turns a second around the body (radians), scaled a little per mote.
 uniform float orbit = 0.6;
