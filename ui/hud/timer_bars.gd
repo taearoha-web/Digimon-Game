@@ -80,6 +80,6 @@ func update_entries(entries: Array, delta: float) -> void:
 		elif group == "ally":
 			_rows[group].get_child(0).text = "จากเพื่อน\n%d" % int(groups.get(group, 0))
 		elif group != "summon":
-			_rows[group].get_child(0).text = "%s\n%d/%d" % ["ใช้เอง", int(groups.get(group, 0)), BuffBook.GROUP_LIMIT]
+			_rows[group].get_child(0).text = "%s\n%d/%d" % ["ใช้เอง", int(groups.get(group, 0)), BuffBook.own_limit(Game.profile.get("class", "") if Game.has_profile else "")]
 
 	visible = not _chips.is_empty()

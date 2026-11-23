@@ -12,9 +12,16 @@ var _synced_alive := false
 var _synced_auras := -1
 
 
-## Own buffs: two slots (a third replaces the oldest). Buffs from friends have no
-## limit: every friend's buff is kept (each skill once, a recast refreshes it).
+## Own buffs: two slots (a third replaces the oldest); the Defender keeps three
+## (own_limit). Buffs from friends have no limit: every friend's buff is kept (each
+## skill once, a recast refreshes it).
 const GROUP_LIMIT := 2
+const DEFENDER_LIMIT := 3
+
+
+## How many of its own buffs a class keeps at once: the Defender three, everyone else two.
+static func own_limit(cls: Variant) -> int:
+	return DEFENDER_LIMIT if StringName(str(cls)) == &"defender" else GROUP_LIMIT
 ## Songs (the Bard's, "song" in the buff) keep slots of their own: two per
 ## recipient, whoever sang them, one per family (SONG_FAMILIES): an attack song and a
 ## ward song (defence, guard, shield; the healing songs) play together, two attack songs
@@ -146,7 +153,7 @@ static func contains(entries: Array, id: String, ally: bool, now := -1) -> bool:
 			return true
 	return false
 
-static func insert(entries: Array, data: Dictionary, color: Color, label: String, ally := false, skill_id := "", now := -1) -> Array[Dictionary]:
+static func insert(entries: Array, data: Dictionary, color: Color, label: String, ally := false, skill_id := "", now := -1, limit := GROUP_LIMIT) -> Array[Dictionary]:
 	if now < 0:
 		now = Time.get_ticks_msec()
 	var id := skill_id if not skill_id.is_empty() else label
@@ -167,7 +174,7 @@ static func insert(entries: Array, data: Dictionary, color: Color, label: String
 					break
 			songs -= 1
 	else:
-		while not ally and group_count(next, ally, now) >= GROUP_LIMIT and not bool(data.get("overheal", false)):
+		while not ally and group_count(next, ally, now) >= limit and not bool(data.get("overheal", false)):
 			for i in next.size():
 				if bool(next[i].get("ally", false)) == ally and not bool(next[i].get("overheal", false)) and not is_song(next[i]):
 					next.remove_at(i)
@@ -179,8 +186,8 @@ static func insert(entries: Array, data: Dictionary, color: Color, label: String
 	next.append(buff)
 	return next
 
-func add(data: Dictionary, color: Color, label := "", ally := true, skill_id := "") -> void:
-	buffs = insert(buffs, data, color, label, ally, skill_id)
+func add(data: Dictionary, color: Color, label := "", ally := true, skill_id := "", limit := GROUP_LIMIT) -> void:
+	buffs = insert(buffs, data, color, label, ally, skill_id, -1, limit)
 
 
 ## Sum of one effect ("atk", "def", "speed", "crit") over the buffs still running.

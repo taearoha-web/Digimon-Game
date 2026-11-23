@@ -668,7 +668,7 @@ func _auto_cast(hp_rate: float) -> void:
 					var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)
 					if fx.has("heal") and not stance and hp_rate > (0.55 if not fx.has("buff") else 0.75):
 						continue
-					if fx.has("buff") and (not fx.has("heal") or stance) and (BuffBook.group_count(_buffs, false) >= BuffBook.GROUP_LIMIT or BuffBook.contains(_buffs, String(skill.id), false)):
+					if fx.has("buff") and (not fx.has("heal") or stance) and (BuffBook.group_count(_buffs, false) >= BuffBook.own_limit(Game.profile.get("class", "")) or BuffBook.contains(_buffs, String(skill.id), false)):
 						continue
 			"summon":
 				if _summons_alive(skill.id) > 0:
@@ -1664,7 +1664,7 @@ func receive_buff(buff_data: Dictionary, color: Color, label := "", from_ally :=
 	var prepared := buff_data.duplicate()
 	if prepared.has("shield"): prepared["shield_left"] = int(float(stats.max_hp)*float(prepared.shield))
 	var max_before := int(stats.get("max_hp", 0))
-	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id)
+	_buffs = BuffBook.insert(_buffs, prepared, color, label, from_ally, skill_id, -1, BuffBook.own_limit(Game.profile.get("class", "")))
 	refresh_stats()
 	# เบ่งเลือด raises the ceiling only (10,000 -> 13,000 max at ★1); the HP itself stays.
 	var gained := int(stats.get("max_hp", 0)) - max_before

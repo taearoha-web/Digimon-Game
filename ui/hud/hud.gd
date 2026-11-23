@@ -1919,7 +1919,7 @@ class CompactTimers extends TimerBars:
 				_chips.erase(id)
 		for group in _rows:
 			_rows[group].visible = groups.has(group)
-			var limit := BuffBook.SONG_LIMIT if group == "song" else BuffBook.GROUP_LIMIT
+			var limit := BuffBook.SONG_LIMIT if group == "song" else BuffBook.own_limit(Game.profile.get("class", "") if Game.has_profile else "")
 			var n := int(groups.get(group, 0))
 			if group == "summon":
 				_rows[group].get_child(0).text = LABELS[group]

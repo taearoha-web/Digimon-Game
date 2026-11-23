@@ -1315,7 +1315,7 @@ func _upkeep_score(skill: Dictionary, distance: float) -> float:
 
 ## Whether the buff of `skill` already runs on the fighter (its own or a party mate's
 ## cast): a song of its family plays, the same buff runs, or both of the fighter's own
-## buff slots (BuffBook.GROUP_LIMIT) are taken.
+## buff slots (BuffBook.own_limit: three for a Defender) are taken.
 func _buff_running(skill: Dictionary) -> bool:
 	# The buff icons (BuffBook) keep the wall clock, as the hero's do.
 	var now := Time.get_ticks_msec()
@@ -1325,7 +1325,7 @@ func _buff_running(skill: Dictionary) -> bool:
 	var id := String(skill.id)
 	if BuffBook.contains(entries, id, false, now) or BuffBook.contains(entries, id, true, now):
 		return true
-	return BuffBook.group_count(entries, false, now) >= BuffBook.GROUP_LIMIT
+	return BuffBook.group_count(entries, false, now) >= BuffBook.own_limit(member.get("class", ""))
 
 
 ## Whether the fighter may use `skill` at all (its level, class tier and stars).

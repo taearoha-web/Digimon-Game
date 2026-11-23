@@ -620,7 +620,7 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
 				var display_buff := buff.duplicate()
 				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
-				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id))
+				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id), BuffBook.own_limit(member.get("class", "")))
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
 			if fx.has("heal"):

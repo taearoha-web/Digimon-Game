@@ -1018,7 +1018,7 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 			var stance := fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)
 			if fx.has("heal") and ((hero_hp < 0.55 and not stance) or float(hp) / float(max_hp) < 0.45):
 				return 10.0
-			if fx.has("buff") and (not fx.has("heal") or stance) and BuffBook.group_count(_book.buffs, false) < BuffBook.GROUP_LIMIT and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
+			if fx.has("buff") and (not fx.has("heal") or stance) and BuffBook.group_count(_book.buffs, false) < BuffBook.own_limit(member.get("class", "")) and not BuffBook.contains(_book.buffs, String(skill.id), false) and _in_combat():
 				return 6.0
 			if fx.has("buff") and fx.has("heal") and hero_hp < 0.7:
 				return 8.0
@@ -1200,7 +1200,7 @@ func _apply_self(skill: Dictionary) -> void:
 			_buff_allies(BuffBook.party_part(buff), color, String(skill.name), String(skill.id))
 		elif not BuffBook.is_self_only(buff):
 			_buff_own_summons(buff, color, String(skill.name), String(skill.id))
-		_book.add(buff, color, String(skill.name), false, String(skill.id))
+		_book.add(buff, color, String(skill.name), false, String(skill.id), BuffBook.own_limit(member.get("class", "")))
 		# Persistent buff halo and the skill silhouette carry this feedback.
 
 

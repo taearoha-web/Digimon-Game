@@ -29,6 +29,16 @@ func _ready() -> void:
 			check(is_equal_approx(float(buff.guard), 0.1), "guard untouched")
 	# Other skills get nothing.
 	check(SkillRank.int_hp_bonus(ClassData.find_skill(&"defender", "iron_wall"), 300) == 0.0, "iron_wall has no INT bonus")
+	# The Defender keeps three of its own buffs, everyone else two (BuffBook.own_limit).
+	check(BuffBook.own_limit(&"defender") == 3 and BuffBook.own_limit(&"warrior") == 2 and BuffBook.own_limit("defender") == 3, "own buff slots: Defender 3, others 2")
+	var list: Array[Dictionary] = []
+	for id in ["a", "b", "c", "d"]:
+		list = BuffBook.insert(list, {"def": 0.1, "secs": 60.0}, Color.WHITE, id, false, id, 1000, BuffBook.own_limit(&"defender"))
+	check(BuffBook.group_count(list, false, 1000) == 3 and not BuffBook.contains(list, "a", false, 1000) and BuffBook.contains(list, "d", false, 1000), "a Defender keeps its newest three own buffs")
+	var two: Array[Dictionary] = []
+	for id in ["a", "b", "c"]:
+		two = BuffBook.insert(two, {"def": 0.1, "secs": 60.0}, Color.WHITE, id, false, id, 1000)
+	check(BuffBook.group_count(two, false, 1000) == 2, "any other class keeps two")
 	# The real cast.
 	Game.new_profile(&"defender", "Brace QA", {"gender": 0})
 	Game.profile.level = 100
