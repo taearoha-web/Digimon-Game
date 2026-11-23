@@ -81,7 +81,9 @@ func _process(delta: float) -> void:
 
 
 ## Everyone in the registry at time t (newcomers from the day they join): the hero first
-## as a row like the others.
+## as a row like the others, and every other character of the account (every save slot,
+## a damaged one too, by the name it still has), offline with its own class, level,
+## stars, guild and records (`crown`: it holds หนึ่งในใต้หล้า, MazeCrown.mine_holds).
 static func rows(t: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for i in WorldPlayers.size():
@@ -89,11 +91,25 @@ static func rows(t: float) -> Array[Dictionary]:
 			out.append(WorldPlayers.state(i, t))
 	if Game.has_profile:
 		out.append({"index": -1, "name": String(Game.profile.get("name", "คุณ")), "class": Game.class_id(), "guild": Game.guild(),
-			"level": int(Game.profile.level), "stars": int(Game.paragon().level), "online": true, "place": String(Game.current_zone), "you": true})
+			"level": int(Game.profile.level), "stars": int(Game.paragon().level), "online": true, "place": String(Game.current_zone), "you": true,
+			"slot": Game.slot, "crown": MazeCrown.mine_holds(Game.slot, String(Game.profile.get("name", "")), t)})
 	# The player's other characters (other save slots): listed though not played now.
+	var listed := {}
 	for alt in Game.all_alts():
+		listed[int(alt.slot)] = true
 		out.append({"index": -1, "name": String(alt.name), "class": String(alt["class"]), "guild": int(alt.guild),
-			"level": int(alt.level), "stars": int(alt.stars), "online": false, "place": "", "alt": true, "slot": int(alt.slot)})
+			"level": int(alt.level), "stars": int(alt.stars), "online": false, "place": "", "alt": true, "slot": int(alt.slot),
+			"crown": MazeCrown.mine_holds(int(alt.slot), String(alt.name), t)})
+	# A slot whose file cannot be read as a hero (Game.slot_damaged) still shows by its name.
+	for i in range(1, Game.SLOT_COUNT + 1):
+		if listed.has(i) or (Game.has_profile and i == Game.slot) or not Game.has_save(i):
+			continue
+		var info := Game.slot_info(i)
+		if info.is_empty():
+			continue
+		out.append({"index": -1, "name": String(info.get("name", "")) if String(info.get("name", "")) != "" else "ตัวละครช่อง %d" % i,
+			"class": String(info.get("class", ClassData.DEFAULT)), "guild": 0, "level": int(info.get("level", 1)), "stars": int(info.get("stars", 0)),
+			"online": false, "place": "", "alt": true, "slot": i, "damaged": bool(info.get("damaged", false)), "crown": false})
 	out.sort_custom(func(a, b):
 		var pa := int(a.level) * 1000 + int(a.stars)
 		var pb := int(b.level) * 1000 + int(b.stars)
@@ -198,11 +214,12 @@ func _row(rank: int, r: Dictionary, t: float) -> Control:
 	var info := UIUtil.vbox(0)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
-	var who := UIUtil.label("%s%s  ·  %s" % [r.name, " (คุณ)" if you else (" (ตัวละครของคุณ)" if alt else ""), ClassData.get_class_data(StringName(r["class"])).name], &"BoldLabel")
+	var who := UIUtil.label("%s%s  ·  %s%s" % [r.name, " (คุณ)" if you else (" (ตัวละครของคุณ)" if alt else ""), ClassData.get_class_data(StringName(r["class"])).name,
+		"  ·  %s %s" % [MazeCrown.CROWN, MazeCrown.TITLE_NAME] if bool(r.get("crown", false)) else ""], &"BoldLabel")
 	if you or alt:
 		who.add_theme_color_override("font_color", UIPalette.GOLD)
 	info.add_child(who)
-	var where := "ตัวละครของคุณ" if you else ("ตัวละครของคุณ · ไม่ได้เล่นอยู่ (ช่องเซฟ %d)" % int(r.slot) if alt \
+	var where := "ตัวละครของคุณ" if you else (("ตัวละครของคุณ · ออฟไลน์ ไม่ได้เล่นอยู่ (ช่องเซฟ %d)%s" % [int(r.slot), " · ไฟล์เซฟเสียหาย" if bool(r.get("damaged", false)) else ""]) if alt \
 		else ("ออนไลน์ · ปาร์ตี้กับคุณ" if Game.in_party(i) else WorldPlayers.where_text(r, t)))
 	var detail := UIUtil.label(where, &"SmallLabel")
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

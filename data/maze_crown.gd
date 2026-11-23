@@ -23,8 +23,16 @@ extends RefCounted
 ## never), wins: weeks won, last: the last week won (-1 none)}. `done` makes settle
 ## idempotent across reloads: a week is granted, announced and toasted once.
 ##
-## The holder for display (holder): the champion of the week that ended last, the hero or
-## a world player (`index`); a world player who holds it wears the costume
+## Every character of the account races on one board (MazeWar.account_books): the champion
+## may be another character of the account, not played now (`mine`, `slot`). It keeps its
+## crown: the title and the costume stay in its own save for the crown's whole term
+## (granted by its own settle, at once when it was played as the week ended, else the
+## next time it is played: the costume then still ends at the same week's end), and no
+## world player nor the character played now gets them because it is offline.
+##
+## The holder for display (holder): the champion of the week that ended last, the hero,
+## another character of the account (mine_holds) or a world player (`index`); a world
+## player who holds it wears the costume
 ## (RewardShop.world_cosmetics) and the title over its name (FieldPlayer, PlayerCard, the
 ## stall) for that week, like LegendWings' week-long pairs.
 
@@ -115,6 +123,13 @@ static func ai_holds(i: int, t := -1.0) -> bool:
 	if h.is_empty() or bool(h.get("hero", false)) or int(h.get("index", -1)) != i:
 		return false
 	return not h.has("name") or String(h.name) == String(WorldPlayers.entry(i).name)
+
+
+## True when the account's character in save slot `for_slot` named `who` (the one played
+## or another, offline) holds the crown at t.
+static func mine_holds(for_slot: int, who: String, t := -1.0) -> bool:
+	var h := holder(t)
+	return not h.is_empty() and bool(h.get("mine", false)) and int(h.get("slot", 0)) == for_slot and String(h.get("name", "")) == who
 
 
 ## The title's end in profile p (unix, 0 never held).
