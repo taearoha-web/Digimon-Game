@@ -84,9 +84,9 @@ func _skill_ranks() -> void:
 
 
 func _roster() -> void:
-	# A hundred hand-made players since the reopening of 22 Nov 2026, and no daily
-	# newcomers any more (NEWCOMER_MAX = 0: newcomers_test, world_reopen_test).
-	check(WorldPlayers.ROSTER.size() == 100 and WorldPlayers.size() == WorldPlayers.ROSTER.size(), "a hundred world players, no newcomers (%d)" % WorldPlayers.size())
+	# A hundred hand-made players since the reopening of 22 Nov 2026, then 10-15 daily
+	# newcomers from 23 Nov up to NEWCOMER_MAX (newcomers_test, world_reopen_test).
+	check(WorldPlayers.ROSTER.size() == 100 and WorldPlayers.size() >= 100 and WorldPlayers.size() <= 100 + WorldPlayers.NEWCOMER_MAX, "the hundred world players and the newcomers so far (%d)" % WorldPlayers.size())
 	var names := {}
 	var classes := {}
 	var bodies := {}
@@ -1027,12 +1027,12 @@ func _screens() -> void:
 	var joined := WorldPlayers.size()
 	for i in WorldPlayers.size():
 		joined -= 0 if WorldPresence.clock() >= WorldPlayers.joined_at(i) else 1
-	check(rows == joined + 1 and main.registry.find_child("Row_you", true, false) != null, "the registry lists the %d players who have joined and the hero (%d rows)" % [joined, rows])
+	check(rows == mini(joined + 1, RegistryScreen.ROWS_MAX + 1) and main.registry.find_child("Row_you", true, false) != null, "the registry lists the %d players who have joined and the hero (%d rows)" % [joined, rows])
 	(main.registry.find_child("Filter_online", true, false) as Button).pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var online_rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
-	check(online_rows == WorldPresence.online_count() + 1, "the online filter shows who is on (%d)" % online_rows)
+	check(online_rows == mini(WorldPresence.online_count() + 1, RegistryScreen.ROWS_MAX + 1), "the online filter shows who is on (%d)" % online_rows)
 	main.registry.close_screen()
 	main.hud.update_online()
 	check(String(main.hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1), "the HUD shows how many are online")
