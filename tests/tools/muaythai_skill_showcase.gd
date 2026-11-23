@@ -97,7 +97,7 @@ func _case(skill: Dictionary) -> void:
 	Game.new_profile(&"muaythai", "Muay Art QA", {"gender": 1})
 	Game.profile.level = 100
 	Game.profile.adv = 4
-	Game.paragon().level = 200
+	Game.paragon().level = maxi(200, int(skill.get("star", 0)))
 	if bool(skill.get("requires_wings", false)):
 		# Borrowed mage wings: the review is about the skill art, not the wing models.
 		Game.profile.equip["wings"] = ItemData.wings(Game.rng, "mage", 3)
@@ -182,7 +182,7 @@ func _case(skill: Dictionary) -> void:
 		steps = [[delay * 0.3, "1windup"], [delay + 0.06, "2snap"], [delay + 0.2, "3contact"], [delay + 0.42, "4peak"], [delay + 0.8, "5linger"], [delay + 1.3, "6fade"]]
 	if skill.has("star"):
 		# Star carriers land 0.28 s after each beat; the sonata's heartbreak is beat 6, the encore's crown wave 5.
-		steps = [[delay * 0.7, "1windup"], [delay + 0.35, "2release"], [delay + 0.8, "3contact"], [delay + 1.35, "4peak"], [delay + 1.75, "5finale"]]
+		steps = [[delay * 0.7, "1windup"], [delay + 0.35, "2release"], [delay + 0.8, "3contact"], [delay + 1.35, "4peak"], [delay + 1.75, "5finale"], [delay + 2.3, "6after"]]
 	var songs_sent := false
 	var released := -1.0
 	for step in steps:
