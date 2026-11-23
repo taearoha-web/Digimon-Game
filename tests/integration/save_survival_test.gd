@@ -34,7 +34,9 @@ func _ready() -> void:
 	_reset()
 	var heroes := {}
 	heroes[3] = _rich_hero(3, &"darklord", "ดากหลอด", WorldPlayers.ALPHA)
-	heroes[4] = _rich_hero(4, &"summoner", "ราชาวานร", WorldPlayers.ALPHA)
+	# The second in another guild: two characters of one account in one guild have one
+	# leader (the first keeps it: account_guild_test), and each here leads its own.
+	heroes[4] = _rich_hero(4, &"summoner", "ราชาวานร", WorldPlayers.NEVERDIE)
 	for s in heroes:
 		_survives(s, heroes[s])
 	_cloud(heroes)

@@ -69,11 +69,14 @@ func _hero(cls: StringName, hero_name: String, stars: int) -> void:
 func _make_characters() -> void:
 	Game.slot = ALT_SLOT
 	_hero(&"lancer", ALT_NAME, 120)
-	check(Game.join_guild(WorldPlayers.NEVERDIE), "the other character joins Neverdie")
+	# In their guilds, never their leaders (one that joined first would keep leading it for
+	# the account: account_guild_test).
+	Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.NEVERDIE
+	check(Game.guild() == WorldPlayers.NEVERDIE, "the other character is in Neverdie")
 	check(Game.save(), "the other character is saved in its slot")
 	Game.slot = ALT2_SLOT
 	_hero(&"mage", ALT2_NAME, 40)
-	Game.join_guild(WorldPlayers.ALPHA)
+	Game.profile.flags[Game.GUILD_FLAG] = WorldPlayers.ALPHA
 	check(Game.save(), "a second other character (Alpha) is saved")
 	# A low one in a guild flag but under Lv.100 is not a member (cannot be in a guild).
 	Game.slot = 5
@@ -164,7 +167,14 @@ func _save_and_fallbacks() -> void:
 	check(Game.guild_leader_pick(alpha) == "" and Game.guild_leader_name(alpha) == WorldPlayers.guild_leader(alpha, t), "the guild left is led by its strongest again")
 	check(Game.join_guild(alpha), "and back to Alpha")
 	check(Game.hero_leads_guild(alpha), "back home the hero leads")
-	Game.profile.erase("guild_leaders")
+	_default_leaders()
+
+
+## Back to the default leaders for the whole account (the pick is every character's:
+## Game._sync_guild_leaders), as the player would: the hero for ours, the strongest for theirs.
+func _default_leaders() -> void:
+	Game.set_guild_leader(WorldPlayers.ALPHA, "")
+	Game.set_guild_leader(WorldPlayers.NEVERDIE, "")
 
 
 func _labels(node: Node, out: Array[String]) -> void:
@@ -252,7 +262,7 @@ func _guild_screen() -> void:
 	screen.queue_free()
 	await _frames(2)
 	get_tree().paused = false
-	Game.profile.erase("guild_leaders")
+	_default_leaders()
 
 
 func _picks(picker: Node) -> Array[Button]:
@@ -444,7 +454,7 @@ func _war_ally_leader() -> void:
 			lineup.append(WorldPlayers.fighter(i, _t()))
 	var last := String(lineup[lineup.size() - 1].member.name)
 	check(GuildWarMatch.ensure_member(lineup, mate, _t()) and lineup.size() == 3 and _names(lineup).has(mate) and not _names(lineup).has(last), "a picked member missing from the line-up takes the last place")
-	Game.profile.erase("guild_leaders")
+	_default_leaders()
 
 
 func _war_rival_leader() -> void:
@@ -465,7 +475,7 @@ func _war_rival_leader() -> void:
 	check(bool(entry.get("tank", false)), "rival leader: tank build")
 	check(m.hero_leads() and zone.hero.get_node_or_null(LeaderMark.NAME) != null, "rival leader: the hero still leads ours")
 	await _close_war(zone)
-	Game.profile.erase("guild_leaders")
+	_default_leaders()
 
 
 func _war_alt_leaders() -> void:

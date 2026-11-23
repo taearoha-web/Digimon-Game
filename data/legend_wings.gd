@@ -6,7 +6,8 @@ extends RefCounted
 ## legend_guild). The guild's leader receives it (Game.guild_war_leader: the hero when it
 ## leads its own guild, else a world player, who then wears it for real: WorldGear shows
 ## it in its gear, so chat and the player card tell the truth; another character of the
-## player picked to lead, played by the AI in the war, does not: the default does). When the same guild is
+## account that leads it keeps it for itself: recorded as "@<slot>", it gets the pair on
+## its own next load, never the one played nor the AI). When the same guild is
 ## champion again the next week (a streak), the leader does not keep the new pair but hands
 ## it to a member: the hero as leader picks one in the guild screen (hand_choices /
 ## hand_to; itself only while it holds none of this streak); an AI leader gives it to the
@@ -22,7 +23,8 @@ extends RefCounted
 ## the SharedStorage and withdrawn by any character of the account (no class lock).
 ##
 ## profile.legend_wings (valid_record / repair): {done: the last season worked out, hold:
-## {"<week>": {g: guild, n: holder ("" the hero), s: streak length}}, hand: {"<week>": the
+## {"<week>": {g: guild, n: holder ("" the hero, "@<slot>" another character of the
+## account: settle_holders), s: streak length}}, hand: {"<week>": the
 ## member the hero as leader handed that week's pair to ("" itself)}}. The record decides
 ## who holds each week's pair for good, so a later change of leader never rewrites the past
 ## (ai_item reads it for the world players' gear). The server (accounts.js) checks every
@@ -187,7 +189,19 @@ static func holder_label(h: Dictionary) -> String:
 	var n := String(h.get("n", ""))
 	if n == "":
 		return "%s (คุณ)" % String(Game.profile.get("name", "")) if Game.has_profile else "คุณ"
+	var alt := alt_slot_of(n)
+	if alt > 0:
+		var info := Game.slot_info(alt)
+		return "%s (ตัวละครของคุณ)" % String(info.get("name", "ตัวละครอื่น"))
 	return n
+
+
+## The save slot a holder "@<slot>" names (another character of the account), else 0.
+static func alt_slot_of(n: String) -> int:
+	if not n.begins_with(Game.ALT_PICK) or not n.substr(1).is_valid_int():
+		return 0
+	var k := int(n.substr(1))
+	return k if k >= 1 and k <= Game.SLOT_COUNT else 0
 
 
 ## "ปีกตำนานสัปดาห์นี้: กิลด์ X → Y" for the latest season closed ("" before any).
@@ -309,6 +323,13 @@ static func _resolve(w: int, t: float) -> Dictionary:
 	var close := GuildLeague.week_end(w)
 	var prev := hold_of(w - 1)
 	var streak := int(prev.get("s", 0)) + 1 if not prev.is_empty() and int(prev.g) == champ else 1
+	# Another character of the account leads the champion: the pair is that character's
+	# (its own record gives it to it, worn, when it is played: _award_hero), never the
+	# one played nor the AI's because another character is played. Recorded as "@<slot>".
+	var alt := Game.guild_war_alt_leader(champ, close)
+	if alt > 0:
+		var tag := Game.alt_pick(alt)
+		return {"g": champ, "n": tag, "s": streak, "by": tag}
 	var leader := Game.guild_war_leader(champ, close, false)
 	if streak == 1:
 		return {"g": champ, "n": leader, "s": 1, "by": leader}
@@ -438,12 +459,52 @@ static func ai_item(i: int) -> Dictionary:
 		for key in weeks:
 			var h: Dictionary = hold[key]
 			var n := String(h.get("n", ""))
-			if n != "":
+			# "" the hero, "@<slot>" another character of the account: not a world player's.
+			if n != "" and alt_slot_of(n) == 0:
 				var pair := item(int(String(key)), int(h.g))
 				pair["uid"] = "legend-%s" % String(key)
 				_ai_items[n] = pair
 	var found: Variant = _ai_items.get(String(WorldPlayers.entry(i).name))
 	return found if found is Dictionary else {}
+
+
+## The record of the one played names whoever of the account really holds each pair
+## (worn, in a bag or an own storage): "" itself, "@<slot>" another character. An older
+## save recorded the one played (or a world player) for a pair another character of the
+## account earned as its guild's leader; a slot switch never moves a pair. A pair in the
+## shared storage or nowhere in the account keeps its record. True when it changed.
+static func settle_holders() -> bool:
+	if not Game.has_profile or not Game.profile.get(KEY) is Dictionary:
+		return false
+	var hold: Variant = (Game.profile[KEY] as Dictionary).get("hold", {})
+	if not hold is Dictionary or (hold as Dictionary).is_empty():
+		return false
+	var where := {}
+	for i in range(1, Game.SLOT_COUNT + 1):
+		var p: Dictionary = Game.profile if i == Game.slot else Game._read_slot(i)
+		if p.is_empty():
+			continue
+		var lists: Array = [p.get("inv", []), p.get("storage", []), (p.get("equip", {}) as Dictionary).values() if p.get("equip") is Dictionary else []]
+		for list in lists:
+			if not list is Array:
+				continue
+			for piece in list:
+				if is_item(piece) and not where.has(int(piece.legend_week)):
+					where[int(piece.legend_week)] = i
+	var changed := false
+	for key in hold:
+		var h: Variant = hold[key]
+		if not h is Dictionary or not where.has(int(String(key))):
+			continue
+		var at := int(where[int(String(key))])
+		var want := "" if at == Game.slot else Game.alt_pick(at)
+		if String(h.get("n", "")) != want:
+			h["n"] = want
+			changed = true
+	if changed:
+		_ai_sig = ""
+		Game.mark_dirty()
+	return changed
 
 
 ## True when world player i holds a pair (the name plate tag).
