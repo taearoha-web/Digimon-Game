@@ -51,6 +51,10 @@ const MESH_SHADERS: Array[String] = [
 	# that walks into view does not stall the frame compiling its body shader.
 	"res://shaders/kirin.gdshader",
 	"res://shaders/celestial_dragon.gdshader",
+	# The Muay Thai fighter's Ramakien giants (RamakienArt): their spirit body, light, dusk.
+	"res://shaders/ramakien_spirit.gdshader",
+	"res://shaders/ramakien_light.gdshader",
+	"res://shaders/ramakien_veil.gdshader",
 ]
 ## Effect shaders that particles or multimeshes draw (the instanced variant).
 const INSTANCED_SHADERS: Array[String] = [
