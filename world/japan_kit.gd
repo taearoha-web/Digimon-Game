@@ -23,6 +23,10 @@ const SHOJI := Color("f8f1dc")
 const THATCH := Color("b08e58")
 const COPPER := Color("4a8f7c")
 const GOLD := Color("e8c050")
+## While valid, picks the textured surface (SurfaceKit.KIND_*) of a colour added to a Batch
+## without one, in place of SurfaceKit.kind_for: a place with its own palette (SiegeArena's
+## dark stone, which kind_for would read as roof tiles or leave painted) sets it while it builds.
+static var kind_picker := Callable()
 
 
 ## Collects primitives (in the batch's local space) into one mesh.
@@ -82,7 +86,7 @@ class Batch:
 			_glow_indices.append_array(idx)
 		else:
 			if kind < 0:
-				kind = SurfaceKit.kind_for(color)
+				kind = int(JapanKit.kind_picker.call(color)) if JapanKit.kind_picker.is_valid() else SurfaceKit.kind_for(color)
 			cols.fill(SurfaceKit.tag(color, kind))
 			_uvs.append_array(JapanKit.face_uvs(unit, mesh_arrays[Mesh.ARRAY_NORMAL], local, kind == SurfaceKit.KIND_WOOD))
 			_verts.append_array(verts)

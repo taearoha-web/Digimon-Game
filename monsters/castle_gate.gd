@@ -84,8 +84,8 @@ func _make_visual() -> MonsterVisual:
 	_door.name = "Door"
 	v.add_child(_door)
 	v.model = _door
-	var wood := MeshKit.toon(Color("6b4126"))
-	var iron := MeshKit.toon(Color("2f3035"))
+	var wood := MeshKit.toon(Color("5a3825"))
+	var iron := MeshKit.toon(Color("24262b"))
 	var stud := MeshKit.toon(Color("d8b050"), {"emission": 0.1})
 	var half := SiegeArena.GATE_HALF
 	for side in [-1.0, 1.0]:
