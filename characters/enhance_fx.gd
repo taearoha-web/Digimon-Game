@@ -146,70 +146,11 @@ static func _bounds_center(root: Node3D) -> Vector3:
 	return box.get_center() if not first else Vector3(0, 0.5, 0)
 
 
-## Glow and sparkles on a held weapon (or shield). [param light] is the cheap dressing of
-## the other players seen around (HeroVisual.decor_light): the overlay, halo and orbiting
-## sparks, but no particle emitters, flames or light, which the phone pays for per frame.
+## The look of a held weapon (or shield) at +plus: EnhanceWeaponFx (nothing below +7,
+## a glow in the weapon's own colour at +7/+9, electric arcs from +10, a ring of arcs
+## round the hand at +15). [param light] is the crowd's cheap dressing (HeroVisual.decor_light).
 static func on_item(item: Node3D, plus: int, light := false) -> void:
-	var g := grade(plus)
-	if g == 0:
-		return
-	var color := color_of(plus)
-	var rich := GameSettings.quality > 0 and not light
-	var overlay := _glow_material(color, [0.0, 0.07, 0.11, 0.15, 0.2][g])
-	for m in MeshKit.collect_meshes(item):
-		m.material_overlay = overlay
-	var pulse := item.create_tween().set_loops()
-	var base_a: float = overlay.albedo_color.a
-	var speed: float = [0.0, 1.6, 1.1, 0.8, 0.45][g]
-	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.7, speed).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.5, speed).set_trans(Tween.TRANS_SINE)
-	if GameSettings.quality == 0:
-		return
-	var center := _bounds_center(item)
-	if rich:
-		_sparkles(item, center, color, [0, 4, 8, 11, 14][g], 0.2 + 0.03 * g, 0.1 + 0.01 * g, 0.5 + 0.1 * g)
-	if g >= 3:
-		var halo := MeshInstance3D.new()
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * (0.8 if g == 3 else 1.0)
-		var hmat := _glow_material(color, 0.28 if g == 3 else 0.2)
-		hmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		hmat.albedo_texture = VfxKit.soft_dot()
-		quad.material = hmat
-		halo.mesh = quad
-		halo.position = center
-		halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		item.add_child(halo)
-		var breathe := halo.create_tween().set_loops()
-		breathe.tween_property(halo, "scale", Vector3.ONE * 1.25, 0.7).set_trans(Tween.TRANS_SINE)
-		breathe.tween_property(halo, "scale", Vector3.ONE * 0.85, 0.7).set_trans(Tween.TRANS_SINE)
-		# Orbiting sparks around the weapon.
-		var orbit := Node3D.new()
-		orbit.position = center
-		item.add_child(orbit)
-		var count := 2 if g == 3 else 4
-		for i in count:
-			var a := TAU * float(i) / float(count)
-			var orb := MeshInstance3D.new()
-			orb.mesh = MeshKit.sphere_low()
-			orb.material_override = _glow_material(color.lightened(0.3), 0.95)
-			orb.scale = Vector3.ONE * 0.09
-			orb.position = Vector3(cos(a) * 0.38, sin(a * 2.0) * 0.12, sin(a) * 0.38)
-			orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			orbit.add_child(orb)
-		var spin := orbit.create_tween().set_loops()
-		spin.tween_property(orbit, "rotation:y", TAU, 1.6 if g == 3 else 0.9).from(0.0)
-	if g == 4 and not light:
-		_flames(item, center, 0.08, 7, color.lightened(0.3), color, color.darkened(0.5))
-		# One of the three effect lights, high quality only (never one per fighter in a war).
-		if VfxBudget.can_light():
-			var lamp := OmniLight3D.new()
-			lamp.light_color = color
-			lamp.light_energy = 0.9
-			lamp.omni_range = 4.5
-			lamp.position = center
-			item.add_child(lamp)
-			VfxBudget.track_light(lamp)
+	EnhanceWeaponFx.apply(item, plus, light)
 
 
 ## The body aura of the whole set at +plus (set_plus): one of the nine AURA_STEPS.
