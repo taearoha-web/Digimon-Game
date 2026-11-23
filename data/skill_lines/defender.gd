@@ -56,8 +56,10 @@ static func skills() -> Array:
 		# -10% at ★1, up to +50% / -25% at ★5 (the buff's "grow", SkillRank.scaled_fx), 1 minute.
 		# The max HP is a ceiling for the whole party ("party": only "hp" is shared,
 		# BuffBook.party_part): it fills no HP. The damage cut is the Defender's own.
+		# The INT the player spent adds to the max HP part: +0.1% a point, up to +30%
+		# ("int_hp" [per point, cap], SkillRank.int_hp_bonus), so ★5 with 300 INT spent is +80%.
 		# A 25 s cooldown keeps it up all the time. Its line id stays "brace" (SIGNATURE_BUFFS).
-		ClassData._sk(d, "brace", "เบ่งเลือด", "เพิ่มเพดาน HP สูงสุดของทุกคนในปาร์ตี้ +30% (ไม่เติมเลือด) และผู้พิทักษ์ลดความเสียหายที่ได้รับ 10% นาน 1 นาที (★5: HP สูงสุด +50% ลดดาเมจ 25%)", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "party": ["hp"], "grow": {"hp": 0.05, "guard": 0.0375}}}, "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
+		ClassData._sk(d, "brace", "เบ่งเลือด", "เพิ่มเพดาน HP สูงสุดของทุกคนในปาร์ตี้ +30% (ไม่เติมเลือด) และผู้พิทักษ์ลดความเสียหายที่ได้รับ 10% นาน 1 นาที (★5: HP สูงสุด +50% ลดดาเมจ 25%) INT ที่ลงเพิ่มทุก 10 แต้ม HP สูงสุดเพิ่มอีก +1% (สูงสุด +30%)", 5, 12, 25.0, "self", 0.0, {"fx": {"buff": {"hp": 0.30, "guard": 0.10, "secs": 60.0, "party": ["hp"], "grow": {"hp": 0.05, "guard": 0.0375}}}, "int_hp": [0.001, 0.30], "anim": "Blocking", "color": Color("ff6b6b"), "icon": "shield"}),
 		# single + stun: shield_slam (10) -> bastion_crush (70)
 		ClassData._sk(d, "shield_slam", "Shield Slam", "กระแทกหน้าโล่ใส่ศัตรู มึนงง 1.5 วินาที", 10, 14, 6.0, "single", 3.8, {"fx": {"stun": 1.5}, "anim": "Block_Attack", "vfx": &"impact", "color": Color("ffe27a"), "icon": "shield"}),
 		ClassData._sk(d, "bastion_crush", "Bastion Crush", "กดโล่บดขยี้ศัตรูตัวเดียว มึนงง 1.5 วินาที", 70, 70, 8.0, "single", 12.0, {"range": 3.4, "fx": {"stun": 1.5}, "anim": "2H_Melee_Attack_Slice", "vfx": &"impact", "color": Color("ff8a5a"), "icon": "shield"}),

@@ -1500,6 +1500,8 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		_heal(float(fx.heal), not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)), MuayThaiArt.owns(skill))
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
+		# เบ่งเลือด: the INT the player spent raises its max HP (SkillRank.int_hp_bonus).
+		buff = SkillRank.with_int_hp(skill, buff, int((Game.profile.get("attrs", {}) as Dictionary).get("int", 0)))
 		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
 			buff = BuffBook.boost_song(buff, SONG_SET_BOOST)
 		receive_buff(buff, color, String(skill.name), false, String(skill.id))

@@ -142,6 +142,25 @@ static func buff_value(buff: Dictionary, key: String, rank: int) -> float:
 	return base * buff_scale(rank)
 
 
+## The extra max HP a skill's "int_hp" [per point, cap] gives for [param spent_int] INT
+## points the player put in (เบ่งเลือด: +0.1% a point, up to +30%); 0 for any other skill.
+static func int_hp_bonus(skill: Dictionary, spent_int: int) -> float:
+	var rule: Variant = skill.get("int_hp")
+	if not rule is Array or (rule as Array).size() < 2:
+		return 0.0
+	return minf(float(rule[0]) * float(maxi(spent_int, 0)), float(rule[1]))
+
+
+## The buff of [param skill] with its INT bonus (int_hp_bonus) added to "hp".
+static func with_int_hp(skill: Dictionary, buff: Dictionary, spent_int: int) -> Dictionary:
+	var extra := int_hp_bonus(skill, spent_int)
+	if extra <= 0.0 or not buff.has("hp"):
+		return buff
+	var out := buff.duplicate()
+	out["hp"] = float(buff.hp) + extra
+	return out
+
+
 ## A debuff's fraction ([param key] "shred" or "weaken") at [param rank], capped.
 static func debuff_fraction(fx: Dictionary, key: String, rank: int) -> float:
 	return minf(float(fx[key][0]) * control_scale(rank), float(DEBUFF_CAPS[key]))
