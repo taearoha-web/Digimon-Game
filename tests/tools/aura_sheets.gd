@@ -5,7 +5,10 @@ extends Node3D
 ## look's name and what unlocks it.
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . \
 ##     res://tests/tools/aura_sheets.tscn -- OUT_DIR [SHEET ...]
-## SHEET: body weapon dark low set250 other costumes (default: all but dark and low).
+## SHEET: body weapon dark low set250 other costumes god (default: all but dark, low, god).
+## god: the three +15 looks (EnhanceFx.GOD_STYLE A/B/C) side by side, red warrior and green
+## archer, front and back -> god_day.png, god_dark.png (a dark zone), god_close.png and
+## god_close_dark.png (near), god_game.png (the game's high camera).
 ## Writes OUT_DIR/<sheet>.png (body -> enhance_body.png, weapon -> enhance_weapon.png,
 ## dark -> enhance_dark.png: a few set steps in a dark zone's light, low -> enhance_low.png:
 ## the lowest quality).
@@ -67,6 +70,16 @@ func _ready() -> void:
 				GameSettings.quality = 2
 			"set250": await _sheet("set250", "ออร่าเซต 250★ ประจำอาชีพ (SetGearArt.aura) · สวมชิ้นเซต ≥ 4 ชิ้น", _set_cells(), 6, Vector2i(320, 460))
 			"other": await _sheet("other", "ออร่า/แสงอื่น ๆ จากอุปกรณ์ ตำแหน่ง และเนื้อเรื่อง", _other_cells(), 6, Vector2i(300, 440))
+			"god":
+				var keep := EnhanceFx.GOD_STYLE
+				await _sheet("god_day", "ทั้งชุด +15 ออร่าเทพ · 3 แบบให้เลือก (EnhanceFx.GOD_STYLE) · กลางวัน", _god_cells(["wide", "wide_back"]), 6, Vector2i(300, 440))
+				await _sheet("god_close", "ทั้งชุด +15 ออร่าเทพ · 3 แบบ · ใกล้", _god_cells(["close"]), 3, Vector2i(420, 560))
+				await _sheet("god_game", "ทั้งชุด +15 ออร่าเทพ · 3 แบบ · มุมกล้องในเกม", _god_cells(["game"]), 3, Vector2i(420, 420))
+				_darken()
+				await _sheet("god_dark", "ทั้งชุด +15 ออร่าเทพ · 3 แบบ · โซนมืด", _god_cells(["wide", "wide_back"]), 6, Vector2i(300, 440))
+				await _sheet("god_close_dark", "ทั้งชุด +15 ออร่าเทพ · 3 แบบ · ใกล้ · โซนมืด", _god_cells(["close"]), 3, Vector2i(420, 560))
+				_darken(true)
+				EnhanceFx.GOD_STYLE = keep
 			"costumes": await _sheet("costumes", "คอสตูม (RewardShop.COSTUMES · CostumeArt) · ทุกชุดมีแสง/ละอองลอยรอบตัว", _costume_cells(), 5, Vector2i(320, 460))
 	get_tree().quit()
 
@@ -106,6 +119,20 @@ func _body_cells() -> Array:
 			for plus in STEPS:
 				out.append(_cell(_set_title(plus), "%s · ชุด Lv.%d · %s" % [th, row[1], "ด้านหน้า" if side == "wide" else "ด้านหลัง"],
 					cls, _gear(cls, row[1], 2, plus), side))
+	return out
+
+
+## The three +15 looks for a red warrior and a green archer, in each of [param views].
+func _god_cells(views: Array) -> Array:
+	var out := []
+	for row in [["warrior", 45, "แดง"], ["archer", 35, "เขียว"]]:
+		var cls: String = row[0]
+		var th := ClassData.get_class_data(StringName(cls)).get("name", cls) as String
+		for style in EnhanceFx.GOD_STYLE_NAMES.size():
+			for view in views:
+				var side := "ด้านหลัง" if String(view).ends_with("back") else "ด้านหน้า"
+				out.append(_cell("แบบ %s · %s" % ["ABC"[style], EnhanceFx.GOD_STYLE_NAMES[style]], "%s ชุดสี%s · +15 ทั้งชุด · %s" % [th, row[2], side],
+					cls, _gear(cls, row[1], 2, 15), view, {"god_style": style}))
 	return out
 
 
@@ -331,6 +358,8 @@ func _stage(spec: Dictionary, size: Vector2i) -> Dictionary:
 	var h := HeroVisual.new()
 	h.costume = String(spec.get("costume", ""))
 	h.story_aura = bool(spec.get("story", false))
+	if spec.has("god_style"):
+		EnhanceFx.GOD_STYLE = int(spec.god_style)
 	add_child(h)
 	h.position = at
 	h.setup(StringName(spec.cls), "", true, spec.equip, FaceKit.default_look())
@@ -399,6 +428,16 @@ func _frame(m: Dictionary) -> void:
 			cam.fov = 40
 			var dir := Vector3(0.6, 0.2, 1.0) if view == "wide" else Vector3(-0.75, 0.25, -1.0)
 			cam.position = c + dir.normalized() * 5.6
+			cam.look_at(c, Vector3.UP)
+		"close":
+			var c := at + Vector3(0, 1.2, 0)
+			cam.fov = 40
+			cam.position = c + Vector3(0.5, 0.18, 1.0).normalized() * 4.4
+			cam.look_at(c, Vector3.UP)
+		"game":
+			var c := at + Vector3(0, 1.0, 0)
+			cam.fov = 45
+			cam.position = c + Vector3(0.3, 0.85, 1.0).normalized() * 7.0
 			cam.look_at(c, Vector3.UP)
 		"near":
 			var c := at + Vector3(0, 1.1, 0)

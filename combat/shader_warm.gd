@@ -52,12 +52,13 @@ const MESH_SHADERS: Array[String] = [
 	"res://shaders/kirin.gdshader",
 	"res://shaders/celestial_dragon.gdshader",
 	# The enhanced gear's looks (EnhanceFx): the pieces' glow, the set's orbs, lightning
-	# and +15 aura, worn by whoever walks in.
+	# and the +15 god looks (all three: EnhanceFx.GOD_STYLE), worn by whoever walks in.
 	"res://shaders/enhance_glow.gdshader",
 	"res://shaders/enhance_orb.gdshader",
 	"res://shaders/enhance_bolt.gdshader",
-	"res://shaders/enhance_aura.gdshader",
-	"res://shaders/enhance_radiance.gdshader",
+	"res://shaders/enhance_god_light.gdshader",
+	"res://shaders/enhance_god_pillar.gdshader",
+	"res://shaders/enhance_god_flame.gdshader",
 	# The Muay Thai fighter's Ramakien giants (RamakienArt): their spirit body, light, dusk.
 	"res://shaders/ramakien_spirit.gdshader",
 	"res://shaders/ramakien_light.gdshader",

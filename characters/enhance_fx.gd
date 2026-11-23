@@ -13,7 +13,9 @@ extends RefCounted
 ##   +12 อัสนีพันสาย  many sparks, clearer
 ##   +13 อัสนีคู่สี    the sparks in the outfit's colour and its complementary colour
 ##   +14 อัสนีขีดสุด   brighter, denser, forking
-##   +15 ออร่าเทพ     all that, wrapped in a powerful aura of rising light
+##   +15 ออร่าเทพ     all that, and light in the outfit's colour shining out of the hero, in
+##                   one of three looks (GOD_STYLE, GOD_STYLE_NAMES): A the body radiating
+##                   god-light, B a column of heaven's light, C an anime flame aura
 ## The weapon's own look (+7 glow up to the +15 ring round the hand) is EnhanceWeaponFx's.
 ## Everything here is a shared mesh with a pooled shader material animated from TIME
 ## (shaders/enhance_*.gdshader): no particles, tweens or per-frame scripts.
@@ -21,8 +23,16 @@ extends RefCounted
 const GLOW_SHADER := preload("res://shaders/enhance_glow.gdshader")
 const BOLT_SHADER := preload("res://shaders/enhance_bolt.gdshader")
 const ORB_SHADER := preload("res://shaders/enhance_orb.gdshader")
-const AURA_SHADER := preload("res://shaders/enhance_aura.gdshader")
-const RADIANCE_SHADER := preload("res://shaders/enhance_radiance.gdshader")
+## The +15 looks (GOD_STYLE 0, 1, 2).
+const GOD_SHADERS: Array[Shader] = [preload("res://shaders/enhance_god_light.gdshader"),
+	preload("res://shaders/enhance_god_pillar.gdshader"), preload("res://shaders/enhance_god_flame.gdshader")]
+const GOD_STYLE_NAMES: Array[String] = ["แสงเทพเจิดจ้า", "เสาแสงสวรรค์", "เปลวออร่าพลัง"]
+## Which +15 look every hero wears: 0 A แสงเทพเจิดจ้า (the body radiates: a white-hot
+## glow hugging the outline, rays streaming out past it, twinkling stars, a fresnel rim),
+## 1 B เสาแสงสวรรค์ (a column of light from the ground into the sky, a ring at the feet,
+## motes and petals spiralling up), 2 C เปลวออร่าพลัง (a big crisp toon flame aura, sparks
+## shooting up, a glow on the ground).
+static var GOD_STYLE := 0
 
 ## The + of each look step (step 1 = +7 ... step 8 = +15); +8 looks like +7.
 const AURA_STEPS: Array[int] = [7, 9, 10, 11, 12, 13, 14, 15]
@@ -386,7 +396,8 @@ static func glow_outfit(mat: ShaderMaterial, color: Color, plus: int) -> void:
 ## The set's body effects at +plus (set_plus) in [param color] (the armour's colour):
 ## nothing below +10, then the orbs, the sparks from +11 and the aura at +15 (see the
 ## header). [param light] (the other players around) or memory pressure: the orbs
-## without trails, a few sparks without forks; the aura stays (one draw).
+## without trails, a few sparks without forks; the +15 look stays (one draw, without its
+## motes, stars or front flames).
 static func on_body(visual: Node3D, plus: int, light := false, color := Color(0, 0, 0, 0)) -> Array[Node]:
 	var made: Array[Node] = []
 	if plus < BODY_FROM:
@@ -402,7 +413,7 @@ static func on_body(visual: Node3D, plus: int, light := false, color := Color(0,
 	if plus >= 11:
 		_body_bolts(root, tone, plus, head, rich, visual.get_instance_id())
 	if plus >= 15:
-		_aura(root, tone, head)
+		_god(root, tone, head, rich)
 	return made
 
 
@@ -445,25 +456,14 @@ static func _body_bolts(root: Node3D, color: Color, plus: int, head: float, rich
 	return mi
 
 
-## +15: the aura of rising light (shaders/enhance_aura.gdshader).
-static func _aura(root: Node3D, color: Color, head: float) -> MeshInstance3D:
-	var mat := _shared(AURA_SHADER, {"color": _quant(color), "energy": 3.0, "rise": 1.0, "sway": 0.2})
-	var mi := _fx_mesh(root, "GodAura", _aura_mesh(), mat)
-	mi.scale = Vector3(1, head / 1.85, 1)
-	_radiance(root, color, head)
-	return mi
-
-
-## +15: light pouring out of the body (shaders/enhance_radiance.gdshader): one
-## camera-facing quad at the chest, a bright core with turning rays.
-static func _radiance(root: Node3D, color: Color, head: float) -> MeshInstance3D:
-	if not _meshes.has("radiance"):
-		var quad := QuadMesh.new()
-		quad.size = Vector2(3.6, 3.6)
-		_meshes["radiance"] = quad
-	var mat := _shared(RADIANCE_SHADER, {"color": _quant(color), "energy": 1.0})
-	var mi := _fx_mesh(root, "Radiance", _meshes.radiance, mat)
-	mi.position = Vector3(0, head * 0.52, 0)
+## +15: light shining out of the hero in GOD_STYLE's look (shaders/enhance_god_*.gdshader):
+## one shared mesh and one pooled material, one draw. [param rich] false: the cheap dress
+## (no motes, petals, stars or front flames).
+static func _god(root: Node3D, color: Color, head: float, rich: bool) -> MeshInstance3D:
+	var style := clampi(GOD_STYLE, 0, GOD_SHADERS.size() - 1)
+	var mat := _shared(GOD_SHADERS[style], {"color": _quant(color), "rich": 1.0 if rich else 0.0})
+	var mesh: ArrayMesh = [_god_light_mesh, _god_pillar_mesh, _god_flame_mesh][style].call()
+	var mi := _fx_mesh(root, "GodAura", mesh, mat)
 	mi.scale = Vector3.ONE * (head / 1.85)
 	return mi
 
@@ -605,49 +605,125 @@ static func _orb_mesh(head: float, trail: bool) -> ArrayMesh:
 	return mesh
 
 
-## The +15 aura's shell: a surface of revolution round a chibi body 1.85 tall, wide at
-## the shoulders and the big head, closing to a flame's tip above it.
-static func _aura_mesh() -> ArrayMesh:
-	if _meshes.has("aura"):
-		return _meshes.aura
-	# [height, radius]
-	var profile := [[0.0, 0.42], [0.25, 0.47], [0.6, 0.5], [0.95, 0.56], [1.3, 0.64], [1.62, 0.66],
-		[1.9, 0.6], [2.12, 0.46], [2.3, 0.26], [2.42, 0.04]]
-	var around := 28
-	var verts := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var index := PackedInt32Array()
+# The +15 looks' meshes: parts tagged by kind in COLOR.r (kind / 8), a seed in COLOR.g
+# and an index (0..1) in COLOR.b; a card is four corners at its centre (UV the corner,
+# UV2 its size in metres) that the shader turns to the camera (shaders/enhance_god.gdshaderinc).
+
+static func _parts() -> Dictionary:
+	return {"v": [], "n": [], "uv": [], "uv2": [], "c": [], "i": []}
+
+
+static func _part_card(a: Dictionary, centre: Vector3, size: Vector2, kind: int, seed := 0.0, index := 0.0) -> void:
+	var first: int = a.v.size()
+	for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:
+		a.v.append(centre)
+		a.n.append(Vector3.BACK)
+		a.uv.append(corner)
+		a.uv2.append(size)
+		a.c.append(Color(float(kind) / 8.0, seed, index, 1.0))
+	a.i.append_array([first, first + 1, first + 2, first, first + 2, first + 3])
+
+
+## A flat square on the ground (UV across it, UV2 its size).
+static func _part_ground(a: Dictionary, size: float, kind: int) -> void:
+	var first: int = a.v.size()
+	for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:
+		a.v.append(Vector3((corner.x - 0.5) * size, 0.03, (corner.y - 0.5) * size))
+		a.n.append(Vector3.UP)
+		a.uv.append(corner)
+		a.uv2.append(Vector2(size, size))
+		a.c.append(Color(float(kind) / 8.0, 0, 0, 1.0))
+	a.i.append_array([first, first + 1, first + 2, first, first + 2, first + 3])
+
+
+## A surface of revolution: profile [[height, radius], ...], UV.x round it, UV.y up it (0..1).
+static func _part_revolution(a: Dictionary, profile: Array, around: int, kind: int) -> void:
+	var first: int = a.v.size()
 	var rows := profile.size()
+	var top: float = profile[rows - 1][0]
 	for j in rows:
 		var y: float = profile[j][0]
 		var r: float = profile[j][1]
 		var prev: Array = profile[maxi(j - 1, 0)]
 		var next: Array = profile[mini(j + 1, rows - 1)]
-		var dy: float = next[0] - prev[0]
-		var dr: float = next[1] - prev[1]
-		var flat := Vector2(dy, -dr).normalized()
+		var flat := Vector2(next[0] - prev[0], -(next[1] - prev[1])).normalized()
 		for i in around + 1:
-			var a := TAU * float(i) / float(around)
-			var radial := Vector3(cos(a), 0, sin(a))
-			verts.append(radial * r + Vector3(0, y, 0))
-			normals.append((radial * flat.x + Vector3(0, flat.y, 0)).normalized())
-			uvs.append(Vector2(float(i) / float(around), y / 2.42))
+			var ang := TAU * float(i) / float(around)
+			var radial := Vector3(cos(ang), 0, sin(ang))
+			a.v.append(radial * r + Vector3(0, y, 0))
+			a.n.append((radial * flat.x + Vector3(0, flat.y, 0)).normalized())
+			a.uv.append(Vector2(float(i) / float(around), y / top))
+			a.uv2.append(Vector2.ZERO)
+			a.c.append(Color(float(kind) / 8.0, 0, 0, 1.0))
 	for j in rows - 1:
 		for i in around:
-			var a := j * (around + 1) + i
-			var b := a + around + 1
-			index.append_array([a, b, a + 1, a + 1, b, b + 1])
+			var p := first + j * (around + 1) + i
+			var q := p + around + 1
+			a.i.append_array([p, p + 1, q, p + 1, q + 1, q])
+
+
+static func _parts_mesh(a: Dictionary, box: AABB) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = index
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array(a.v)
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array(a.n)
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array(a.uv)
+	arrays[Mesh.ARRAY_TEX_UV2] = PackedVector2Array(a.uv2)
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray(a.c)
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(a.i)
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.custom_aabb = AABB(Vector3(-0.9, -0.1, -0.9), Vector3(1.8, 2.7, 1.8))
-	_meshes["aura"] = mesh
+	mesh.custom_aabb = box
+	return mesh
+
+
+## A · แสงเทพเจิดจ้า: the ground pool, the light card behind the body, the rim shell
+## (drawn in that order).
+static func _god_light_mesh() -> ArrayMesh:
+	if _meshes.has("god_light"):
+		return _meshes.god_light
+	var a := _parts()
+	_part_ground(a, 2.4, 2)
+	_part_card(a, Vector3(0, 1.05, 0), Vector2(4.6, 4.3), 0)
+	_part_revolution(a, [[0.04, 0.36], [0.4, 0.39], [0.8, 0.43], [1.0, 0.5], [1.18, 0.6], [1.42, 0.65],
+		[1.68, 0.6], [1.88, 0.45], [2.0, 0.25], [2.06, 0.04]], 28, 1)
+	var mesh := _parts_mesh(a, AABB(Vector3(-2.6, -0.4, -2.6), Vector3(5.2, 3.8, 5.2)))
+	_meshes["god_light"] = mesh
+	return mesh
+
+
+const PILLAR_HEIGHT := 6.5
+
+
+## B · เสาแสงสวรรค์: the ring at the feet, the column, then 18 motes and 10 petals.
+static func _god_pillar_mesh() -> ArrayMesh:
+	if _meshes.has("god_pillar"):
+		return _meshes.god_pillar
+	var a := _parts()
+	_part_ground(a, 2.5, 1)
+	_part_revolution(a, [[0.0, 0.74], [0.6, 0.74], [1.6, 0.74], [3.2, 0.74], [PILLAR_HEIGHT, 0.74]], 32, 0)
+	for k in 18:
+		_part_card(a, Vector3.ZERO, Vector2.ONE * 0.22, 2, (float(k) + 0.5) / 18.0, float(k % 2) * 0.75)
+	for k in 10:
+		_part_card(a, Vector3.ZERO, Vector2(0.17, 0.28), 3, (float(k) + 0.31) / 10.0, float(k) / 9.0)
+	var mesh := _parts_mesh(a, AABB(Vector3(-1.4, -0.2, -1.4), Vector3(2.8, PILLAR_HEIGHT + 0.5, 2.8)))
+	_meshes["god_pillar"] = mesh
+	return mesh
+
+
+## C · เปลวออร่าพลัง: the ground glow, the flame behind the body, 15 sparks, the tongues
+## in front.
+static func _god_flame_mesh() -> ArrayMesh:
+	if _meshes.has("god_flame"):
+		return _meshes.god_flame
+	var a := _parts()
+	_part_ground(a, 2.4, 3)
+	_part_card(a, Vector3(0, 1.45, 0), Vector2(2.8, 3.3), 0)
+	for k in 15:
+		_part_card(a, Vector3.ZERO, Vector2(0.07, 0.42), 2, (float(k) + 0.5) / 15.0, float(k % 3) * 0.5)
+	_part_card(a, Vector3(0, 1.45, 0), Vector2(2.8, 3.3), 1)
+	var mesh := _parts_mesh(a, AABB(Vector3(-2.0, -0.4, -2.0), Vector3(4.0, 3.9, 4.0)))
+	_meshes["god_flame"] = mesh
 	return mesh
 
 
