@@ -123,8 +123,11 @@ func layer(kind: String, glow: bool, c: Array, at: Vector3, size: Vector3, angle
 	var add := bool(style.get("add", false))
 	var node := MeshInstance3D.new()
 	node.name = kind.capitalize()
-	node.mesh = mesh(kind)
+	node.mesh = _sculpture(kind)
 	var mat := _take(GLOW if add else PAINT)
+	# Draw order among the translucent pieces (RamakienArt's giants: arms, body, mouth,
+	# clouds); pooled materials are reset every time.
+	mat.render_priority = int(style.get("priority", 0))
 	mat.set_shader_parameter("primary", c[0])
 	mat.set_shader_parameter("accent", c[1])
 	mat.set_shader_parameter("shade", c[2])
@@ -133,6 +136,9 @@ func layer(kind: String, glow: bool, c: Array, at: Vector3, size: Vector3, angle
 	mat.set_shader_parameter("age", 0.0)
 	if not add:
 		mat.set_shader_parameter("glow", 1.0 if glow else 0.0)
+		if style.has("ramps"):
+			# A figure's second and third colour ramps (COLOR.b, MuayPaint).
+			_ramps(mat, style.ramps)
 	node.material_override = mat
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.visible = false
@@ -142,6 +148,16 @@ func layer(kind: String, glow: bool, c: Array, at: Vector3, size: Vector3, angle
 	lifetime = maxf(lifetime, start + seconds + 0.02)
 
 
+## Sets the second and third ramps ([param ramps]: [[primary, accent, shade] x2]).
+static func _ramps(mat: ShaderMaterial, ramps: Array) -> void:
+	for k in mini(ramps.size(), 2):
+		var r: Array = ramps[k]
+		var suffix := "_b" if k == 0 else "_c"
+		mat.set_shader_parameter("primary" + suffix, r[0])
+		mat.set_shader_parameter("accent" + suffix, r[1])
+		mat.set_shader_parameter("shade" + suffix, r[2])
+
+
 static func _take(shader: Shader) -> ShaderMaterial:
 	var free: Array = _pool.get(shader, [])
 	if not free.is_empty():
@@ -149,6 +165,22 @@ static func _take(shader: Shader) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
 	return mat
+
+
+## A root tied to a running star cast (RamakienArt): when that StarSkillSequence ends
+## before [member cast_until] (the hero died or left mid-cast), the whole root fades out
+## within CLOSE seconds instead of playing on over nobody's fight.
+const CLOSE := 0.3
+var cast_ref: WeakRef
+var cast_until := 0.0
+var _closing := -1.0
+
+
+func _process(delta: float) -> void:
+	if cast_ref != null and _closing < 0.0 and age < cast_until and not is_instance_valid(cast_ref.get_ref()):
+		_closing = age
+		lifetime = minf(lifetime, age + CLOSE)
+	super._process(delta)
 
 
 ## The cast is over: its materials go back to the pool for the next one.
@@ -162,6 +194,11 @@ func _exit_tree() -> void:
 
 func _draw() -> void:
 	super._draw()
+	if _closing >= 0.0:
+		var k := clampf(1.0 - (age - _closing) / CLOSE, 0.0, 1.0)
+		for data in layers:
+			var mat: ShaderMaterial = data.mat
+			mat.set_shader_parameter("fade", float(mat.get_shader_parameter("fade")) * k)
 	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
 	for data in layers:
 		var node: MeshInstance3D = data.node
@@ -176,7 +213,9 @@ func _draw() -> void:
 			var was := t * t if bool(style.get("accelerate", false)) else 1.0 - pow(1.0 - t, 2.0)
 			var snap := maxf(float(style.snap), 0.01)
 			var k := clampf(local / snap, 0.0, 1.0)
-			node.position += (style.get("travel", Vector3.ZERO) as Vector3) * ((1.0 - pow(1.0 - k, 3.0)) - was)
+			# snap_in: the travel accelerates into the landing (a fall, a slam).
+			var eased := k * k * k if bool(style.get("snap_in", false)) else 1.0 - pow(1.0 - k, 3.0)
+			node.position += (style.get("travel", Vector3.ZERO) as Vector3) * (eased - was)
 			if local > snap:
 				node.scale *= 1.0 + 0.2 * exp(-16.0 * (local - snap)) * sin(minf((local - snap) * 22.0, PI))
 		if camera == null or not (style.has("point") or style.has("billboard")):
@@ -832,6 +871,7 @@ static func mesh(kind: String) -> ArrayMesh:
 static func release_mesh_cache() -> void:
 	_meshes.clear()
 	_pool.clear()
+	RamakienArt.release_figures()
 
 
 static func _c(heat: float, mask := 1.0) -> Color:

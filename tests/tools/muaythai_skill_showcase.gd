@@ -145,6 +145,10 @@ func _case(skill: Dictionary) -> void:
 	var big := float(skill.get("radius", 3.0)) >= 5.0 or int(skill.get("level", 1)) >= 80 or skill.has("star")
 	var focus := hero.position.lerp(target_at, 0.4 if String(skill.shape) != "self" else 0.0) + Vector3.UP * 1.3
 	var dist := 10.5 if big else 7.0
+	if bool(skill.get("requires_wings", false)):
+		# The fighter flies 5 m up on its cape: frame the sky it rises into too.
+		focus += Vector3.UP * 1.8
+		dist = 12.5
 	camera.position = focus + Vector3(-0.62, 0.48, 0.62).normalized() * dist
 	camera.look_at(focus)
 	if close:
@@ -165,7 +169,8 @@ func _case(skill: Dictionary) -> void:
 	# cast runs at an even frame rate (a long first frame would skip the wind-up).
 	SkillShow._recent_shows.clear()
 	hero._cast(skill)
-	await get_tree().create_timer(2.6).timeout
+	# A star cast runs up to ~3.6 s: let the warm-up cast end before the captured one.
+	await get_tree().create_timer(4.4 if skill.has("star") else 2.6).timeout
 	Game.profile.mp = 100000
 	hero.cooldowns.clear()
 	hero._cast_until = 0
@@ -183,6 +188,12 @@ func _case(skill: Dictionary) -> void:
 	if skill.has("star"):
 		# Star carriers land 0.28 s after each beat; the sonata's heartbreak is beat 6, the encore's crown wave 5.
 		steps = [[delay * 0.7, "1windup"], [delay + 0.35, "2release"], [delay + 0.8, "3contact"], [delay + 1.35, "4peak"], [delay + 1.75, "5finale"], [delay + 2.3, "6after"]]
+		# The Ramakien skills (RamakienArt): the giant rising, its yawn / unfurling arms,
+		# every beat (four waves and the finale) and the merge of the god fist.
+		if id == "heaven_ring_cataclysm":
+			steps = [[0.45, "1rise"], [delay * 0.82, "2yawn"], [delay + 0.04, "3beat1"], [delay + 0.36, "4beat2"], [delay + 0.68, "5beat3"], [delay + 1.0, "6beat4"], [delay + 1.4, "7finale"], [delay + 1.85, "8after"]]
+		elif id == "three_realms_fist":
+			steps = [[0.45, "1rise"], [delay * 0.8, "2arms"], [delay + 0.04, "3wave1"], [delay + 0.36, "4wave2"], [delay + 0.68, "5wave3"], [delay + 1.0, "6wave4"], [delay + 1.3, "7merge"], [delay + 1.6, "8finale"], [delay + 1.95, "9after"]]
 	var songs_sent := false
 	var released := -1.0
 	for step in steps:
@@ -194,7 +205,7 @@ func _case(skill: Dictionary) -> void:
 			if released < 0.0 and field.get_node_or_null("MuayArt_" + id) != null:
 				released = now
 			var due := float(step[0])
-			if slow and String(step[1]) != "1windup":
+			if slow and not skill.has("star") and String(step[1]) != "1windup":
 				if released < 0.0:
 					due = INF
 				else:
