@@ -1341,6 +1341,29 @@ test('maze: kills and champions from before the world reopened are off the board
   assert.deepEqual(room.exportMaze().champs, []);
 });
 
+test('maze: a character that goes offline (its account plays another) keeps its kills and the week', () => {
+  const {connect, clock, room} = world();
+  clock.t = MAZE_OPEN_MS + 3_600_000;
+  // One account (user_acc) plays its main in the maze, then switches to another character.
+  const main = connect('1', 'user_acc').hello({name: 'Main', zone: 'maze_war'});
+  for (let k = 0; k < 3; k++) {
+    clock.t += Math.max(MAZE_CREDIT_GAP_MS, MAZE_REKILL_MS);
+    main.send({t: 'maze_kill', victim: `Ai_${k}`, ai: true});
+  }
+  main.close();
+  const alt = connect('2', 'user_acc').hello({name: 'Alt', zone: 'maze_war'});
+  clock.t += Math.max(MAZE_CREDIT_GAP_MS, MAZE_REKILL_MS);
+  alt.send({t: 'maze_kill', victim: 'Ai_x', ai: true});
+  const board = connect('3').last('maze_board');
+  assert.deepEqual(board.rows.map(r => [r.name, r.kills]).sort(), [['Alt', 1], ['Main', 3]], 'the offline character stays on the board under its name');
+  // Stored and restored (a room restart) with it, then the week ends: the offline one is the champion.
+  room.importMaze(JSON.parse(JSON.stringify(room.exportMaze())));
+  assert.equal(room.exportMaze().board.find(e => e.name === 'Main')?.kills, 3);
+  clock.t += 7 * 86_400_000;
+  connect('4');
+  assert.deepEqual(room.exportMaze().champs[0], {week: mazeWeek(clock.t) - 1, name: 'Main', kills: 3}, 'nobody takes its week because it is offline');
+});
+
 test('WorldRoom: the maze\'s board outlives a restart (storage)', async () => {
   const store = new Map();
   const pending = [];

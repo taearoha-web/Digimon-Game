@@ -842,7 +842,7 @@ test('the maze war record (mazew, MazeWar in the game) is accepted and checked',
   const {register, call} = harness(t);
   const account = await register();
   const mazew = {weeks: {'2967': {k: 12, at: 1795100000, d: 3, live: {Tor_Warrior: [2, 1795100100], 'แม่พระน้อย': [1, 1795100200]}, held: {Tor_Warrior: [40, 41, 42]}}},
-    champs: {'2966': {name: 'Tor_Warrior', kills: 140, hero: false, index: 0}, '2965': {name: 'ลูน่า', kills: 90, hero: true, index: -1}}};
+    champs: {'2966': {name: 'Tor_Warrior', kills: 140, hero: false, index: 0}, '2965': {name: 'ลูน่า', kills: 90, hero: true, index: -1}, '2964': {name: 'ราชาวานร', kills: 75, hero: true, index: -1, slot: 3}}};
   const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle({...sample(), mazew})}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   const read = await call('save', {cookie: account.cookie});
@@ -851,7 +851,7 @@ test('the maze war record (mazew, MazeWar in the game) is accepted and checked',
   assert.doesNotThrow(() => validateBundle(bundle({...sample(), mazew: {weeks: {}, champs: {}}})));
   for (const bad of [[], 5, {other: {}}, {weeks: []}, {weeks: {x: {}}}, {weeks: {'1': {k: -1}}}, {weeks: {'1': {k: 1.5}}}, {weeks: {'1': {zap: 1}}},
     {weeks: {'1': {live: {Tor_Warrior: [1]}}}}, {weeks: {'1': {held: {Tor_Warrior: ['a']}}}}, {weeks: {'1': {live: {['N'.repeat(30)]: [1, 1]}}}},
-    {weeks: {'1': {}, '2': {}, '3': {}, '4': {}, '5': {}}}, {champs: {'1': {name: 5}}}, {champs: {'1': {hero: 'yes'}}}, {champs: {'1': {index: -2}}}]) {
+    {weeks: {'1': {}, '2': {}, '3': {}, '4': {}, '5': {}}}, {champs: {'1': {name: 5}}}, {champs: {'1': {hero: 'yes'}}}, {champs: {'1': {index: -2}}}, {champs: {'1': {slot: -1}}}, {champs: {'1': {slot: 'x'}}}, {champs: {'1': {slot: 1.5}}}]) {
     assert.throws(() => validateBundle(bundle({...sample(), mazew: bad})), /maze war record/, JSON.stringify(bad));
   }
 });

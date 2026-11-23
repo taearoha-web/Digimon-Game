@@ -14,6 +14,9 @@ const TAB_NAME := "หนึ่งในใต้หล้า"
 const ROWS := 60
 const HERO_COLOR := Color("8fffb0")
 const REAL_COLOR := Color("8fd0ff")
+## The account's other characters (not played now: their kills stay on the board).
+const MINE_COLOR := Color("ffd27a")
+const MINE_TAG := " (ตัวละครของคุณ · ออฟไลน์)"
 
 
 ## Builds the page into `content`; `refresh` rebuilds the tab (kept scroll), `enter` sends
@@ -63,7 +66,7 @@ static func build(content: Control, refresh: Callable, enter: Callable = Callabl
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 	var crown := MazeCrown.holder(t)
-	var crown_label := UIUtil.label("%s ปัจจุบัน: %s (%d คิล สัปดาห์ก่อน) — ที่ 1 ของสัปดาห์นี้ได้ยศและชุด เทพราชันหนึ่งในใต้หล้า ครองหนึ่งสัปดาห์" % [MazeCrown.TITLE_NAME, String(crown.name) + (" (คุณ)" if bool(crown.get("hero", false)) else ""), int(crown.kills)] \
+	var crown_label := UIUtil.label("%s ปัจจุบัน: %s (%d คิล สัปดาห์ก่อน) — ที่ 1 ของสัปดาห์นี้ได้ยศและชุด เทพราชันหนึ่งในใต้หล้า ครองหนึ่งสัปดาห์" % [MazeCrown.TITLE_NAME, String(crown.name) + who_tag(crown), int(crown.kills)] \
 		if not crown.is_empty() else "ยังไม่มี%s — ที่ 1 ของสัปดาห์ได้ยศและชุด เทพราชันหนึ่งในใต้หล้า ครองหนึ่งสัปดาห์" % MazeCrown.TITLE_NAME, &"BoldLabel")
 	crown_label.name = "CrownHolder"
 	crown_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -84,7 +87,7 @@ static func build(content: Control, refresh: Callable, enter: Callable = Callabl
 	if champs.is_empty():
 		list.add_child(UIUtil.label("ยังไม่มี (สัปดาห์แรกของเขาวงกต)", &"SmallLabel"))
 	for c in champs:
-		list.add_child(UIUtil.label("%s · %s%s · %d คิล" % [MazeWar.week_text(int(c.week)), String(c.name), " (คุณ)" if bool(c.hero) else "", int(c.kills)], &"SmallLabel"))
+		list.add_child(UIUtil.label("%s · %s%s · %d คิล" % [MazeWar.week_text(int(c.week)), String(c.name), who_tag(c), int(c.kills)], &"SmallLabel"))
 	list.add_child(_section("กติกา"))
 	for rule in rules():
 		var r := UIUtil.label("• " + rule, &"SmallLabel")
@@ -104,6 +107,13 @@ static func build(content: Control, refresh: Callable, enter: Callable = Callabl
 			head.text = head_text())
 	page.add_child(tick)
 	return scroll
+
+
+## " (คุณ)" for the one played, MINE_TAG for another character of the account, "" else.
+static func who_tag(r: Dictionary) -> String:
+	if bool(r.get("hero", false)):
+		return " (คุณ)"
+	return MINE_TAG if bool(r.get("mine", false)) else ""
 
 
 static func head_text() -> String:
@@ -137,16 +147,16 @@ static func _row(rank: int, r: Dictionary) -> Control:
 	if rank <= 3:
 		place.add_theme_color_override("font_color", [MazeWar.COLOR, Color("dfe6ee"), Color("e0a070")][rank - 1])
 	line.add_child(place)
-	var tag := ""
-	if bool(r.hero):
-		tag = " (คุณ)"
-	elif int(r.index) < 0:
+	var tag := who_tag(r)
+	if tag == "" and int(r.index) < 0:
 		tag = " · ผู้เล่นจริง"
 	var name_label := UIUtil.label(String(r.name) + tag, &"BoldLabel")
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.clip_text = true
 	if bool(r.hero):
 		name_label.add_theme_color_override("font_color", HERO_COLOR)
+	elif bool(r.get("mine", false)):
+		name_label.add_theme_color_override("font_color", MINE_COLOR)
 	elif int(r.index) < 0:
 		name_label.add_theme_color_override("font_color", REAL_COLOR)
 	line.add_child(name_label)

@@ -9,6 +9,12 @@ extends RefCounted
 ## The week's first holds the title หนึ่งในใต้หล้า and the costume เทพราชันหนึ่งในใต้หล้า
 ## for the next week (MazeCrown, team crown).
 ##
+## Every character of the account races (account_books): the one played counts live, the
+## others (other save slots, not played now) keep the kills in their own saves and stay on
+## the board under their names (`mine`, `slot`), so switching character never drops them
+## and an offline champion stays champion: no world player nor another character of the
+## account takes the week from it because it is not the one played (champion: `slot`).
+##
 ## Where a week's kills come from (standings):
 ## - the hero's: counted by the zone (MazeMatch) as they happen, kept in the save (KEY:
 ##   per week, with when the count was reached);
@@ -100,8 +106,13 @@ static var _slots := {}
 static var _sums := {}
 ## The real players' boards heard from the server: week -> {name: {kills, at}}.
 static var _real := {}
-## Champions worked out for ended weeks (also in the save).
+## Champions worked out for ended weeks (also in the save), as stored: {name, kills,
+## hero (a character of the account), index, slot}.
 static var _champs := {}
+## The other characters' maze records read from their saves: slot -> {stamp, rec}.
+static var _alt_books := {}
+static var _alt_books_for := ""
+const ALT_CHECK_MS := 2000
 ## Bumped whenever a count changes (the HUD and the boards redraw).
 static var revision := 0
 
@@ -422,30 +433,39 @@ static func standings(week: int, t: float = -1.0) -> Array:
 	for i in sim:
 		var name := String(WorldPlayers.entry(int(i)).name)
 		rows[name] = {"name": name, "kills": int(sim[i][0]), "hero": false, "index": int(i), "at": float(sim[i][1])}
-	var book := week_book(week)
-	# This device's live kills of the world players (their held slots were dropped above).
-	var live: Dictionary = book.get("live", {})
-	for name in live:
-		var v: Array = live[name]
-		if float(v[1]) > t:
-			continue
-		var i := WorldPlayers.index_of(String(name))
-		var r: Dictionary = rows.get(String(name), {"name": String(name), "kills": 0, "hero": false, "index": i, "at": 0.0})
-		r.kills = int(r.kills) + int(v[0])
-		r.at = maxf(float(r.at), float(v[1]))
-		rows[String(name)] = r
-	# Real players (the server's board), the hero's own name aside.
-	var me := hero_name()
+	var books := account_books(week)
+	var mine_names := {hero_name(): true}
+	for b in books:
+		mine_names[String(b.name)] = true
+	# This device's live kills of the world players (their held slots were dropped above),
+	# by every character of the account.
+	for b in books:
+		var live: Dictionary = (b.book as Dictionary).get("live", {})
+		for name in live:
+			var v: Array = live[name]
+			if float(v[1]) > t:
+				continue
+			var i := WorldPlayers.index_of(String(name))
+			var r: Dictionary = rows.get(String(name), {"name": String(name), "kills": 0, "hero": false, "index": i, "at": 0.0})
+			r.kills = int(r.kills) + int(v[0])
+			r.at = maxf(float(r.at), float(v[1]))
+			rows[String(name)] = r
+	# Real players (the server's board), the account's own characters aside (their saves
+	# count them: the one played and the others alike).
 	var real: Dictionary = _real.get(week, {})
 	for name in real:
-		if String(name) == me or rows.has(String(name)):
+		if mine_names.has(String(name)) or rows.has(String(name)):
 			continue
 		var v: Dictionary = real[name]
 		if float(v.at) > t + 5.0:
 			continue
 		rows[String(name)] = {"name": String(name), "kills": int(v.kills), "hero": false, "index": -1, "at": float(v.at)}
-	if Game.has_profile and int(book.get("k", 0)) > 0 and float(book.get("at", 0)) <= t + 1.0:
-		rows[me] = {"name": me, "kills": int(book.k), "hero": true, "index": -1, "at": float(book.at)}
+	# The account's characters, each under its own name (keyed by slot: two characters may
+	# share a name); `hero` the one played, `mine` and `slot` for all of them.
+	for b in books:
+		var bk: Dictionary = b.book
+		if int(bk.get("k", 0)) > 0 and float(bk.get("at", 0)) <= t + 1.0:
+			rows["@%d" % int(b.slot)] = {"name": String(b.name), "kills": int(bk.k), "hero": bool(b.me), "mine": true, "slot": int(b.slot), "index": -1, "at": float(bk.at)}
 	var out: Array = []
 	for name in rows:
 		if int(rows[name].kills) > 0:
@@ -464,6 +484,58 @@ static func _before(a: Dictionary, b: Dictionary) -> bool:
 
 static func hero_name() -> String:
 	return String(Game.profile.get("name", "")) if Game.has_profile else ""
+
+
+## The week's books of every character of the account: [{slot, name, me, book}], the one
+## played first (its live save), then the other save slots (read from their files, kept by
+## the files' stamps). Only those with a book for the week.
+static func account_books(week: int) -> Array:
+	var out: Array = []
+	var key := str(week)
+	if Game.has_profile:
+		var own := week_book(week)
+		if not own.is_empty():
+			out.append({"slot": Game.slot, "name": hero_name(), "me": true, "book": own})
+	for i in range(1, Game.SLOT_COUNT + 1):
+		if Game.has_profile and i == Game.slot:
+			continue
+		var alt := _alt_record(i)
+		if alt.is_empty():
+			continue
+		var b: Variant = (alt.weeks as Dictionary).get(key)
+		if b is Dictionary:
+			out.append({"slot": i, "name": String(alt.name), "me": false, "book": b})
+	return out
+
+
+## Another save slot's maze record ({name, weeks}; {} when empty or unreadable), read once
+## per change of its file; the files' stamps are looked at every ALT_CHECK_MS at most (the
+## board is read often), and all again once the character played changes.
+static func _alt_record(i: int) -> Dictionary:
+	var who := "%d|%s" % [Game.slot, Game.has_profile]
+	if who != _alt_books_for:
+		_alt_books_for = who
+		_alt_books.clear()
+	var ms := Time.get_ticks_msec()
+	var kept: Variant = _alt_books.get(i)
+	if kept is Dictionary and ms - int(kept.ms) < ALT_CHECK_MS:
+		return kept.rec
+	var stamp: String = Game._slot_stamp(i)
+	if stamp == "":
+		_alt_books[i] = {"stamp": "", "rec": {}, "ms": ms}
+		return {}
+	if kept is Dictionary and String(kept.stamp) == stamp:
+		kept.ms = ms
+		return kept.rec
+	var raw: Dictionary = Game._read_slot(i)
+	var rec := {}
+	if not raw.is_empty():
+		var holder := {KEY: (raw.get(KEY) as Dictionary).duplicate(true) if raw.get(KEY) is Dictionary else null}
+		repair(holder)
+		var d: Variant = holder.get(KEY)
+		rec = {"name": String(raw.get("name", "")), "weeks": (d as Dictionary).get("weeks", {}) if d is Dictionary else {}}
+	_alt_books[i] = {"stamp": stamp, "rec": rec, "ms": ms}
+	return rec
 
 
 ## The hero's place on the week's board (1 the first, 0 without a kill yet) and kills.
@@ -485,25 +557,31 @@ static func rank_of(i: int, week: int, t: float = -1.0) -> Dictionary:
 
 
 ## The week's champion, once the week has ended ({} before, or with nobody on the board):
-## {name, kills, hero, index}. Kept once worked out (and in the save).
+## {name, kills, hero, index, mine, slot}. `mine`: a character of the account, `slot` its
+## save slot (0 for anyone else); `hero`: that character is the one played now. Kept once
+## worked out (and in the save, where `hero` means a character of the account).
 static func champion(week: int) -> Dictionary:
 	if now() < week_end(week) or week_end(week) <= float(OPEN_UNIX):
 		return {}
 	var key := str(week)
 	if Game.has_profile:
 		var saved: Dictionary = _data().get("champs", {})
-		if saved.has(key) and stale_champ(saved[key]):
+		if saved.has(key) and (stale_champ(saved[key]) or _outdone(week, _stored(saved[key]))):
 			saved.erase(key)
 			_champs.erase(week)
+			Game.mark_dirty()
 		if saved.has(key):
-			return (saved[key] as Dictionary).duplicate()
-	if _champs.has(week):
-		return (_champs[week] as Dictionary).duplicate()
+			return _shown(_stored(saved[key]))
+	if _champs.has(week) and not _outdone(week, _champs[week]):
+		return _shown(_champs[week])
 	var board := standings(week, week_end(week))
 	var out := {}
 	if not board.is_empty():
 		var top: Dictionary = board[0]
-		out = {"name": String(top.name), "kills": int(top.kills), "hero": bool(top.hero), "index": int(top.index)}
+		var mine := bool(top.get("mine", false))
+		out = {"name": String(top.name), "kills": int(top.kills), "hero": mine, "index": int(top.index)}
+		if mine:
+			out["slot"] = int(top.slot)
 	_champs[week] = out
 	if Game.has_profile and not out.is_empty():
 		var champs: Dictionary = _data().get("champs", {})
@@ -516,7 +594,48 @@ static func champion(week: int) -> Dictionary:
 			champs.erase(oldest)
 		_data()["champs"] = champs
 		Game.mark_dirty()
+	return _shown(out)
+
+
+## A saved champion as stored now: an older save's `hero` record has no slot and always
+## named that save's own character (only the one played was counted then).
+static func _stored(c: Variant) -> Dictionary:
+	if not c is Dictionary:
+		return {}
+	var out: Dictionary = (c as Dictionary).duplicate()
+	if bool(out.get("hero", false)) and int(out.get("slot", 0)) <= 0:
+		out["slot"] = Game.slot
 	return out
+
+
+## A stored champion as the game reads it: `mine` (the account's), `slot` (its save slot,
+## 0 for anyone else) and `hero` (the one played now: its slot and its name).
+static func _shown(c: Dictionary) -> Dictionary:
+	if c.is_empty():
+		return {}
+	var out := c.duplicate()
+	var mine := bool(c.get("hero", false))
+	out["mine"] = mine
+	out["slot"] = int(c.get("slot", 0)) if mine else 0
+	out["hero"] = mine and Game.has_profile and int(out.slot) == Game.slot and String(c.get("name", "")) == hero_name()
+	return out
+
+
+## True when a character of the account (any slot) has a book of `week` that beats the
+## worked-out champion `c` and is not it: worked out by an older build, which counted the
+## character played only (switching character handed the week to someone else).
+static func _outdone(week: int, c: Variant) -> bool:
+	if not c is Dictionary or (c as Dictionary).is_empty():
+		return false
+	var kills := int((c as Dictionary).get("kills", 0))
+	var mine := bool((c as Dictionary).get("hero", false))
+	for b in account_books(week):
+		if mine and int(b.slot) == int((c as Dictionary).get("slot", 0)):
+			continue
+		var bk: Dictionary = b.book
+		if int(bk.get("k", 0)) > kills and float(bk.get("at", 0)) <= week_end(week) + 1.0:
+			return true
+	return false
 
 
 ## True when a saved champion names a world player who is not the one at its index now
@@ -537,7 +656,7 @@ static func purge_stale_champs() -> int:
 	var saved: Dictionary = _data().get("champs", {})
 	var first := -1
 	for key in saved.keys():
-		if stale_champ(saved[key]):
+		if stale_champ(saved[key]) or _outdone(int(key), _stored(saved[key])):
 			saved.erase(key)
 			_champs.erase(int(key))
 			first = int(key) if first < 0 else mini(first, int(key))
@@ -572,7 +691,8 @@ static func week_text(week: int) -> String:
 # --- The hero's book (the save) -----------------------------------------------------
 
 ## The save's record: {weeks: {"<week>": {k, at, d, live: {name: [kills, at]}, held: {name:
-## [slot, ...]}}}, champs: {"<week>": {name, kills, hero, index}}}.
+## [slot, ...]}}}, champs: {"<week>": {name, kills, hero, index, slot}}} (champs' `hero`: a
+## character of the account, `slot` its save slot; an older save's has none: its own).
 static func _data() -> Dictionary:
 	if not Game.has_profile:
 		return {}
@@ -685,23 +805,29 @@ static func is_held(i: int, t: float) -> bool:
 	return _held_set(week_of(t)).has(i * 100000 + slot_of(t))
 
 
+## The world players' slots held on this device (by any character of the account: each
+## one's live kills are in its book).
 static func _held_set(week: int) -> Dictionary:
 	var out := {}
-	var held: Dictionary = week_book(week).get("held", {})
-	for name in held:
-		var i := WorldPlayers.index_of(String(name))
-		if i < 0:
-			continue
-		for k in held[name]:
-			out[i * 100000 + int(k)] = true
+	for b in account_books(week):
+		var held: Dictionary = (b.book as Dictionary).get("held", {})
+		for name in held:
+			var i := WorldPlayers.index_of(String(name))
+			if i < 0:
+				continue
+			for k in held[name]:
+				out[i * 100000 + int(k)] = true
 	return out
 
 
 static func _held_rev(week: int) -> int:
-	var held: Dictionary = week_book(week).get("held", {})
 	var n := 0
-	for name in held:
-		n += (held[name] as Array).size() * 31 + String(name).length()
+	for b in account_books(week):
+		var held: Dictionary = (b.book as Dictionary).get("held", {})
+		if not held.is_empty():
+			n += int(b.slot) * 7919
+		for name in held:
+			n += (held[name] as Array).size() * 31 + String(name).length()
 	return n
 
 
@@ -746,7 +872,7 @@ static func valid(v: Variant) -> bool:
 		if not w is String or not (w as String).is_valid_int() or not c is Dictionary:
 			return false
 		if not c.get("name", "") is String or String(c.get("name", "")).length() > 64 or not _int_ok(c.get("kills", 0), 0, KILLS_MAX) \
-				or not c.get("hero", false) is bool or not _int_ok(c.get("index", -1), -1, 1000000):
+				or not c.get("hero", false) is bool or not _int_ok(c.get("index", -1), -1, 1000000) or not _int_ok(c.get("slot", 0), 0, 64):
 			return false
 	return true
 
@@ -784,6 +910,8 @@ static func repair(data: Dictionary) -> void:
 	for w in champs:
 		var c: Dictionary = champs[w]
 		champs[w] = {"name": String(c.get("name", "")), "kills": int(c.get("kills", 0)), "hero": bool(c.get("hero", false)), "index": int(c.get("index", -1))}
+		if int(c.get("slot", 0)) > 0:
+			champs[w]["slot"] = int(c.slot)
 	d["champs"] = champs
 
 
@@ -857,4 +985,6 @@ static func reset() -> void:
 	_sums.clear()
 	_real.clear()
 	_champs.clear()
+	_alt_books.clear()
+	_alt_books_for = ""
 	revision += 1

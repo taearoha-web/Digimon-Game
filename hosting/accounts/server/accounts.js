@@ -364,7 +364,8 @@ function validBossWorld(book) {
 
 // MazeWar.valid in the game (keep these equal): {weeks: {"<week>": {k, at, d, live: {name:
 // [kills, at]}, held: {name: [slot, ...]}}} (at most 4 weeks), champs: {"<week>": {name,
-// kills, hero, index}} (at most 30)}.
+// kills, hero, index, slot}} (at most 30)}: a champion's `hero` is a character of the account,
+// `slot` its save slot (another character of the account keeps its week when not played).
 const MAZE_KILLS_MAX = 100000;
 const MAZE_LIVE_MAX = 64;
 function validMaze(book) {
@@ -385,7 +386,8 @@ function validMaze(book) {
     && (c.name === undefined || (typeof c.name === 'string' && chars(c.name) <= 64))
     && (c.kills === undefined || integer(c.kills, 0, MAZE_KILLS_MAX))
     && (c.hero === undefined || typeof c.hero === 'boolean')
-    && (c.index === undefined || integer(c.index, -1, 1000000)));
+    && (c.index === undefined || integer(c.index, -1, 1000000))
+    && (c.slot === undefined || integer(c.slot, 0, 64)));
 }
 
 function validLeague(league) {
