@@ -676,8 +676,13 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		if String(item.get("set", "")).begins_with("star_") or DivineGearData.is_item(item): lines.append(StarProgression.set_bonus_text(String(item.star_class)))
 	var plus := int(item.get("plus", 0))
 	if plus > 0:
-		var look_name: String = EnhanceFx.look_name(plus)
-		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · เอฟเฟกต์: %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look_name])
+		var slot := String(item.get("slot", ""))
+		var look_name: String = EnhanceFx.look_name(plus, slot)
+		var look := ("เอฟเฟกต์: " + look_name) if look_name != "" else "เรืองแสงตั้งแต่ +%d" % EnhanceFx.GLOW_FROM
+		# An outfit piece from +10: what the whole set shows when every piece is this high.
+		if slot in ["armor", "helm", "boots"] and plus >= EnhanceFx.BODY_FROM:
+			look += " · ทั้งชุด +%d: %s" % [plus, EnhanceFx.look_name(plus)]
+		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look])
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
 	var ring := 1.0 + GEM_RESONANCE if resonates(item) else 1.0

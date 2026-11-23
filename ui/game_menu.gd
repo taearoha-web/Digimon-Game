@@ -1254,11 +1254,14 @@ func _build_forge_buttons(item: Dictionary) -> void:
 				"ok":
 					var new_plus := int(item.get("plus", 0))
 					var g := EnhanceFx.grade(new_plus)
-					var mood: String = ["", "", "เรืองแสงแล้ว!", "ลุกโชนแล้ว!", "ขีดสุด! เปลวเพลิงโอบอาวุธ!"][g] if g >= 2 else ""
+					# A new look step: name it (เรืองแสงจาง, ประกายไฟฟ้า, ...).
+					var mood := ""
+					if new_plus in EnhanceFx.AURA_STEPS:
+						mood = "เอฟเฟกต์ใหม่: %s!" % EnhanceFx.look_name(new_plus, String(item.get("slot", "")))
 					Game.say("ตีบวกสำเร็จ! %s %s" % [ItemData.name_of(item), mood], &"success")
 					AudioManager.play_sfx(&"level_up")
-					if g >= 2:
-						Game.screen_flash.emit(EnhanceFx.color_of(new_plus), 0.12 + 0.07 * float(g))
+					if g >= 1:
+						Game.screen_flash.emit(EnhanceFx.color_of(new_plus), 0.12 + 0.035 * float(g))
 				"fail":
 					Game.say("ตีบวกพลาด... (เพชรหายไป ไอเทมยังอยู่ที่ +%d)" % int(item.get("plus", 0)), &"warning")
 				_:

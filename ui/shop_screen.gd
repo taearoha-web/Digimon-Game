@@ -254,7 +254,7 @@ func _lot_badges(row: PanelContainer, info: Control, lot: Dictionary) -> void:
 	var plus := int(item.get("plus", 0))
 	var icon := (row.get_child(0) as Control).get_child(0) as Control
 	if plus > 0 and icon != null:
-		var color: Color = EnhanceFx.color_of(plus) if plus >= 5 else UIPalette.CYAN
+		var color: Color = EnhanceFx.color_of(plus) if plus >= EnhanceFx.GLOW_FROM else UIPalette.CYAN
 		var tag := PanelContainer.new()
 		tag.name = "PlusBadge"
 		var box := StyleBoxFlat.new()

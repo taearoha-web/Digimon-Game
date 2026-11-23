@@ -623,7 +623,7 @@ static func help_topic(text: String) -> String:
 static func help_text(topic: String) -> String:
 	match topic:
 		"enhance":
-			return "ตีบวกที่ช่างตีเหล็ก ถึง +%d ติดชัวร์ +%d ถึง +10 ลุ้น %d%% +11 ถึง +%d ยากขึ้นเรื่อย ๆ พลาดแค่เสียเพชร ทั้งชุดถึง +%d ได้ออร่า" % [SAFE_PLUS, SAFE_PLUS + 1, int(round(ItemData.enhance_chance(SAFE_PLUS) * 100.0)), ItemData.MAX_PLUS, EnhanceFx.AURA_STEPS[0]]
+			return "ตีบวกที่ช่างตีเหล็ก ถึง +%d ติดชัวร์ +%d ถึง +10 ลุ้น %d%% +11 ถึง +%d ยากขึ้นเรื่อย ๆ พลาดแค่เสียเพชร +%d เรืองแสง ทั้งชุด +%d มีออร่า" % [SAFE_PLUS, SAFE_PLUS + 1, int(round(ItemData.enhance_chance(SAFE_PLUS) * 100.0)), ItemData.MAX_PLUS, EnhanceFx.GLOW_FROM, EnhanceFx.BODY_FROM]
 		"set":
 			return "ชุดเซต %d ดาว %d ชิ้น หลอมด้วยแก่นเทพ ติด %d%% อาวุธ เกราะ หมวก รองเท้าใช้ชิ้นชุดเทพ +%d ด้วย แก่นเทพดรอปที่%s กับ%s (★%d)" % [SetGearData.STARS, SetGearData.SLOTS.size(), int(round(SetGearData.CRAFT_CHANCE * 100.0)), ChatThreads.SET_DIVINE_PLUS, DrownedAbyssData.TITLE, DivineRegionData.TITLE, DrownedAbyssData.ENTRY_STAR]
 		"wings":

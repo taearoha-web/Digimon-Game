@@ -18,6 +18,10 @@ uniform vec4 boots_color : source_color = vec4(1.0);
 uniform float gloves_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float pants_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float boots_amount : hint_range(0.0, 1.0) = 0.0;
+// The enhanced armour's glow (EnhanceFx, from +7): a soft rim of the armour's own colour
+// over the dyed outfit only, breathing slowly. 0 = off.
+uniform vec4 enhance_color : source_color = vec4(1.0);
+uniform float enhance_glow : hint_range(0.0, 1.0) = 0.0;
 
 // Hero looks (ChibiLook): skin tone anywhere, hair colour and eye colour inside
 // the baked mask (R hair area, G eye area). Off unless a look sets them.
@@ -132,4 +136,11 @@ void fragment() {
 	RIM = 0.18;
 	RIM_TINT = 0.75;
 	EMISSION = glow_color.rgb * mask * lum;
+	if (enhance_glow > 0.0) {
+		float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+		float rim = pow(1.0 - facing, 2.0);
+		float g = enhance_glow * mask * (0.2 + 1.3 * rim) * (0.84 + 0.16 * sin(TIME * 1.6));
+		ALBEDO = mix(ALBEDO, enhance_color.rgb, clamp(g * 0.5, 0.0, 0.65));
+		EMISSION += enhance_color.rgb * g;
+	}
 }

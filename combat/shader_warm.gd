@@ -51,6 +51,12 @@ const MESH_SHADERS: Array[String] = [
 	# that walks into view does not stall the frame compiling its body shader.
 	"res://shaders/kirin.gdshader",
 	"res://shaders/celestial_dragon.gdshader",
+	# The enhanced gear's looks (EnhanceFx): the pieces' glow, the set's orbs, lightning
+	# and +15 aura, worn by whoever walks in.
+	"res://shaders/enhance_glow.gdshader",
+	"res://shaders/enhance_orb.gdshader",
+	"res://shaders/enhance_bolt.gdshader",
+	"res://shaders/enhance_aura.gdshader",
 	# The Muay Thai fighter's Ramakien giants (RamakienArt): their spirit body, light, dusk.
 	"res://shaders/ramakien_spirit.gdshader",
 	"res://shaders/ramakien_light.gdshader",
