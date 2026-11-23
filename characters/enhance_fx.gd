@@ -1,46 +1,54 @@
 class_name EnhanceFx
 extends RefCounted
-## How enhanced (+N, up to ItemData.MAX_PLUS = 15) gear looks.
-## Every piece glows by its own +: a pulsing overlay in its aura step's colour, stronger
-## (grade 1-4) the higher it goes, with sparkles and, at the top, flames on the weapon.
-## The body aura comes only from the whole set: the lowest + among the weapon, armour,
-## helm and boots (set_plus; wings are not counted). It has nine steps (AURA_STEPS):
-##   +5  ประกายฟ้า        pale-blue rim glow, thin ring, rising sparkles
-##   +7  ชีพจรคราม        teal aura, a spinning rune ring
-##   +9  ทองลุกโชน        golden aura, double ring, halo, three orbiting lights
-##   +10 เพลิงแดงขีดสุด    red flames from the ground, a rising ember fountain, four fire orbs
-##   +11 อัสนีอเมทิสต์     violet flames, lightning arcs, a charged ring
-##   +12 ปีกแสงเทพ        wings of light, a halo, drifting light feathers
-##   +13 จักรวาลดารา       nebula wings (violet to pink), twinkling stars, two planet orbits
-##   +14 มังกรหยกวิญญาณ    jade wings of light, a jade spirit dragon coiling up the body
-##   +15 ตำนานสุริยะรุ้ง     a rainbow sun disc, rainbow wings, a crown of light, petals,
-##                        and a spiral of light motes winding up the body
+## How enhanced (+N, up to ItemData.MAX_PLUS = 15) gear looks. Nothing shows below +7.
+## Every outfit piece (armour, helm, boots) glows by its own + in its OWN colour (the
+## armour: its outfit's cloth colour; the others sampled from their meshes, piece_color):
+##   +7 / +8   เรืองแสงจาง   a faint glow (a soft rim and veil over the piece, breathing)
+##   +9        เรืองแสง      the glow clearer
+##   +10 up    เรืองแสงชัด   clearer still
+## The body effects come only from the whole set: the lowest + among the weapon, armour,
+## helm and boots (set_plus; wings are not counted), in the armour's colour:
+##   +10 ดวงวิญญาณ   three soft orbs drifting slowly round the body, head to feet
+##   +11 อัสนีจาง     the orbs and a few thin lightning sparks
+##   +12 อัสนีพันสาย  many sparks, clearer
+##   +13 อัสนีคู่สี    the sparks in the outfit's colour and its complementary colour
+##   +14 อัสนีขีดสุด   brighter, denser, forking
+##   +15 ออร่าเทพ     all that, wrapped in a powerful aura of rising light
+## The weapon's own look (+7 glow up to the +15 ring round the hand) is EnhanceWeaponFx's.
+## Everything here is a shared mesh with a pooled shader material animated from TIME
+## (shaders/enhance_*.gdshader): no particles, tweens or per-frame scripts.
 
-const AURA_STEPS: Array[int] = [5, 7, 9, 10, 11, 12, 13, 14, 15]
-const AURA_COLORS: Array[Color] = [Color("a8dcff"), Color("7cc8ff"), Color("36f0d0"), Color("ffc93c"), Color("ff4a28"),
-	Color("a855ff"), Color("fff0c0"), Color("8a7dff"), Color("2affa0"), Color("ffe08a")]
-const AURA_NAMES: Array[String] = ["ประกายจาง", "ประกายฟ้า", "ชีพจรคราม", "ทองลุกโชน", "เพลิงแดงขีดสุด",
-	"อัสนีอเมทิสต์", "ปีกแสงเทพ", "จักรวาลดารา", "มังกรหยกวิญญาณ", "ตำนานสุริยะรุ้ง"]
-## The pieces whose lowest + gives the body aura.
+const GLOW_SHADER := preload("res://shaders/enhance_glow.gdshader")
+const BOLT_SHADER := preload("res://shaders/enhance_bolt.gdshader")
+const ORB_SHADER := preload("res://shaders/enhance_orb.gdshader")
+const AURA_SHADER := preload("res://shaders/enhance_aura.gdshader")
+
+## The + of each look step (step 1 = +7 ... step 8 = +15); +8 looks like +7.
+const AURA_STEPS: Array[int] = [7, 9, 10, 11, 12, 13, 14, 15]
+## The set's look at each step (index = aura_step).
+const AURA_NAMES: Array[String] = ["", "เรืองแสงจาง", "เรืองแสง", "ดวงวิญญาณ", "อัสนีจาง", "อัสนีพันสาย", "อัสนีคู่สี", "อัสนีขีดสุด", "ออร่าเทพ"]
+## A weapon's own look at each step (EnhanceWeaponFx draws it).
+const WEAPON_NAMES: Array[String] = ["", "เรืองแสงจาง", "เรืองแสง", "ประกายไฟฟ้า", "ไฟฟ้าแล่น", "สายฟ้าถี่", "สายฟ้าพันคม", "สายฟ้าขีดสุด", "วงอัสนีรอบหัตถ์"]
+## An outfit piece's own look (armour, helm, boots): its glow, steps 1-3 and up.
+const PIECE_NAMES: Array[String] = ["", "เรืองแสงจาง", "เรืองแสง", "เรืองแสงชัด"]
+## Accent colours of the steps (UI: the forge flash, stall badges).
+const AURA_COLORS: Array[Color] = [Color("9fb4c8"), Color("bfe4ff"), Color("8fd8ff"), Color("ffd36a"), Color("9ad0ff"),
+	Color("7fe8ff"), Color("c79bff"), Color("e8c4ff"), Color("ffe08a")]
+## The first + that glows, and the set's first + with body effects.
+const GLOW_FROM := 7
+const BODY_FROM := 10
+## The pieces whose lowest + gives the body effects.
 const SET_SLOTS: Array[String] = ["weapon", "armor", "helm", "boots"]
-## Kept for older callers: the name of a piece's look by grade.
-const NAMES: Array[String] = ["", "ประกายจาง", "เรืองแสง", "ลุกโชน", "ขีดสุด"]
+## The wing flair's colours at +10 .. +15 (unchanged from before the outfit looks).
+const WING_COLORS: Array[Color] = [Color("ff4a28"), Color("a855ff"), Color("fff0c0"), Color("8a7dff"), Color("2affa0"), Color("ffe08a")]
 
 
-## How strongly a piece glows: 0 none, 1 (+1..+4), 2 (+5..+8), 3 (+9..+11), 4 (+12 up).
+## How far up the look steps a + is: 0 below +7, then 1 (+7) .. 8 (+15).
 static func grade(plus: int) -> int:
-	if plus <= 0:
-		return 0
-	if plus <= 4:
-		return 1
-	if plus <= 8:
-		return 2
-	if plus <= 11:
-		return 3
-	return 4
+	return aura_step(plus)
 
 
-## The aura step of a +: 0 below +5, then 1 (+5) .. 9 (+15).
+## The look step of a +: 0 below +7, then 1 (+7, +8), 2 (+9), 3 (+10) .. 8 (+15).
 static func aura_step(plus: int) -> int:
 	var step := 0
 	for k in AURA_STEPS.size():
@@ -49,13 +57,25 @@ static func aura_step(plus: int) -> int:
 	return step
 
 
+## The step's accent colour (UI); transparent at +0.
 static func color_of(plus: int) -> Color:
 	return AURA_COLORS[aura_step(plus)] if plus > 0 else Color(0, 0, 0, 0)
 
 
-## The look's name for a piece at +plus (item tooltips).
-static func look_name(plus: int) -> String:
-	return AURA_NAMES[aura_step(plus)] if plus > 0 else ""
+## The look's name at +plus: a weapon's, an outfit piece's or wings' own look by [param slot],
+## the whole set's look with no slot. "" below +7.
+static func look_name(plus: int, slot := "") -> String:
+	var step := aura_step(plus)
+	if step == 0:
+		return ""
+	match slot:
+		"":
+			return AURA_NAMES[step]
+		"weapon":
+			return WEAPON_NAMES[step]
+		"wings":
+			return "ปีกแสงขนนกร่วง" if plus >= 10 else PIECE_NAMES[step]
+	return PIECE_NAMES[mini(step, PIECE_NAMES.size() - 1)]
 
 
 ## The highest + among the worn items.
@@ -117,34 +137,199 @@ static func _sparkles(parent: Node3D, pos: Vector3, color: Color, amount: int, r
 	return p
 
 
-static func _flames(parent: Node3D, pos: Vector3, radius: float, amount: int, hot := Color(1.0, 0.95, 0.7), mid := Color(1.0, 0.55, 0.15), tail := Color(0.8, 0.1, 0.05)) -> CPUParticles3D:
-	var p := _sparkles(parent, pos, Color.WHITE, amount, radius, 0.34, 1.4, 0.7)
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(hot, 0.9))
-	ramp.add_point(0.35, Color(mid, 0.7))
-	ramp.set_color(ramp.get_point_count() - 1, Color(tail, 0.0))
-	p.color_ramp = ramp
-	p.gravity = Vector3(0, 1.6, 0)
-	p.scale_amount_min = 0.4
-	p.scale_amount_max = 0.9
-	return p
+# --- Colours --------------------------------------------------------------------------
+
+## A colour made to glow: its hue, saturated enough to read, at full brightness.
+static func glow_tone(c: Color) -> Color:
+	if c.s < 0.12:
+		# Grey, white or silver: a cool silver light.
+		return Color(0.8, 0.9, 1.0)
+	return Color.from_hsv(c.h, clampf(c.s * 1.1, 0.45, 0.88), 1.0)
 
 
-static func _bounds_center(root: Node3D) -> Vector3:
-	var box := AABB()
-	var first := true
-	for m in MeshKit.collect_meshes(root):
-		var t := Transform3D.IDENTITY
-		var n: Node = m
-		while n != null and n != root:
-			if n is Node3D:
-				t = (n as Node3D).transform * t
-			n = n.get_parent()
-		var b := t * m.get_aabb()
-		box = b if first else box.merge(b)
-		first = false
-	return box.get_center() if not first else Vector3(0, 0.5, 0)
+## The complementary glow of [param c] (the +13 sparks' second colour).
+static func contrast_of(c: Color) -> Color:
+	var g := glow_tone(c)
+	if g.s < 0.3:
+		return Color("ffc860")
+	return Color.from_hsv(fmod(g.h + 0.5, 1.0), maxf(g.s, 0.6), 1.0)
 
+
+static var _hist_cache := {}
+static var _tex_cache := {}
+const _BINS := 12
+
+
+## The main colour of a worn piece, read from its own meshes (material colours, vertex
+## colours, emission), made to glow (glow_tone). The weights favour saturated colour and
+## a piece's glowing trims over plain dark or grey parts; a grey piece glows silver.
+static func piece_color(nodes: Array) -> Color:
+	var bins: Array = []
+	for b in _BINS + 1:
+		bins.append(Vector4.ZERO)
+	for node in nodes:
+		if not (node is Node) or not is_instance_valid(node):
+			continue
+		for m in MeshKit.collect_meshes(node):
+			if m.mesh == null or m.has_meta("enhance_fx"):
+				continue
+			for i in m.mesh.get_surface_count():
+				_add_surface(bins, m, i)
+	var best := -1
+	var best_w := 0.0
+	for b in _BINS:
+		var w: float = bins[b].w + 0.5 * (bins[(b + 1) % _BINS].w + bins[(b + _BINS - 1) % _BINS].w)
+		if w > best_w:
+			best_w = w
+			best = b
+	if best < 0 or best_w < bins[_BINS].w * 0.5:
+		return Color(0.8, 0.9, 1.0)
+	var sum := Vector4.ZERO
+	for b in [(best + _BINS - 1) % _BINS, best, (best + 1) % _BINS]:
+		sum += bins[b] * (1.0 if b == best else 0.5)
+	return glow_tone(Color(sum.x / sum.w, sum.y / sum.w, sum.z / sum.w))
+
+
+static func _add_color(bins: Array, c: Color, weight: float) -> void:
+	if c.v < 0.12 or weight <= 0.0:
+		return
+	var w := weight * (0.2 + c.s * c.v)
+	var b := _BINS if c.s < 0.18 else int(c.h * _BINS) % _BINS
+	bins[b] += Vector4(c.r * w, c.g * w, c.b * w, w)
+
+
+static func _add_surface(bins: Array, m: MeshInstance3D, i: int) -> void:
+	var mat := m.get_active_material(i)
+	# Weight: the piece's size (its box's area, as scaled), shared among its surfaces by
+	# their vertex counts.
+	var box := m.mesh.get_aabb()
+	var sc := m.transform.basis.get_scale()
+	var size := box.size * sc
+	var area := 2.0 * (size.x * size.y + size.y * size.z + size.x * size.z)
+	var share := 1.0 / float(m.mesh.get_surface_count())
+	if m.mesh is ArrayMesh and m.mesh.get_surface_count() > 1:
+		var total := 0
+		for k in m.mesh.get_surface_count():
+			total += (m.mesh as ArrayMesh).surface_get_array_len(k)
+		share = float((m.mesh as ArrayMesh).surface_get_array_len(i)) / float(maxi(total, 1))
+	var weight := sqrt(maxf(area, 0.0001)) * share
+	if mat is StandardMaterial3D:
+		var std := mat as StandardMaterial3D
+		if std.blend_mode == BaseMaterial3D.BLEND_MODE_ADD:
+			return
+		var base := std.albedo_color
+		if std.albedo_texture != null:
+			var avg := _texture_color(std.albedo_texture)
+			base = Color(base.r * avg.r, base.g * avg.g, base.b * avg.b)
+		if std.vertex_color_use_as_albedo:
+			_add_vertex_colors(bins, m.mesh, i, base, weight)
+		else:
+			_add_color(bins, base, weight)
+		if std.emission_enabled:
+			_add_color(bins, std.emission, weight * 1.5)
+	elif mat is ShaderMaterial:
+		for key in ["outfit_color", "albedo", "albedo_color", "color", "base_color", "tint", "body"]:
+			var v: Variant = (mat as ShaderMaterial).get_shader_parameter(key)
+			if v is Color:
+				_add_color(bins, v, weight)
+				return
+
+
+## Vertex colours of one surface, as a small hue histogram cached per mesh.
+static func _add_vertex_colors(bins: Array, mesh: Mesh, i: int, tint: Color, weight: float) -> void:
+	var key := "%d:%d" % [mesh.get_instance_id(), i]
+	var local: Array = _hist_cache.get(key, [])
+	if local.is_empty():
+		for b in _BINS + 1:
+			local.append(Vector4.ZERO)
+		var colors: PackedColorArray = mesh.surface_get_arrays(i)[Mesh.ARRAY_COLOR] if mesh is ArrayMesh or mesh is PrimitiveMesh else PackedColorArray()
+		if colors.is_empty():
+			_add_color(local, Color.WHITE, 1.0)
+		else:
+			var stride := maxi(1, colors.size() / 300)
+			var n := 0
+			for k in range(0, colors.size(), stride):
+				n += 1
+			for k in range(0, colors.size(), stride):
+				_add_color(local, colors[k], 1.0 / float(n))
+		if _hist_cache.size() > 512:
+			_hist_cache.clear()
+		_hist_cache[key] = local
+	for b in local.size():
+		var v: Vector4 = local[b]
+		bins[b] += Vector4(v.x * tint.r, v.y * tint.g, v.z * tint.b, v.w) * weight
+
+
+## The average colour of a texture (once per texture).
+static func _texture_color(tex: Texture2D) -> Color:
+	var key := tex.get_instance_id()
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var c := Color.WHITE
+	var img := tex.get_image()
+	if img != null and not img.is_empty():
+		if img.is_compressed():
+			img.decompress()
+		if not img.is_compressed():
+			img.resize(8, 8, Image.INTERPOLATE_BILINEAR)
+			var sum := Color(0, 0, 0)
+			for y in 8:
+				for x in 8:
+					sum += img.get_pixel(x, y)
+			c = Color(sum.r / 64.0, sum.g / 64.0, sum.b / 64.0)
+	_tex_cache[key] = c
+	return c
+
+
+# --- Pooled materials -----------------------------------------------------------------
+
+static var _pool := {}
+const POOL_LIMIT := 256
+
+
+static func _quant(c: Color) -> Color:
+	return Color(roundf(c.r * 15.0) / 15.0, roundf(c.g * 15.0) / 15.0, roundf(c.b * 15.0) / 15.0)
+
+
+## A pooled shader material: one per shader and parameter set, shared by every hero
+## wearing that look (they only differ by TIME, so nothing per hero is needed).
+static func _shared(shader: Shader, params: Dictionary) -> ShaderMaterial:
+	var key := "%s|%s" % [shader.resource_path.get_file(), str(params)]
+	var mat: ShaderMaterial = _pool.get(key)
+	if mat != null:
+		return mat
+	if _pool.size() >= POOL_LIMIT:
+		# Materials still worn stay alive with their meshes; the pool just forgets them.
+		_pool.clear()
+	mat = ShaderMaterial.new()
+	mat.shader = shader
+	for p in params:
+		mat.set_shader_parameter(p, params[p])
+	_pool[key] = mat
+	return mat
+
+
+## How strongly a piece glows at +plus: 0 below +7, +7/+8 faint, +9 clearer, +10 and up
+## clearer still (a little more each step to +15).
+static func glow_strength(plus: int) -> float:
+	if plus < GLOW_FROM:
+		return 0.0
+	if plus < 9:
+		return 0.4
+	if plus < 10:
+		return 0.7
+	return minf(0.8 + 0.025 * float(plus - 10), 0.95)
+
+
+## The overlay glow of a piece in [param color] at +plus (pooled, shared by every piece of
+## that colour and step): shaders/enhance_glow.gdshader.
+static func glow_material(color: Color, plus: int) -> ShaderMaterial:
+	var c := _quant(glow_tone(color))
+	var s := glow_strength(plus)
+	return _shared(GLOW_SHADER, {"color": c, "strength": s, "phase": fmod(c.h * 17.0, TAU)})
+
+
+# --- The weapon -------------------------------------------------------------------------
 
 ## The look of a held weapon (or shield) at +plus: EnhanceWeaponFx (nothing below +7,
 ## a glow in the weapon's own colour at +7/+9, electric arcs from +10, a ring of arcs
@@ -153,105 +338,126 @@ static func on_item(item: Node3D, plus: int, light := false) -> void:
 	EnhanceWeaponFx.apply(item, plus, light)
 
 
-## The body aura of the whole set at +plus (set_plus): one of the nine AURA_STEPS.
-## [param light] (the other players around): the rings, glow, halo, wings and dragon,
-## but no particle emitters, flames or pillar, which the phone pays for per frame.
-static func on_body(visual: Node3D, plus: int, light := false) -> Array[Node]:
+# --- The outfit pieces -----------------------------------------------------------------
+
+## Slots that cannot be enhanced (they stay as they are).
+const FIXED_SLOTS: Array[String] = ["ring", "amulet"]
+
+
+static func can_enhance(item: Dictionary) -> bool:
+	return item.get("kind", "") == "equip" and not (String(item.get("slot", "")) in FIXED_SLOTS)
+
+
+## An enhanced piece glows by its own + from +7 in its own colour: an overlay on its own
+## meshes (glow_material). [param color]: the piece's colour (the armour passes its
+## cloth); transparent = read from its meshes (piece_color). Returns the colour used, or
+## a transparent colour when nothing glows. The overlays go with the meshes (a re-dress
+## frees them); nothing else is made. [param light] (the crowd) wears the same glow:
+## one more draw of the piece, no particles.
+static func glow_piece(_owner: Node3D, nodes: Array, plus: int, _spot := Vector3.ZERO, _spread := 0.3, _light := false, color := Color(0, 0, 0, 0)) -> Color:
+	if plus < GLOW_FROM:
+		return Color(0, 0, 0, 0)
+	var live: Array = nodes.filter(func(n): return n is Node and is_instance_valid(n))
+	if live.is_empty():
+		return Color(0, 0, 0, 0)
+	var tone := glow_tone(color) if color.a > 0.0 else piece_color(live)
+	var overlay := glow_material(tone, plus)
+	var found := false
+	for node in live:
+		for m in MeshKit.collect_meshes(node):
+			if m.has_meta("enhance_fx"):
+				continue
+			m.material_overlay = overlay
+			found = true
+	return tone if found else Color(0, 0, 0, 0)
+
+
+## The armour's glow over the chibi's dyed outfit (shaders/chibi_outfit.gdshader).
+static func glow_outfit(mat: ShaderMaterial, color: Color, plus: int) -> void:
+	mat.set_shader_parameter("enhance_color", glow_tone(color))
+	mat.set_shader_parameter("enhance_glow", glow_strength(plus))
+
+
+# --- The body effects (the whole set) --------------------------------------------------
+
+## The set's body effects at +plus (set_plus) in [param color] (the armour's colour):
+## nothing below +10, then the orbs, the sparks from +11 and the aura at +15 (see the
+## header). [param light] (the other players around) or memory pressure: the orbs
+## without trails, a few sparks without forks; the aura stays (one draw).
+static func on_body(visual: Node3D, plus: int, light := false, color := Color(0, 0, 0, 0)) -> Array[Node]:
 	var made: Array[Node] = []
-	var step := aura_step(plus)
-	if step == 0:
+	if plus < BODY_FROM:
 		return made
 	var root := Node3D.new()
 	root.name = "SetAura"
 	visual.add_child(root)
 	made.append(root)
-	# The cape wearers (CapeArt.CLASSES) get their +12..+15 light as a cape of light.
-	if String(visual.get("class_id")) in CAPE_CLASSES:
-		root.set_meta("cape", true)
 	var head := 1.85 if bool(visual.get("chibi")) else 2.2
-	var rich := GameSettings.quality > 0 and not light and MemoryGuard.pressure < 2
-	var color := AURA_COLORS[step]
-	match step:
-		1:
-			_body_glow(root, color, head, 0.16, 1.9)
-			_ring(root, color, 0.95, 0.05, 0.6, 5.0)
-			if rich:
-				_sparkles(root, Vector3(0, head * 0.5, 0), Color("bfe6ff"), 10, 0.55, 0.08, 0.6, 1.4)
-		2:
-			_body_glow(root, color, head, 0.22, 2.1)
-			_ring(root, color, 1.2, 0.05, 0.7, 4.0)
-			_runes(root, Color("a8fff0"), 1.2, 10, 3.0)
-			if rich:
-				_sparkles(root, Vector3(0, 0.3, 0), Color("7dffe6"), 16, 0.8, 0.1, 1.0, 1.5)
-		3:
-			_body_glow(root, color, head, 0.26, 2.2)
-			_ring(root, Color("ffd25a"), 1.28, 0.05, 0.75, 3.5)
-			_ring(root, Color("ffb030"), 0.92, 0.07, 0.55, -2.8)
-			_runes(root, Color("fff0b0"), 1.28, 12, 3.5)
-			_halo(root, Color("ffe27a"), head + 0.2, 0.5)
-			_orbs(root, Color("fff2b8"), 3, 1.05, head * 0.55, 2.4, 0.08)
-			if rich:
-				_sparkles(root, Vector3(0, head * 0.4, 0), Color("ffe08a"), 18, 0.8, 0.1, 0.9, 1.4)
-		4:
-			_body_glow(root, color, head, 0.28, 2.3)
-			_ring(root, Color("ff5a30"), 1.35, 0.05, 0.85, 2.6)
-			_orbs(root, Color("ffe0c0"), 4, 1.2, head * 0.5, 1.8, 0.1)
-			if rich:
-				_embers(root, Color("ffb070"), head)
-				_flames(root, Vector3(0, 0.1, 0), 0.9, 22)
-				_sparkles(root, Vector3(0, head * 0.4, 0), Color("ffb070"), 14, 0.8, 0.1, 1.2, 1.2)
-		5:
-			_body_glow(root, color, head, 0.28, 2.3)
-			_ring(root, Color("c48bff"), 1.38, 0.05, 0.85, 2.2)
-			_lightning(root, Color("e2c8ff"), head, 5)
-			if rich:
-				_embers(root, Color("d9b8ff"), head)
-				_flames(root, Vector3(0, 0.1, 0), 0.85, 20, Color("f2e4ff"), Color("a35cff"), Color("4a12b0"))
-				_sparkles(root, Vector3(0, head * 0.4, 0), Color("e2c8ff"), 14, 0.8, 0.1, 1.0, 1.2)
-		6:
-			_body_glow(root, Color("fff2c8"), head, 0.24, 2.4)
-			_wings(root, head, [Color("ffe7a8")], 1.0)
-			_halo(root, Color.WHITE, head + 0.22, 0.55)
-			_ring(root, Color("ffe6a0"), 1.3, 0.05, 0.7, 3.0)
-			if rich:
-				_sparkles(root, Vector3(0, head * 0.7, 0), Color("fffbe8"), 12, 1.0, 0.16, -0.25, 3.0)
-		7:
-			_body_glow(root, Color("5a3dff"), head, 0.3, 2.8)
-			_body_glow(root, Color("ff4fb8"), head * 1.2, 0.18, 1.8)
-			_wings(root, head, [Color("8a7dff"), Color("c08bff"), Color("ff8fd8"), Color("9fb4ff")], 1.05)
-			_orbit_ring(root, Color("9fb4ff"), head * 0.55, 1.6, 0.0, 3.2, Color("bcd0ff"))
-			_orbit_ring(root, Color("ff9be0"), head * 0.9, 1.45, 0.35, -2.4, Color("ffb8ee"))
-			if rich:
-				var stars := _sparkles(root, Vector3(0, head * 0.55, 0), Color.WHITE, 30, 1.3, 0.07, 0.05, 2.5)
-				stars.spread = 180.0
-		8:
-			_body_glow(root, color, head, 0.26, 2.3)
-			_ring(root, Color("3dffb0"), 1.4, 0.05, 0.85, 2.4)
-			_wings(root, head, [Color("2affa0"), Color("7dffc4"), Color("19d98a")], 1.1)
-			_dragon(root, head)
-			if rich:
-				_sparkles(root, Vector3(0, head * 0.4, 0), Color("9fffd2"), 14, 0.9, 0.1, 0.9, 1.4)
-		_:
-			_sun_disc(root, head)
-			_body_glow(root, Color("fff0c0"), head, 0.22, 2.2)
-			var hues: Array = []
-			for k in 8:
-				hues.append(Color.from_hsv(float(k) / 8.0, 0.55, 1.0))
-			_wings(root, head, hues, 1.15)
-			_crown(root, Color("fff3b0"), head + 0.12)
-			_ring(root, Color.from_hsv(0.1, 0.6, 1.0), 1.45, 0.05, 0.85, 2.0)
-			_ring(root, Color.from_hsv(0.6, 0.6, 1.0), 1.12, 0.07, 0.7, -2.6)
-			if rich:
-				_spiral(root, head)
-				_sparkles(root, Vector3(0, head * 0.7, 0), Color("ffd6f0"), 16, 1.1, 0.14, -0.3, 3.0)
-				_sparkles(root, Vector3(0, head * 0.4, 0), Color.WHITE, 14, 0.9, 0.08, 0.8, 1.4)
+	var rich := not light and MemoryGuard.pressure < 2
+	var tone := glow_tone(color) if color.a > 0.0 else Color(0.8, 0.9, 1.0)
+	_orbs(root, tone, head, rich)
+	if plus >= 11:
+		_body_bolts(root, tone, plus, head, rich, visual.get_instance_id())
+	if plus >= 15:
+		_aura(root, tone, head)
 	return made
 
 
+static func _fx_mesh(root: Node3D, node_name: String, mesh: Mesh, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Effect meshes: never polished, flashed, outlined or given a shadow (HeroVisual).
+	mi.set_meta("enhance_fx", true)
+	mi.set_meta("no_shadow_lod", true)
+	root.add_child(mi)
+	return mi
+
+
+## +10: three orbs drifting round the body (shaders/enhance_orb.gdshader).
+static func _orbs(root: Node3D, color: Color, head: float, trail: bool) -> MeshInstance3D:
+	var mat := _shared(ORB_SHADER, {"color": _quant(color), "head": head, "trail": 1.0 if trail else 0.0})
+	return _fx_mesh(root, "Orbs", _orb_mesh(head, trail), mat)
+
+
+## +11 to +15: lightning round the body (shaders/enhance_bolt.gdshader). More bolts,
+## brighter and wider each step; +13 and up half of them in the complementary colour,
+## +14 up forking.
+static func _body_bolts(root: Node3D, color: Color, plus: int, head: float, rich: bool, who: int) -> MeshInstance3D:
+	var k := clampi(plus, 11, 14) - 11
+	var density: float = [0.32, 0.6, 0.6, 1.0][k]
+	var forks: float = [0.0, 1.0, 1.0, 1.0][k]
+	if not rich:
+		density = minf(density, 0.32)
+		forks = 0.0
+	var other := _quant(contrast_of(color)) if plus >= 13 else _quant(color)
+	var mat := _shared(BOLT_SHADER, {"color_a": _quant(color), "color_b": other, "density": density, "forks": forks,
+		"rate": [4.5, 5.5, 5.5, 6.5][k], "duty": [0.62, 0.62, 0.64, 0.7][k], "amp": [0.035, 0.045, 0.045, 0.055][k],
+		"width": [0.016, 0.022, 0.022, 0.03][k], "energy": [1.0, 1.35, 1.45, 1.9][k], "segs": float(BODY_SEGS),
+		"spin": 1.0, "slide": 0.25, "seed": float(who % 4) * 0.37})
+	var mi := _fx_mesh(root, "Lightning", _body_bolt_mesh(), mat)
+	mi.scale = Vector3(1, head / 1.85, 1)
+	return mi
+
+
+## +15: the aura of rising light (shaders/enhance_aura.gdshader).
+static func _aura(root: Node3D, color: Color, head: float) -> MeshInstance3D:
+	var mat := _shared(AURA_SHADER, {"color": _quant(color)})
+	var mi := _fx_mesh(root, "GodAura", _aura_mesh(), mat)
+	mi.scale = Vector3(1, head / 1.85, 1)
+	return mi
+
+
+# --- Shared meshes ----------------------------------------------------------------------
+
+const BODY_SEGS := 10
+static var _meshes := {}
 static var _thin: TorusMesh
 
 
-## A thin torus (radius 0.485, tube 0.03) shared by every aura ring.
+## A thin torus (radius 0.485, tube 0.03) shared by rings elsewhere (PetForm).
 static func _thin_torus() -> TorusMesh:
 	if _thin == null:
 		_thin = TorusMesh.new()
@@ -262,365 +468,180 @@ static func _thin_torus() -> TorusMesh:
 	return _thin
 
 
-static func _unshaded(node: GeometryInstance3D) -> void:
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+## A mesh of lightning strips for shaders/enhance_bolt.gdshader. Each strip:
+## {path: PackedVector3Array (segs + 1 points), seed, bolt, pick, tier, root (-1 or t)}.
+static func _strip_mesh(strips: Array, segs: int, box: AABB) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
+	var colors := PackedColorArray()
+	var index := PackedInt32Array()
+	for st in strips:
+		var path: PackedVector3Array = st.path
+		var length := 0.0
+		for k in segs:
+			length += path[k].distance_to(path[k + 1])
+		var first := verts.size()
+		for k in segs + 1:
+			var dir := (path[mini(k + 1, segs)] - path[maxi(k - 1, 0)]).normalized()
+			for side in 2:
+				verts.append(path[k])
+				normals.append(dir)
+				uvs.append(Vector2(side, float(k) / float(segs)))
+				uv2s.append(Vector2(length, float(st.root)))
+				colors.append(Color(st.seed, st.bolt, st.pick, st.tier))
+		for k in segs:
+			var a := first + k * 2
+			index.append_array([a, a + 1, a + 2, a + 1, a + 3, a + 2])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = index
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.custom_aabb = box
+	return mesh
 
 
-## A soft billboard glow around the body (reads as a rim aura from any side).
-static func _body_glow(root: Node3D, color: Color, head: float, alpha: float, size: float) -> void:
-	var glow := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(size * 0.75, size)
-	var mat := _glow_material(color, minf(0.9, alpha * 1.8))
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_texture = VfxKit.soft_dot()
-	quad.material = mat
-	glow.mesh = quad
-	glow.position = Vector3(0, head * 0.5, -0.15)
-	_unshaded(glow)
-	root.add_child(glow)
-	var breathe := glow.create_tween().set_loops()
-	breathe.tween_property(glow, "scale", Vector3.ONE * 1.08, 1.1).set_trans(Tween.TRANS_SINE)
-	breathe.tween_property(glow, "scale", Vector3.ONE * 0.94, 1.1).set_trans(Tween.TRANS_SINE)
+## Sixteen bolts hugging the body (for a chibi 1.85 tall; scaled for others), each with a
+## fork, their tiers spread so the first few are spread round the body too.
+static func _body_bolt_mesh() -> ArrayMesh:
+	if _meshes.has("body_bolts"):
+		return _meshes.body_bolts
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1511
+	var strips := []
+	var count := 16
+	var segs := BODY_SEGS
+	for m in count:
+		var tier := (float(m) + 0.5) / float(count)
+		var seed := (float(m) * 2.0 + 1.0) / 64.0
+		var angle := float(m) * 2.39996
+		var y0 := rng.randf_range(0.12, 1.45)
+		var y1 := minf(y0 + rng.randf_range(0.35, 0.75), 1.95)
+		var r := rng.randf_range(0.4, 0.55)
+		var sweep := rng.randf_range(-0.9, 0.9)
+		var path := PackedVector3Array()
+		for k in segs + 1:
+			var t := float(k) / float(segs)
+			var a := angle + sweep * t
+			var rr := r + 0.07 * sin(PI * t)
+			path.append(Vector3(cos(a) * rr, lerpf(y0, y1, t), sin(a) * rr))
+		strips.append({"path": path, "seed": seed, "bolt": seed, "pick": float(m % 2), "tier": tier, "root": -1.0})
+		# Its fork: from a point on it, out and away.
+		var at := rng.randi_range(3, 7)
+		var start := path[at]
+		var out := Vector3(start.x, 0, start.z).normalized()
+		var end := start + out * rng.randf_range(0.18, 0.3) + Vector3(0, rng.randf_range(-0.25, 0.25), 0)
+		var fork := PackedVector3Array()
+		for k in segs + 1:
+			fork.append(start.lerp(end, float(k) / float(segs)))
+		strips.append({"path": fork, "seed": seed + 1.0 / 64.0, "bolt": seed, "pick": float(m % 2), "tier": tier, "root": float(at) / float(segs)})
+	var mesh := _strip_mesh(strips, segs, AABB(Vector3(-1.1, -0.3, -1.1), Vector3(2.2, 2.7, 2.2)))
+	_meshes["body_bolts"] = mesh
+	return mesh
 
 
-## A flat glowing ring at height y, radius r, spinning once in `period` s (negative: back).
-static func _ring(root: Node3D, color: Color, r: float, y: float, alpha: float, period: float) -> MeshInstance3D:
-	var ring := MeshInstance3D.new()
-	ring.mesh = _thin_torus()
-	ring.material_override = _glow_material(color, alpha)
-	var s := r / 0.485
-	ring.scale = Vector3(s, 0.6, s)
-	ring.position = Vector3(0, y, 0)
-	_unshaded(ring)
-	root.add_child(ring)
-	var spin := ring.create_tween().set_loops()
-	spin.tween_property(ring, "rotation:y", TAU * signf(period), absf(period)).from(0.0)
-	return ring
+const ORB_TRAIL := 6
 
 
-## Little rune diamonds on a spinning ring at the feet.
-static func _runes(root: Node3D, color: Color, r: float, count: int, period: float) -> void:
-	var holder := Node3D.new()
-	root.add_child(holder)
-	var mat := _glow_material(color, 0.9)
-	for k in count:
-		var a := TAU * float(k) / float(count)
-		var rune := MeshInstance3D.new()
-		rune.mesh = MeshKit.box()
-		rune.material_override = mat
-		rune.scale = Vector3(0.07, 0.015, 0.07)
-		rune.rotation.y = a + PI / 4.0
-		rune.position = Vector3(cos(a) * r, 0.07, sin(a) * r)
-		_unshaded(rune)
-		holder.add_child(rune)
-	var spin := holder.create_tween().set_loops()
-	spin.tween_property(holder, "rotation:y", -TAU, period).from(0.0)
+## Three orbs, each a halo, a heart and ORB_TRAIL trail motes (or none): camera-facing
+## quads placed by shaders/enhance_orb.gdshader.
+static func _orb_mesh(head: float, trail: bool) -> ArrayMesh:
+	var key := "orbs_%d_%s" % [int(head * 100.0), trail]
+	if _meshes.has(key):
+		return _meshes[key]
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
+	var index := PackedInt32Array()
+	for k in 3:
+		var parts := [[0.0, 0.0], [0.5, 0.0]]
+		if trail:
+			for j in ORB_TRAIL:
+				parts.append([1.0, float(j + 1) / float(ORB_TRAIL)])
+		# Trail first, then the halo and the heart on top (drawn in mesh order).
+		parts.reverse()
+		for part in parts:
+			var first := verts.size()
+			for corner in [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]:
+				verts.append(Vector3.ZERO)
+				uvs.append(corner)
+				colors.append(Color(float(k) / 2.0, part[1], part[0], 1.0))
+			index.append_array([first, first + 1, first + 2, first, first + 2, first + 3])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = index
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.custom_aabb = AABB(Vector3(-1.2, -0.2, -1.2), Vector3(2.4, head + 0.8, 2.4))
+	_meshes[key] = mesh
+	return mesh
 
 
-static func _halo(root: Node3D, color: Color, y: float, r: float) -> void:
-	var halo := _ring(root, color, r, y, 0.95, 6.0)
-	halo.scale.y = 1.4
+## The +15 aura's shell: a surface of revolution round a chibi body 1.85 tall, wide at
+## the shoulders and the big head, closing to a flame's tip above it.
+static func _aura_mesh() -> ArrayMesh:
+	if _meshes.has("aura"):
+		return _meshes.aura
+	# [height, radius]
+	var profile := [[0.0, 0.42], [0.25, 0.47], [0.6, 0.5], [0.95, 0.56], [1.3, 0.64], [1.62, 0.66],
+		[1.9, 0.6], [2.12, 0.46], [2.3, 0.26], [2.42, 0.04]]
+	var around := 28
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var index := PackedInt32Array()
+	var rows := profile.size()
+	for j in rows:
+		var y: float = profile[j][0]
+		var r: float = profile[j][1]
+		var prev: Array = profile[maxi(j - 1, 0)]
+		var next: Array = profile[mini(j + 1, rows - 1)]
+		var dy: float = next[0] - prev[0]
+		var dr: float = next[1] - prev[1]
+		var flat := Vector2(dy, -dr).normalized()
+		for i in around + 1:
+			var a := TAU * float(i) / float(around)
+			var radial := Vector3(cos(a), 0, sin(a))
+			verts.append(radial * r + Vector3(0, y, 0))
+			normals.append((radial * flat.x + Vector3(0, flat.y, 0)).normalized())
+			uvs.append(Vector2(float(i) / float(around), y / 2.42))
+	for j in rows - 1:
+		for i in around:
+			var a := j * (around + 1) + i
+			var b := a + around + 1
+			index.append_array([a, b, a + 1, a + 1, b, b + 1])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = index
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.custom_aabb = AABB(Vector3(-0.9, -0.1, -0.9), Vector3(1.8, 2.7, 1.8))
+	_meshes["aura"] = mesh
+	return mesh
 
 
-## `count` glowing orbs circling at height y, radius r.
-static func _orbs(root: Node3D, color: Color, count: int, r: float, y: float, period: float, size: float) -> void:
-	var orbit := Node3D.new()
-	orbit.position = Vector3(0, y, 0)
-	root.add_child(orbit)
-	var mat := _glow_material(color, 0.95)
-	for k in count:
-		var a := TAU * float(k) / float(count)
-		var orb := MeshInstance3D.new()
-		orb.mesh = MeshKit.sphere_low()
-		orb.material_override = mat
-		orb.scale = Vector3.ONE * size * 2.0
-		orb.position = Vector3(cos(a) * r, sin(a * 2.0) * 0.15, sin(a) * r)
-		_unshaded(orb)
-		orbit.add_child(orb)
-	var spin := orbit.create_tween().set_loops()
-	spin.tween_property(orbit, "rotation:y", TAU, period).from(0.0)
+# --- Wings ------------------------------------------------------------------------------
 
-
-## A fountain of embers rising from the feet past the head (no hard beam).
-static func _embers(root: Node3D, color: Color, head: float) -> void:
-	var p := _sparkles(root, Vector3(0, 0.15, 0), color, 16, 0.5, 0.09, 1.6, 1.5)
-	p.spread = 12.0
-	p.gravity = Vector3(0, 0.6, 0)
-	p.scale_amount_min = 0.6
-	p.scale_amount_max = 1.3
-
-
-## Rainbow light motes winding up around the body (the +15 crown of the aura).
-static func _spiral(root: Node3D, head: float) -> void:
-	var holder := Node3D.new()
-	holder.name = "Spiral"
-	root.add_child(holder)
-	var count := 14
-	for i in count:
-		var t := float(i) / float(count)
-		var a := t * 2.0 * TAU
-		var mote := MeshInstance3D.new()
-		mote.mesh = MeshKit.sphere_low()
-		mote.material_override = _glow_material(Color.from_hsv(t, 0.55, 1.0), 0.95)
-		mote.scale = Vector3.ONE * (0.09 + 0.05 * sin(t * PI))
-		mote.position = Vector3(cos(a) * 0.62, 0.15 + t * (head + 0.2), sin(a) * 0.62)
-		_unshaded(mote)
-		holder.add_child(mote)
-	var spin := holder.create_tween().set_loops()
-	spin.tween_property(holder, "rotation:y", TAU, 3.5).from(0.0)
-
-
-## Short lightning arcs around the body that jump to new places a few times a second.
-static func _lightning(root: Node3D, color: Color, head: float, count: int) -> void:
-	var holder := Node3D.new()
-	holder.name = "Lightning"
-	root.add_child(holder)
-	var mat := _glow_material(color, 0.95)
-	var bolts: Array[MeshInstance3D] = []
-	for k in count * 3:
-		var seg := MeshInstance3D.new()
-		seg.mesh = MeshKit.box()
-		seg.material_override = mat
-		_unshaded(seg)
-		holder.add_child(seg)
-		bolts.append(seg)
-	var jump := func():
-		for k in count:
-			var a := randf() * TAU
-			var p := Vector3(cos(a) * randf_range(0.55, 0.8), randf_range(0.2, head), sin(a) * randf_range(0.55, 0.8))
-			for j in 3:
-				var q := p + Vector3(randf_range(-0.18, 0.18), -randf_range(0.15, 0.3), randf_range(-0.18, 0.18))
-				var seg := bolts[k * 3 + j]
-				seg.position = (p + q) * 0.5
-				seg.scale = Vector3(0.025, p.distance_to(q), 0.025)
-				seg.look_at_from_position(seg.position, q, Vector3.FORWARD if absf((q - p).normalized().y) < 0.99 else Vector3.RIGHT)
-				seg.rotate_object_local(Vector3.RIGHT, PI / 2.0)
-				seg.visible = randf() < 0.85
-				p = q
-	jump.call()
-	var t := holder.create_tween().set_loops()
-	t.tween_interval(0.14)
-	t.tween_callback(jump)
-
-
-## Two wings of light-feathers behind the shoulders, flapping slowly. One colour per
-## feather from `colors` (cycled).
-static func _wings(root: Node3D, head: float, colors: Array, span: float) -> void:
-	if bool(root.get_meta("cape", false)):
-		_cape_of_light(root, head, colors, span)
-		return
-	var tex := VfxKit.soft_dot()
-	for side in [-1.0, 1.0]:
-		var wing := Node3D.new()
-		wing.position = Vector3(0.22 * side, head * 0.74, -0.42)
-		root.add_child(wing)
-		var feathers := 8
-		for k in feathers:
-			var ang := deg_to_rad(-62.0 + float(k) * 88.0 / float(feathers - 1))
-			var length := (2.0 - 0.12 * float(k)) * span
-			var feather := MeshInstance3D.new()
-			var quad := QuadMesh.new()
-			quad.size = Vector2(0.3, length)
-			var mat := _glow_material(colors[k % colors.size()], 0.95)
-			mat.albedo_texture = tex
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			quad.material = mat
-			feather.mesh = quad
-			# A feather leans out from the root: its base at the shoulder.
-			var dir := Vector3(cos(ang) * side, -sin(ang), -0.25).normalized()
-			feather.position = dir * length * 0.5
-			# Turn the quad's long (Y) axis along dir.
-			feather.rotation = Vector3(0, 0, atan2(-dir.x, dir.y))
-			_unshaded(feather)
-			wing.add_child(feather)
-		var flap := wing.create_tween().set_loops()
-		flap.tween_property(wing, "rotation:y", 0.25 * side, 1.4).set_trans(Tween.TRANS_SINE)
-		flap.tween_property(wing, "rotation:y", -0.1 * side, 1.4).set_trans(Tween.TRANS_SINE)
-
-
-## Classes that wear a cape in the wings slot (their light aura is a cape too).
-const CAPE_CLASSES: Array[String] = CapeArt.CLASSES
-
-
-## A cape of light for the cape wearers: the worn cape itself shines in the step's
-## colours (an overlay that pulses, like wing_flair), a broad glow fans out behind it
-## down to the heels, and light motes drift off its hem.
-static func _cape_of_light(root: Node3D, head: float, colors: Array, span: float) -> void:
-	var cape := Node3D.new()
-	cape.name = "LightCape"
-	cape.position = Vector3(0, head * 0.45, -0.5)
-	root.add_child(cape)
-	var tex := VfxKit.soft_dot()
-	# The fan of light behind the cape: one tall soft glow per colour, side by side.
-	var n := mini(colors.size(), 4)
-	for k in n:
-		var glow := MeshInstance3D.new()
-		var quad := QuadMesh.new()
-		quad.size = Vector2(1.5 * span, head * 1.1 * span)
-		var mat := _glow_material(colors[k], 0.55 / sqrt(float(n)))
-		mat.albedo_texture = tex
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-		quad.material = mat
-		glow.mesh = quad
-		var u := 0.0 if n == 1 else float(k) / float(n - 1) * 2.0 - 1.0
-		glow.position = Vector3(u * 0.35, 0, -0.05 * float(k))
-		_unshaded(glow)
-		cape.add_child(glow)
-		var breathe := glow.create_tween().set_loops()
-		breathe.tween_property(glow, "scale", Vector3(1.08, 1.04, 1.0), 1.2 + 0.2 * float(k)).set_trans(Tween.TRANS_SINE)
-		breathe.tween_property(glow, "scale", Vector3(0.94, 0.98, 1.0), 1.2 + 0.2 * float(k)).set_trans(Tween.TRANS_SINE)
-	# Motes of light shed from the hem.
-	if GameSettings.quality > 0 and MemoryGuard.pressure < 2:
-		var motes := _sparkles(cape, Vector3(0, -head * 0.2, 0), (colors[0] as Color).lightened(0.3), 14, 0.45, 0.1, -0.2, 2.0)
-		motes.name = "CapeMotes"
-	# The cape itself shines: dressed after the aura (the wings slot builds its own node).
-	_shine_cape.call_deferred(root, colors[0])
-
-
-static func _shine_cape(root: Node3D, color: Color) -> void:
-	if not is_instance_valid(root) or not is_instance_valid(root.get_parent()):
-		return
-	var shine := _glow_material(color, 0.32)
-	for node in root.get_parent().find_children("Wings_*" + String(root.get_parent().get("class_id")), "", true, false):
-		for m in MeshKit.collect_meshes(node):
-			m.material_overlay = shine
-	var pulse := root.create_tween().set_loops()
-	pulse.tween_property(shine, "albedo_color:a", 0.5, 0.9).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(shine, "albedo_color:a", 0.22, 0.9).set_trans(Tween.TRANS_SINE)
-
-
-## A tilted orbit ring with a planet riding it.
-static func _orbit_ring(root: Node3D, color: Color, y: float, r: float, tilt: float, period: float, planet: Color) -> void:
-	var pivot := Node3D.new()
-	pivot.position = Vector3(0, y, 0)
-	pivot.rotation = Vector3(tilt, 0, tilt * 0.5)
-	root.add_child(pivot)
-	_ring(pivot, color, r * 0.5, 0.0, 0.8, period * 2.0)
-	var arm := Node3D.new()
-	pivot.add_child(arm)
-	var ball := MeshInstance3D.new()
-	ball.mesh = MeshKit.sphere_low()
-	ball.material_override = _glow_material(planet, 0.95)
-	ball.scale = Vector3.ONE * 0.16
-	ball.position = Vector3(r * 0.5, 0, 0)
-	_unshaded(ball)
-	arm.add_child(ball)
-	var spin := arm.create_tween().set_loops()
-	spin.tween_property(arm, "rotation:y", TAU * signf(period), absf(period)).from(0.0)
-
-
-## A jade spirit dragon: glowing beads along a helix from the feet to above the head,
-## turning so it seems to coil, with a horned head on top.
-static func _dragon(root: Node3D, head: float) -> void:
-	var coil := Node3D.new()
-	coil.name = "Dragon"
-	root.add_child(coil)
-	var body := _glow_material(Color("14b870"), 0.75)
-	var belly := _glow_material(Color("7dffc4"), 0.8)
-	var beads := 30
-	var last := Vector3.ZERO
-	for i in beads:
-		var t := float(i) / float(beads - 1)
-		var a := t * 3.2 * PI
-		var r := 0.85 - 0.25 * t
-		var p := Vector3(cos(a) * r, 0.1 + t * (head + 0.35), sin(a) * r)
-		var bead := MeshInstance3D.new()
-		bead.mesh = MeshKit.sphere_low()
-		bead.material_override = body if i % 3 != 0 else belly
-		bead.scale = Vector3.ONE * (0.3 - 0.13 * t)
-		bead.position = p
-		_unshaded(bead)
-		coil.add_child(bead)
-		last = p
-	var skull := MeshInstance3D.new()
-	skull.mesh = MeshKit.sphere_low()
-	skull.material_override = belly
-	skull.scale = Vector3(0.3, 0.22, 0.42)
-	skull.position = last + Vector3(0, 0.08, 0)
-	_unshaded(skull)
-	coil.add_child(skull)
-	for side in [-1.0, 1.0]:
-		var horn := MeshInstance3D.new()
-		horn.mesh = MeshKit.cone()
-		horn.material_override = belly
-		horn.scale = Vector3(0.05, 0.22, 0.05)
-		horn.position = skull.position + Vector3(0.07 * side, 0.14, -0.06)
-		horn.rotation = Vector3(-0.5, 0, 0.3 * side)
-		_unshaded(horn)
-		coil.add_child(horn)
-	var spin := coil.create_tween().set_loops()
-	spin.tween_property(coil, "rotation:y", -TAU, 5.0).from(0.0)
-	var sway := coil.create_tween().set_loops()
-	sway.tween_property(coil, "position:y", 0.08, 1.2).set_trans(Tween.TRANS_SINE)
-	sway.tween_property(coil, "position:y", -0.04, 1.2).set_trans(Tween.TRANS_SINE)
-
-
-static var _sun_texture: Texture2D
-
-
-## The rainbow ring and rays of the +15 sun disc (one shared texture).
-static func _sun_tex() -> Texture2D:
-	if _sun_texture == null:
-		var g := Gradient.new()
-		g.offsets = PackedFloat32Array([0.0, 0.55, 0.66, 0.7, 0.74, 0.78, 0.82, 0.86, 0.9, 1.0])
-		g.colors = PackedColorArray([Color(1, 0.95, 0.8, 0.35), Color(1, 0.9, 0.7, 0.05), Color.from_hsv(0.0, 0.7, 1.0, 0.9),
-			Color.from_hsv(0.12, 0.7, 1.0, 0.9), Color.from_hsv(0.3, 0.7, 1.0, 0.9), Color.from_hsv(0.5, 0.7, 1.0, 0.9),
-			Color.from_hsv(0.65, 0.7, 1.0, 0.9), Color.from_hsv(0.8, 0.7, 1.0, 0.9), Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.0)])
-		var tex := GradientTexture2D.new()
-		tex.gradient = g
-		tex.fill = GradientTexture2D.FILL_RADIAL
-		tex.fill_from = Vector2(0.5, 0.5)
-		tex.fill_to = Vector2(1.0, 0.5)
-		tex.width = 256
-		tex.height = 256
-		_sun_texture = tex
-	return _sun_texture
-
-
-static func _sun_disc(root: Node3D, head: float) -> void:
-	var disc := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.6, 2.6)
-	var mat := _glow_material(Color.WHITE, 0.85)
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.albedo_texture = _sun_tex()
-	quad.material = mat
-	disc.mesh = quad
-	disc.position = Vector3(0, head * 0.62, -0.35)
-	_unshaded(disc)
-	root.add_child(disc)
-	var turn := disc.create_tween().set_loops()
-	turn.tween_property(disc, "scale", Vector3.ONE * 1.06, 1.6).set_trans(Tween.TRANS_SINE)
-	turn.tween_property(disc, "scale", Vector3.ONE * 0.96, 1.6).set_trans(Tween.TRANS_SINE)
-
-
-## A crown of light points floating over the head.
-static func _crown(root: Node3D, color: Color, y: float) -> void:
-	var crown := Node3D.new()
-	crown.position = Vector3(0, y, 0)
-	root.add_child(crown)
-	var mat := _glow_material(color, 0.95)
-	for k in 7:
-		var a := TAU * float(k) / 7.0
-		var spike := MeshInstance3D.new()
-		spike.mesh = MeshKit.cone()
-		spike.material_override = mat
-		spike.scale = Vector3(0.05, 0.16 if k % 2 == 0 else 0.1, 0.05)
-		spike.position = Vector3(cos(a) * 0.24, 0.06, sin(a) * 0.24)
-		_unshaded(spike)
-		crown.add_child(spike)
-	var spin := crown.create_tween().set_loops()
-	spin.tween_property(crown, "rotation:y", TAU, 7.0).from(0.0)
-
-
-## Wings at +10 and up get their own flair, in their aura step's colour: a soft glow
-## spread behind them and light feathers drifting down (+15: every colour of the rainbow).
-## Returns the holder (the caller frees it with the outfit), or null below +10.
+## Wings at +10 and up get their own flair, in their step's colour (WING_COLORS): a soft
+## glow spread behind them and light feathers drifting down (+15: every colour of the
+## rainbow). Returns the holder (the caller frees it with the outfit), or null below +10.
 static func wing_flair(owner: Node3D, plus: int, spot: Vector3, light := false) -> Node3D:
 	if plus < 10:
 		return null
-	var color := color_of(plus)
+	var color := WING_COLORS[clampi(plus, 10, 15) - 10]
 	var holder := Node3D.new()
 	holder.name = "WingFlair"
 	holder.position = spot
@@ -641,7 +662,7 @@ static func wing_flair(owner: Node3D, plus: int, spot: Vector3, light := false) 
 	quad.material = mat
 	glow.mesh = quad
 	glow.position = Vector3(0, 0.15, -0.45)
-	_unshaded(glow)
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.add_child(glow)
 	var breathe := glow.create_tween().set_loops()
 	breathe.tween_property(glow, "scale", Vector3.ONE * 1.12, 1.3).set_trans(Tween.TRANS_SINE)
@@ -659,50 +680,7 @@ static func wing_flair(owner: Node3D, plus: int, spot: Vector3, light := false) 
 	return holder
 
 
-## Slots that cannot be enhanced (they stay as they are).
-const FIXED_SLOTS: Array[String] = ["ring", "amulet"]
-
-
-static func can_enhance(item: Dictionary) -> bool:
-	return item.get("kind", "") == "equip" and not (String(item.get("slot", "")) in FIXED_SLOTS)
-
-
-## Every enhanced piece glows by itself: an additive overlay on its own meshes
-## (stronger and faster-pulsing with the grade) plus a little sparkle at its spot.
-## spot = where on the body the sparkles rise (visual space).
-## Returns the holder of the sparkles and the pulse tween (null when nothing
-## glows): the caller keeps it with the outfit so a re-dress frees it; before,
-## every equipment refresh stacked another set of emitters and an endless tween
-## on the visual for the rest of the zone.
-## [param light] (the other players around) keeps the pulsing overlay only.
-static func glow_piece(owner: Node3D, nodes: Array, plus: int, spot: Vector3, spread := 0.3, light := false) -> Node3D:
-	var g := grade(plus)
-	if g == 0:
-		return null
-	var color := color_of(plus)
-	var overlay := _glow_material(color, [0.0, 0.05, 0.08, 0.11, 0.15][g])
-	var found := false
-	for node in nodes:
-		if not is_instance_valid(node):
-			continue
-		for m in MeshKit.collect_meshes(node):
-			m.material_overlay = overlay
-			found = true
-	if not found:
-		return null
-	var holder := Node3D.new()
-	holder.name = "PieceGlow"
-	owner.add_child(holder)
-	var base_a: float = overlay.albedo_color.a
-	var speed: float = [0.0, 1.8, 1.3, 0.9, 0.5][g]
-	var pulse := holder.create_tween().set_loops()
-	pulse.tween_property(overlay, "albedo_color:a", base_a * 1.8, speed).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(overlay, "albedo_color:a", base_a * 0.45, speed).set_trans(Tween.TRANS_SINE)
-	if GameSettings.quality > 0 and g >= 2 and MemoryGuard.pressure < 2 and not light:
-		var p := _sparkles(holder, spot, color, [0, 0, 5, 8, 12][g], spread, 0.1, 0.5 + 0.1 * g, 0.9)
-		p.name = "PieceSparkles"
-	return holder
-
+# --- Gems -------------------------------------------------------------------------------
 
 ## The colour of the first ตำนาน (size ItemData.GEM_MAX_SIZE) gem socketed in a worn
 ## piece, or a transparent colour when it has none.

@@ -326,7 +326,7 @@ func _refresh_chibi() -> void:
 		if _starish(equip.amulet): _star_piece("amulet","Chest",equip.amulet)
 		else: ChibiGear.pendant(_chibi_attach("Chest", "ChibiAmulet"), ItemLook.tier_of(equip.amulet))
 	if _starish(equip.get("ring")): _star_piece("ring","LeftHand",equip.ring)
-	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.1, 0), 0.4)
+	_glow_armor(armor_nodes, armor, Vector3(0, 1.1, 0))
 	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.3, 0), 0.4)
 	var wings: Variant = equip.get("wings")
 	if wings is Dictionary:
@@ -567,7 +567,7 @@ func _dress_chibi(armor: Variant) -> void:
 		if armor != null:
 			var tier := ItemLook.tier_of(armor)
 			var set_armor := SetGearData.is_item(armor)
-			var cloth: Color = DivineOutfitArt.palette(StarGearData.item_class(armor)).body if divine_armor else (SetGearArt.cloth(SetGearData.item_class(armor)) if set_armor else (StarGearArt.cloth(StarGearData.item_class(armor),int(armor.star_tier)) if StarGearData.is_star(armor) else ChibiGear.cloth(tier)))
+			var cloth := _armor_cloth(armor)
 			mat.set_shader_parameter("outfit_color", cloth)
 			mat.set_shader_parameter("outfit_amount", 0.96 if divine_armor else (0.9 if set_armor else 0.5 + 0.04 * float(tier)))
 			mat.set_shader_parameter("sheen", 0.22 if divine_armor else (0.0 if tier < 2 else 0.2 + 0.08 * float(tier)))
@@ -643,11 +643,45 @@ func set_equipment(p_equip: Dictionary) -> void:
 	refresh()
 
 
-## Enhancement glow of one worn piece, kept with the outfit so a re-dress frees it.
-func _glow_piece(nodes: Array, plus: int, spot: Vector3, spread := 0.3) -> void:
-	var made := EnhanceFx.glow_piece(self, nodes, plus, spot, spread, decor_light)
-	if made != null:
-		_body_nodes.append(made)
+## The armour's own colour as its enhancement glows (EnhanceFx): the colour of the set's
+## body effects. Transparent while the armour does not glow.
+var _outfit_color := Color(0, 0, 0, 0)
+
+
+## Enhancement glow of one worn piece from +7, in its own colour ([param color], or read
+## from its meshes): an overlay that goes with the meshes when the outfit is re-dressed.
+func _glow_piece(nodes: Array, plus: int, _spot: Vector3, _spread := 0.3, color := Color(0, 0, 0, 0)) -> Color:
+	return EnhanceFx.glow_piece(self, nodes, plus, Vector3.ZERO, 0.3, decor_light, color)
+
+
+## The armour's glow: its pieces in their own colours and (a chibi) its dyed outfit in its cloth colour.
+func _glow_armor(nodes: Array, armor: Variant, spot: Vector3) -> void:
+	var plus := int((armor as Dictionary).get("plus", 0)) if armor is Dictionary else 0
+	_outfit_color = Color(0, 0, 0, 0)
+	if plus < EnhanceFx.GLOW_FROM:
+		return
+	# Its pieces glow in their own colours; the dyed outfit, and so the set's effects, in its cloth's.
+	var cloth := _armor_cloth(armor) if chibi else Color(0, 0, 0, 0)
+	var used := _glow_piece(nodes, plus, spot, 0.4)
+	_outfit_color = EnhanceFx.glow_tone(cloth) if cloth.a > 0.0 else used
+	if chibi and model != null:
+		for node in model.find_children("*", "MeshInstance3D", true, false):
+			var mat := (node as MeshInstance3D).material_override as ShaderMaterial
+			if mat != null and mat.shader == CHIBI_OUTFIT:
+				EnhanceFx.glow_outfit(mat, _outfit_color, plus)
+
+
+## The cloth colour a chibi's outfit is dyed for [param armor].
+static func _armor_cloth(armor: Variant) -> Color:
+	if not armor is Dictionary:
+		return Color(0, 0, 0, 0)
+	if DivineGearData.is_item(armor):
+		return DivineOutfitArt.palette(StarGearData.item_class(armor)).body
+	if SetGearData.is_item(armor):
+		return SetGearArt.cloth(SetGearData.item_class(armor))
+	if StarGearData.is_star(armor):
+		return StarGearArt.cloth(StarGearData.item_class(armor), int(armor.star_tier))
+	return ChibiGear.cloth(ItemLook.tier_of(armor))
 
 
 ## Wings at +10 and up: a glow behind them and drifting light feathers (EnhanceFx.wing_flair).
@@ -798,13 +832,14 @@ func refresh() -> void:
 		_glow_piece(hat_nodes, int(helm.get("plus", 0)), Vector3(0, 1.85, 0), 0.25)
 	elif preset.has("hat") and look.is_empty():
 		_add_part(preset.hat[0], preset.hat[1], PRIEST_GOLD if priest else Color.WHITE)
+	# The armour glows before the aura is made: the set's effects take its colour.
+	_glow_armor(armor_nodes, armor, Vector3(0, 1.0, 0))
 	var cuff_start := _body_nodes.size()
 	_wear_trinkets()
 	if boots != null:
 		for n in _body_nodes.slice(cuff_start):
 			if n is BoneAttachment3D and (n as BoneAttachment3D).name == "Boots":
 				boot_nodes.append(n)
-	_glow_piece(armor_nodes, int(equip.get("armor", {}).get("plus", 0)), Vector3(0, 1.0, 0), 0.4)
 	_glow_piece(boot_nodes, int(equip.get("boots", {}).get("plus", 0)), Vector3(0, 0.25, 0), 0.4)
 	_hold_gear()
 	_gem_glows()
@@ -826,7 +861,9 @@ static func outline_material() -> StandardMaterial3D:
 func _polish() -> void:
 	var meshes: Array[MeshInstance3D] = []
 	for node in find_children("*", "MeshInstance3D", true, false):
-		meshes.append(node as MeshInstance3D)
+		# The enhancement's effect meshes (EnhanceFx) are no outfit: never flashed or shadowed.
+		if not node.has_meta("enhance_fx"):
+			meshes.append(node as MeshInstance3D)
 	_lod_meshes = meshes
 	_emitters.clear()
 	for node in find_children("*", "CPUParticles3D", true, false):
@@ -943,12 +980,11 @@ func _make_aura() -> void:
 		var item: Dictionary = equip[slot]
 		if int(item.get("rarity", 0)) >= 3:
 			color = Color("c46bff")
-	# The body aura is the whole set's: the lowest + of weapon, armour, helm, boots and
-	# wings (each piece still glows by its own +).
+	# The set's body effects come from the whole set: the lowest + of weapon, armour,
+	# helm and boots, from +10, in the armour's colour (each piece glows by its own +).
 	var whole := EnhanceFx.set_plus(equip)
-	if whole >= EnhanceFx.AURA_STEPS[0]:
-		color = EnhanceFx.color_of(whole)
-		for made in EnhanceFx.on_body(self, whole, decor_light):
+	if whole >= EnhanceFx.BODY_FROM:
+		for made in EnhanceFx.on_body(self, whole, decor_light, _outfit_color):
 			made.set_meta("far_decor", true)
 			_body_nodes.append(made)
 	# The 250★ class set: its aura from AURA_PIECES worn pieces (SetGearArt.aura).
@@ -987,7 +1023,7 @@ func _make_aura() -> void:
 	quad.material = mat
 	p.mesh = quad
 	var grand := maxi(tier - 5, 0)
-	p.amount = VfxBudget.count(14 + grand * 10 + EnhanceFx.aura_step(whole) * 2)
+	p.amount = VfxBudget.count(14 + grand * 10)
 	p.lifetime = 1.5 + 0.1 * float(grand)
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.55 + 0.08 * float(grand)

@@ -5,8 +5,10 @@ extends Node3D
 ## look's name and what unlocks it.
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . \
 ##     res://tests/tools/aura_sheets.tscn -- OUT_DIR [SHEET ...]
-## SHEET: body weapon set250 other costumes (default: all). Writes OUT_DIR/<sheet>.png
-## (body -> enhance_body.png, weapon -> enhance_weapon.png).
+## SHEET: body weapon dark low set250 other costumes (default: all but dark and low).
+## Writes OUT_DIR/<sheet>.png (body -> enhance_body.png, weapon -> enhance_weapon.png,
+## dark -> enhance_dark.png: a few set steps in a dark zone's light, low -> enhance_low.png:
+## the lowest quality).
 ## Every hero stands far from the others in one shared world; each cell is its own
 ## SubViewport camera, snapshotted SETTLE seconds after the heroes are dressed, so the
 ## particles have run. The sheet is laid out in a 2D SubViewport (any size).
@@ -17,9 +19,12 @@ const BG := Color("eef3f8")
 const INK := Color("1d2a3a")
 const SUB := Color("4a5a70")
 const WARM := Color("b0541a")
-const FILES := {"body": "enhance_body", "weapon": "enhance_weapon", "set250": "set250", "other": "other", "costumes": "costumes"}
+const FILES := {"body": "enhance_body", "weapon": "enhance_weapon", "dark": "enhance_dark", "low": "enhance_low", "set250": "set250", "other": "other", "costumes": "costumes"}
+## The steps of the enhancement sheets.
+const STEPS := [0, 7, 9, 10, 11, 12, 13, 14, 15]
 
 var _out := ""
+var _env: WorldEnvironment
 var _spot := 1
 var _rng := RandomNumberGenerator.new()
 
@@ -33,13 +38,13 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(_out)
 	var sheets: Array = args.slice(1) if args.size() > 1 else ["body", "weapon", "set250", "other", "costumes"]
 	_rng.seed = 7
-	var world_env := Scenery.environment(self, Color("4f8fd0"), Color("9cc4e4"), Color("e8eef8"), Color(1.0, 0.97, 0.9),
+	_env = Scenery.environment(self, Color("4f8fd0"), Color("9cc4e4"), Color("e8eef8"), Color(1.0, 0.97, 0.9),
 		{"palette": [Color("3f7fc4"), Color("7fb0dc"), Color("b8d4ea")]})
 	# AURA_FOG=0: the stage without the field's distance fog / glow (to tell what they add).
 	if OS.get_environment("AURA_FOG") == "0":
-		world_env.environment.fog_enabled = false
+		_env.environment.fog_enabled = false
 	if OS.get_environment("AURA_GLOW") == "0":
-		world_env.environment.glow_enabled = false
+		_env.environment.glow_enabled = false
 	GameSettings.quality = 2
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
@@ -50,8 +55,16 @@ func _ready() -> void:
 	add_child(ground)
 	for sheet in sheets:
 		match String(sheet):
-			"body": await _sheet("body", "ออร่าตีบวกทั้งชุด (EnhanceFx.on_body) · ค่า + ต่ำสุดของ อาวุธ/เกราะ/หมวก/รองเท้า", _body_cells(), 10, Vector2i(340, 480))
+			"body": await _sheet("body", "ตีบวกทั้งชุด (EnhanceFx) · ชิ้นเรืองแสงสีของตัวเองตาม + ของชิ้น · ดวงวิญญาณ/อัสนี/ออร่าตาม + ต่ำสุดของ อาวุธ/เกราะ/หมวก/รองเท้า", _body_cells(), 9, Vector2i(320, 460))
 			"weapon": await _sheet("weapon", "แสงตีบวกอาวุธ (EnhanceWeaponFx) · +7 เรือง · +10~+14 สายฟ้า · +15 วงสายฟ้ารอบมือ", _weapon_cells(), 9, Vector2i(260, 300))
+			"dark":
+				_darken()
+				await _sheet("dark", "ตีบวกทั้งชุดในโซนมืด (แสงสลัว)", _dark_cells(), 6, Vector2i(320, 460))
+				_darken(true)
+			"low":
+				GameSettings.quality = 0
+				await _sheet("low", "ตีบวกที่คุณภาพต่ำสุด (quality 0): เหลือแค่แสงเรืองของชิ้น", _low_cells(), 6, Vector2i(320, 460))
+				GameSettings.quality = 2
 			"set250": await _sheet("set250", "ออร่าเซต 250★ ประจำอาชีพ (SetGearArt.aura) · สวมชิ้นเซต ≥ 4 ชิ้น", _set_cells(), 6, Vector2i(320, 460))
 			"other": await _sheet("other", "ออร่า/แสงอื่น ๆ จากอุปกรณ์ ตำแหน่ง และเนื้อเรื่อง", _other_cells(), 6, Vector2i(300, 440))
 			"costumes": await _sheet("costumes", "คอสตูม (RewardShop.COSTUMES · CostumeArt) · ทุกชุดมีแสง/ละอองลอยรอบตัว", _costume_cells(), 5, Vector2i(320, 460))
@@ -86,16 +99,44 @@ func _cell(title: String, need: String, cls: String, equip: Dictionary, view := 
 
 func _body_cells() -> Array:
 	var out := []
-	for cls in ["muaythai", "warrior"]:
+	for row in [["warrior", 45], ["archer", 35]]:
+		var cls: String = row[0]
 		var th := ClassData.get_class_data(StringName(cls)).get("name", cls) as String
 		for side in ["wide", "wide_back"]:
-			for plus in [0, 5, 7, 9, 10, 11, 12, 13, 14, 15]:
-				var step := EnhanceFx.aura_step(plus)
-				var title := "ทั้งชุด +%d · %s" % [plus, EnhanceFx.AURA_NAMES[step] if step > 0 else "ไม่มีออร่า"]
-				var need := "%s · ขั้น %d/9 · ทั้ง 4 ชิ้น ≥ +%d" % [th, step, plus] if step > 0 else "%s · ต่ำกว่า +5 ยังไม่มีออร่าตัว" % th
-				need += " · %s" % ("ด้านหน้า" if side == "wide" else "ด้านหลัง")
-				out.append(_cell(title, need, cls, _gear(cls, 45, 2, plus), side))
+			for plus in STEPS:
+				out.append(_cell(_set_title(plus), "%s · ชุด Lv.%d · %s" % [th, row[1], "ด้านหน้า" if side == "wide" else "ด้านหลัง"],
+					cls, _gear(cls, row[1], 2, plus), side))
 	return out
+
+
+func _set_title(plus: int) -> String:
+	return "ทั้งชุด +%d · %s" % [plus, EnhanceFx.look_name(plus) if plus >= EnhanceFx.GLOW_FROM else "ไม่มีเอฟเฟกต์"]
+
+
+func _dark_cells() -> Array:
+	var out := []
+	for plus in [9, 10, 12, 13, 14, 15]:
+		out.append(_cell(_set_title(plus), "นักรบ · ชุด Lv.45 · โซนมืด", "warrior", _gear("warrior", 45, 2, plus), "wide"))
+	return out
+
+
+func _low_cells() -> Array:
+	var out := []
+	for plus in [0, 7, 9, 12, 14, 15]:
+		out.append(_cell(_set_title(plus), "นักรบ · quality 0", "warrior", _gear("warrior", 45, 2, plus), "wide"))
+	return out
+
+
+## The dark zone's light (or back to the field's with [param back]).
+func _darken(back := false) -> void:
+	var env := _env.environment
+	env.background_mode = Environment.BG_SKY if back else Environment.BG_COLOR
+	env.background_color = Color("10131f")
+	env.ambient_light_energy = 0.33 if back else 0.12
+	env.fog_light_color = Color("9cc4e4") if back else Color("1a2030")
+	for sun in get_tree().get_nodes_in_group("sun"):
+		(sun as DirectionalLight3D).light_energy = 0.6 if back else 0.12
+		(sun as DirectionalLight3D).light_color = Color(1.0, 0.97, 0.9) if back else Color("8fa0d8")
 
 
 func _weapon_cells() -> Array:
