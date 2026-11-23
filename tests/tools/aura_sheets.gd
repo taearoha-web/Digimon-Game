@@ -51,7 +51,7 @@ func _ready() -> void:
 	for sheet in sheets:
 		match String(sheet):
 			"body": await _sheet("body", "ออร่าตีบวกทั้งชุด (EnhanceFx.on_body) · ค่า + ต่ำสุดของ อาวุธ/เกราะ/หมวก/รองเท้า", _body_cells(), 10, Vector2i(340, 480))
-			"weapon": await _sheet("weapon", "แสงตีบวกรายชิ้น (EnhanceFx.on_item / glow_piece) · ระดับแสง 1-4 ตาม + ของชิ้นนั้นเอง", _weapon_cells(), 5, Vector2i(320, 330))
+			"weapon": await _sheet("weapon", "แสงตีบวกอาวุธ (EnhanceWeaponFx) · +7 เรือง · +10~+14 สายฟ้า · +15 วงสายฟ้ารอบมือ", _weapon_cells(), 9, Vector2i(260, 300))
 			"set250": await _sheet("set250", "ออร่าเซต 250★ ประจำอาชีพ (SetGearArt.aura) · สวมชิ้นเซต ≥ 4 ชิ้น", _set_cells(), 6, Vector2i(320, 460))
 			"other": await _sheet("other", "ออร่า/แสงอื่น ๆ จากอุปกรณ์ ตำแหน่ง และเนื้อเรื่อง", _other_cells(), 6, Vector2i(300, 440))
 			"costumes": await _sheet("costumes", "คอสตูม (RewardShop.COSTUMES · CostumeArt) · ทุกชุดมีแสง/ละอองลอยรอบตัว", _costume_cells(), 5, Vector2i(320, 460))
@@ -100,20 +100,23 @@ func _body_cells() -> Array:
 
 func _weapon_cells() -> Array:
 	var out := []
-	var rows := [["warrior", "weapon", "ดาบ (นักรบ)"], ["muaythai", "weapon", "สนับมือ (มวยไทย)"], ["warrior", "armor", "เกราะ (นักรบ)"]]
+	# Three weapons of different colours (the glow takes the weapon's own colour).
+	var rows := [["warrior", "ดาบ (นักรบ)", 35], ["mage", "คทา (นักเวท)", 65], ["muaythai", "สนับมือ (มวยไทย)", 75]]
 	for row in rows:
-		for plus in [0, 3, 6, 10, 15]:
-			var equip := _gear(row[0], 55, 2, 0)
-			equip[row[1]]["plus"] = plus
-			var g := EnhanceFx.grade(plus)
-			var title := "%s +%d · ระดับแสง %d" % [row[2], plus, g]
-			var need := ("สีขั้น \"%s\"" % EnhanceFx.look_name(plus)) if plus > 0 else "+0 ไม่เรือง"
-			match g:
-				1: need += " · เคลือบแสงจาง ๆ (+1~+4)"
-				2: need += " · เรือง + ประกาย (+5~+8)"
-				3: need += " · รัศมี + ลูกแสงโคจร 2 (+9~+11)"
-				4: need += " · ลูกแสง 4 + เปลวไฟ (+12~+15)" if row[1] == "weapon" else " · เรืองแรงสุด + ประกาย (+12~+15)"
-			out.append(_cell(title, need, row[0], equip, "weapon" if row[1] == "weapon" else "armor"))
+		for plus in [0, 7, 9, 10, 11, 12, 13, 14, 15]:
+			var equip := _gear(row[0], row[2], 2, 0)
+			equip.weapon["plus"] = plus
+			var p := EnhanceWeaponFx.plan(plus)
+			var need := "+0 ~ +6 ไม่มีแสง"
+			if plus >= 15:
+				need = "สายฟ้า %d สาย + วงสายฟ้ารอบมือ" % int(p.strands)
+			elif plus >= 10:
+				need = "สายฟ้าแลบตามอาวุธ %d สาย" % int(p.strands)
+			elif plus == 9:
+				need = "เรืองชัดขึ้น สีของอาวุธเอง"
+			elif plus >= 7:
+				need = "เรืองจาง ๆ สีของอาวุธเอง"
+			out.append(_cell("%s +%d" % [row[1], plus], need, row[0], equip, "weapon"))
 	return out
 
 
@@ -330,7 +333,7 @@ func _frame(m: Dictionary) -> void:
 				for mi in grip.find_children("*", "MeshInstance3D", true, false):
 					var mesh := mi as MeshInstance3D
 					var add := mesh.material_override is BaseMaterial3D and (mesh.material_override as BaseMaterial3D).blend_mode == BaseMaterial3D.BLEND_MODE_ADD
-					if mesh.mesh == null or mesh.mesh is QuadMesh or add:
+					if mesh.mesh == null or mesh.mesh is QuadMesh or add or mesh.name == EnhanceWeaponFx.ARC_NAME:
 						continue
 					var b := mesh.global_transform * mesh.get_aabb()
 					box = b if first else box.merge(b)
