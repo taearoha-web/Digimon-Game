@@ -25,6 +25,7 @@ func _ready() -> void:
 	Game.new_profile(&"warrior", "Events QA")
 	ZoneData.ensure()
 	_schedule()
+	_festival3()
 	_exp()
 	await _boss()
 	WorldPresence.clock_offset = 0.0
@@ -105,6 +106,103 @@ func _schedule() -> void:
 	check(line == "EXP x2 ใน 2 ชม.", "17:00 chip: the next event (%s)" % line)
 	line = WorldEvents.describe(thai(2026, 10, 31, 10, 0))
 	check(line.begins_with("โบนัสทอง +20% · ") and line.ends_with("ใน 9 ชม."), "Saturday chip: the gold bonus and the next event (%s)" % line)
+
+
+## The third festival (23 Nov 2026 21:00 Thai to 30 Nov 21:00): EXP x3, jewels x3, for
+## the world players too.
+func _festival3() -> void:
+	var start := thai(2026, 11, 23, 21)
+	check(float(WorldEvents.FESTIVAL3_START) == start and WorldEvents.FESTIVAL3_END - WorldEvents.FESTIVAL3_START == 7 * 86400, "the third festival: 23 Nov 21:00 Thai, seven days")
+	check(not WorldEvents.festival3_on(start - 1.0) and WorldEvents.festival3_on(start) and WorldEvents.festival3_on(start + 6.9 * 86400.0) and not WorldEvents.festival3_on(float(WorldEvents.FESTIVAL3_END)), "it runs seven days from its start")
+	check(WorldEvents.NAME_FESTIVAL3 == "เทศกาล EXP x3 + ดรอปเพชร x3", "its name")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 23, 20, 30)) == 2.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 23, 20, 30)) == 1.0, "before it: the evening's x2 only, jewels x1")
+	check(WorldEvents.exp_multiplier(start) == 3.0 and WorldEvents.jewel_multiplier(start) == 3.0, "21:00 on 23 Nov: EXP x3, jewels x3")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 26, 10)) == 3.0 and WorldEvents.exp_multiplier(thai(2026, 11, 26, 19, 30)) == 6.0, "EXP x3, x6 in the 19:00-21:00 evening")
+	check(WorldEvents.jewel_multiplier(thai(2026, 11, 26, 10)) == 3.0 and WorldEvents.jewel_multiplier(thai(2026, 11, 28, 10)) == 6.0, "jewels x3, x6 with the weekend rush")
+	check(WorldEvents.exp_multiplier(thai(2026, 11, 30, 20, 59)) == 6.0, "its last evening minute: x6")
+	var after := float(WorldEvents.FESTIVAL3_END)
+	check(WorldEvents.exp_multiplier(after) == 1.0 and WorldEvents.jewel_multiplier(after) == 1.0 and WorldEvents.exp_multiplier(thai(2026, 12, 2, 10)) == 1.0, "after it: back to normal")
+	var mid := thai(2026, 11, 26, 10)
+	check(WorldEvents.festival_text(mid) == "%s เหลือ 5 วัน" % WorldEvents.NAME_FESTIVAL3 and WorldEvents.chip_lines(mid)[0] == WorldEvents.festival_text(mid), "the HUD chip: '%s'" % WorldEvents.festival_text(mid))
+	check(WorldEvents.festival_text(start) == "%s เหลือ 7 วัน" % WorldEvents.NAME_FESTIVAL3 and WorldEvents.festival_text(start - 1.0) == "" and WorldEvents.festival_text(after) == "", "7 days left at its start, no chip outside it")
+	check(WorldEvents.festival_text(after - 3600.0).ends_with("ชม.") or WorldEvents.festival_text(after - 3600.0).find("นาที") >= 0, "its last hours in hours / minutes ('%s')" % WorldEvents.festival_text(after - 3600.0))
+	var ev: Array = WorldEvents.current(mid).filter(func(e): return String(e.id) == "festival3")
+	check(ev.size() == 1 and float(ev[0].until) == after and String(ev[0].name_th) == WorldEvents.NAME_FESTIVAL3, "in the event list until its end")
+	check(ChatFacts.festival(mid).begins_with(WorldEvents.NAME_FESTIVAL3 + " อยู่ตอนนี้") and ChatFacts.festival(mid).find("30 พ.ย. 21:00") >= 0, "the chat tells it is on until 30 Nov 21:00 ('%s')" % ChatFacts.festival(mid))
+	check(ChatFacts.festival(thai(2026, 11, 23, 12)).find("23 พ.ย. 21:00") >= 0, "and that it starts 23 Nov 21:00 ('%s')" % ChatFacts.festival(thai(2026, 11, 23, 12)))
+	check(RewardShop.event_hours(mid) and not RewardShop.event_hours(thai(2026, 12, 2, 10)), "the event hours of the reward shop")
+	WorldEvents.festival_enabled = false
+	check(not WorldEvents.festival3_on(mid) and WorldEvents.exp_multiplier(mid) == 1.0 and WorldEvents.jewel_multiplier(mid) == 1.0 and WorldEvents.festival_text(mid) == "" and not WorldEvents.current(mid).any(func(e): return String(e.id) == "festival3"), "festival_enabled = false switches it off")
+	WorldEvents.festival_enabled = true
+	# The world players: x3 for the festival minutes they play, nothing before it.
+	WorldPlayers.clear_bonus()
+	var end := after + 86400.0
+	var tried := 0
+	var gains: Array = []
+	for i in WorldPlayers.size():
+		if WorldPlayers.ROSTER[i].has("vet") or WorldPlayers.festival3_minutes(i, end) < 600.0:
+			continue
+		tried += 1
+		if tried > 6:
+			break
+		check(WorldPlayers.festival3_work(i, start) == 0.0 and WorldPlayers.festival3_work(i, start - 86400.0) == 0.0, "%s: nothing added before the festival" % WorldPlayers.entry(i).name)
+		var on0 := WorldPlayers.work_at(i, start)
+		var on1 := WorldPlayers.work_at(i, after)
+		var lv_on := WorldPlayers.progress_at(i, after)
+		var on_end := WorldPlayers.work_at(i, end)
+		WorldEvents.festival_enabled = false
+		var off0 := WorldPlayers.work_at(i, start)
+		var off1 := WorldPlayers.work_at(i, after)
+		var lv_off := WorldPlayers.progress_at(i, after)
+		var off_end := WorldPlayers.work_at(i, end)
+		var lv_start := WorldPlayers.progress_at(i, start)
+		WorldEvents.festival_enabled = true
+		check(on0 == off0, "%s: the same at the festival's start" % WorldPlayers.entry(i).name)
+		var ratio := (on1 - on0) / maxf(0.001, off1 - off0)
+		check(ratio > 2.9 and ratio < 3.1, "%s: x%.2f progress over the festival week" % [WorldPlayers.entry(i).name, ratio])
+		check(is_equal_approx(on_end - on1, off_end - off1), "%s: back to its normal pace after it" % WorldPlayers.entry(i).name)
+		var pts_on := int(lv_on.level) + int(lv_on.stars)
+		var pts_off := int(lv_off.level) + int(lv_off.stars)
+		check(pts_on >= pts_off, "%s: further along (Lv.%d ★%d vs Lv.%d ★%d)" % [WorldPlayers.entry(i).name, int(lv_on.level), int(lv_on.stars), int(lv_off.level), int(lv_off.stars)])
+		gains.append("%s Lv.%d★%d -> Lv.%d★%d (Lv.%d★%d without)" % [WorldPlayers.entry(i).name, int(lv_start.level), int(lv_start.stars), int(lv_on.level), int(lv_on.stars), int(lv_off.level), int(lv_off.stars)])
+		# Its forge: a third of the kills in the festival's work, the jewels as they were a work.
+		var share: Array = WorldGear.festival_kill_share(i, on0, on1)
+		check(is_equal_approx(float(share[0]), 1.0 / 3.0) and is_equal_approx(float(share[1]), 1.0), "%s: its forge's festival work: a third of the kills, the jewels x3 a kill" % WorldPlayers.entry(i).name)
+		var plain: Array = WorldGear.festival_kill_share(i, on0 * 0.5, on0)
+		check(float(plain[0]) == 1.0 and float(plain[1]) == 1.0, "%s: its forge as it was before the festival" % WorldPlayers.entry(i).name)
+	check(tried > 0, "world players who play the festival")
+	print("  festival week: ", "; ".join(gains))
+	# Everyone: Lv + ★ gained over the festival week, with it and without (the median).
+	var with_it: Array = []
+	var without: Array = []
+	for i in WorldPlayers.size():
+		var p0 := WorldPlayers.progress_at(i, start)
+		var p1 := WorldPlayers.progress_at(i, after)
+		WorldEvents.festival_enabled = false
+		var q1 := WorldPlayers.progress_at(i, after)
+		WorldEvents.festival_enabled = true
+		var base := int(p0.level) + int(p0.stars)
+		with_it.append(int(p1.level) + int(p1.stars) - base)
+		without.append(int(q1.level) + int(q1.stars) - base)
+		check(int(p1.level) + int(p1.stars) >= int(q1.level) + int(q1.stars), "%s: never behind for the festival" % WorldPlayers.entry(i).name)
+	with_it.sort()
+	without.sort()
+	print("  festival week, everyone's Lv+★ gained (median / 90th pct): with x3 %d / %d, without %d / %d" % [with_it[with_it.size() / 2], with_it[with_it.size() * 9 / 10], without[without.size() / 2], without[without.size() * 9 / 10]])
+	# Pausing in the hero's party: its festival minutes there do not count twice.
+	for i in WorldPlayers.size():
+		if WorldPlayers.ROSTER[i].has("vet") or WorldPlayers.festival3_minutes(i, end) < 600.0:
+			continue
+		var mid_t := thai(2026, 11, 27, 12)
+		var full := WorldPlayers.festival3_minutes(i, end)
+		WorldPlayers.pause_schedule(i, start + 86400.0)
+		var frozen := WorldPlayers.festival3_minutes(i, mid_t)
+		check(is_equal_approx(frozen, WorldPlayers.festival3_minutes(i, start + 86400.0)), "%s: its festival minutes freeze in the hero's party" % WorldPlayers.entry(i).name)
+		WorldPlayers.resume_schedule(i, mid_t)
+		var skipped := WorldPlayers.played_minutes(i, mid_t) - WorldPlayers.played_minutes(i, start + 86400.0)
+		check(is_equal_approx(WorldPlayers.festival3_minutes(i, end), full - skipped), "%s: and the minutes it spent there are skipped (%.0f of %.0f)" % [WorldPlayers.entry(i).name, skipped, full])
+		break
+	WorldPlayers.clear_bonus()
+	WorldGear.clear()
 
 
 func _hunting_field(id: StringName) -> bool:

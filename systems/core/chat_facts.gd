@@ -277,10 +277,14 @@ static func events(t: float) -> String:
 	if DragonHunt.is_on(t):
 		now.append(DragonHunt.NAME)
 	var out := ChatBrain.help_text("events")
-	if not now.is_empty():
-		var head := "ตอนนี้มี " + " · ".join(now)
-		out = head + " " + out if (head + " " + out).length() <= MAX else head
-	return out
+	if now.is_empty():
+		return out
+	# The times of the daily events stay in: the later names give way first.
+	for k in range(now.size(), 0, -1):
+		var part := "ตอนนี้มี " + " · ".join(now.slice(0, k))
+		if (part + " " + out).length() <= MAX:
+			return part + " " + out
+	return "ตอนนี้มี " + " · ".join(now)
 
 
 ## The golden monster (มอนทองคำ): how often, how long, what it pays (WorldEvents).
@@ -310,12 +314,16 @@ static func dragon_hunt(t: float) -> String:
 
 ## The festivals (EXP x3 / x5): on now, coming or over.
 static func festival(t: float) -> String:
+	if WorldEvents.festival3_on(t):
+		return "%s อยู่ตอนนี้ จบ %s" % [WorldEvents.NAME_FESTIVAL3, DragonHunt.date_text(float(WorldEvents.FESTIVAL3_END))]
 	if WorldEvents.festival5_on(t):
 		return "%s อยู่ตอนนี้ จบ %s" % [WorldEvents.NAME_FESTIVAL5, DragonHunt.date_text(float(WorldEvents.FESTIVAL5_END))]
 	if WorldEvents.festival_on(t):
 		return "%s อยู่ตอนนี้ จบ %s" % [WorldEvents.NAME_FESTIVAL, DragonHunt.date_text(float(WorldEvents.FESTIVAL_END))]
 	if t < float(WorldEvents.FESTIVAL5_START) and WorldEvents.festival_enabled:
 		return "%s เริ่ม %s" % [WorldEvents.NAME_FESTIVAL5, DragonHunt.date_text(float(WorldEvents.FESTIVAL5_START))]
+	if t < float(WorldEvents.FESTIVAL3_START) and WorldEvents.festival_enabled:
+		return "%s เริ่ม %s" % [WorldEvents.NAME_FESTIVAL3, DragonHunt.date_text(float(WorldEvents.FESTIVAL3_START))]
 	return "ตอนนี้ไม่มีเทศกาล EXP นะ " + events(t)
 
 

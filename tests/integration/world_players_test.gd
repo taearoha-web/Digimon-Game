@@ -24,6 +24,8 @@ func check(ok: bool, message: String) -> void:
 
 
 func _ready() -> void:
+	# The world's own pace: the third festival's x3 (world_events_test) is left out.
+	WorldEvents.festival_enabled = false
 	WorldPlayers.clear_bonus()
 	_roster()
 	_progress()

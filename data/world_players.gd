@@ -704,14 +704,14 @@ static func rank_point(i: int, t: float) -> float:
 ## Player i's progress at real time t (progress_for: level, stars, frac, divine, ...),
 ## without the rest of state() (where it is, its party): for picking the strongest.
 static func progress_at(i: int, t: float) -> Dictionary:
-	return progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
+	return progress_for(own_minutes(i, t), efficiency(i), bonus_work(i) + head_work(i) + halloween_work(i, t) + festival3_work(i, t) + party_work(i, t))
 
 
 ## Player i's work at real time t: the probe minutes progress_for reads (its own minutes
 ## times its efficiency, plus its party EXP, head start and potions). It only grows, and
 ## everything it has (its level, stars, the gear it forged: WorldGear) follows it.
 static func work_at(i: int, t: float) -> float:
-	return own_minutes(i, t) * efficiency(i) + maxf(0.0, bonus_work(i) + head_work(i) + halloween_work(i, t) + party_work(i, t))
+	return own_minutes(i, t) * efficiency(i) + maxf(0.0, bonus_work(i) + head_work(i) + halloween_work(i, t) + festival3_work(i, t) + party_work(i, t))
 
 
 ## The work behind a member sheet (level, stars, frac, divine_frac, after): what
@@ -812,6 +812,56 @@ static var _hw_cache := {}
 ## Event minutes (schedule minutes inside the Halloween window) each player spent in the
 ## hero's party, by name: they earn the party's EXP there, not their own potions'.
 static var hw_skipped := {}
+
+
+# --- The third festival (EXP x3) --------------------------------------------------------
+
+## World players play the festival too (WorldEvents.FESTIVAL3_*, EXP x3 for everyone):
+## every minute of their schedule inside it earns them FESTIVAL3_EXP times their normal
+## progress (their own and their parties' share, party_work), so it adds (FESTIVAL3_EXP - 1)
+## times that for the festival minutes played; frozen while in the hero's party (where the
+## party's EXP counts, itself x3) and less the festival minutes spent there (f3_skipped).
+## Read off the clock and the roster alone, so the same on every device. The forge jewels'
+## x3 follows from the work (WorldGear.festival_kill_share).
+static func festival3_work(i: int, t: float) -> float:
+	var start := float(WorldEvents.FESTIVAL3_START)
+	if t <= start or not WorldEvents.festival_enabled:
+		return 0.0
+	_load_bonus()
+	var key := String(entry(i).name)
+	# Asked for by every level read: kept per player for the same 10 s of the clock.
+	var cache_key: Variant = int(t / 10.0) * 4096 + i
+	if paused.has(key) or f3_skipped.has(key):
+		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(f3_skipped.get(key, 0.0))]
+	var hit: Variant = _f3_cache.get(cache_key)
+	if hit != null and float(hit[0]) == t:
+		return float(hit[1])
+	var played := festival3_minutes(i, t)
+	var work := played * efficiency(i) * (1.0 + WorldParties.taste(i) * WorldParties.EXP_BONUS) * (WorldEvents.FESTIVAL3_EXP - 1.0)
+	if _f3_cache.size() > 512:
+		_f3_cache.clear()
+	_f3_cache[cache_key] = [t, work]
+	return work
+
+
+## The schedule minutes player i has played inside the third festival by real time t
+## that count for its own progress (not those in the hero's party).
+static func festival3_minutes(i: int, t: float) -> float:
+	var start := float(WorldEvents.FESTIVAL3_START)
+	if t <= start or not WorldEvents.festival_enabled:
+		return 0.0
+	_load_bonus()
+	var key := String(entry(i).name)
+	var from := played_minutes(i, start)
+	var last := played_minutes(i, float(WorldEvents.FESTIVAL3_END))
+	var upto := minf(float(paused[key]) if paused.has(key) else played_minutes(i, t), last)
+	return maxf(0.0, upto - from - float(f3_skipped.get(key, 0.0)))
+
+
+static var _f3_cache := {}
+## Festival minutes (schedule minutes inside the third festival) each player spent in the
+## hero's party, by name.
+static var f3_skipped := {}
 
 
 ## Whether a skill of player i's class unlocks between real times a and b.
@@ -978,6 +1028,10 @@ static func resume_schedule(i: int, t: float) -> void:
 	var hw_to := minf(now_m, played_minutes(i, float(WorldEvents.HALLOWEEN_END)))
 	if hw_to > hw_from:
 		hw_skipped[key] = float(hw_skipped.get(key, 0.0)) + hw_to - hw_from
+	var f3_from := maxf(float(paused[key]), played_minutes(i, float(WorldEvents.FESTIVAL3_START)))
+	var f3_to := minf(now_m, played_minutes(i, float(WorldEvents.FESTIVAL3_END)))
+	if f3_to > f3_from:
+		f3_skipped[key] = float(f3_skipped.get(key, 0.0)) + f3_to - f3_from
 	paused.erase(key)
 	_bonus_dirty = true
 
@@ -1016,7 +1070,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "roster": ROSTER_ID, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "saved": now()}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "roster": ROSTER_ID, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -1040,7 +1094,7 @@ static func _load_bonus() -> void:
 		var value: Variant = parsed.bonus[key]
 		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
 			bonus[String(key)] = float(value)
-	var tables := {"skipped": skipped, "paused": paused, "hw_skipped": hw_skipped}
+	var tables := {"skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped}
 	for field in tables:
 		var table: Variant = parsed.get(field, {})
 		if not table is Dictionary:
@@ -1063,6 +1117,8 @@ static func clear_bonus() -> void:
 	paused.clear()
 	hw_skipped.clear()
 	_hw_cache.clear()
+	f3_skipped.clear()
+	_f3_cache.clear()
 	_bonus_loaded = true
 	_bonus_dirty = true
 

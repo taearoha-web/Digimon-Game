@@ -54,6 +54,16 @@ const FESTIVAL5_EXP := 5.0
 const FESTIVAL5_JEWEL := 5.0
 const FESTIVAL5_CORE := 5.0
 const NAME_FESTIVAL5 := "เทศกาล EXP x5 + ดรอปเพชร/แก่นเทพ x5"
+## The third festival (เทศกาล EXP x3 + ดรอปเพชร x3 again): from 23 Nov 2026 21:00 Thai time
+## to 30 Nov 21:00, every EXP is tripled (on top of the evening EXP x2) and the forge
+## jewels (purple, pink, chaos) drop three times as often (on top of the weekend rush).
+## The same for everyone, the world players too: their schedule's minutes inside it earn
+## them x3 (WorldPlayers.festival3_work) and their forge (WorldGear) the jewels x3.
+const FESTIVAL3_START := 1795442400
+const FESTIVAL3_END := FESTIVAL3_START + 7 * DAY
+const FESTIVAL3_EXP := 3.0
+const FESTIVAL3_JEWEL := 3.0
+const NAME_FESTIVAL3 := "เทศกาล EXP x3 + ดรอปเพชร x3"
 ## Tests of the progression maths that run on the real clock switch the festival off.
 static var festival_enabled := true
 ## After the x5 festival (สุดสัปดาห์ตีบวก): from FESTIVAL5_END on, every Saturday and Sunday
@@ -178,7 +188,7 @@ static func boss_zone(t: float) -> StringName:
 ## than multiplied: 19:00-21:00 x3, 21:00-23:00 x2 on that night, never x4.
 static func exp_multiplier(t: float) -> float:
 	var evening := 1.0 + (EXP_MULT - 1.0 if evening_exp(t) else 0.0) + LoyKrathong.exp_bonus(t)
-	return evening * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0)
+	return evening * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0) * (FESTIVAL3_EXP if festival3_on(t) else 1.0)
 
 
 ## The daily evening EXP x2 (19:00-21:00 Thai time).
@@ -195,6 +205,15 @@ static func festival5_on(t: float) -> bool:
 	return festival_enabled and t >= float(FESTIVAL5_START) and t < float(FESTIVAL5_END)
 
 
+static func festival3_on(t: float) -> bool:
+	return festival_enabled and t >= float(FESTIVAL3_START) and t < float(FESTIVAL3_END)
+
+
+## Whether any of the festivals runs at t.
+static func any_festival_on(t: float) -> bool:
+	return festival_on(t) or festival5_on(t) or festival3_on(t)
+
+
 ## Set material (แก่นเทพหลอมเซต) drop chances: x5 during the second festival.
 static func core_multiplier(t: float) -> float:
 	return FESTIVAL5_CORE if festival5_on(t) else 1.0
@@ -202,10 +221,20 @@ static func core_multiplier(t: float) -> float:
 
 ## The HUD line of the festival ("" outside it): days left while more than two remain.
 static func festival_text(t: float) -> String:
-	var name := NAME_FESTIVAL5 if festival5_on(t) else (NAME_FESTIVAL if festival_on(t) else "")
+	var name := ""
+	var end := 0.0
+	if festival3_on(t):
+		name = NAME_FESTIVAL3
+		end = float(FESTIVAL3_END)
+	elif festival5_on(t):
+		name = NAME_FESTIVAL5
+		end = float(FESTIVAL5_END)
+	elif festival_on(t):
+		name = NAME_FESTIVAL
+		end = float(FESTIVAL_END)
 	if name == "":
 		return ""
-	var left := float(FESTIVAL5_END if festival5_on(t) else FESTIVAL_END) - t
+	var left := end - t
 	var span := "%d วัน" % int(ceil(left / float(DAY))) if left > 2.0 * float(DAY) else _span(left)
 	return "%s เหลือ %s" % [name, span]
 
@@ -221,7 +250,7 @@ static func halloween_text(t: float) -> String:
 
 ## Forge jewel drop chances: doubled all weekend (Thai time), x3 / x5 during the festivals.
 static func jewel_multiplier(t: float) -> float:
-	return (WEEKEND_JEWEL if is_weekend(t) else 1.0) * (FESTIVAL_JEWEL if festival_on(t) else 1.0) * (FESTIVAL5_JEWEL if festival5_on(t) else 1.0)
+	return (WEEKEND_JEWEL if is_weekend(t) else 1.0) * (FESTIVAL_JEWEL if festival_on(t) else 1.0) * (FESTIVAL5_JEWEL if festival5_on(t) else 1.0) * (FESTIVAL3_JEWEL if festival3_on(t) else 1.0)
 
 
 ## The HUD line of the weekend jewel rush ("" on weekdays).
@@ -395,6 +424,8 @@ static func current(t: float) -> Array[Dictionary]:
 		list.append({"id": "festival", "name_th": NAME_FESTIVAL, "until": float(FESTIVAL_END)})
 	if festival5_on(t):
 		list.append({"id": "festival5", "name_th": NAME_FESTIVAL5, "until": float(FESTIVAL5_END)})
+	if festival3_on(t):
+		list.append({"id": "festival3", "name_th": NAME_FESTIVAL3, "until": float(FESTIVAL3_END)})
 	list.append_array(LoyKrathong.events(t))
 	var weekly := WeeklyCollect.event(t)
 	if not weekly.is_empty():

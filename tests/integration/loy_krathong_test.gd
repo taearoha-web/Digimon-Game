@@ -90,10 +90,13 @@ func _dates() -> void:
 
 
 func _exp() -> void:
-	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 19, 30)), 3.0), "the night 19:00-21:00: evening x2 + night x2 = x3 (%s)" % WorldEvents.exp_multiplier(thai(2026, 11, 24, 19, 30)))
-	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 22)), 2.0), "21:00-23:00: x2")
-	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 23, 30)), 1.0) and is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 18)), 1.0), "nothing outside the night")
-	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 25, 19, 30)), 2.0), "another evening keeps its plain x2")
+	# The third festival (EXP x3, 23-30 Nov) multiplies all of it.
+	var f := WorldEvents.FESTIVAL3_EXP
+	check(WorldEvents.festival3_on(thai(2026, 11, 24, 19, 30)) and WorldEvents.festival3_on(thai(2026, 11, 25, 19, 30)), "the night falls in the third festival (EXP x3)")
+	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 19, 30)), 3.0 * f), "the night 19:00-21:00: evening x2 + night x2 = x3, the festival's x3 on top (%s)" % WorldEvents.exp_multiplier(thai(2026, 11, 24, 19, 30)))
+	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 22)), 2.0 * f), "21:00-23:00: x2 (x6 with the festival)")
+	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 23, 30)), f) and is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 18)), f), "nothing outside the night (the festival's x3 only)")
+	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 25, 19, 30)), 2.0 * f), "another evening keeps its plain x2 (x6 with the festival)")
 	WorldEvents.festival_enabled = false
 	check(is_equal_approx(WorldEvents.exp_multiplier(thai(2026, 11, 24, 19, 30)), 2.0), "the base-rate switch leaves the evening's x2 alone")
 	WorldEvents.festival_enabled = true

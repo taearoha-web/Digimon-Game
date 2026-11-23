@@ -99,6 +99,7 @@ static func times(t: float) -> Dictionary:
 			out["%02d:%02d" % [s / 3600, (s % 3600) / 60]] = true
 	var dates: Array = [DragonHunt.date_text(DragonHunt.next_start(t)), DragonHunt.date_text(DragonHunt.end_of(DragonHunt.index(t))),
 		DragonHunt.date_text(float(WorldEvents.FESTIVAL_END)), DragonHunt.date_text(float(WorldEvents.FESTIVAL5_START)), DragonHunt.date_text(float(WorldEvents.FESTIVAL5_END)),
+		DragonHunt.date_text(float(WorldEvents.FESTIVAL3_START)), DragonHunt.date_text(float(WorldEvents.FESTIVAL3_END)),
 		LoyKrathong.chat_answer(-1, t), WeeklyCollect.chat_answer(-1, t), ChatBrain.help_text("events")]
 	for d in dates:
 		for m in _re("hhmm", "(\\d\\d):(\\d\\d)").search_all(String(d)):

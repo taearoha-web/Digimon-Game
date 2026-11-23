@@ -816,24 +816,28 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 			sim.events[-1].to = int(live.divine)
 		elif float(f[3]) > _worn_worth(sim, slot):
 			_emit(sim, at, "drop", slot, int(worn[slot][1]) if worn.has(slot) else 0, 0, "", {"key": key})
-	# What the kills of this stretch drop.
+	# What the kills of this stretch drop. Its work inside the festival (EXP x3) took a
+	# third of the kills, and their jewels dropped x3 (festival_kill_share).
 	var rng := sim.rng
-	var kills := (w1 - w0) * kills_per_minute(level, stars)
+	var share: Array = festival_kill_share(i, w0, w1)
+	var all_kills := (w1 - w0) * kills_per_minute(level, stars)
+	var kills := all_kills * float(share[0])
+	var jewel_kills := all_kills * float(share[1])
 	var top := level >= Game.MAX_LEVEL
 	var endgame := top and stars >= ENDGAME_STARS
 	# The maze race (MazeWar): a player in it buys and trades for more jewels to forge up.
 	var driven := top and w0 >= sim.maze_from
 	var diligence := JEWEL_DILIGENCE * ZEAL * (MazeWar.JEWEL_DRIVE if driven else 1.0)
 	if endgame:
-		sim.purple += _count(rng, kills * float(EndgameFields.JEWEL_DROP.purple) * diligence)
-		sim.pink += _count(rng, kills * float(EndgameFields.JEWEL_DROP.pink) * diligence)
-		sim.chaos += _count(rng, kills * float(EndgameFields.JEWEL_DROP.chaos) * diligence)
+		sim.purple += _count(rng, jewel_kills * float(EndgameFields.JEWEL_DROP.purple) * diligence)
+		sim.pink += _count(rng, jewel_kills * float(EndgameFields.JEWEL_DROP.pink) * diligence)
+		sim.chaos += _count(rng, jewel_kills * float(EndgameFields.JEWEL_DROP.chaos) * diligence)
 		sim.core += _count(rng, kills * EndgameFields.SET_CORE_DROP * ZEAL)
 		sim.scales += _count(rng, kills * SCALE_DROP * ZEAL)
 	else:
-		sim.purple += _count(rng, kills * float(ItemData.JEWEL_DROP.purple) * diligence)
-		sim.pink += _count(rng, kills * float(ItemData.JEWEL_DROP.pink) * diligence)
-		sim.chaos += _count(rng, kills * float(ItemData.JEWEL_DROP.chaos) * diligence)
+		sim.purple += _count(rng, jewel_kills * float(ItemData.JEWEL_DROP.purple) * diligence)
+		sim.pink += _count(rng, jewel_kills * float(ItemData.JEWEL_DROP.pink) * diligence)
+		sim.chaos += _count(rng, jewel_kills * float(ItemData.JEWEL_DROP.chaos) * diligence)
 	if top:
 		var field_star := ENDGAME_STARS if endgame else 0
 		if not endgame:
@@ -861,14 +865,14 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	# The isle drops none (its kills are left out). Its kills are the stretch's work from
 	# ★300 on; those of the stretch it reaches ★300 in are rolled with the next one, so
 	# every Dragon God piece falls at ★300 or later.
-	var isle_kills := maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share()
+	var isle_kills := maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * float(share[0])
 	if w0 < isle_work():
 		sim.isle_carry += isle_kills
 	else:
 		isle_kills += sim.isle_carry
 		sim.isle_carry = 0.0
 	if top and stars >= 1 and int(live.wtier) < 2:
-		var field_kills := kills - maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share()
+		var field_kills := kills - maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * float(share[0])
 		for n in _count(rng, maxf(0.0, field_kills) * WING_DROP * ItemData.OWN_CLASS_DROP):
 			var r := rng.randf()
 			var rarity := 4 if r < 0.03 else (3 if r < 0.12 else (2 if r < 0.30 else (1 if r < 0.60 else 0)))
@@ -893,6 +897,27 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 		var ws := at + (w1 - at) * float(k + 1) / float(count + 1)
 		sim.events[e0 + k].w = ws
 		sim.works[e0 + k] = ws
+
+
+## The third festival (WorldEvents.FESTIVAL3_*) in the stretch of work w0..w1 of player
+## i: (the share of the stretch's kills it really made, the share its forge jewels come to).
+## Inside the festival its work runs FESTIVAL3_EXP times as fast (WorldPlayers.
+## festival3_work) on the same kills, which drop their jewels FESTIVAL3_JEWEL times as
+## often: so a third of the kills (every other drop a third) and the jewels as they were
+## a work, x3 a real minute, as the hero's. (1, 1) outside it. The festival's work is read
+## off the clock (work_at at its start and end), the same on every device.
+static func festival_kill_share(i: int, w0: float, w1: float) -> Array:
+	if not WorldEvents.festival_enabled or w1 <= w0:
+		return [1.0, 1.0]
+	var a := WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_START))
+	if w1 <= a:
+		return [1.0, 1.0]
+	var b := WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_END))
+	var inside := maxf(0.0, minf(w1, b) - maxf(w0, a)) / (w1 - w0)
+	if inside <= 0.0:
+		return [1.0, 1.0]
+	var real := 1.0 / WorldEvents.FESTIVAL3_EXP
+	return [1.0 - inside * (1.0 - real), 1.0 - inside * (1.0 - real * WorldEvents.FESTIVAL3_JEWEL)]
 
 
 ## What `isle_kills` kills on เกาะลอยฟ้าเทพมังกร drop of the Dragon God's gear (see the

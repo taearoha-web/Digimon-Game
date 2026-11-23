@@ -243,7 +243,7 @@ static func boss_defeated(t := -1.0) -> int:
 
 ## Whether the event hours (EXP x2 evening or the festival) run at t.
 static func event_hours(t: float) -> bool:
-	return WorldEvents.evening_exp(t) or WorldEvents.festival_on(t) or WorldEvents.festival5_on(t) or LoyKrathong.night_on(t)
+	return WorldEvents.evening_exp(t) or WorldEvents.any_festival_on(t) or LoyKrathong.night_on(t)
 
 
 ## A kill at t (Game.report_kill): KILL_EP during the event hours, KILL_CAP a Thai day.

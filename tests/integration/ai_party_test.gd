@@ -177,7 +177,7 @@ func _exp() -> void:
 	check(WorldPlayers.party_work(afk, t) == 0.0, "a stall keeper earns nothing from parties")
 	var eff := WorldPlayers.efficiency(social)
 	var minutes := WorldPlayers.own_minutes(social, t)
-	var others := WorldPlayers.bonus_work(social) + WorldPlayers.head_work(social) + WorldPlayers.halloween_work(social, t)
+	var others := WorldPlayers.bonus_work(social) + WorldPlayers.head_work(social) + WorldPlayers.halloween_work(social, t) + WorldPlayers.festival3_work(social, t)
 	var solo := WorldPlayers.progress_for(minutes, eff, others)
 	var s := WorldPlayers.state(social, t)
 	var points_solo := (int(solo.level) + int(solo.stars)) * 1000.0 + float(solo.frac) * 999.0
