@@ -314,7 +314,9 @@ static func cast(parent: Node3D, skill: Dictionary, center: Vector3, origin: Vec
 ## hold that follows the recipe's linger. Simultaneous hits of one cast share
 ## one burst.
 static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := false) -> void:
-	if not handles(skill) or not _alive(parent) or not _room(3):
+	# The Muay Thai fighter's own art (MuayThaiArt.contact) draws its hits: the generic
+	# flashes and crossing energy cuts would bury its painted bursts in light.
+	if not handles(skill) or MuayThaiArt.owns(skill) or not _alive(parent) or not _room(3):
 		return
 	var id := String(skill.get("id", ""))
 	var now := Time.get_ticks_msec()

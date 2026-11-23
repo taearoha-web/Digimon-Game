@@ -112,6 +112,8 @@ static var _scale := 1.0
 ## Set while a ClassFlourish.TINTED skill releases: its impact light and bloom
 ## are tinted, shorter and fainter, so its own mist / portal stays readable.
 static var _soft := false
+## A lean stack (the Muay Thai fighter's painted art over it): no extra spark spray.
+static var _lean := false
 ## What the last call put on screen (tests, probes): layer names and node counts.
 static var last := {"layers": [], "emitters": 0, "rings": 0, "lights": 0, "hazes": 0, "particles": 0}
 
@@ -265,15 +267,26 @@ static func release(parent: Node3D, skill: Dictionary, center: Vector3, origin: 
 		family = "slash"
 	var radius := clampf(float(skill.get("radius", 2.2)), 1.2, 5.5) if shape in ["burst", "blast"] else 1.6
 	var tint := ClassFlourish.tinted(skill)
+	var weight := 1.0
+	if tint.is_empty() and MuayThaiArt.owns(skill):
+		# The Muay Thai fighter's painted art keeps its colour: a lighter stack of deep
+		# ember particles under it (additive light stays orange over sky and grass), no
+		# white-hot bloom washing it out.
+		tint = [Color("b8300a"), Color("d86a10")]
+		weight = 0.6
+		_lean = true
 	if not tint.is_empty():
 		# No white-hot core: the skill's own mid and core colours carry the light.
 		look = look.duplicate()
 		look.key = "tint_" + String(skill.get("id", ""))
 		look.mid = tint[0]
 		look.hot = (tint[1] as Color).lerp(tint[0], 0.25)
+		if _lean:
+			look.dark = Color("8a4a26")
 		_soft = true
-	_play(parent, look, family, at, origin, center, radius, maxf(0.0, wait), 1.0, _crowd())
+	_play(parent, look, family, at, origin, center, radius, maxf(0.0, wait), weight, _crowd())
 	_soft = false
+	_lean = false
 
 
 ## Each hit a skill lands (SkillTableau.contact): projectiles, chains and fans get
@@ -300,7 +313,20 @@ static func contact(parent: Node3D, skill: Dictionary, at: Vector3, crit := fals
 	elif family in ["shot", "aura", "slash", "swirl"]:
 		family = "burst"
 	var ground := Vector3(at.x, at.y - 0.9 if at.y > 0.9 else 0.0, at.z)
-	_play(parent, look, family, ground, ground, ground, 1.4 if not bespoke else 2.4, 0.0, 0.85 if crit else 0.6, _crowd())
+	var weight := 0.85 if crit else 0.6
+	if MuayThaiArt.owns(skill):
+		# The fighter's ring hits keep its painted colour (see release).
+		look = look.duplicate()
+		look.key = "tint_" + id
+		look.mid = Color("b8300a")
+		look.hot = Color("d86a10")
+		look.dark = Color("8a4a26")
+		weight *= 0.6
+		_soft = true
+		_lean = true
+	_play(parent, look, family, ground, ground, ground, 1.4 if not bespoke else 2.4, 0.0, weight, _crowd())
+	_soft = false
+	_lean = false
 
 
 ## A star skill's beat (StarSkillSequence): the first beat and a god finale get
@@ -354,7 +380,7 @@ static func _secondary(pool: SkillLayerPool, owner: int, look: Dictionary, famil
 		# The impact's own light: a soft white-hot bloom that pops and is gone.
 		_emit(pool, owner, "flash", at + up * (0.9 if family == "slash" else 0.6), look, 1 if _soft else 2, {"shape": "sphere", "radius": 0.1, "v": Vector2.ZERO,
 			"size": clampf(r * 0.9, 1.6, 4.2) * weight * (0.45 if _soft else 1.0), "min": 1 if _soft else 2, "life_mul": 0.6 if _soft else 1.0}, wait)
-	if not minimal and element.has("extra") and VfxBudget.quality() == 2:
+	if not minimal and element.has("extra") and VfxBudget.quality() == 2 and not _lean:
 		_emit(pool, owner, String(element.extra), at + up * 0.6, look, 14, {"shape": "sphere", "radius": r * 0.2, "dir": up, "spread": 80.0,
 			"v": Vector2(2.5, 6.0)}, wait + 0.02)
 	match family:
