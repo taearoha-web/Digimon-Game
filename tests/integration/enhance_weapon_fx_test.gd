@@ -106,14 +106,14 @@ func _ready() -> void:
 			last_intensity = intensity
 		check(d.heavy == 0, "+%d: no particles, no lights" % plus)
 		(d.item as Node).queue_free()
-	check(last == 6, "+14: six strands")
+	check(last == 7, "+14: seven strands")
 
 	# +15: +14 and the ring of arcs around the hand (the grip, the item's origin).
 	var top := _dress("sword_3", 15)
 	var top_arcs: MeshInstance3D = top.arcs
-	check(top_arcs != null and int(top_arcs.get_meta("rings")) == EnhanceWeaponFx.RING_PLANES and int(top_arcs.get_meta("strands")) == 6, "+15: six strands and the hand ring")
+	check(top_arcs != null and int(top_arcs.get_meta("rings")) == EnhanceWeaponFx.RING_PLANES and int(top_arcs.get_meta("strands")) == 7, "+15: seven strands and the hand ring")
 	if top_arcs != null:
-		check(top_arcs.mesh.surface_get_array_len(0) == (6 + EnhanceWeaponFx.RING_PLANES) * 4, "+15: strands and rings in ONE mesh")
+		check(top_arcs.mesh.surface_get_array_len(0) == (7 + EnhanceWeaponFx.RING_PLANES) * 4, "+15: strands and rings in ONE mesh")
 		check(top_arcs.mesh.get_aabb().has_point(Vector3.ZERO), "+15: the ring sits around the grip")
 	check(top.heavy == 0 and top.added == 1, "+15: still one node, no particles or lights")
 	# Shared: a second +15 sword uses the same mesh and materials.
@@ -156,7 +156,7 @@ func _ready() -> void:
 
 	# plan() says what apply() builds.
 	check(EnhanceWeaponFx.plan(6).glow == 0 and EnhanceWeaponFx.plan(7).glow == 1 and EnhanceWeaponFx.plan(9).glow == 2, "plan: glow steps")
-	check(EnhanceWeaponFx.plan(10).strands == 2 and EnhanceWeaponFx.plan(14).strands == 6 and EnhanceWeaponFx.plan(14).rings == 0 and EnhanceWeaponFx.plan(15).rings == EnhanceWeaponFx.RING_PLANES, "plan: strands and ring")
+	check(EnhanceWeaponFx.plan(10).strands == 3 and EnhanceWeaponFx.plan(14).strands == 7 and EnhanceWeaponFx.plan(14).rings == 0 and EnhanceWeaponFx.plan(15).rings == EnhanceWeaponFx.RING_PLANES, "plan: strands and ring")
 	check(EnhanceWeaponFx.plan(15, false, 0).strands == 0 and EnhanceWeaponFx.plan(15, true).strands <= 2, "plan: quality 0 and light")
 
 	# Caches stay small: many weapons, few materials.

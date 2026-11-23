@@ -6,7 +6,7 @@ extends RefCounted
 ##   +7, +8   a faint glow: a soft fresnel rim overlay (it tints, never whites out)
 ##   +9       a clearer glow
 ##   +10..+14 electric arcs crawling along the weapon, more and brighter each step
-##            (+10 two faint strands .. +14 six bright strands with double bolts)
+##            (+10 three clear strands .. +14 seven bright strands with double bolts)
 ##   +15      +14 and a gyroscope of circular arcs around the hand that holds it
 ##            (the grip: WeaponKit keeps it at the item's origin, +Y along the weapon)
 ## Everything moves in shaders (enhance_weapon_glow / enhance_weapon_arc): no script runs
@@ -21,7 +21,7 @@ const ARC_SHADER := preload("res://shaders/enhance_weapon_arc.gdshader")
 ## The steel fallback: a grey or untextured-white weapon crackles in cold blue.
 const STEEL := Color("9fd6ff")
 ## Arc strands by step (+10 .. +14; +15 as +14).
-const STRANDS: Array[int] = [2, 3, 4, 5, 6]
+const STRANDS: Array[int] = [3, 4, 5, 6, 7]
 ## Rings around the hand at +15 (planes of the gyroscope).
 const RING_PLANES := 3
 ## The hand ring's radius in metres (wraps: of the fist's size instead).
@@ -211,14 +211,16 @@ static func _arc_material(color: Color, step: int, lite: bool) -> ShaderMaterial
 		return _arc_cache[key]
 	var m := ShaderMaterial.new()
 	m.shader = ARC_SHADER
-	m.set_shader_parameter("tint", color)
-	m.set_shader_parameter("intensity", [0.55, 0.7, 0.85, 1.0, 1.15, 1.2][step])
-	m.set_shader_parameter("density", [0.4, 0.52, 0.64, 0.76, 0.88, 0.92][step])
+	# A vivid tint so the arcs read even over a pale blade (a white core alone vanishes on it).
+	var vivid := Color.from_hsv(color.h, maxf(color.s, 0.8), 1.0) if color.s > 0.08 else color
+	m.set_shader_parameter("tint", vivid)
+	m.set_shader_parameter("intensity", [1.0, 1.05, 1.1, 1.15, 1.25, 1.3][step])
+	m.set_shader_parameter("density", [0.72, 0.76, 0.8, 0.84, 0.9, 0.94][step])
 	m.set_shader_parameter("rate", 2.5 if lite else [6.0, 7.0, 8.0, 9.5, 11.0, 12.0][step])
-	m.set_shader_parameter("layers", 1.0 if lite or step < 2 else 2.0)
+	m.set_shader_parameter("layers", 1.0 if lite or step < 1 else 2.0)
 	m.set_shader_parameter("flicker", 0.2 if lite else 0.55)
-	m.set_shader_parameter("core_width", [0.0022, 0.0026, 0.003, 0.0034, 0.0038, 0.004][step])
-	m.set_shader_parameter("glow_width", [0.01, 0.011, 0.012, 0.013, 0.014, 0.014][step])
+	m.set_shader_parameter("core_width", [0.0034, 0.0036, 0.0038, 0.004, 0.0042, 0.0044][step])
+	m.set_shader_parameter("glow_width", [0.014, 0.0145, 0.015, 0.0155, 0.016, 0.0165][step])
 	MaterialKeeper.keep(m)
 	_arc_cache[key] = m
 	return m

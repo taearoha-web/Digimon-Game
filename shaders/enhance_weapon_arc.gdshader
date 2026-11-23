@@ -175,6 +175,6 @@ void fragment() {
 	vec3 hot = mix(tint, vec3(1.0), 0.4);
 	float c = min(core, 1.2) * intensity * fl;
 	float g = min(glow, 1.4) * intensity * fl;
-	ALBEDO = hot * c * 1.7 + tint * g * 0.7;
-	ALPHA = clamp(c * 0.9 + g * 0.4, 0.0, 1.0);
+	ALBEDO = hot * c * 1.5 + tint * g * 1.0;
+	ALPHA = clamp(c * 0.95 + g * 0.65, 0.0, 1.0);
 }
