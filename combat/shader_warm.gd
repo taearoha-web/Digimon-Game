@@ -57,6 +57,7 @@ const MESH_SHADERS: Array[String] = [
 	"res://shaders/enhance_orb.gdshader",
 	"res://shaders/enhance_bolt.gdshader",
 	"res://shaders/enhance_aura.gdshader",
+	"res://shaders/enhance_radiance.gdshader",
 	# The Muay Thai fighter's Ramakien giants (RamakienArt): their spirit body, light, dusk.
 	"res://shaders/ramakien_spirit.gdshader",
 	"res://shaders/ramakien_light.gdshader",

@@ -22,6 +22,7 @@ const GLOW_SHADER := preload("res://shaders/enhance_glow.gdshader")
 const BOLT_SHADER := preload("res://shaders/enhance_bolt.gdshader")
 const ORB_SHADER := preload("res://shaders/enhance_orb.gdshader")
 const AURA_SHADER := preload("res://shaders/enhance_aura.gdshader")
+const RADIANCE_SHADER := preload("res://shaders/enhance_radiance.gdshader")
 
 ## The + of each look step (step 1 = +7 ... step 8 = +15); +8 looks like +7.
 const AURA_STEPS: Array[int] = [7, 9, 10, 11, 12, 13, 14, 15]
@@ -318,6 +319,8 @@ static func glow_strength(plus: int) -> float:
 		return 0.4
 	if plus < 10:
 		return 0.7
+	if plus >= 15:
+		return 1.1
 	return minf(0.8 + 0.025 * float(plus - 10), 0.95)
 
 
@@ -427,15 +430,15 @@ static func _orbs(root: Node3D, color: Color, head: float, trail: bool) -> MeshI
 ## +14 up forking.
 static func _body_bolts(root: Node3D, color: Color, plus: int, head: float, rich: bool, who: int) -> MeshInstance3D:
 	var k := clampi(plus, 11, 14) - 11
-	var density: float = [0.32, 0.6, 0.6, 1.0][k]
-	var forks: float = [0.0, 1.0, 1.0, 1.0][k]
+	var density: float = [0.45, 0.72, 0.82, 1.0][k]
+	var forks: float = [0.5, 1.0, 1.0, 1.0][k]
 	if not rich:
-		density = minf(density, 0.32)
+		density = minf(density, 0.25)
 		forks = 0.0
 	var other := _quant(contrast_of(color)) if plus >= 13 else _quant(color)
 	var mat := _shared(BOLT_SHADER, {"color_a": _quant(color), "color_b": other, "density": density, "forks": forks,
-		"rate": [4.5, 5.5, 5.5, 6.5][k], "duty": [0.62, 0.62, 0.64, 0.7][k], "amp": [0.035, 0.045, 0.045, 0.055][k],
-		"width": [0.016, 0.022, 0.022, 0.03][k], "energy": [1.0, 1.35, 1.45, 1.9][k], "segs": float(BODY_SEGS),
+		"rate": [5.0, 6.0, 6.5, 7.5][k], "duty": [0.72, 0.78, 0.8, 0.86][k], "amp": [0.04, 0.05, 0.05, 0.06][k],
+		"width": [0.02, 0.026, 0.028, 0.034][k], "energy": [1.35, 1.65, 1.75, 2.15][k], "segs": float(BODY_SEGS),
 		"spin": 1.0, "slide": 0.25, "seed": float(who % 4) * 0.37})
 	var mi := _fx_mesh(root, "Lightning", _body_bolt_mesh(), mat)
 	mi.scale = Vector3(1, head / 1.85, 1)
@@ -444,9 +447,24 @@ static func _body_bolts(root: Node3D, color: Color, plus: int, head: float, rich
 
 ## +15: the aura of rising light (shaders/enhance_aura.gdshader).
 static func _aura(root: Node3D, color: Color, head: float) -> MeshInstance3D:
-	var mat := _shared(AURA_SHADER, {"color": _quant(color)})
+	var mat := _shared(AURA_SHADER, {"color": _quant(color), "energy": 3.0, "rise": 1.0, "sway": 0.2})
 	var mi := _fx_mesh(root, "GodAura", _aura_mesh(), mat)
 	mi.scale = Vector3(1, head / 1.85, 1)
+	_radiance(root, color, head)
+	return mi
+
+
+## +15: light pouring out of the body (shaders/enhance_radiance.gdshader): one
+## camera-facing quad at the chest, a bright core with turning rays.
+static func _radiance(root: Node3D, color: Color, head: float) -> MeshInstance3D:
+	if not _meshes.has("radiance"):
+		var quad := QuadMesh.new()
+		quad.size = Vector2(3.6, 3.6)
+		_meshes["radiance"] = quad
+	var mat := _shared(RADIANCE_SHADER, {"color": _quant(color), "energy": 1.0})
+	var mi := _fx_mesh(root, "Radiance", _meshes.radiance, mat)
+	mi.position = Vector3(0, head * 0.52, 0)
+	mi.scale = Vector3.ONE * (head / 1.85)
 	return mi
 
 
@@ -508,7 +526,7 @@ static func _strip_mesh(strips: Array, segs: int, box: AABB) -> ArrayMesh:
 	return mesh
 
 
-## Sixteen bolts hugging the body (for a chibi 1.85 tall; scaled for others), each with a
+## Thirty-two bolts hugging the body (for a chibi 1.85 tall; scaled for others), each with a
 ## fork, their tiers spread so the first few are spread round the body too.
 static func _body_bolt_mesh() -> ArrayMesh:
 	if _meshes.has("body_bolts"):
@@ -516,7 +534,7 @@ static func _body_bolt_mesh() -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1511
 	var strips := []
-	var count := 16
+	var count := 32
 	var segs := BODY_SEGS
 	for m in count:
 		var tier := (float(m) + 0.5) / float(count)
