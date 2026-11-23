@@ -16,6 +16,9 @@ var _bag_title: Label
 var _store_title: Label
 var _gold: Label
 var _expand: Button
+var _deposit_mats: Button
+var _deposit_all: Button
+var _withdraw_all: Button
 
 
 func _ready() -> void:
@@ -68,8 +71,58 @@ func _ready() -> void:
 	var right := _make_list(row)
 	_store_title = right[0]
 	_store_box = right[1]
+	# Bulk moves, one write each (Game.deposit_many / withdraw_all).
+	var bag_bar := _bar(left[1])
+	_deposit_mats = UIUtil.button("ฝากวัตถุดิบทั้งหมด", &"AccentButton", Vector2(0, 52))
+	_deposit_mats.name = "DepositMaterials"
+	_deposit_mats.pressed.connect(func(): _deposit(Game.material_indices(), "วัตถุดิบ"))
+	bag_bar.add_child(_deposit_mats)
+	_deposit_all = UIUtil.button("ฝากทั้งหมด", &"", Vector2(0, 52))
+	_deposit_all.name = "DepositAll"
+	_deposit_all.pressed.connect(func(): _deposit(range(Game.profile.inv.size()), "ทั้งหมด"))
+	bag_bar.add_child(_deposit_all)
+	var store_bar := _bar(right[1])
+	_withdraw_all = UIUtil.button("เบิกทั้งหมด", &"AccentButton", Vector2(0, 52))
+	_withdraw_all.name = "WithdrawAll"
+	_withdraw_all.pressed.connect(func():
+		var ok: bool = await ModalDialog.confirm(_root, "เบิกทั้งหมด?", "ย้ายของในคลังรวมเข้ากระเป๋าจนกระเป๋าเต็ม (ของอาชีพอื่นยังอยู่ในคลัง) · คลังนี้ใช้ร่วมกับทุกตัวละคร", "เบิกเลย", "ยกเลิก")
+		if not ok or not is_open:
+			return
+		var result := Game.withdraw_all()
+		if int(result.moved) > 0:
+			AudioManager.play_sfx(&"pickup")
+			Game.say("เบิก %d รายการ%s" % [int(result.moved), (" · เหลือในคลัง %d (กระเป๋าเต็ม/ของอาชีพอื่น)" % int(result.left)) if int(result.left) > 0 else ""], &"success")
+		else:
+			Game.say("เบิกไม่ได้ กระเป๋าเต็มหรือเป็นของอาชีพอื่น", &"warning"))
+	store_bar.add_child(_withdraw_all)
 	Game.inventory_changed.connect(_queue_rebuild)
 	Game.gold_changed.connect(func(_g): _queue_rebuild())
+
+
+## A row of bulk buttons between a list's title and its scroll.
+func _bar(box: Control) -> HBoxContainer:
+	var bar := UIUtil.hbox(6)
+	var col := box.get_parent().get_parent()
+	col.add_child(bar)
+	col.move_child(bar, 1)
+	return bar
+
+
+## "ฝากวัตถุดิบทั้งหมด" / "ฝากทั้งหมด": the bag entries at [param indices] into the storage,
+## after a confirm.
+func _deposit(indices: Array, what: String) -> void:
+	if indices.is_empty():
+		Game.say("ไม่มีของให้ฝาก", &"warning")
+		return
+	var ok: bool = await ModalDialog.confirm(_root, "ฝาก%s?" % what, "ย้าย %d รายการจากกระเป๋าเข้าคลังรวม (ฝากได้จนคลังเต็ม เบิกคืนได้ทุกเมื่อ)" % indices.size(), "ฝากเลย", "ยกเลิก")
+	if not ok or not is_open:
+		return
+	var result := Game.deposit_many(indices)
+	if int(result.moved) > 0:
+		AudioManager.play_sfx(&"pickup")
+		Game.say("ฝาก %d รายการ%s" % [int(result.moved), (" · เหลือ %d (คลังเต็ม)" % int(result.left)) if int(result.left) > 0 else ""], &"success")
+	else:
+		Game.say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), Game.STORAGE_SIZE], &"warning")
 
 
 func _make_list(row: Control) -> Array:
@@ -137,6 +190,9 @@ func _rebuild() -> void:
 	_store_title.add_theme_color_override("font_color", UIPalette.WARNING if stored.size() >= Game.STORAGE_SIZE else UIPalette.TEXT)
 	UIUtil.clear(_bag_box)
 	UIUtil.clear(_store_box)
+	_deposit_mats.disabled = Game.material_indices().is_empty()
+	_deposit_all.disabled = Game.profile.inv.is_empty()
+	_withdraw_all.disabled = stored.is_empty()
 	for i in Game.profile.inv.size():
 		var index: int = i
 		_bag_box.add_child(_row(Game.profile.inv[i], "ฝาก", func(): Game.deposit_item(index)))

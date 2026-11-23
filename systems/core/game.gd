@@ -2610,6 +2610,37 @@ func craft_mount(id: String, roll := -1.0) -> String:
 	return "ok"
 
 
+## Tries a mount can take now at most: its next step's cost again and again while the
+## materials and chaos jewels last (every try a miss; a hit costs more next time).
+func mount_max_tries(id: String) -> int:
+	if mount_step_problem(id) != "":
+		return 0
+	var cost := MountData.cost(id, mount_level(id) + 1)
+	var by_mat := mount_mats(id) / maxi(1, int(cost.mat))
+	var by_chaos := jewel_count("chaos") / int(cost.chaos) if int(cost.chaos) > 0 else by_mat
+	return mini(by_mat, by_chaos)
+
+
+## "อัปหลายครั้ง": up to [param tries] craft_mount steps in a row, each its own roll
+## and its own cost exactly as one tap; stops at the top level or when a step cannot be
+## paid. Returns {tries, ok, fail, from, to, stopped}.
+func craft_mount_many(id: String, tries: int) -> Dictionary:
+	var out := {"tries": 0, "ok": 0, "fail": 0, "from": mount_level(id), "to": mount_level(id), "stopped": ""}
+	while int(out.tries) < tries:
+		var problem := mount_step_problem(id)
+		if problem != "":
+			out.stopped = problem
+			break
+		var result := craft_mount(id)
+		out.tries = int(out.tries) + 1
+		if result == "ok":
+			out.ok = int(out.ok) + 1
+		else:
+			out.fail = int(out.fail) + 1
+	out.to = mount_level(id)
+	return out
+
+
 ## Picks the owned mount the HUD button rides (and whose stats count).
 func select_mount(id: String) -> bool:
 	if not owns_mount(id):
@@ -3347,6 +3378,220 @@ func sell_item(index: int, count := 1) -> void:
 
 
 const COSTUME_SELL_TEXT := "คอสตูมขายไม่ได้ (ฝากคลังเพื่อส่งให้ตัวละครอื่นได้)"
+
+
+# --- bulk actions (sell many / fuse many / move many in one pass) -----------------
+
+## Why a bag piece of gear cannot be picked in the "เลือกหลายชิ้น" bulk sale ("" when
+## it can): enhanced or socketed gear, wings and every special piece (set, star, divine,
+## dragon, the 250★ set, the Legendary Guild Wings) stay out, as in auto-sell. Gear worn
+## is in profile.equip, never in the bag, so it can never be picked.
+func bulk_sell_lock(item: Dictionary) -> String:
+	if item.get("kind", "") != "equip":
+		return "ไม่ใช่อุปกรณ์"
+	if LegendWings.is_item(item) or item.get("slot", "") == "wings":
+		return "ปีกไม่ขายแบบหลายชิ้น"
+	if int(item.get("plus", 0)) > 0:
+		return "ตีบวกแล้ว"
+	if not (item.get("gems", []) as Array).is_empty():
+		return "ใส่อัญมณีอยู่"
+	if str(item.get("set", "")) != "" or SetGearData.is_item(item) or DragonGearData.is_item(item) or DivineGearData.is_item(item) or StarGearData.is_star(item):
+		return "ของพิเศษ (ชุดเซต/ดาว/เทพ/มังกร)"
+	if ItemData.sell_price(item) <= 0:
+		return "ขายไม่ได้"
+	return ""
+
+
+## Bag indices of the gear the "เลือกทั้งหมด ≤ [param max_rarity]" quick pick takes:
+## unlocked (bulk_sell_lock) pieces of rarity 0..max_rarity, never above "หายาก".
+func bulk_sell_pick(max_rarity: int) -> Array[int]:
+	var out: Array[int] = []
+	var top := clampi(max_rarity, 0, 2)
+	for i in profile["inv"].size():
+		var item: Dictionary = profile["inv"][i]
+		if bulk_sell_lock(item) == "" and int(item.get("rarity", 0)) <= top:
+			out.append(i)
+	return out
+
+
+## Sells the bag entries at [param indices] in one pass: gear whole (only pieces
+## bulk_sell_lock allows), stackables whole stacks. One gold change, one bag refresh,
+## one save mark. Returns {count (entries), gold}.
+func sell_many(indices: Array) -> Dictionary:
+	var picked: Array[int] = []
+	for v in indices:
+		var i := int(v)
+		if i < 0 or i >= profile["inv"].size() or picked.has(i):
+			continue
+		var item: Dictionary = profile["inv"][i]
+		if ItemData.is_costume(item) or LegendWings.is_item(item) or ItemData.sell_price(item) <= 0:
+			continue
+		if item.get("kind", "") == "equip" and bulk_sell_lock(item) != "":
+			continue
+		picked.append(i)
+	picked.sort()
+	var total := 0
+	for k in range(picked.size() - 1, -1, -1):
+		total += ItemData.sell_price(profile["inv"][picked[k]])
+		profile["inv"].remove_at(picked[k])
+	if not picked.is_empty():
+		add_gold(total)
+		inventory_changed.emit()
+		daily_progress("trade")
+		mark_dirty()
+	return {"count": picked.size(), "gold": total}
+
+
+## How many fuse tries the gems of [param gem_id] and the gold allow at most (each try
+## needs 3 gems; a miss takes 1, so with misses more tries fit than gems / 3).
+func fuse_gem_max_tries(gem_id: String) -> int:
+	var info := ItemData.gem_info({"id": gem_id})
+	if info.size >= ItemData.GEM_MAX_SIZE:
+		return 0
+	var have := gem_total(gem_id)
+	if have < 3:
+		return 0
+	var cost := int(ItemData.GEM_FUSE_GOLD[info.size])
+	var by_gold := int(profile.get("gold", 0)) / maxi(1, cost)
+	var by_gems := have / 3 if float(ItemData.GEM_FUSE_CHANCE[info.size]) >= 1.0 else have - 2
+	return mini(by_gold, by_gems)
+
+
+func gem_total(gem_id: String) -> int:
+	var have := 0
+	for it in profile["inv"]:
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+			have += int(it.get("count", 1))
+	return have
+
+
+## Up to [param tries] fuse tries of [param gem_id] (-1: as many as the gems and gold
+## allow), each rolled on its own with the forge's odds and costs exactly as
+## fuse_gem: 3 gems + the gold a try, a miss loses 1 gem. The gems and gold are taken
+## and the bigger gems given in one pass. Returns {tries, ok, fail, used (gems), gold,
+## made_id, stopped ("" or why it stopped early)}.
+func fuse_gems_many(gem_id: String, tries := -1) -> Dictionary:
+	var info := ItemData.gem_info({"id": gem_id})
+	var out := {"tries": 0, "ok": 0, "fail": 0, "used": 0, "gold": 0, "made_id": "", "stopped": ""}
+	if info.size >= ItemData.GEM_MAX_SIZE:
+		out.stopped = "อัญมณีขั้นสูงสุดแล้ว"
+		return out
+	out.made_id = _gem_id_of(info.type, info.size + 1)
+	var have := gem_total(gem_id)
+	var cost := int(ItemData.GEM_FUSE_GOLD[info.size])
+	var chance := float(ItemData.GEM_FUSE_CHANCE[info.size])
+	var gold := int(profile.get("gold", 0))
+	var want := tries if tries >= 0 else 1 << 30
+	while int(out.tries) < want:
+		if have < 3:
+			if tries >= 0:
+				out.stopped = "อัญมณีไม่พอ"
+			break
+		if gold < cost:
+			out.stopped = "เงินไม่พอ"
+			break
+		gold -= cost
+		out.tries = int(out.tries) + 1
+		out.gold = int(out.gold) + cost
+		if rng.randf() < chance:
+			out.ok = int(out.ok) + 1
+			have -= 3
+			out.used = int(out.used) + 3
+		else:
+			out.fail = int(out.fail) + 1
+			have -= 1
+			out.used = int(out.used) + 1
+	if int(out.tries) <= 0:
+		if out.stopped == "":
+			out.stopped = "ต้องมี %s 3 เม็ด" % info.name
+		return out
+	add_gold(-int(out.gold))
+	_take_gems(gem_id, int(out.used))
+	if int(out.ok) > 0:
+		give_or_store(ItemData.gem(info.type, info.size + 1, int(out.ok)))
+		flag_add("gems_fused", int(out.ok))
+	inventory_changed.emit()
+	mark_dirty()
+	return out
+
+
+## "ผสมต่อจนสุด": fuses every gem of [param gem_id]'s kind from its size up to the
+## largest, one size after another (each size's results join the next), as far as the
+## gems and gold allow. Returns one fuse_gems_many result per size tried.
+func fuse_gems_chain(gem_id: String) -> Array:
+	var info := ItemData.gem_info({"id": gem_id})
+	var steps: Array = []
+	for s in range(info.size, ItemData.GEM_MAX_SIZE):
+		var id := _gem_id_of(info.type, s)
+		if gem_total(id) < 3:
+			continue
+		var r := fuse_gems_many(id, -1)
+		r["from_id"] = id
+		steps.append(r)
+		if String(r.stopped) == "เงินไม่พอ":
+			break
+	return steps
+
+
+## Bag entries [param indices] into the shared storage in one pass and one write
+## (deposit_item, many at once). Stops when the storage is full. Returns {moved, left}.
+func deposit_many(indices: Array) -> Dictionary:
+	var sorted: Array[int] = []
+	for v in indices:
+		var i := int(v)
+		if i >= 0 and i < profile["inv"].size() and not sorted.has(i):
+			sorted.append(i)
+	sorted.sort()
+	var moved := 0
+	var left := 0
+	for k in range(sorted.size() - 1, -1, -1):
+		var item: Dictionary = profile["inv"][sorted[k]]
+		if MazeCrown.deposit_lock(item) != "" or not SharedStorage.put(item):
+			left += 1
+			continue
+		profile["inv"].remove_at(sorted[k])
+		moved += 1
+	if moved > 0:
+		_commit_storage(true)
+		inventory_changed.emit()
+	return {"moved": moved, "left": left}
+
+
+## Bag indices of the materials "ฝากวัตถุดิบ" moves: every gem and jewel stack.
+func material_indices() -> Array[int]:
+	var out: Array[int] = []
+	for i in profile["inv"].size():
+		if profile["inv"][i].get("kind", "") in ["gem", "jewel"]:
+			out.append(i)
+	return out
+
+
+## Everything in the shared storage this hero may take (storage_lock) into the bag in
+## one pass and one write, while the bag has room (stacks join a pile in the bag even
+## when it is full). Returns {moved, left}.
+func withdraw_all() -> Dictionary:
+	var list := storage()
+	var moved := 0
+	var left := 0
+	var i := 0
+	while i < list.size():
+		var item: Dictionary = list[i]
+		if storage_lock(item) != "":
+			left += 1
+			i += 1
+			continue
+		if not _stack_into(profile["inv"], item):
+			if profile["inv"].size() >= bag_size():
+				left += 1
+				i += 1
+				continue
+			profile["inv"].append(item)
+		list.remove_at(i)
+		moved += 1
+	if moved > 0:
+		_commit_storage(false)
+		inventory_changed.emit()
+	return {"moved": moved, "left": left}
 
 
 ## Bag items auto-sell would sell: unworn gear of the chosen grades (bit per

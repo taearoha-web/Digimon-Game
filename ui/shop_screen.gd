@@ -20,6 +20,8 @@ var _gold: Label
 var _title: Label
 var _buy_title: Label
 var _sell_title: Label
+## The merchant's "ขายอุปกรณ์ ≤ grade" quick buttons over the sell list.
+var _bulk_bar: HBoxContainer
 ## The world player whose stall is open (WorldPlayers index), -1 for the merchant.
 var stall := -1
 
@@ -68,6 +70,21 @@ func _ready() -> void:
 	_sell_box = _make_list(row, "ขาย (กระเป๋าของคุณ)")
 	_buy_title = _buy_box.get_parent().get_parent().get_child(0) as Label
 	_sell_title = _sell_box.get_parent().get_parent().get_child(0) as Label
+	# Gear sold many at once at the merchant: every unlocked piece up to a grade
+	# (Game.bulk_sell_pick: never enhanced, socketed or special), behind a confirm.
+	_bulk_bar = UIUtil.hbox(6)
+	_bulk_bar.name = "BulkSell"
+	var sell_col := _sell_box.get_parent().get_parent()
+	sell_col.add_child(_bulk_bar)
+	sell_col.move_child(_bulk_bar, 1)
+	for r in 3:
+		var quick := UIUtil.button("", &"", Vector2(0, 52))
+		quick.name = "BulkSell%d" % r
+		quick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		quick.add_theme_font_size_override("font_size", 17)
+		quick.add_theme_color_override("font_color", ItemData.RARITY_COLORS[r].lightened(0.25))
+		quick.pressed.connect(_bulk_sell.bind(r))
+		_bulk_bar.add_child(quick)
 	Game.inventory_changed.connect(_queue_rebuild)
 	Game.gold_changed.connect(func(_g): _queue_rebuild())
 
@@ -180,6 +197,12 @@ func _rebuild() -> void:
 	_gold.text = "เหรียญ: %d" % int(Game.profile.gold)
 	UIUtil.clear(_buy_box)
 	UIUtil.clear(_sell_box)
+	_bulk_bar.visible = stall < 0
+	for r in 3:
+		var quick := _bulk_bar.get_child(r) as Button
+		var n := Game.bulk_sell_pick(r).size()
+		quick.text = "ขายอุปกรณ์ ≤%s (%d)" % [ItemData.RARITY_NAMES[r], n]
+		quick.disabled = n <= 0
 	if stall >= 0:
 		_stall_rows()
 	else:
@@ -199,7 +222,7 @@ func _rebuild() -> void:
 			_sell_box.add_child(_consign_row(item, i))
 			continue
 		var price := ItemData.unit_sell_price(item)
-		_sell_box.add_child(_row(item, price, "ขาย", func(): Game.sell_item(i)))
+		_sell_box.add_child(_row(item, price, "ขาย", func(): _sell_pick(i, item, price, func(n: int): Game.sell_item(i, n))))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
 	if stall >= 0:
@@ -307,7 +330,7 @@ func _lot_badges(row: PanelContainer, info: Control, lot: Dictionary) -> void:
 ## for more, paid later: a stack with − and + picking how many (capped at the stack),
 ## a piece of gear whole.
 func _consign_row(item: Dictionary, index: int) -> Control:
-	var panel := _row(item, StallStock.sell_price(item), "ขาย", func(): StallStock.sell(index))
+	var panel := _row(item, StallStock.sell_price(item), "ขาย", func(): _sell_pick(index, item, StallStock.sell_price(item), func(n: int): StallStock.sell(index, n)))
 	panel.name = "Bag_%d" % index
 	var unit := StallStock.consign_price(item)
 	var stack := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
@@ -333,6 +356,40 @@ func _consign_row(item: Dictionary, index: int) -> Control:
 		_stepper(panel.find_child("Info", true, false) as Control, key, steps, refresh)
 	refresh.call()
 	return panel
+
+
+## "ขายอุปกรณ์ ≤ grade": every bag piece Game.bulk_sell_pick takes, after a confirm.
+func _bulk_sell(max_rarity: int) -> void:
+	var picked := Game.bulk_sell_pick(max_rarity)
+	if picked.is_empty():
+		return
+	var gold := 0
+	for i in picked:
+		gold += ItemData.sell_price(Game.profile.inv[i])
+	var ok: bool = await ModalDialog.confirm(_root, "ขาย %d ชิ้น?" % picked.size(), "อุปกรณ์เกรด%sลงไปทั้งหมดในกระเป๋า ได้ %s เหรียญ\nไม่ขาย: ของที่สวมอยู่ ตีบวกแล้ว ใส่อัญมณี ปีก ชุดเซต/ดาว/เทพ/มังกร" % [ItemData.RARITY_NAMES[max_rarity], PlayerStall.thousands(gold)], "ขายเลย", "ยกเลิก", true)
+	if not ok or not is_open:
+		return
+	var result := Game.sell_many(Game.bulk_sell_pick(max_rarity))
+	if int(result.count) > 0:
+		AudioManager.play_sfx(&"coin")
+		Game.say("ขาย %d ชิ้น ได้ %s เหรียญ" % [int(result.count), PlayerStall.thousands(int(result.gold))], &"success")
+
+
+## "ขาย" on a bag row: one piece (or a stack of one) sells at once; a bigger stack opens
+## the count chooser (QtyPicker: +1 +10 +100 ทั้งหมด with the total live) and [param sell]
+## gets the count, all in one sale.
+func _sell_pick(index: int, item: Dictionary, unit: int, sell: Callable) -> void:
+	var stack := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
+	if stack <= 1:
+		sell.call(1)
+		return
+	var n: int = await QtyPicker.pick(_root, "ขาย%s" % ItemData.name_of(item), stack,
+		func(c: int): return "ขาย %d ชิ้น ได้ %s เหรียญ (เหลือ %d)" % [c, PlayerStall.thousands(unit * c), stack - c], "ขาย", 1, ItemLook.icon(item))
+	# The bag may have changed under the chooser: sell only the same stack.
+	if n <= 0 or not is_open or index >= Game.profile.inv.size() or Game.profile.inv[index] != item:
+		return
+	sell.call(n)
+	Game.say("ขาย%s ×%d ได้ %s เหรียญ" % [ItemData.name_of(item), n, PlayerStall.thousands(unit * n)], &"success")
 
 
 ## − and + under a row's name, stepping the count kept in _qty[key] through `steps`;

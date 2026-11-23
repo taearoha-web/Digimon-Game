@@ -434,7 +434,15 @@ func _screen(i: int) -> void:
 	if not Game.profile.inv.is_empty():
 		var price := ItemData.unit_sell_price(Game.profile.inv[0])
 		var sell := shop.find_children("*", "Button", true, false).filter(func(b): return String(b.name) == "Sell")
+		var stacked := ItemData.is_stackable(Game.profile.inv[0]) and int(Game.profile.inv[0].get("count", 1)) > 1
 		(sell[0] as Button).pressed.emit()
+		if stacked:
+			# A stack opens the count chooser (QtyPicker); its default is one.
+			await get_tree().process_frame
+			var picker := shop.find_child("QtyPicker", true, false) as QtyPicker
+			check(picker != null and picker.count == 1, "selling a stack opens the count chooser at 1")
+			if picker != null:
+				(picker.find_child("QtyConfirm", true, false) as Button).pressed.emit()
 		check(int(Game.profile.gold) == bag_gold + price, "the merchant pays its own price (%d)" % price)
 	shop.close_shop()
 	shop.queue_free()
