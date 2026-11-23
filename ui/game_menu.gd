@@ -43,6 +43,9 @@ var _set_picks := {}
 ## price and count survive rebuilds in stall_view.
 var stall_open := false
 var stall_view := {}
+## "เลือกหลายชิ้น": bag taps pick gear to sell together; the picked bag indices.
+var multi_sell := false
+var _multi_pick := {}
 
 
 func _ready() -> void:
@@ -140,6 +143,8 @@ func open_menu(tab: StringName = &"inventory") -> void:
 
 func close_menu() -> void:
 	forge_mode = false
+	multi_sell = false
+	_multi_pick.clear()
 	set_craft_open = false
 	_set_picks.clear()
 	stall_open = false
@@ -157,6 +162,8 @@ func show_tab(tab: StringName) -> void:
 	_page_scroll = null
 	current_tab = tab
 	stall_open = false
+	multi_sell = false
+	_multi_pick.clear()
 	_selected_index = -1
 	_selected_slot = ""
 	_rebuild()
@@ -565,7 +572,18 @@ func _build_inventory() -> void:
 
 ## The bag's item grid (the middle column of the inventory).
 func _build_bag_grid(middle: VBoxContainer) -> void:
-	middle.add_child(UIUtil.label("แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel"))
+	var hint_row := UIUtil.hbox(8)
+	middle.add_child(hint_row)
+	var hint := UIUtil.label("แตะอุปกรณ์เพื่อเลือก/ยกเลิก (ขายหลายชิ้น)" if multi_sell else "แตะไอเทมเพื่อเทียบกับอุปกรณ์ที่ใส่", &"SmallLabel")
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint_row.add_child(hint)
+	if not forge_mode:
+		var multi := UIUtil.button("เสร็จ" if multi_sell else "เลือกหลายชิ้น", &"PrimaryButton" if multi_sell else &"AccentButton", Vector2(170, 50))
+		multi.name = "MultiSellToggle"
+		multi.add_theme_font_size_override("font_size", 18)
+		multi.pressed.connect(func(): _set_multi_sell(not multi_sell))
+		hint_row.add_child(multi)
 	var scroll := TouchScroll.new()
 	_page_scroll = scroll
 	scroll.name = "BagScroll"
@@ -607,11 +625,40 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 				mark.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 				mark.position = Vector2(6, 2)
 				b.add_child(mark)
-			_item_buttons.append({"button": b, "slot": "", "index": i, "color": ItemData.color_of(item)})
-			b.pressed.connect(func():
-				_selected_index = i
-				_selected_slot = ""
-				_refresh_detail())
+			var entry := {"button": b, "slot": "", "index": i, "color": ItemData.color_of(item)}
+			if multi_sell:
+				# Multi-select: a check on the picked tiles; pieces bulk selling never
+				# takes (Game.bulk_sell_lock) and everything not gear are dimmed.
+				var lock := Game.bulk_sell_lock(item)
+				var check := Label.new()
+				check.name = "PickMark"
+				check.text = "✓"
+				check.add_theme_font_size_override("font_size", 26)
+				check.add_theme_color_override("font_color", UIPalette.GOLD)
+				check.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+				check.add_theme_constant_override("outline_size", 4)
+				check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				check.position = Vector2(62, -2)
+				check.visible = _multi_pick.has(i)
+				b.add_child(check)
+				entry["mark"] = check
+				if lock != "":
+					b.modulate = Color(1, 1, 1, 0.38)
+				b.pressed.connect(func():
+					if lock != "":
+						Game.say("เลือกไม่ได้: %s" % lock, &"warning")
+						return
+					if _multi_pick.has(i):
+						_multi_pick.erase(i)
+					else:
+						_multi_pick[i] = true
+					_refresh_detail())
+			else:
+				b.pressed.connect(func():
+					_selected_index = i
+					_selected_slot = ""
+					_refresh_detail())
+			_item_buttons.append(entry)
 		else:
 			b.disabled = true
 		grid.add_child(b)
@@ -799,12 +846,19 @@ func _refresh_detail() -> void:
 	for entry in _item_buttons:
 		if is_instance_valid(entry.button):
 			var selected: bool = (entry.slot != "" and entry.slot == _selected_slot) or (entry.slot == "" and entry.index == _selected_index)
+			if multi_sell:
+				selected = entry.slot == "" and _multi_pick.has(entry.index)
+				if entry.has("mark") and is_instance_valid(entry.mark):
+					entry.mark.visible = selected
 			_style_item_button(entry.button, entry.color, selected)
 	if _detail == null or not is_instance_valid(_detail):
 		return
 	UIUtil.clear(_detail)
 	if _actions != null and is_instance_valid(_actions):
 		UIUtil.clear(_actions)
+	if multi_sell and not forge_mode:
+		_build_multi_sell()
+		return
 	var item: Variant = null
 	if _selected_slot != "":
 		item = Game.equipped(_selected_slot)
@@ -886,9 +940,7 @@ func _refresh_detail() -> void:
 		how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_detail.add_child(how)
 		_build_isle_actions(item, target)
-		var sell_jewel := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
-		sell_jewel.pressed.connect(func(): _sell_selected(1))
-		target.add_child(sell_jewel)
+		_add_stack_sell(item, target)
 	elif ItemData.is_costume(item):
 		# Worn: take it off into the bag. In the bag: put it in the costume slot. Never sold.
 		var costume_button := UIUtil.button("ถอด" if _selected_slot != "" else "ใส่", &"" if _selected_slot != "" else &"PrimaryButton", Vector2(0, 58))
@@ -911,6 +963,9 @@ func _refresh_detail() -> void:
 			var gem_id := String(item.id)
 			var fuse := UIUtil.button("รวม 3 เม็ด → %s (%d%% · %d เหรียญ)" % [ItemData.GEM_SIZES[info.size + 1], int(float(ItemData.GEM_FUSE_CHANCE[info.size]) * 100.0), int(ItemData.GEM_FUSE_GOLD[info.size])], &"PrimaryButton", Vector2(0, 58))
 			fuse.disabled = int(item.get("count", 1)) < 3
+			# Two lines on a phone-narrow side column rather than pushing it wider.
+			fuse.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			fuse.add_theme_font_size_override("font_size", 18)
 			fuse.pressed.connect(func():
 				var result := Game.fuse_gem(gem_id)
 				match result:
@@ -924,13 +979,33 @@ func _refresh_detail() -> void:
 				_selected_index = -1
 				_rebuild())
 			target.add_child(fuse)
-		var sell_gem := UIUtil.button("ขาย +%d" % ItemData.unit_sell_price(item), &"", Vector2(0, 58))
-		sell_gem.pressed.connect(func(): _sell_selected(1))
-		target.add_child(sell_gem)
+			# Bulk: many tries in one go (a count chooser) or every size up to the top.
+			var many := UIUtil.vbox(6)
+			many.name = "FuseMany"
+			target.add_child(many)
+			var times := UIUtil.button("รวมหลายครั้ง / ทั้งหมด", &"AccentButton", Vector2(0, 56))
+			times.name = "FuseTimes"
+			times.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			times.clip_text = true
+			times.add_theme_font_size_override("font_size", 18)
+			times.disabled = Game.fuse_gem_max_tries(gem_id) < 1
+			times.pressed.connect(func(): _fuse_many(gem_id))
+			many.add_child(times)
+			var chain := UIUtil.button("รวมต่อจนสุด (ทุกขนาด)", &"", Vector2(0, 56))
+			chain.name = "FuseChain"
+			chain.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			chain.clip_text = true
+			chain.add_theme_font_size_override("font_size", 18)
+			chain.disabled = Game.fuse_gem_max_tries(gem_id) < 1
+			chain.pressed.connect(func(): _fuse_chain(gem_id))
+			many.add_child(chain)
+		_add_stack_sell(item, target)
 	else:
 		var use := UIUtil.button("ใช้", &"PrimaryButton", Vector2(0, 58))
 		use.pressed.connect(func(): _use_potion(_selected_index))
 		target.add_child(use)
+		if item.get("kind", "") == "potion" and ItemData.unit_sell_price(item) > 0:
+			_add_stack_sell(item, target)
 	# Any bag thing with a worth can go on the hero's stall (PlayerStall), from any zone.
 	if _selected_slot == "" and not forge_mode and PlayerStall.fair_price(item) > 0:
 		var stall := UIUtil.button("ตั้งขายบนแผง", &"", Vector2(0, 58))
@@ -1037,6 +1112,201 @@ func _sell_selected(count: int) -> void:
 	if _selected_index >= Game.profile.inv.size():
 		_selected_index = Game.profile.inv.size() - 1
 	_rebuild()
+
+
+func _craft_mount_many(id: String) -> void:
+	var info := MountData.info(id)
+	var top := Game.mount_max_tries(id)
+	if top < 1:
+		return
+	var level := Game.mount_level(id)
+	var cost := MountData.cost(id, level + 1)
+	var n: int = await QtyPicker.pick(self, "%s%s ต่อเนื่อง" % ["อัปเลเวล" if level > 0 else "สร้าง", String(info.name)], top,
+		func(c: int): return "ลองได้สูงสุด %d ครั้ง · หยุดเองเมื่อสำเร็จจนถึง Lv.%d หรือวัตถุดิบไม่พอ" % [c, MountData.MAX_LEVEL],
+		"เริ่ม", 1, null,
+		"โอกาสสำเร็จ %s ต่อครั้ง · ครั้งนี้ใช้ %s %d + เพชรชาออส %d (เลเวลสูงขึ้นใช้มากขึ้น) · พลาดแล้ววัตถุดิบกับเพชรหาย" % [MountData.chance_text(id), ItemData.JEWELS[MountData.mat_of(id)].name, int(cost.mat), int(cost.chaos)])
+	if n <= 0:
+		return
+	var r := Game.craft_mount_many(id, n)
+	_queue_rebuild()
+	if int(r.ok) > 0:
+		AudioManager.play_sfx(&"level_up", -4.0)
+		Game.screen_flash.emit(info.color, 0.12)
+	var text := "ลอง %d ครั้ง สำเร็จ %d พลาด %d · %s Lv.%d → Lv.%d" % [int(r.tries), int(r.ok), int(r.fail), String(info.name), int(r.from), int(r.to)]
+	if String(r.stopped) != "" and int(r.tries) < n:
+		text += "\nหยุดเพราะ " + String(r.stopped)
+	await ModalDialog.info(self, "ผลการอัปสัตว์ขี่", text, "ตกลง")
+
+
+func _set_multi_sell(on: bool) -> void:
+	multi_sell = on
+	_multi_pick.clear()
+	_selected_index = -1
+	_selected_slot = ""
+	_rebuild()
+
+
+## The side panel in "เลือกหลายชิ้น": how many are picked and what they fetch, quick
+## picks by grade (never enhanced, socketed or special pieces: Game.bulk_sell_pick),
+## clear, and "ขาย n ชิ้น" behind a confirm.
+func _build_multi_sell() -> void:
+	var picked: Array[int] = []
+	var gold := 0
+	for i in _multi_pick:
+		if int(i) < Game.profile.inv.size():
+			picked.append(int(i))
+			gold += ItemData.sell_price(Game.profile.inv[int(i)])
+	var head := UIUtil.label("เลือกแล้ว %d ชิ้น" % picked.size(), &"SubHeaderLabel")
+	head.name = "MultiCount"
+	_actions.add_child(head)
+	var worth := UIUtil.label("รวม %s เหรียญ" % PlayerStall.thousands(gold), &"BoldLabel")
+	worth.name = "MultiGold"
+	worth.add_theme_color_override("font_color", UIPalette.GOLD)
+	_actions.add_child(worth)
+	var sell := UIUtil.button("ขาย %d ชิ้น" % picked.size(), &"DangerButton", Vector2(0, 58))
+	sell.name = "MultiSell"
+	sell.disabled = picked.is_empty()
+	sell.pressed.connect(func(): _confirm_multi_sell())
+	_actions.add_child(sell)
+	_detail.add_child(UIUtil.label("เลือกด่วน", &"BoldLabel"))
+	for r in 3:
+		var quick := UIUtil.button("เลือกทั้งหมด ≤ %s (%d)" % [ItemData.RARITY_NAMES[r], Game.bulk_sell_pick(r).size()], &"", Vector2(0, 54))
+		quick.name = "MultiPick%d" % r
+		quick.add_theme_font_size_override("font_size", 18)
+		quick.add_theme_color_override("font_color", ItemData.RARITY_COLORS[r].lightened(0.25))
+		quick.pressed.connect(func():
+			for i in Game.bulk_sell_pick(r):
+				_multi_pick[i] = true
+			_refresh_detail())
+		_detail.add_child(quick)
+	var clear := UIUtil.button("ล้างที่เลือก", &"GhostButton", Vector2(0, 54))
+	clear.name = "MultiClear"
+	clear.disabled = picked.is_empty()
+	clear.pressed.connect(func():
+		_multi_pick.clear()
+		_refresh_detail())
+	_detail.add_child(clear)
+	var keep := UIUtil.label("ไม่ถูกเลือกเด็ดขาด: ของที่สวมอยู่ ตีบวกแล้ว ใส่อัญมณี ปีก ชุดเซต/ดาว/เทพ/มังกร · เลือกด่วนไม่เกินเกรดหายาก แตะเลือกเพิ่มทีละชิ้นได้", &"DimLabel")
+	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.add_child(keep)
+
+
+func _confirm_multi_sell() -> void:
+	var picked: Array[int] = []
+	var gold := 0
+	var by_grade := [0, 0, 0, 0, 0]
+	for i in _multi_pick:
+		if int(i) < Game.profile.inv.size():
+			var item: Dictionary = Game.profile.inv[int(i)]
+			picked.append(int(i))
+			gold += ItemData.sell_price(item)
+			by_grade[clampi(int(item.get("rarity", 0)), 0, 4)] += 1
+	if picked.is_empty():
+		return
+	var parts: Array[String] = []
+	for r in 5:
+		if by_grade[r] > 0:
+			parts.append("%s %d" % [ItemData.RARITY_NAMES[r], by_grade[r]])
+	var ok: bool = await ModalDialog.confirm(self, "ขาย %d ชิ้น?" % picked.size(), "%s\nได้ %s เหรียญ · ขายแล้วซื้อคืนไม่ได้" % [" · ".join(parts), PlayerStall.thousands(gold)], "ขายเลย", "ยกเลิก", true)
+	if not ok or not multi_sell:
+		return
+	var result := Game.sell_many(picked)
+	_multi_pick.clear()
+	if int(result.count) > 0:
+		AudioManager.play_sfx(&"coin")
+		Game.say("ขาย %d ชิ้น ได้ %s เหรียญ" % [int(result.count), PlayerStall.thousands(int(result.gold))], &"success")
+	_rebuild()
+
+
+## "ขาย" on a stack (potion, gem, jewel): one of it sells at once, a bigger stack opens
+## the count chooser (QtyPicker: +1 +10 +100 ทั้งหมด, the total live) and sells the
+## count in one go.
+func _add_stack_sell(item: Dictionary, target: Control) -> void:
+	var unit := ItemData.unit_sell_price(item)
+	var stack := int(item.get("count", 1))
+	var sell := UIUtil.button("ขาย +%d" % unit if stack <= 1 else "ขาย... (+%d/ชิ้น)" % unit, &"", Vector2(0, 58))
+	sell.name = "StackSell"
+	sell.clip_text = true
+	sell.pressed.connect(func():
+		if stack <= 1:
+			_sell_selected(1)
+			return
+		var index := _selected_index
+		var n: int = await QtyPicker.pick(self, "ขาย%s" % ItemData.name_of(item), stack,
+			func(c: int): return "ขาย %d ชิ้น ได้ %s เหรียญ (เหลือ %d)" % [c, PlayerStall.thousands(unit * c), stack - c], "ขาย", 1, ItemLook.icon(item))
+		if n <= 0 or index != _selected_index or index >= Game.profile.inv.size() or Game.profile.inv[index] != item:
+			return
+		AudioManager.play_sfx(&"coin")
+		Game.say("ขาย%s ×%d ได้ %s เหรียญ" % [ItemData.name_of(item), n, PlayerStall.thousands(unit * n)], &"success")
+		_sell_selected(n))
+	target.add_child(sell)
+
+
+## "รวมหลายครั้ง": how many fuse tries (QtyPicker, capped by the gems and the gold),
+## then every try rolled at once (Game.fuse_gems_many) and a summary.
+func _fuse_many(gem_id: String) -> void:
+	var info := ItemData.gem_info({"id": gem_id})
+	var top := Game.fuse_gem_max_tries(gem_id)
+	if top < 1:
+		return
+	var chance := float(ItemData.GEM_FUSE_CHANCE[info.size])
+	var cost := int(ItemData.GEM_FUSE_GOLD[info.size])
+	var have := Game.gem_total(gem_id)
+	var next := "%s%s" % [ItemData.GEMS[info.type].name, ItemData.GEM_SIZES[info.size + 1]]
+	var n: int = await QtyPicker.pick(self, "รวม%s → %s" % [info.name, next], top, func(c: int):
+		var gems := "%d เม็ด" % (3 * c) if chance >= 1.0 else "%d–%d เม็ด" % [mini(c, have), mini(3 * c, have)]
+		return "ใช้สูงสุด %s เหรียญ · อัญมณี %s · คาดว่าได้ %s ~%d เม็ด" % [PlayerStall.thousands(cost * c), gems, next, int(round(c * chance))],
+		"รวม", top, ItemLook.icon(ItemData.gem(info.type, info.size)),
+		"สำเร็จ %d%% ต่อครั้ง · ครั้งละ 3 เม็ด + %s เหรียญ · พลาดเสีย 1 เม็ด (หยุดเองเมื่ออัญมณีหมด)" % [int(chance * 100.0), PlayerStall.thousands(cost)])
+	if n <= 0:
+		return
+	var result := Game.fuse_gems_many(gem_id, n)
+	_selected_index = -1
+	_rebuild()
+	_fuse_report([result])
+
+
+## "รวมต่อจนสุด": every gem of this kind, size after size up to ตำนาน (after a confirm).
+func _fuse_chain(gem_id: String) -> void:
+	var info := ItemData.gem_info({"id": gem_id})
+	var ok: bool = await ModalDialog.confirm(self, "รวมต่อจนสุด?", "รวม%sทุกเม็ดที่มี แล้วนำผลที่ได้ไปรวมต่อขนาดถัดไปเรื่อย ๆ จนถึง%s ตราบที่อัญมณีและเงินพอ (แต่ละครั้งสุ่มโอกาสจริงแยกกัน พลาดเสีย 1 เม็ด)" % [String(ItemData.GEMS[info.type].name), ItemData.GEM_SIZES[ItemData.GEM_MAX_SIZE]], "รวมเลย", "ยกเลิก")
+	if not ok:
+		return
+	var steps := Game.fuse_gems_chain(gem_id)
+	_selected_index = -1
+	_rebuild()
+	_fuse_report(steps)
+
+
+func _fuse_report(steps: Array) -> void:
+	var lines: Array[String] = []
+	var gold := 0
+	var any_ok := false
+	var stopped := ""
+	for r in steps:
+		if int(r.tries) <= 0:
+			stopped = String(r.stopped)
+			continue
+		var from := ItemData.gem_info({"id": String(r.get("from_id", _gem_from(String(r.made_id))))})
+		var made := ItemData.gem_info({"id": String(r.made_id)})
+		lines.append("%s: ผสม %d ครั้ง สำเร็จ %d ได้ %s ×%d · พลาด %d · ใช้ %d เม็ด" % [from.name, int(r.tries), int(r.ok), made.name, int(r.ok), int(r.fail), int(r.used)])
+		gold += int(r.gold)
+		any_ok = any_ok or int(r.ok) > 0
+		if String(r.stopped) != "" and String(r.stopped) != "อัญมณีไม่พอ":
+			stopped = String(r.stopped)
+	if lines.is_empty():
+		Game.say(stopped if stopped != "" else "ไม่มีอัญมณีพอรวม", &"warning")
+		return
+	lines.append("ใช้เงินรวม %s เหรียญ" % PlayerStall.thousands(gold))
+	if stopped != "":
+		lines.append("หยุดเพราะ%s" % stopped)
+	AudioManager.play_sfx(&"level_up" if any_ok else &"ui_cancel")
+	await ModalDialog.info(self, "ผลการรวมอัญมณี", "\n".join(lines), "ตกลง")
+
+
+func _gem_from(made_id: String) -> String:
+	var bits := made_id.split("_")
+	return "%s_%d" % [bits[0], maxi(0, int(bits[1]) - 1)]
 
 
 const LEVEL_STEPS := [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
@@ -1717,6 +1987,12 @@ func _build_mounts() -> void:
 					Game.say(result, &"warning")
 			_queue_rebuild())
 		buttons.add_child(craft)
+		# Many tries in one go (a count chooser, each try its own roll and cost).
+		if level < MountData.MAX_LEVEL and Game.mount_max_tries(id) >= 2:
+			var many := UIUtil.button("ทำหลายครั้ง", &"AccentButton", Vector2(150, 52))
+			many.name = "CraftMany"
+			many.pressed.connect(func(): _craft_mount_many(id))
+			buttons.add_child(many)
 		if owned and id != active:
 			var pick := UIUtil.button("ใช้ตัวนี้", &"", Vector2(150, 56))
 			pick.name = "Select"
