@@ -3,7 +3,7 @@ extends Node3D
 ## fighter with every skill at ★5 (or ★1) and a pack of dummy monsters round the target.
 ## Each cast is captured at its wind-up, its release / contact and its peak, from a
 ## gameplay-like camera behind and above the fighter. Does not use the user's saves.
-## xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . res://tests/tools/muaythai_skill_showcase.tscn -- OUT_DIR [ids,comma|every] [medium|low] [rank1] [noflourish]
+## xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . res://tests/tools/muaythai_skill_showcase.tscn -- OUT_DIR [ids,comma|every] [medium|low] [rank1] [noflourish] [generic] [slow] [behind|close]
 class Dummy extends Mob:
 	var hits := 0
 	func take_hit(amount: int, critical: bool, color := Color.WHITE, attacker: Node = null) -> bool:
@@ -21,6 +21,9 @@ var rank := 5
 var records: Array[Dictionary] = []
 ## Seconds of game time (process delta): the casts, the art and the captures share it.
 var game_clock := 0.0
+var slow := false
+var behind := false
+var close := false
 
 func _process(delta: float) -> void:
 	game_clock += delta
@@ -69,7 +72,12 @@ func _ready() -> void:
 	subtitle.add_theme_constant_override("shadow_offset_y", 2)
 	layer.add_child(subtitle)
 	var selected: Array = ["sun_fist", "thunder_elbow", "mantra_storm", "earth_kick", "fire_dragon_circle", "sacred_mongkhon", "iron_prajiad", "thousand_ring_fist", "muay_king"]
-	if args.size() > 1 and not args[1] in ["medium", "low", "rank1", "noflourish"]:
+	# "slow": game time at a quarter speed, so every beat of a cast is caught even on a
+	# software renderer; "behind": the gameplay camera (6 m behind the fighter, 24° down).
+	slow = "slow" in args
+	behind = "behind" in args
+	close = "close" in args
+	if args.size() > 1 and not args[1] in ["medium", "low", "rank1", "noflourish", "slow", "behind", "close", "generic"]:
 		selected = Array(args[1].split(","))
 		if args[1] == "every":
 			selected = []
@@ -139,6 +147,16 @@ func _case(skill: Dictionary) -> void:
 	var dist := 10.5 if big else 7.0
 	camera.position = focus + Vector3(-0.62, 0.48, 0.62).normalized() * dist
 	camera.look_at(focus)
+	if close:
+		var near := hero.position.lerp(target_at, 0.75 if String(skill.shape) == "single" else 0.0) + Vector3.UP * 1.1
+		camera.position = near + Vector3(-0.55, 0.35, 0.75).normalized() * (4.2 if not big else 6.5)
+		camera.look_at(near)
+	elif behind:
+		# The third-person camera: 6 m behind the fighter's back, 24° down at chest height.
+		var eye := hero.position + Vector3.UP * 1.15
+		var back := -Vector3(target_at.x - hero.position.x, 0, target_at.z - hero.position.z).normalized()
+		camera.position = eye + (back * cos(deg_to_rad(24.0)) + Vector3.UP * sin(deg_to_rad(24.0))) * 6.0
+		camera.look_at(eye)
 	title.text = "TOON TALE  /  " + String(skill.name)
 	subtitle.text = "Muay Thai  ·  ★%d  ·  %s quality" % [rank, ["low", "medium", "high"][quality]]
 	VfxKit.warm_shaders(field, Vector3.ZERO)
@@ -153,18 +171,40 @@ func _case(skill: Dictionary) -> void:
 	hero._cast_until = 0
 	SkillShow._recent_shows.clear()
 	SkillLayers.reset_crowd()
+	if slow:
+		Engine.time_scale = 0.04
 	hero._cast(skill)
 	var cast_at := game_clock
-	var delay := float(skill.hit_delay)
+	# The wind-up the hero really plays (DEX haste shortens it).
+	var delay := float(hero._ranked(skill).hit_delay) * (1.0 - hero._haste())
 	var steps: Array = [[delay * 0.7, "1windup"], [delay + 0.1, "2release"], [delay + 0.4, "3contact"], [delay + 0.85, "4peak"]]
+	if slow:
+		steps = [[delay * 0.3, "1windup"], [delay + 0.06, "2snap"], [delay + 0.2, "3contact"], [delay + 0.42, "4peak"], [delay + 0.8, "5linger"], [delay + 1.3, "6fade"]]
 	if skill.has("star"):
 		# Star carriers land 0.28 s after each beat; the sonata's heartbreak is beat 6, the encore's crown wave 5.
 		steps = [[delay * 0.7, "1windup"], [delay + 0.35, "2release"], [delay + 0.8, "3contact"], [delay + 1.35, "4peak"], [delay + 1.75, "5finale"]]
 	var songs_sent := false
+	var released := -1.0
 	for step in steps:
 		# Game time since the cast (the clock every effect and the cast itself run on).
-		while game_clock - cast_at < float(step[0]):
+		# In slow mode the beats after the wind-up count from the release actually seen
+		# (the fighter's composition appearing), not from the nominal hit delay.
+		while true:
+			var now := game_clock - cast_at
+			if released < 0.0 and field.get_node_or_null("MuayArt_" + id) != null:
+				released = now
+			var due := float(step[0])
+			if slow and String(step[1]) != "1windup":
+				if released < 0.0:
+					due = INF
+				else:
+					due = released + due - delay
+			if now >= due or now > delay + 4.0:
+				break
 			await get_tree().process_frame
+			if slow:
+				# The cast's own feel (a wind-up zoom) may set the time scale; keep it slow.
+				Engine.time_scale = 0.04
 		var clock := game_clock - cast_at
 		if not songs_sent and clock >= delay and skill.get("fx", {}).has("buff") and not bool(skill.fx.buff.get("self_only", false)):
 			songs_sent = true
@@ -172,7 +212,9 @@ func _case(skill: Dictionary) -> void:
 				var aura := BuffAura.new()
 				aura.look = BuffArt.profile(skill)
 				ally.add_child(aura)
+		print("SHOWCASE capture %s_%s at %.3f s (release seen at %.3f)" % [id, step[1], clock, released])
 		await _capture("%s_q%d_%s" % [id, quality, step[1]])
+	Engine.time_scale = 1.0
 	await get_tree().create_timer(1.2).timeout
 	var hits := 0
 	for mob in mobs:
@@ -185,3 +227,4 @@ func _case(skill: Dictionary) -> void:
 func _capture(label: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(out_dir.path_join(label + ".png"))
+

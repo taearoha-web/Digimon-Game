@@ -1496,7 +1496,8 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		recall_party()
 	if fx.has("heal"):
 		# A stance (self_only) keeps its heal to the caster too.
-		_heal(float(fx.heal), not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)))
+		# The Muay Thai fighter's own art draws its heal (jade glyphs), not the generic pillar.
+		_heal(float(fx.heal), not (fx.get("buff") is Dictionary and BuffBook.is_self_only(fx.buff)), MuayThaiArt.owns(skill))
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
 		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
@@ -1679,11 +1680,12 @@ func receive_heal(fraction: float) -> void:
 	_heal(fraction)
 
 
-func _heal(fraction: float, share := true) -> void:
+func _heal(fraction: float, share := true, quiet := false) -> void:
 	var amount := int(float(stats.max_hp) * fraction * (1.2 if StarProgression.has_full_set(Game.profile,"priest") else 1.0))
 	var before: int = Game.profile.hp
 	Game.profile.hp = mini(stats.max_hp, Game.profile.hp + amount)
-	VfxKit.heal(field, global_position)
+	if not quiet:
+		VfxKit.heal(field, global_position)
 	BattleVfx.floating_text(field, global_position + Vector3(0, 2.6, 0), "+%d" % (Game.profile.hp - before), Color("6dff9a"), 1.0)
 	for node in get_tree().get_nodes_in_group("companions"):
 		if share and node.has_method("heal_fraction") and node.global_position.distance_to(global_position) < 9.0:

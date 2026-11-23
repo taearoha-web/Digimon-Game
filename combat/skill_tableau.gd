@@ -22,6 +22,10 @@ static func link(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3) 
 		var own := _signed(skill, "link")
 		if own: own.link(parent, skill, from, to)
 		return
+	if MuayThaiArt.owns(skill):
+		# The fighter's ring snaps along the chain (MuayThaiArt), no lance of light.
+		MuayThaiArt.link(parent, skill, from, to)
+		return
 	var look := SkillShow.profile_for(skill)
 	if String(look.signature) == "lightning":
 		VfxKit.lightning(parent, from, to, look.primary)
@@ -47,6 +51,9 @@ static func flight(parent: Node3D, skill: Dictionary, from: Vector3, to: Vector3
 		if signed == null: return null # its signature art (combat/skill_art) draws the flight
 		var drawn: Node3D = signed.flight(parent, skill, from, to, seconds, size)
 		if drawn: return drawn # else the essential body below still flies
+	if MuayThaiArt.owns(skill):
+		# The fighter's rings fly as painted ประเจียด rings (their essential body included).
+		return MuayThaiArt.flight(parent, skill, from, to, seconds, size)
 	ClassSignature.flight(parent, skill, from, to, seconds, size)  # class signature hook (Archer / Assassin / Dark Lord)
 	if MartialSkillArt.handles(skill):
 		var martial := MartialSkillArt.flight(parent,skill,from,to,seconds,size)
