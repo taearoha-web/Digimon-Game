@@ -1,7 +1,7 @@
 extends Node
-## New players (WorldPlayers): since the reopening of 22 Nov 2026 the daily newcomers are
-## off (NEWCOMER_MAX = 0): the world holds exactly the ROSTER's 100 players, worked out
-## again from scratch the same way. The roster players who log in for the first time some
+## New players (WorldPlayers): the reopening day of 22 Nov 2026 holds exactly the ROSTER's
+## 100 players; from NEWCOMER_FROM_DAY (23 Nov) 10-15 newcomers log in every day, up to
+## NEWCOMER_MAX in all, made from the date alone (the same on every device). The roster players who log in for the first time some
 ## days after the opening ("join") start at Lv.1 on their day and level at a hardcore
 ## player's pace from then on, joining their guild at Lv.100; the world chat welcomes each
 ## once (rate-limited). Every player with a play schedule is hardcore and
@@ -53,22 +53,34 @@ func _late() -> Array[int]:
 
 func _daily() -> void:
 	WorldPlayers.reset_roster()
-	check(WorldPlayers.NEWCOMER_MAX == 0, "the daily newcomers are off")
-	WorldPlayers.ensure_until(_start() + float(DAYS) * DAY)
-	check(WorldPlayers._all.size() == WorldPlayers.ROSTER.size() and WorldPlayers.ROSTER.size() == 100, "%d days on, the world holds the ROSTER's 100 players (%d)" % [DAYS, WorldPlayers._all.size()])
+	WorldPlayers.ensure_until(_start() + 0.5 * DAY)
+	check(WorldPlayers._all.size() == 100 and WorldPlayers.ROSTER.size() == 100, "the reopening day holds the ROSTER's 100 players (%d)" % WorldPlayers._all.size())
+	WorldPlayers.ensure_until(_start() + 1.0 * DAY)
+	var day1 := WorldPlayers._all.size() - 100
+	check(day1 >= WorldPlayers.NEWCOMERS.x and day1 <= WorldPlayers.NEWCOMERS.y, "the next day %d newcomers (10-15)" % day1)
+	WorldPlayers.ensure_until(_start() + 10.0 * DAY)
+	var ten := WorldPlayers._all.size() - 100
+	check(ten >= 10 * WorldPlayers.NEWCOMERS.x and ten <= 10 * WorldPlayers.NEWCOMERS.y, "ten days of newcomers: %d" % ten)
+	var again := WorldPlayers._all.duplicate()
+	WorldPlayers.reset_roster()
+	WorldPlayers.ensure_until(_start() + 10.0 * DAY)
+	check(WorldPlayers._all.size() == again.size() and String(WorldPlayers._all[-1].name) == String(again[-1].name), "worked out again, the same newcomers")
 	WorldPlayers.ensure_until(_start() + 400.0 * DAY)
-	check(WorldPlayers._all.size() == 100, "a year on, still 100 (%d)" % WorldPlayers._all.size())
+	check(WorldPlayers._all.size() == 100 + WorldPlayers.NEWCOMER_MAX, "a year on, capped at 100 + %d (%d)" % [WorldPlayers.NEWCOMER_MAX, WorldPlayers._all.size()])
 	var newcomer := false
 	for i in WorldPlayers._all.size():
 		newcomer = newcomer or WorldPlayers.is_newcomer(i)
 		check(WorldPlayers.index_of(String(WorldPlayers.entry(i).name)) == i, "%s found by its name" % WorldPlayers.entry(i).name)
-	check(not newcomer, "nobody is a made newcomer")
+	check(newcomer, "made newcomers are in the world")
+	WorldPlayers.reset_roster()
 	check(_late().size() >= 3, "a few roster players log in some days after the opening (%d)" % _late().size())
 
 
 ## Lv.1 on the day it joins, then a hardcore player's pace: no ★200 in four days, ★200
 ## within eight, ★300 with the divine set within sixteen; in its guild from Lv.100.
 func _pace() -> void:
+	# The pace of a plain week (the festivals' EXP would speed it up).
+	WorldEvents.festival_enabled = false
 	var start := _start()
 	var tested := 0
 	for i in _late():
@@ -101,6 +113,7 @@ func _pace() -> void:
 		check(steady, "%s: only ever goes up" % e.name)
 	check(tested >= 3, "late joiners checked for pace (%d)" % tested)
 	check(start > 0.0, "the opening is set")
+	WorldEvents.festival_enabled = true
 
 
 ## The world chat welcomes a newcomer once, the first time this game sees it log in, at

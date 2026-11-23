@@ -212,15 +212,18 @@ func _world_players() -> void:
 	WorldPlayers.reset_roster()
 	var start := float(WorldPlayers.START_UNIX)
 	check(WorldPlayers.ROSTER.size() == 100, "the ROSTER holds 100 players (%d)" % WorldPlayers.ROSTER.size())
-	check(WorldPlayers.NEWCOMER_MAX == 0, "daily newcomers are off")
+	# The reopening day itself has no newcomers (NEWCOMER_FROM_DAY); 10-15 a day after, up to NEWCOMER_MAX.
+	WorldPlayers.ensure_until(start + 0.5 * DAY)
+	check(WorldPlayers._all.size() == 100, "on the reopening day exactly 100 world players (%d)" % WorldPlayers._all.size())
+	WorldPlayers.reset_roster()
 	WorldPlayers.ensure_until(start + 400.0 * DAY)
-	check(WorldPlayers._all.size() == 100, "a year on, still exactly 100 world players (%d)" % WorldPlayers._all.size())
+	check(WorldPlayers._all.size() == 100 + WorldPlayers.NEWCOMER_MAX, "a year on, the 100 and NEWCOMER_MAX newcomers (%d)" % WorldPlayers._all.size())
 	var newcomer := false
 	var names := {}
 	for i in WorldPlayers._all.size():
 		newcomer = newcomer or WorldPlayers.is_newcomer(i)
 		names[String(WorldPlayers.entry(i).name)] = true
-	check(not newcomer and names.size() == 100, "no newcomer, 100 different names")
+	check(newcomer and names.size() == WorldPlayers._all.size(), "newcomers came, every name different")
 	var lv1 := 0
 	var guildless := 0
 	var online_before := 0

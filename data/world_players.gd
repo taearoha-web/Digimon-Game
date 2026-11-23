@@ -248,12 +248,14 @@ static func entry(i: int) -> Dictionary:
 ## same moment: they start at Lv.1 in their class on their day and play hardcore like
 ## everyone; on reaching Lv.100 they join the guild they picked (pick_guild). The classes go
 ## round in shuffled rounds of every class. After NEWCOMER_MAX of them nobody new comes,
-## so the world stays light enough for a phone. NEWCOMER_MAX is 0 since the reopening of
-## 22 Nov 2026: nobody is made, the world holds exactly the ROSTER.
-const NEWCOMERS := Vector2i(2, 3)
-## 0 since the reopening of 22 Nov 2026: the world holds exactly the ROSTER's hundred
-## players (the owner's order); raise it to bring daily newcomers back.
-const NEWCOMER_MAX := 0
+## so the world stays light enough for a phone. Off from the reopening of 22 Nov 2026
+## (the ROSTER's hundred players) until NEWCOMER_FROM_DAY: from 23 Nov 2026 (Thai day 1
+## after the opening) 10 to 15 new players log in every day (the owner's order).
+const NEWCOMERS := Vector2i(10, 15)
+## The first day (from the opening's Thai day) with newcomers: 23 Nov 2026.
+const NEWCOMER_FROM_DAY := 1
+## At most this many newcomers in all (about seven weeks of them), so a phone keeps up.
+const NEWCOMER_MAX := 600
 ## How a newcomer talks in the chats (a play style's voice: ChatThreads.voice, ChatBrain).
 const NEWCOMER_VOICES: Array[String] = ["hardcore", "regular", "student", "night_owl", "casual", "daytime", "early"]
 const _EN_HEAD: Array[String] = ["Storm", "Kira", "Neo", "Blaze", "Frost", "Pixel", "Nova", "Yuki", "Ace", "Rex",
@@ -305,7 +307,8 @@ static func ensure_until(t: float) -> void:
 	var last := int(floor((t + TZ) / DAY)) - _first_day()
 	while _gen_day < last and _gen_count < NEWCOMER_MAX:
 		_gen_day += 1
-		_add_day(_gen_day)
+		if _gen_day >= NEWCOMER_FROM_DAY:
+			_add_day(_gen_day)
 
 
 ## Forgets every newcomer and everything kept per player (tests: the world worked out
