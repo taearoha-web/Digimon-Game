@@ -124,7 +124,9 @@ func layer(kind: String, glow: bool, c: Array, at: Vector3, size: Vector3, angle
 	var node := MeshInstance3D.new()
 	node.name = kind.capitalize()
 	node.mesh = _sculpture(kind)
-	var mat := _take(GLOW if add else PAINT)
+	# shader / params: another shader for the layer (RamakienArt's spirit sculptures and
+	# light), every one of its uniforms given (pooled materials keep their last values).
+	var mat := _take(style.get("shader", GLOW if add else PAINT))
 	# Draw order among the translucent pieces (RamakienArt's giants: arms, body, mouth,
 	# clouds); pooled materials are reset every time.
 	mat.render_priority = int(style.get("priority", 0))
@@ -139,6 +141,10 @@ func layer(kind: String, glow: bool, c: Array, at: Vector3, size: Vector3, angle
 		if style.has("ramps"):
 			# A figure's second and third colour ramps (COLOR.b, MuayPaint).
 			_ramps(mat, style.ramps)
+	if style.has("params"):
+		var params: Dictionary = style.params
+		for key: String in params:
+			mat.set_shader_parameter(key, params[key])
 	node.material_override = mat
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.visible = false
@@ -208,7 +214,7 @@ func _draw() -> void:
 		var local := age - float(data.start)
 		if style.has("snap"):
 			# The travel lands in [snap] seconds (ease-out cubic) and holds; then the
-			# blow's squash pop.
+			# blow's squash pop (pop: its size, 0.2 unless given).
 			var t := clampf(local / float(data.seconds), 0.0, 1.0)
 			var was := t * t if bool(style.get("accelerate", false)) else 1.0 - pow(1.0 - t, 2.0)
 			var snap := maxf(float(style.snap), 0.01)
@@ -217,7 +223,7 @@ func _draw() -> void:
 			var eased := k * k * k if bool(style.get("snap_in", false)) else 1.0 - pow(1.0 - k, 3.0)
 			node.position += (style.get("travel", Vector3.ZERO) as Vector3) * (eased - was)
 			if local > snap:
-				node.scale *= 1.0 + 0.2 * exp(-16.0 * (local - snap)) * sin(minf((local - snap) * 22.0, PI))
+				node.scale *= 1.0 + float(style.get("pop", 0.2)) * exp(-16.0 * (local - snap)) * sin(minf((local - snap) * 22.0, PI))
 		if camera == null or not (style.has("point") or style.has("billboard")):
 			continue
 		var eye := global_basis.inverse() * (camera.global_position - node.global_position)

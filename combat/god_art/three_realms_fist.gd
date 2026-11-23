@@ -4,7 +4,7 @@ extends RefCounted
 ## four waves (GOD_BEATS), each denser and faster; then the last wave's fists fly up and
 ## fuse into one enormous fist that slams down before the fighter, gold light cracking
 ## the ground into temple glass mosaic (กระจกสี) while the three realms quake.
-## Painted by RamakienArt (the fighter's MuayPaint); cosmetic only. Roots follow the god
+## Drawn by RamakienArt (lit spirit sculptures, light, a dusk veil); cosmetic only. Roots follow the god
 ## contract: StarGodGround (always), StarGodSky (the giant, no memory pressure),
 ## StarGodAvatar on the finale (no pressure), StarGodTemple (high quality only).
 const ID := "three_realms_fist"

@@ -3,8 +3,8 @@ extends RefCounted
 ## หนุมาน: the white monkey warrior rises from gold clouds behind it, yawns stars and a
 ## crescent moon over the target (หาวเป็นดาวเป็นเดือน), and from each star a gold ตรีเพชร
 ## falls to stake the ground on its beat, a ยันต์ seal and its อักขระ bursting round it;
-## the fifth falls from the moon at the centre. Painted by RamakienArt (the fighter's
-## MuayPaint); cosmetic only.
+## the fifth falls from the moon at the centre. Drawn by RamakienArt (a lit spirit sculpture
+## over a dimmed field, light and painted seals); cosmetic only.
 const ID := "heaven_ring_cataclysm"
 ## The script's last index is the finale (StarSignature.strike); every beat is drawn by strike.
 const LAST := 4
