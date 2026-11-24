@@ -80,8 +80,40 @@ func _ready() -> void:
 				await _sheet("god_close_dark", "ทั้งชุด +15 ออร่าเทพ · 3 แบบ · ใกล้ · โซนมืด", _god_cells(["close"]), 3, Vector2i(420, 560))
 				_darken(true)
 				EnhanceFx.GOD_STYLE = keep
+			"anim": await _anim()
 			"costumes": await _sheet("costumes", "คอสตูม (RewardShop.COSTUMES · CostumeArt) · ทุกชุดมีแสง/ละอองลอยรอบตัว", _costume_cells(), 5, Vector2i(320, 460))
 	get_tree().quit()
+
+
+## anim: frames of a moving look (the glow waves running over the gear): a warrior at
+## +0, +7, +9, +12, +15 side by side and close on its sword, ANIM_FRAMES frames ANIM_STEP
+## seconds apart -> OUT_DIR/anim_body_NN.png and anim_weapon_NN.png (made into a GIF outside).
+const ANIM_FRAMES := 36
+const ANIM_STEP := 0.07
+
+
+func _anim() -> void:
+	for pass_def in [["anim_body", "wide", Vector2i(300, 420)], ["anim_weapon", "weapon", Vector2i(300, 300)]]:
+		var made := []
+		for plus in [0, 7, 9, 12, 15]:
+			made.append(_stage(_cell("+%d" % plus, "", "warrior", _gear("warrior", 45, 2, plus), String(pass_def[1])), pass_def[2]))
+		await get_tree().process_frame
+		await get_tree().process_frame
+		for m in made:
+			_frame(m)
+		await get_tree().create_timer(SETTLE).timeout
+		for m in made:
+			_frame(m)
+		for f in ANIM_FRAMES:
+			await get_tree().create_timer(ANIM_STEP).timeout
+			await RenderingServer.frame_post_draw
+			for i in made.size():
+				var img: Image = (made[i].vp as SubViewport).get_texture().get_image()
+				img.save_png("%s/%s_%d_%02d.png" % [_out, pass_def[0], i, f])
+		for m in made:
+			(m.hero as Node).queue_free()
+			(m.vp as Node).queue_free()
+		await get_tree().process_frame
 
 
 # --- Gear helpers -----------------------------------------------------------------------
