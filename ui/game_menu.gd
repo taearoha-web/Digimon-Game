@@ -133,9 +133,11 @@ func _ready() -> void:
 	Game.quest_changed.connect(_queue_rebuild)
 
 
+## The game keeps running under the menu (the owner's order): the hero goes on hunting
+## (auto-hunt, EXP, drops) while the bag, the shop tabs or the board are open; taps on
+## the world are held back while it is up (Main._screen_open).
 func open_menu(tab: StringName = &"inventory") -> void:
 	is_open = true
-	get_tree().paused = true
 	_root.visible = true
 	AudioManager.play_ui(&"ui_open")
 	show_tab(tab)

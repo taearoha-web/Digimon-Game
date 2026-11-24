@@ -476,6 +476,9 @@ func _on_hero_died() -> void:
 	if Game.current_zone == &"guildwar":
 		return  # the war itself brings the hero back to its base (GuildWarMatch)
 	var fallen_in := zone
+	# The game runs under the menu: a fall closes it so the player sees what happened.
+	if menu and menu.is_open:
+		menu.close_menu()
 	hud.show_death(true)
 	await get_tree().create_timer(2.6).timeout
 	var stats := Game.stats_now()

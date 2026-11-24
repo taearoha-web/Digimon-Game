@@ -45,7 +45,7 @@ func _ready() -> void:
 	menu.open_menu(&"character")
 	await get_tree().process_frame
 	await get_tree().process_frame
-	check(get_tree().paused, "quantity inputs operate while the character menu pauses gameplay")
+	check(menu.is_open and not get_tree().paused, "quantity inputs operate while the character menu is open (the game keeps running under it)")
 	for key in ["str", "int", "dex", "vit"]:
 		var input := menu.find_child("StatAmount_" + key, true, false) as LineEdit
 		check(input != null and input.virtual_keyboard_type == LineEdit.KEYBOARD_TYPE_NUMBER, "each stat offers the numeric phone keyboard")
