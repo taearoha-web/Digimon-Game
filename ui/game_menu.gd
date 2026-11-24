@@ -46,6 +46,8 @@ var stall_view := {}
 ## "เลือกหลายชิ้น": bag taps pick gear to sell together; the picked bag indices.
 var multi_sell := false
 var _multi_pick := {}
+## The open ใส่อัญมณี sheet (GemPicker), if any.
+var _gem_picker: GemPicker
 
 
 func _ready() -> void:
@@ -151,6 +153,9 @@ func close_menu() -> void:
 	_set_picks.clear()
 	stall_open = false
 	is_open = false
+	if _gem_picker != null and is_instance_valid(_gem_picker):
+		_gem_picker.queue_free()
+	_gem_picker = null
 	_build_gen += 1
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
@@ -572,6 +577,29 @@ func _build_inventory() -> void:
 	_refresh_detail()
 
 
+## The bag indices in the order the grid shows them: everything in its own place, but
+## the gems together where the first one lies, by type (ItemData.GEM_ORDER) then size
+## small to large, so a bag of many gems never reads as a jumble. Display only: the
+## bag itself (and every index in it) is unchanged.
+static func bag_order(inv: Array) -> Array[int]:
+	var gems: Array[int] = []
+	for i in inv.size():
+		if (inv[i] as Dictionary).get("kind", "") == "gem":
+			gems.append(i)
+	var first: int = gems[0] if not gems.is_empty() else -1
+	gems.sort_custom(func(a: int, b: int) -> bool:
+		var ka := ItemData.gem_sort_key(String(inv[a].id))
+		var kb := ItemData.gem_sort_key(String(inv[b].id))
+		return ka < kb or (ka == kb and a < b))
+	var out: Array[int] = []
+	for i in inv.size():
+		if (inv[i] as Dictionary).get("kind", "") != "gem":
+			out.append(i)
+		elif i == first:
+			out.append_array(gems)
+	return out
+
+
 ## The bag's item grid (the middle column of the inventory).
 func _build_bag_grid(middle: VBoxContainer) -> void:
 	var hint_row := UIUtil.hbox(8)
@@ -597,7 +625,9 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(grid)
-	for i in Game.bag_size():
+	var order := bag_order(Game.profile.inv)
+	for pos in Game.bag_size():
+		var i: int = order[pos] if pos < order.size() else pos
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(90, 92)
 		b.clip_text = true
@@ -1545,21 +1575,7 @@ func _build_forge_buttons(item: Dictionary) -> void:
 		spot.add_child(btn)
 	else:
 		_detail.add_child(UIUtil.label("ตีบวกสูงสุด +%d แล้ว" % ItemData.MAX_PLUS, &"DimLabel"))
-	var socketed: Array = item.get("gems", [])
-	for k in socketed.size():
-		var socket_index: int = k
-		var worn := ItemData.gem_info({"id": socketed[k]})
-		var take := UIUtil.button("ถอด %s ออก" % worn.name, &"", Vector2(0, 50))
-		take.add_theme_color_override("font_color", worn.color)
-		take.pressed.connect(func():
-			var result := Game.unsocket_gem(item, socket_index)
-			if result == "ok":
-				Game.say("ถอด%sแล้ว (เก็บเข้ากระเป๋า)" % worn.name, &"success")
-				AudioManager.play_sfx(&"pickup")
-			else:
-				Game.say(result, &"warning")
-			_rebuild())
-		_detail.add_child(take)
+	_build_gem_sockets(item, spot)
 	if EnhanceFx.can_enhance(item) and int(item.get("sockets", 0)) < ItemData.max_sockets(item):
 		var drill := UIUtil.button("เจาะช่องอัญมณีเพิ่ม (สว่านเจาะ 1 · มี %d)" % Game.jewel_count("drill"), &"", Vector2(0, 52))
 		drill.disabled = Game.jewel_count("drill") < 1
@@ -1572,21 +1588,63 @@ func _build_forge_buttons(item: Dictionary) -> void:
 				Game.say(result, &"warning")
 			_rebuild())
 		_detail.add_child(drill)
-	var free := int(item.get("sockets", 0)) - (item.get("gems", []) as Array).size()
-	if free > 0:
-		var seen := {}
-		for i in Game.profile.inv.size():
-			var gem: Dictionary = Game.profile.inv[i]
-			if gem.get("kind", "") == "gem" and not seen.has(gem.id):
-				seen[gem.id] = true
-				var info := ItemData.gem_info(gem)
-				var put := UIUtil.button("ใส่ %s ×%d" % [info.name, int(gem.count)], &"", Vector2(0, 50))
-				put.add_theme_color_override("font_color", info.color)
-				put.pressed.connect(func():
-					if Game.socket_gem(item, i):
-						Game.say("ใส่อัญมณีแล้ว", &"success")
-					_rebuild())
-				_detail.add_child(put)
+
+
+## The piece's sockets in the forge's side column: one chip per socket (the gem's icon,
+## or ว่าง) and "ใส่อัญมณี" opening the GemPicker sheet (gems by type, small to large;
+## taking out and the quick fills are there too).
+func _build_gem_sockets(item: Dictionary, spot: Control) -> void:
+	var sockets := int(item.get("sockets", 0))
+	if sockets <= 0:
+		return
+	var gems: Array = item.get("gems", [])
+	var row := UIUtil.hbox(6)
+	row.name = "GemSocketChips"
+	spot.add_child(row)
+	var head := UIUtil.label("ช่องอัญมณี %d/%d" % [gems.size(), sockets], &"BoldLabel")
+	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(head)
+	for k in sockets:
+		var chip := PanelContainer.new()
+		chip.custom_minimum_size = Vector2(40, 40)
+		var sb := StyleBoxFlat.new()
+		sb.set_corner_radius_all(10)
+		sb.set_border_width_all(2)
+		sb.content_margin_left = 3
+		sb.content_margin_right = 3
+		sb.content_margin_top = 3
+		sb.content_margin_bottom = 3
+		if k < gems.size():
+			var info := ItemData.gem_info({"id": gems[k]})
+			sb.bg_color = UIPalette.CARD.lerp(info.color, 0.22)
+			sb.border_color = info.color
+			chip.tooltip_text = "%s: %s" % [info.name, ItemData.gem_effect_text(info)]
+			chip.add_child(UIUtil.texture_rect(ItemLook.icon(ItemData.gem(info.type, info.size)), Vector2(32, 32)))
+		else:
+			sb.bg_color = Color(UIPalette.CARD, 0.5)
+			sb.border_color = Color(UIPalette.TEXT_MUTED, 0.6)
+			chip.tooltip_text = "ช่องว่าง"
+		chip.add_theme_stylebox_override("panel", sb)
+		row.add_child(chip)
+	var free := sockets - gems.size()
+	var open := UIUtil.button("ใส่อัญมณี (ว่าง %d ช่อง)" % free if free > 0 else "จัดการอัญมณี / ถอด", &"AccentButton" if free > 0 else &"", Vector2(0, 54))
+	open.name = "GemPickerOpen"
+	open.add_theme_font_size_override("font_size", 19)
+	open.pressed.connect(func(): _open_gem_picker(item))
+	spot.add_child(open)
+
+
+func _open_gem_picker(item: Dictionary) -> void:
+	if _gem_picker != null and is_instance_valid(_gem_picker):
+		_gem_picker.queue_free()
+	_gem_picker = GemPicker.open_for(_root, item)
+	_gem_picker.closed.connect(func():
+		_gem_picker = null
+		# Gems leaving the bag move the piece's index: keep it selected.
+		if _selected_slot == "":
+			_selected_index = Game.profile.inv.find(item)
+		if is_open:
+			_rebuild())
 
 
 func _use_potion(index: int) -> void:

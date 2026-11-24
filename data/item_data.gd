@@ -122,6 +122,9 @@ const GEMS := {
 }
 const STAT_GEMS: Array[String] = ["ruby", "emerald", "amethyst", "sapphire", "topaz"]
 const SPECIAL_GEMS: Array[String] = ["onyx", "pearl", "opal", "tourmaline"]
+## The order gems are listed in (the bag grid, the forge's ใส่อัญมณี picker): by the stat
+## they give, attack first (ATK, magic ATK, DEF, HP, crit), then the ability gems.
+const GEM_ORDER: Array[String] = ["ruby", "sapphire", "amethyst", "emerald", "topaz", "onyx", "pearl", "opal", "tourmaline"]
 const GEM_SIZES := ["เล็ก", "กลาง", "ใหญ่", "สมบูรณ์แบบ", "ตำนาน"]
 const GEM_MAX_SIZE := 4
 ## Fusing three gems of a size into the next: chance by the size fused from, and gold.
@@ -316,6 +319,18 @@ static func gem_info(item: Dictionary) -> Dictionary:
 	var size := clampi(int(bits[1]), 0, GEM_MAX_SIZE)
 	return {"name": "%s%s" % [base.name, GEM_SIZES[size]], "stat": base.stat, "value": base.values[size], "color": base.color,
 		"size": size, "type": bits[0], "special": bool(base.special)}
+
+
+## Where a gem id sorts in GEM_ORDER then by size (small first): type * 10 + size.
+static func gem_sort_key(gem_id: String) -> int:
+	var bits := gem_id.split("_")
+	var at := GEM_ORDER.find(bits[0])
+	return (at if at >= 0 else GEM_ORDER.size()) * 10 + (int(bits[1]) if bits.size() > 1 else 0)
+
+
+## "+3.5%": a gem's value as a share (no stat name).
+static func gem_value_text(info: Dictionary, scale := 1.0) -> String:
+	return "+%s%%" % String.num(float(info.value) * scale * 100.0, 1).trim_suffix(".0")
 
 
 ## "พลังโจมตี +3.5%" for a gem (every gem value is a share).
