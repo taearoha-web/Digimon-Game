@@ -577,26 +577,36 @@ func _build_inventory() -> void:
 	_refresh_detail()
 
 
-## The bag indices in the order the grid shows them: everything in its own place, but
-## the gems together where the first one lies, by type (ItemData.GEM_ORDER) then size
-## small to large, so a bag of many gems never reads as a jumble. Display only: the
-## bag itself (and every index in it) is unchanged.
+## The bag's groups in the grid, in this order (any other kind after them).
+const BAG_GROUPS := ["potion", "gem", "jewel", "costume", "equip"]
+
+
+## The bag indices in the order the grid shows them, tidy instead of pickup order:
+## potions (as in ItemData.POTIONS), gems by type (ItemData.GEM_ORDER) then size small
+## to large, jewels and materials, costumes, then gear; pickup order inside a group
+## otherwise. Display only: the bag itself (and every index in it: the selection,
+## multi-select, the stall) is unchanged.
 static func bag_order(inv: Array) -> Array[int]:
-	var gems: Array[int] = []
+	var keys := []
+	var potions: Array = ItemData.POTIONS.keys()
 	for i in inv.size():
-		if (inv[i] as Dictionary).get("kind", "") == "gem":
-			gems.append(i)
-	var first: int = gems[0] if not gems.is_empty() else -1
-	gems.sort_custom(func(a: int, b: int) -> bool:
-		var ka := ItemData.gem_sort_key(String(inv[a].id))
-		var kb := ItemData.gem_sort_key(String(inv[b].id))
-		return ka < kb or (ka == kb and a < b))
+		var it: Dictionary = inv[i]
+		var kind := String(it.get("kind", ""))
+		var group := BAG_GROUPS.find(kind)
+		var sub := 0
+		if kind == "gem":
+			sub = ItemData.gem_sort_key(String(it.get("id", "")))
+		elif kind == "potion":
+			sub = potions.find(String(it.get("id", "")))
+		keys.append([group if group >= 0 else BAG_GROUPS.size(), sub, i])
+	keys.sort_custom(func(a: Array, b: Array) -> bool:
+		for k in 3:
+			if int(a[k]) != int(b[k]):
+				return int(a[k]) < int(b[k])
+		return false)
 	var out: Array[int] = []
-	for i in inv.size():
-		if (inv[i] as Dictionary).get("kind", "") != "gem":
-			out.append(i)
-		elif i == first:
-			out.append_array(gems)
+	for key in keys:
+		out.append(int(key[2]))
 	return out
 
 

@@ -44,6 +44,8 @@ func _ready() -> void:
 		Game.add_item(ItemData.gem(g[0], g[1], g[2]))
 		if g[0] == "topaz":
 			Game.profile.inv.append(ItemData.generate(40, &"warrior", rng, 2, "armor"))
+			Game.add_item(ItemData.jewel("purple", 4))
+	Game.add_item(ItemData.potion("hp_s", 20))
 
 	# --- Order: rows by type in GEM_ORDER, sizes small to large ---
 	var rows := GemPicker.rows(Game.profile.inv)
@@ -64,7 +66,18 @@ func _ready() -> void:
 	for i in order:
 		seen[i] = true
 	check(seen.size() == order.size(), "no bag index twice")
-	check(order[0] == 0, "the sword (first) stays first")
+	# Groups: potions, gems, jewels, costumes, gear (pickup order inside gear).
+	var kinds: Array = []
+	for i in order:
+		var kind := String(Game.profile.inv[i].get("kind", ""))
+		if kinds.is_empty() or kinds[kinds.size() - 1] != kind:
+			kinds.append(kind)
+	check(kinds == ["potion", "gem", "jewel", "equip"], "the grid groups potions, gems, jewels, then gear (%s)" % [kinds])
+	var gear_at: Array = []
+	for i in order:
+		if Game.profile.inv[i].get("kind", "") == "equip":
+			gear_at.append(i)
+	check(gear_at.size() == 2 and int(gear_at[0]) == 0 and int(gear_at[1]) > 0, "gear keeps its pickup order")
 	var gem_ids: Array[String] = []
 	var gem_run := []
 	for pos in order.size():
