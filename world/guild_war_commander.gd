@@ -79,6 +79,12 @@ const LEADER_GAP := 3.5
 const FRONT_SHARE := 0.25
 const FRONT_MIN := 2
 const LEADER_REACH := 7.0
+## A leader with LEADER_DOMINANT times the power (GuildWarData.power_of) of the strongest
+## fighter of every other guild fights what comes within LEADER_STRONG_REACH of its post
+## and steps up to LEADER_STRONG_SLACK off it (still at its post behind the front).
+const LEADER_DOMINANT := 2.0
+const LEADER_STRONG_REACH := 13.0
+const LEADER_STRONG_SLACK := 9.0
 const LEADER_HURT := 0.5
 const LEADER_HURT_BACK := 7.0
 ## Out of the altar fight the leader falls back to heal under LEADER_RETREAT of its HP (a
@@ -848,6 +854,19 @@ func _side() -> Array[GuildFighter]:
 	return war.side(team)
 
 
+## Whether the AI leader `lead` is LEADER_DOMINANT times as strong as the strongest
+## fighter of every other guild (the hero counted when it fights for one).
+func leader_dominant(lead: GuildFighter) -> bool:
+	if lead == null:
+		return false
+	var best := 1.0
+	for f in _foes():
+		best = maxf(best, f.power)
+	if team != GuildFighter.TEAM_ALLY and is_instance_valid(war.hero) and not war.hero.get("spectating"):
+		best = maxf(best, GuildWarData.hero_power())
+	return lead.power >= LEADER_DOMINANT * best
+
+
 func _foes() -> Array[GuildFighter]:
 	return war.foes_of(team)
 
@@ -1197,7 +1216,12 @@ func _apply_tactic() -> void:
 			f.objective = target_gate() if tactic == PUSH else null
 			f.keep_back = true
 			f.keep_front = SiegeArena.ALTAR if assault and not leader_covering else Vector3.INF
-			f.hold_range = LEADER_REACH
+			# A leader far stronger than anyone of the other guilds (the player's own
+			# top character, say) is not wasted at the rear: it holds the same post but
+			# fights everything that comes within LEADER_STRONG_REACH of it.
+			var strong := leader_dominant(f)
+			f.hold_range = LEADER_STRONG_REACH if strong else LEADER_REACH
+			f.keep_slack = LEADER_STRONG_SLACK if strong else GuildFighter.KEEP_SLACK
 			f.goal_point = leader_post
 			continue
 		if guarded_post and f == bodyguard:
