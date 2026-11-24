@@ -198,7 +198,7 @@ static func _glow_material(color: Color, level: int) -> ShaderMaterial:
 	m.set_shader_parameter("rim_power", [2.4, 2.2, 1.8, 2.0, 1.9][level])
 	m.set_shader_parameter("breath", [0.0, 0.25, 0.3, 0.28, 0.25][level])
 	m.set_shader_parameter("speed", [0.0, 1.4, 1.8, 2.2, 2.6][level])
-	m.set_shader_parameter("shimmer", [0.0, 0.0, 0.0, 0.45, 0.7][level])
+	m.set_shader_parameter("shimmer", [0.0, 0.55, 0.8, 1.0, 1.25][level])
 	MaterialKeeper.keep(m)
 	_glow_cache[key] = m
 	return m

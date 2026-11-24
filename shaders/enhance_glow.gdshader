@@ -16,9 +16,10 @@ void fragment() {
 	float rim = pow(1.0 - facing, 2.0);
 	float breathe = 0.84 + 0.16 * sin(TIME * 1.6 + phase);
 	vec3 world = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float sweep = smoothstep(0.82, 1.0, sin(world.y * 4.0 - TIME * 1.5 + phase));
+	// A band of light running over the whole piece (feet to head), from +7 on.
+	float sweep = pow(0.5 + 0.5 * sin(world.y * 3.6 - TIME * 3.2 + phase), 10.0);
 	float s = clamp(strength, 0.0, 1.0);
-	float light = s * (0.18 + 1.3 * rim + 0.4 * s * sweep) * breathe;
+	float light = s * (0.18 + 1.3 * rim + 1.4 * sweep) * breathe;
 	vec3 tone = mix(color.rgb, vec3(1.0), 0.18 * rim * s);
 	ALBEDO = tone * light * 1.15;
 	ALPHA = clamp(light * 0.7, 0.0, 0.85);

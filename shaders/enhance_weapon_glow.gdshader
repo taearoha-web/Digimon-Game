@@ -25,7 +25,8 @@ void fragment() {
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float f = pow(1.0 - facing, rim_power);
 	float b = 1.0 + breath * sin(TIME * speed);
-	float band = shimmer * pow(0.5 + 0.5 * sin(along * 9.0 - TIME * 2.6), 10.0);
+	// Bands of light running the length of the weapon (from +7; brighter each step).
+	float band = shimmer * pow(0.5 + 0.5 * sin(along * 6.0 - TIME * 3.4), 8.0);
 	ALBEDO = tint * (fill + rim * f + band * (0.35 + f)) * b;
 	ALPHA = 1.0;
 }

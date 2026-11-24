@@ -140,7 +140,12 @@ void fragment() {
 		float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 		float rim = pow(1.0 - facing, 2.0);
 		float g = enhance_glow * mask * (0.2 + 1.3 * rim) * (0.84 + 0.16 * sin(TIME * 1.6));
-		ALBEDO = mix(ALBEDO, enhance_color.rgb, clamp(g * 0.5, 0.0, 0.65));
-		EMISSION += enhance_color.rgb * g;
+		// Waves of light running up the whole outfit, feet to head (two bands in flight);
+		// never over the face, the hair or the skin.
+		float h = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y - MODEL_MATRIX[3].y;
+		float wave = pow(0.5 + 0.5 * sin(h * 3.6 - TIME * 3.2), 10.0);
+		float w = enhance_glow * wave * mask * (0.6 + 0.8 * rim);
+		ALBEDO = mix(ALBEDO, enhance_color.rgb, clamp(g * 0.5 + w * 0.35, 0.0, 0.7));
+		EMISSION += enhance_color.rgb * (g + w * 1.6);
 	}
 }
