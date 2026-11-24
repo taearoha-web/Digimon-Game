@@ -85,7 +85,7 @@ const QUESTS := {
 		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_dreadknights"},
 	"eclipse_dreadknights": {"name": "ขุนพลเกราะคราส", "desc": "ขุนพลเกราะคราสคุ้มกันราชันสุริยคราส ล้มพวกมันให้หมด", "target": "eclipse_dreadknight", "count": 5, "level": 100, "star": 175,
 		"items": [["hp_xxl", 10], ["mp_xxl", 10]], "zone": "eclipse_realm", "next": "eclipse_sovereign"},
-	"eclipse_sovereign": {"name": "น็อกซ์ออเรล ราชันสุริยคราส", "desc": "ราชันสุริยคราสจะปรากฏต่อผู้มีดาว 200 เท่านั้น ปราบมันเพื่อนำแสงกลับคืนสู่โลก", "target": "eclipse_sovereign", "count": 1, "level": 100, "star": 200,
+	"eclipse_sovereign": {"name": "น็อกซ์ออเรล ราชันสุริยคราส", "desc": "ราชันสุริยคราสครองบัลลังก์กลางอาณาจักร ปราบมันเพื่อนำแสงกลับคืนสู่โลก (รับภารกิจได้ที่ดาว 200)", "target": "eclipse_sovereign", "count": 1, "level": 100, "star": 200,
 		"items": [["hp_xxl", 20], ["mp_xxl", 20]], "star_gear": 200, "zone": "eclipse_realm", "next": "lotus_monks"},
 	"lotus_monks": {"name": "นักพรตวานรหยก", "desc": "นักพรตวานรหยกขวางทางเข้าวิหารบัวดารา พิสูจน์ฝีมือให้พวกมันเห็น (ที่นี่และห้วงสมุทรอสูรดรอปชุดประจำอาชีพ แก่นเทพ และเกล็ดบัวดารา: ตีชุดประจำอาชีพถึง +10 แล้วนำไปผสมชุดเซต 250 ดาว)", "target": "jade_monk", "count": 15, "level": 100, "star": 200,
 		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_guardians"},

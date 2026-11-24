@@ -641,9 +641,9 @@ func _build_star_field() -> void:
 			plaque.pixel_size = 0.005
 			plaque.visibility_range_end = 32
 			add_child(plaque)
-	if int(data.boss.get("star",0)) == 200:
+	if int(data.boss.get("star",0)) == 200 or zone_id == &"eclipse_realm":
 		var label := Label3D.new()
-		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว 200"
+		label.text = ("ลานบัลลังก์ราชันสมุทร • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว" if deep else "วิหารบัวดารา • ดาว 200-300 • ดรอปชุดประจำอาชีพ แก่นเทพ เกล็ดบัว") if deep or divine else "บัลลังก์สุริยคราส • ดาว %d" % int(data.boss.get("star", 0))
 		label.position = _boss_spot + Vector3(0,4,0)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.font_size = 48

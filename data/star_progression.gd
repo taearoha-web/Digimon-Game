@@ -29,7 +29,7 @@ static func zones() -> Dictionary:
 		result[id] = {"name":TITLES[i],"scene":"field","theme":id,"star_region":true,"star":ENTRY[i],"gear_star":TIERS[i],
 			"level":[100,100],"music":id,"sky":skies[i],"ground":Color("79a28b"),
 			"fog":skies[i].lightened(0.15),"ambient":Color("c6d6f0"),"sun":Color("fff0ce"),"camps":camps,
-			"boss":{"monster":monsters[6],"level":110+i*15,"respawn":110.0,"star":200 if i==3 else ENTRY[i]},
+			"boss":{"monster":monsters[6],"level":110+i*15,"respawn":110.0,"star":ENTRY[i]},
 			"prev":&"void" if i==0 else REGIONS[i-1],"next":REGIONS[i+1] if i<3 else &"","ambience":&"water" if i==0 else &"wind"}
 	return result
 

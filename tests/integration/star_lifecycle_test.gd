@@ -21,10 +21,10 @@ func _ready()->void:
 	var f:=FileAccess.open("/workspace/toon-artifacts/star-expansion/catalog.json",FileAccess.WRITE)
 	if f!=null:
 		f.store_string(JSON.stringify(catalog,"  "));f.close()
-	profile(&"warrior");Game.paragon().level=199
+	profile(&"warrior");Game.paragon().level=StarProgression.ENTRY[3]-1
 	var zone:=Zone.new();zone.zone_id=&"eclipse_realm";add_child(zone);zone.set_process(false)
 	zone._boss_timer=0;zone._tick_boss(1)
-	check(not is_instance_valid(zone._boss),"final boss gated below star 200")
+	check(not is_instance_valid(zone._boss),"final boss gated below the region's entry star (like every field boss)")
 	Game.paragon().level=200;zone._tick_boss(1)
 	check(is_instance_valid(zone._boss),"final boss appears at star 200")
 	zone._boss.set_physics_process(false);zone.hero.set_physics_process(false)
