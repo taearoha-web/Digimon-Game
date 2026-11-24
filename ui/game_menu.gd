@@ -963,10 +963,14 @@ func _refresh_detail() -> void:
 		var info := ItemData.gem_info(item)
 		if info.size < ItemData.GEM_MAX_SIZE:
 			var gem_id := String(item.id)
-			var fuse := UIUtil.button("รวม 3 เม็ด → %s (%d%% · %d เหรียญ)" % [ItemData.GEM_SIZES[info.size + 1], int(float(ItemData.GEM_FUSE_CHANCE[info.size]) * 100.0), int(ItemData.GEM_FUSE_GOLD[info.size])], &"PrimaryButton", Vector2(0, 58))
+			# Two fixed lines (never autowrap: a wrapping Button asks for the column's whole
+			# height on a phone and hid every other button under it).
+			var fuse := UIUtil.button("รวม 3 → %s\n%d%% · %d เหรียญ" % [ItemData.GEM_SIZES[info.size + 1], int(float(ItemData.GEM_FUSE_CHANCE[info.size]) * 100.0), int(ItemData.GEM_FUSE_GOLD[info.size])], &"PrimaryButton", Vector2(0, 66))
+			fuse.name = "FuseOne"
 			fuse.disabled = int(item.get("count", 1)) < 3
-			# Two lines on a phone-narrow side column rather than pushing it wider.
-			fuse.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			fuse.clip_text = true
+			fuse.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			fuse.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			fuse.add_theme_font_size_override("font_size", 18)
 			fuse.pressed.connect(func():
 				var result := Game.fuse_gem(gem_id)
