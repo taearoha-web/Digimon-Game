@@ -4598,6 +4598,8 @@ func alt_war_fighter(for_slot: int) -> Dictionary:
 		"tag": "%s · %s" % [WorldPlayers.level_text(s), ALT_WAR_TAG],
 		"power": GuildWarData.power_of(HeroStats.compute(sheet)),
 		"alt": for_slot,
+		# Played as the save plays (Rival.faithful): skill ranks, haste, its own buffs.
+		"faithful": true,
 	}
 
 

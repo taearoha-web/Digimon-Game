@@ -74,6 +74,22 @@ var _rshred := 0.0
 var _rshred_until := 0.0
 var _rweaken := 0.0
 var _rweaken_until := 0.0
+## Played as its save really plays (the player's own other character in a guild war,
+## Game.alt_war_fighter "faithful"): its skills at their star ranks (SkillRank: damage,
+## area, cooldown, MP, buff strength), DEX haste on its swings, cooldowns and wind-ups,
+## its onyx crit damage and cooldown gems, every buff skill it knows (star buffs too) at
+## full length, its buffs stacking and its crit and guard buffs counting like the hero's
+## (Hero.refresh_stats / BuffBook.stack, BuffBook.absorb). Off for every other AI (their
+## sheets and the war's balance stay as they were).
+var faithful := false
+## Off: every fighter plays as an ordinary AI (the measurement's baseline).
+static var faithful_on := true
+## Faithful: crit chance its running buffs add (BuffBook.stack of their "crit").
+var _buff_crit := 0.0
+## What this fighter has dealt to players (HP taken off fighters and the hero) and cast, by skill id: the
+## results and the measurements (tests/tools/alt_war_probe.gd).
+var dealt := 0
+var casts := {}
 
 
 func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: String) -> void:
@@ -82,9 +98,15 @@ func setup_rival(info: Dictionary, p_home: Vector3, p_hero: Node3D, title: Strin
 	_equip = _profile.equip
 	_look = info.look
 	difficulty = float(info.difficulty)
+	faithful = faithful_on and bool(info.get("faithful", false))
+	if faithful:
+		# The player's own character: none of the AI's slips (missed casts, slack swings).
+		difficulty = 1.0
 	class_data = JobData.resolve(StringName(member["class"]), int(_profile.adv))
 	var base := HeroStats.compute(_profile)
 	_buff_kit = ClassData.ai_buff_kit(StringName(member["class"]), int(_profile.get("level", member.get("level", 1))), String(member.get("name", "")))
+	if faithful:
+		_buff_kit = _own_buff_kit()
 	var mults: Dictionary = info.mults
 	rstats = base
 	rstats["max_hp"] = int(float(base.max_hp) * float(mults.hp))
@@ -158,6 +180,66 @@ func _dismiss_summons() -> void:
 ## Stars of this fighter (star skills need them, like for the hero).
 func _stars() -> int:
 	return int(_profile.get("paragon", {}).get("level", 0))
+
+
+## Faithful: every buff skill of its class it knows by level, job and stars (star buffs
+## too), as the player brings them; an ordinary AI brings ClassData.ai_buff_kit's two.
+func _own_buff_kit() -> Array:
+	var out: Array = []
+	for skill in class_data.get("skills", []):
+		if ClassData.is_buff_skill(skill) and ClassData.knows(skill, int(member.get("level", 1)), 1 + int(_profile.get("adv", 0)), _stars()):
+			out.append(ClassData.rank_id(skill))
+	return out
+
+
+## The star rank of `skill` in its save (1 for an ordinary AI: its skills as authored).
+func skill_rank(skill: Dictionary) -> int:
+	if not faithful:
+		return 1
+	return clampi(int((_profile.get("skills", {}) as Dictionary).get(ClassData.rank_id(skill), 1)), 1, SkillRank.MAX)
+
+
+## Share of time DEX (and its haste stars) cut from swings, cooldowns and wind-ups
+## (Hero._haste); 0 for an ordinary AI.
+func haste() -> float:
+	return float(rstats.get("haste", 0.0)) if faithful else 0.0
+
+
+## The skill as it casts: grown by its star rank (area, targets, buffs, control).
+func _ranked(skill: Dictionary) -> Dictionary:
+	return SkillRank.scaled(skill, skill_rank(skill)) if faithful else skill
+
+
+## A skill's MP cost and cooldown: by its star rank, haste and cooldown gems for a
+## faithful fighter (Hero.mp_cost / cooldown_of), else as authored with the AI's slack.
+func skill_mp(skill: Dictionary) -> float:
+	return float(SkillRank.mp(skill, skill_rank(skill))) if faithful else float(skill.mp)
+
+
+func skill_cd(skill: Dictionary) -> float:
+	if faithful:
+		return SkillRank.cooldown(skill, skill_rank(skill)) * (1.0 - haste()) * (1.0 - float(rstats.get("cdr", 0.0)))
+	return float(skill.cd) * lerpf(1.7, 1.05, difficulty)
+
+
+## Wings or a cape on (a skill marked requires_wings needs them, as for the hero).
+func has_wings() -> bool:
+	return _equip.get("wings") is Dictionary and not (_equip.wings as Dictionary).is_empty()
+
+
+## Faithful: its running buffs counted like the hero's (BuffBook.stack per stat: the
+## strongest whole and a quarter of the rest), not only the strongest one.
+func _restack_buffs() -> void:
+	var now := Time.get_ticks_msec()
+	var vals := {"atk": [], "def": [], "crit": []}
+	for entry in _buff_art.buffs:
+		if int(entry.get("until", 0)) > now:
+			for key in vals:
+				(vals[key] as Array).append(float(entry.get(key, 0.0)))
+	_atk_boost = 1.0 + BuffBook.stack(vals.atk)
+	_def_boost = 1.0 + BuffBook.stack(vals.def)
+	_buff_crit = BuffBook.stack(vals.crit)
+	_sync_def()
 
 
 ## Enemy fighters' creatures are monsters (SummonMob); a GuildFighter of our guild calls allies.
@@ -414,6 +496,8 @@ func _tick(delta: float) -> void:
 		ClassRoles.regen(self, _role_time)
 		_role_time = 0.0
 		_cd_rate = ClassRoles.cd_rate(self)
+		if faithful:
+			_restack_buffs()
 	_cd_owed += delta * _cd_rate
 	if _cd_owed >= CD_STEP:
 		_flush_cooldowns()
@@ -477,13 +561,13 @@ func _try_skill(target: Node3D, distance: float) -> bool:
 		_usable_key = key
 		_usable = []
 		for skill in class_data.skills:
-			if ClassData.ai_allows(skill, _buff_kit) and ClassData.knows(skill, level, _tier(), _stars()):
+			if ClassData.ai_allows(skill, _buff_kit) and ClassData.knows(skill, level, _tier(), _stars()) and (has_wings() or not bool(skill.get("requires_wings", false))):
 				_usable.append(skill)
 	for skill in _usable:
 		var shape := String(skill.shape)
-		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < skill_mp(skill):
 			continue
-		var score := _score(skill, shape, distance, hp_ratio)
+		var score := _score(_ranked(skill), shape, distance, hp_ratio)
 		# Lower ranks miss chances to cast.
 		if score > 0.0 and randf() > lerpf(0.55, 1.0, difficulty):
 			continue
@@ -541,11 +625,13 @@ func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: f
 
 func _cast(skill: Dictionary, target: Node3D) -> void:
 	_flush_cooldowns()
-	mp -= float(skill.mp)
-	cooldowns[skill.id] = float(skill.cd) * lerpf(1.7, 1.05, difficulty)
+	mp -= skill_mp(skill)
+	cooldowns[skill.id] = skill_cd(skill)
+	casts[String(skill.id)] = int(casts.get(String(skill.id), 0)) + 1
+	skill = _ranked(skill)
 	var shape := String(skill.shape)
 	var color: Color = skill.color
-	var delay := float(skill.hit_delay)
+	var delay := float(skill.hit_delay) * (1.0 - haste())
 	# Area attacks warn the target first; sharper rivals warn for less time.
 	if shape in ["burst", "blast"]:
 		delay = maxf(delay, lerpf(1.25, 0.65, difficulty))
@@ -585,8 +671,8 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 
 func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	var color: Color = skill.color
-	# Skills hit with the same SKILL_POWER as the hero's own.
-	var mult := float(skill.get("mult", 0.0)) * HeroStats.SKILL_POWER
+	# Skills hit with the same SKILL_POWER as the hero's own (and its star rank's power).
+	var mult := float(skill.get("mult", 0.0)) * HeroStats.SKILL_POWER * SkillRank.power(skill_rank(skill))
 	var field := get_parent()
 	var shape := String(skill.shape)
 	var fx: Dictionary = skill.get("fx", {})
@@ -617,9 +703,11 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_def_boost = maxf(_def_boost, 1.0 + float(buff.get("def", 0.0)))
 				_sync_def()
 				_raise_hp(float(buff.get("hp", 0.0)))
-				_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + minf(float(buff.get("secs", 20.0)), 30.0))
+				# An ordinary AI's buff lasts at most 30 s; a faithful fighter's its full time.
+				var secs := float(buff.get("secs", 20.0)) if faithful else minf(float(buff.get("secs", 20.0)), 30.0)
+				_buff_until = maxf(_buff_until, GameClock.msec() * 0.001 + secs)
 				var display_buff := buff.duplicate()
-				display_buff.secs = minf(float(buff.get("secs", 20.0)), 30.0)
+				display_buff.secs = secs
 				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id), BuffBook.own_limit(member.get("class", "")))
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
@@ -664,8 +752,8 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	# The party's roles (ClassRoles); ทะลวงเกราะ is applied where the victim takes the blow.
 	raw *= ClassRoles.outgoing(self, victim)
 	raw *= MuayThai.finisher(self, fx)
-	if randf() < float(rstats.crit) + ClassRoles.crit_bonus(self):
-		raw *= HeroStats.CRIT_DAMAGE
+	if randf() < float(rstats.crit) + ClassRoles.crit_bonus(self) + _buff_crit:
+		raw *= HeroStats.CRIT_DAMAGE + (float(rstats.get("crit_dmg", 0.0)) if faithful else 0.0)
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
 	# With the war scale on, the hero is protected like every fighter: no single hit or combo
 	# takes more than BurstGuard allows, however many enemies strike at once.
@@ -677,6 +765,8 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 			raw *= float(allowed) / float(amount)
 	var hp_before := _hp_of(victim)
 	Mob.strike(victim, raw, self)
+	if victim is Rival or victim is Hero:
+		dealt += maxi(0, hp_before - _hp_of(victim))
 	ClassRoles.after_hit(self, victim, hp_before - _hp_of(victim))
 	# The Muay Thai fighter: extra combo, and its kick throws a fighter (or the hero leading
 	# a guild onto the altar) back (MuayThai.kick).
@@ -717,7 +807,7 @@ func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName, fx :=
 
 func _basic_attack(target: Node3D) -> void:
 	var attack: Dictionary = class_data.attack
-	_attack_timer = float(attack.interval) * lerpf(1.6, 1.0, difficulty)
+	_attack_timer = float(attack.interval) * ((1.0 - haste()) if faithful else lerpf(1.6, 1.0, difficulty))
 	var anims: Array = attack.anims
 	var clip: String = anims[_combo % anims.size()]
 	_combo += 1

@@ -766,6 +766,9 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	var now := GameClock.msec() * 0.001
 	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
 	amount = ClassRoles.guard(self, amount)
+	# The player's own character: its guard and shield buffs work as the hero's do.
+	if faithful:
+		amount = maxi(1, BuffBook.absorb(_buff_art.buffs, amount))
 	# Nobody is deleted by one hit or one combo, however many enemies pile on.
 	amount = BurstGuard.take(get_instance_id(), amount, max_hp)
 	dbg.recv += 1
@@ -964,13 +967,16 @@ func _chase_on(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 ## The leader at its post behind its guild: back to it when it strayed (unless the target
 ## is on it), else it fights from there without stepping more than KEEP_SLACK off it.
 const KEEP_SLACK := 3.5
+## How far off its post the leader may step to fight (GuildWarCommander: KEEP_SLACK, more
+## for a leader far stronger than anyone of the other guilds, LEADER_STRONG_SLACK).
+var keep_slack := KEEP_SLACK
 
 
 func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 	var reach := float(class_data.attack.range) * 0.85 + (float(target.call("body_radius")) if target.has_method("body_radius") else 0.0)
 	var in_reach := _flat_distance(target.global_position) <= reach + 0.4
 	var ahead := _ahead_of_post(global_position)
-	if (_flat_distance(goal_point) > KEEP_SLACK and not in_reach) or ahead > 1.0:
+	if (_flat_distance(goal_point) > keep_slack and not in_reach) or ahead > 1.0:
 		return _run_to(SiegeArena.route(global_position, goal_point), delta)
 	var way := SiegeArena.route(global_position, target.global_position)
 	if _flat_distance_from(way, target.global_position) > 0.5 and not in_reach:
@@ -978,7 +984,7 @@ func _hold_post(target: Node3D, delta: float, speed_factor: float) -> Vector3:
 		_tick(delta)
 		return Vector3.ZERO
 	var step := super._chase(target, delta, speed_factor)
-	if step != Vector3.ZERO and (_flat_distance_from(global_position + step * 0.35, goal_point) > KEEP_SLACK + 0.5 or _ahead_of_post(global_position + step * 0.35) > 0.5):
+	if step != Vector3.ZERO and (_flat_distance_from(global_position + step * 0.35, goal_point) > keep_slack + 0.5 or _ahead_of_post(global_position + step * 0.35) > 0.5):
 		if _attack_timer <= 0.0 and GameClock.msec() >= _cast_until and in_reach:
 			_basic_attack(target)
 		return Vector3.ZERO
@@ -1026,7 +1032,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 	var shape := String(skill.shape)
 	if shape in ["burst", "blast"] and is_instance_valid(target):
 		var at := target.global_position if shape == "blast" else global_position
-		var wait := maxf(float(skill.hit_delay), lerpf(1.25, 0.65, difficulty))
+		var wait := maxf(float(skill.hit_delay) * (1.0 - haste()), lerpf(1.25, 0.65, difficulty))
 		_dangers.append({"center": Vector3(at.x, 0.0, at.z), "radius": float(skill.radius), "until": GameClock.msec() + int(wait * 1000.0) + 250, "team": team})
 		if _dangers.size() > 40:
 			_dangers = _dangers.filter(func(d): return GameClock.msec() <= int(d.until))
@@ -1063,7 +1069,7 @@ func order_summon() -> String:
 	var wait := float(cooldowns.get(skill.id, 0.0))
 	if wait > 0.0:
 		return "พร้อมในอีก %d วินาที" % ceili(wait)
-	if mp < float(skill.mp):
+	if mp < skill_mp(skill):
 		return "มานาไม่พอ"
 	_summon_to_hero = true
 	_cast(skill, self)
@@ -1235,7 +1241,7 @@ func _support_idle(delta: float) -> bool:
 		var fx: Dictionary = skill.get("fx", {})
 		if String(skill.shape) != "self" or not fx.has("heal") or fx.has("recall") or not _knows(skill):
 			continue
-		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < skill_mp(skill):
 			continue
 		_cast(skill, self)
 		return true
@@ -1349,7 +1355,7 @@ func cast_team_buffs() -> int:
 			continue
 		if not (fx.get("buff") is Dictionary or (fx.has("heal") and hurt)):
 			continue
-		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < float(skill.mp):
+		if float(cooldowns.get(skill.id, 0.0)) > 0.0 or mp < skill_mp(skill):
 			continue
 		_cast(skill, self)
 		cast += 1
