@@ -173,8 +173,22 @@ func _alt_of(side: Array, slot: int) -> GuildFighter:
 
 ## A league round: each character fights for its own guild, the rival one against the hero.
 func _league_war() -> void:
+	# The party screen offers the player's own character in the guild, and picking it puts
+	# it in the hero's party in the war.
+	var mates := GuildWarScreen.war_mates(WorldPlayers.ALPHA, _t())
+	var mine := mates.filter(func(c): return String(c.name) == ALLY_NAME)
+	check(mine.size() == 1 and int(mine[0].get("alt", 0)) == ALLY_SLOT, "the party screen offers the player's own character (%s)" % [mine])
+	check(mates.filter(func(c): return String(c.name) == RIVAL_NAME).is_empty(), "never one in another guild")
+	Game.guildwar_party_picks = PackedStringArray([ALLY_NAME])
+	Game.guildwar_party_chosen = true
 	var zone := _open_war()
 	var m: GuildWarMatch = zone.gw_match
+	if m != null:
+		var at := -1
+		for i in m.roster.ally.size():
+			if String(m.roster.ally[i].member.name) == ALLY_NAME:
+				at = i
+		check(at >= 0 and m.party_picks.has(at), "picked, the player's character is in the hero's party (%d in %s)" % [at, m.party_picks])
 	check(m != null and bool(m.roster.get("guilds", false)), "a league war between Alpha and Neverdie")
 	if m == null:
 		return

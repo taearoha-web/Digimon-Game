@@ -506,6 +506,16 @@ static func war_mates(guild: int, t: float) -> Array[Dictionary]:
 		var st := WorldPlayers.state(i, t)
 		out.append({"name": String(st.name), "class": StringName(st["class"]), "level_text": WorldPlayers.level_text(st), "online": bool(st.online),
 			"level": int(st.level), "stars": int(st.stars), "rank": int(st.level) * 1000 + int(st.stars)})
+	# The player's own other characters in this guild (the other save slots, Lv.100 and
+	# in the guild): they fight in every war as AI (GuildWarMatch.put_alt), so they can be
+	# picked into the hero's party like any guild mate.
+	for alt in Game.guild_alts(guild):
+		if out.any(func(c): return String(c.name) == String(alt.name)):
+			continue
+		var lv := int(alt.get("level", 1))
+		var st := int(alt.get("stars", 0))
+		out.append({"name": String(alt.name), "class": StringName(alt["class"]), "level_text": WorldPlayers.level_text({"level": lv, "stars": st}), "online": false,
+			"level": lv, "stars": st, "rank": lv * 1000 + st, "alt": int(alt.slot)})
 	# Class by class (archers, then priests, ...), each strongest first.
 	GuildScreen.sort_members(out, "class")
 	return out
@@ -792,7 +802,9 @@ func _mate_row(c: Dictionary) -> Control:
 	line.offset_right = -10
 	row.add_child(line)
 	line.add_child(_badge(StringName(c["class"]), 32.0))
-	var who := UIUtil.label("%s %s" % ["●" if bool(c.online) else "○", c.name], &"BoldLabel")
+	var who := UIUtil.label(("★ %s (ตัวละครของคุณ)" % c.name) if int(c.get("alt", 0)) > 0 else "%s %s" % ["●" if bool(c.online) else "○", c.name], &"BoldLabel")
+	if int(c.get("alt", 0)) > 0:
+		who.add_theme_color_override("font_color", PICK_COLOR.lerp(Color.WHITE, 0.2))
 	who.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	who.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
