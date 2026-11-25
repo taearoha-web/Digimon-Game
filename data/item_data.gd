@@ -698,6 +698,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		if slot in ["armor", "helm", "boots"] and plus >= EnhanceFx.BODY_FROM:
 			look += " · ทั้งชุด +%d: %s" % [plus, EnhanceFx.look_name(plus)]
 		lines.append("ตีบวก +%d (ค่าพลังเพิ่ม %d%%) · %s" % [plus, int(round(plus * HeroStats.PLUS_BONUS * 100.0)), look])
+	if String(item.get("slot", "")) in HeroStats.OUTFIT_SLOTS:
+		lines.append("ชุดครบ เกราะ+หมวก+รองเท้า: +10 ป้องกัน/HP +10% · +11 15% · +12 20% · +13 25% · +14 30% · +15 50% (นับจาก + ต่ำสุดของ 3 ชิ้น)")
 	var sockets := int(item.get("sockets", 0))
 	var gems: Array = item.get("gems", [])
 	var ring := 1.0 + GEM_RESONANCE if resonates(item) else 1.0

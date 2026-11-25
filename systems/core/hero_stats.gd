@@ -50,6 +50,27 @@ static func star_need(star: int) -> int:
 	return int(float(exp_to_next(100)) * STAR_EXP * (1.0 + growth))
 
 
+## The whole outfit enhanced (the owner's rule): when the armour, the helm and the boots
+## are all at +N or more (the lowest of the three counts), DEF and max HP grow by
+## OUTFIT_PLUS_BONUS[N]: +10 10%, +11 15%, +12 20%, +13 25%, +14 30%, +15 50%.
+const OUTFIT_SLOTS: Array[String] = ["armor", "helm", "boots"]
+const OUTFIT_PLUS_BONUS := {10: 0.10, 11: 0.15, 12: 0.20, 13: 0.25, 14: 0.30, 15: 0.50}
+
+
+## The lowest + among the armour, the helm and the boots (0 when one is missing).
+static func outfit_plus(equip: Dictionary) -> int:
+	var low := 1 << 20
+	for slot in OUTFIT_SLOTS:
+		var item: Variant = equip.get(slot)
+		low = mini(low, int((item as Dictionary).get("plus", 0)) if item is Dictionary else 0)
+	return low
+
+
+## The DEF / max HP share the outfit's + gives (0 below +10).
+static func outfit_bonus(equip: Dictionary) -> float:
+	return float(OUTFIT_PLUS_BONUS.get(mini(outfit_plus(equip), 15), 0.0))
+
+
 ## Attributes = class base + automatic growth per level + points the player spent.
 static func attributes(profile: Dictionary) -> Dictionary:
 	var data := ClassData.get_class_data(StringName(profile["class"]))
@@ -173,6 +194,9 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var ride := mount_bonus(profile)
 	atk *= 1.0 + float(ride.get("atk", 0.0))
 	def *= 1.0 + float(ride.get("def", 0.0))
+	# The whole outfit enhanced (armour, helm and boots all at +10 or more): DEF and max HP.
+	var outfit := outfit_bonus(profile.get("equip", {}) as Dictionary)
+	def *= 1.0 + outfit
 	var set_bonus := SetGearData.bonus(int(gear.get("set_gear", 0)))
 	atk *= 1.0 + float(set_bonus.get("atk", 0.0))
 	def *= 1.0 + float(set_bonus.get("def", 0.0))
@@ -192,7 +216,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"attrs": attrs,
 		"hit_heal": float(passive.hit_heal),
 		"combo_secs": float(passive.combo),
-		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0))) * (1.0 + float(buffs.get("hp", 0.0))) * aura),
+		"max_hp": int(((40.0 + attrs.vit * 5.0 + level * 8.0) * float(data.hp_mult) * (1.0 + float(passive.hp)) * (1.0 + 0.008 * float(para.get("hp", 0))) + float(gear.hp)) * (1.0 + float(gems.get("hp", 0.0))) * (1.0 + float(ride.get("hp", 0.0))) * (1.0 + float(set_bonus.get("hp", 0.0))) * (1.0 + outfit) * (1.0 + float(buffs.get("hp", 0.0))) * aura),
 		"max_mp": int(((20.0 + attrs.int * 3.0 + level * 3.0) * float(data.mp_mult) * (1.0 + float(passive.mp)) + float(gear.mp)) * (1.0 + float(gems.get("matk", 0.0))) * aura),
 		"atk": atk,
 		"def": def,
