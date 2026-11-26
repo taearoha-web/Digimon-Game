@@ -223,14 +223,17 @@ static func fit_height(node: Node, base: Vector3, design: float, least := 0.5, m
 ## meets the top of the screen and its chest line, model y CHEST, sits [param chest] of
 ## the way down; -1: just under the fighter's head), [param across] of the screen's width
 ## off the fighter's column, leaning [param lean] towards the field. A 3/4 camera and the
-## steep behind camera (little sky) both see the bust whole, 12-18 m tall when far enough.
-## {base (model origin), basis, h (model scale)}.
+## steep behind camera (little sky) both see the bust whole, 12-18 m tall when far enough;
+## the gameplay camera close behind the fighter sees it grander (up to 30 m: the crown past
+## the top of the screen, the chest lower, leaning further, a shaft of light through it).
+## {base (model origin), basis, h (model scale), grand (0..1: how close the camera is)}.
 static func _stage(node: Node, origin: Vector3, away: Vector3, behind: float, chest: float, across: float, lean: float, side := 1.0) -> Dictionary:
 	var camera := _camera(node)
 	var up := Vector3.UP
 	var fwd := -away
 	var h := 14.0
 	var base := origin + away * behind
+	var grand := 0.0
 	if camera:
 		var rect := camera.get_viewport().get_visible_rect().size
 		var look := -camera.global_basis.z
@@ -241,7 +244,12 @@ static func _stage(node: Node, origin: Vector3, away: Vector3, behind: float, ch
 		if not camera.is_position_behind(fighter):
 			col = camera.unproject_position(fighter).x / rect.x
 			head = camera.unproject_position(origin + Vector3.UP * 1.9).y / rect.y
-		var low_y := chest
+		# The gameplay camera close behind the fighter (6 m back) sees the giant small for
+		# its 16 m: there it stands grander, its crown past the top of the screen and its
+		# chest low, dissolving into the cloud beside the fighter (the ground never cuts it:
+		# RamakienSpirit draws it over the ground), leaning further over the field.
+		grand = clampf((9.0 - (depth - behind)) / 2.5, 0.0, 1.0)
+		var low_y := chest + 0.16 * grand
 		var x_at := col + across
 		if chest < 0.0:
 			# Just under the fighter's head, above its column; if that leaves the bust too
@@ -249,24 +257,24 @@ static func _stage(node: Node, origin: Vector3, away: Vector3, behind: float, ch
 			# steps to the side and stands taller beside it, its face clear of the fighter.
 			low_y = clampf(head + 0.01, 0.34, 0.56)
 			if head < 0.42:
-				low_y = 0.5
-				x_at = 0.5 - 0.27 * signf(side) if side != 0.0 else 0.23
+				low_y = 0.5 + 0.16 * grand
+				x_at = 0.5 - (0.27 + 0.03 * grand) * signf(side) if side != 0.0 else 0.23 - 0.03 * grand
 		elif across != 0.0:
-			x_at = 0.5 + across
+			x_at = 0.5 + across + 0.05 * grand * signf(across)
 		var x := clampf(x_at, 0.12, 0.88) * rect.x
-		var top := camera.project_position(Vector2(x, rect.y * 0.03), depth)
+		var top := camera.project_position(Vector2(x, rect.y * lerpf(0.03, -0.06, grand)), depth)
 		var low := camera.project_position(Vector2(x, rect.y * low_y), depth)
 		var span := top - low
 		if span.length() > 0.5:
 			up = span.normalized()
-			h = clampf(span.length() / (1.0 - CHEST), 7.0, 22.0)
+			h = clampf(span.length() / (1.0 - CHEST), 7.0, lerpf(22.0, 30.0, grand))
 			base = top - up * h
 			fwd = camera.global_position - base
 	fwd = fwd - up * fwd.dot(up)
 	fwd = fwd.normalized() if fwd.length_squared() > 0.0001 else -away
 	var right := up.cross(fwd).normalized()
-	var basis := Basis(right, lean) * Basis(right, up, fwd)
-	return {"base": base, "basis": basis, "h": h}
+	var basis := Basis(right, lean + 0.08 * grand) * Basis(right, up, fwd)
+	return {"base": base, "basis": basis, "h": h, "grand": grand}
 
 
 ## The cast's frame: [forward, right] from [param source] to [param point].
@@ -294,9 +302,14 @@ func _manifest(kind: String, look: Dictionary, stage: Dictionary, mirror: bool, 
 	_light("bank", 9, L_GOLD, Color("fff3dc"), model(stage, Vector3(0, 0.21, 0.12), mirror), Vector3(h * 0.55, h * 0.2, 1.0), 0.0, seconds, {"initial": 0.7, "grow": 2.0, "billboard": true, "fade_in": 0.08, "decay": 0.88, "opacity": 0.95, "priority": 1}, near)
 	_light("quad", 1, L_GOLD, L_WHITE, model(stage, halo, mirror), Vector3.ONE * h * halo_size, 0.3, seconds - 0.3, {"initial": 0.4, "grow": 1.6, "billboard": true, "fade_in": 0.14, "decay": 0.88, "opacity": 1.0, "priority": PRI_HALO, "tier": TIER_MID}, far)
 	_light("embers", 5, L_GOLD, L_WHITE, model(stage, Vector3(0, 0.1, 0.1), mirror), Vector3(h * 0.55, h * 0.8, h * 0.3), 0.2, seconds - 0.2, {"initial": 1.0, "fade_in": 0.1, "decay": 0.85, "priority": 2, "tier": TIER_MID}, near)
+	var grand := float(stage.get("grand", 0.0))
 	for k in 2:
 		var x := -0.3 if k == 0 else 0.34
-		_light("shaft", 4, L_GOLD, L_WHITE, model(stage, Vector3(x, 0.05, -0.1), mirror), Vector3(h * 0.2, h * 1.2, 1.0), 0.15 + 0.12 * float(k), seconds - 0.4, {"initial": 0.7, "grow": 2.0, "face_camera": true, "fade_in": 0.2, "decay": 0.8, "opacity": 0.6, "priority": PRI_HALO - 1, "tier": TIER_DEBRIS}, far)
+		_light("shaft", 4, L_GOLD, L_WHITE, model(stage, Vector3(x, 0.05, -0.1), mirror), Vector3(h * (0.2 + 0.06 * grand), h * 1.2, 1.0), 0.15 + 0.12 * float(k), seconds - 0.4, {"initial": 0.7, "grow": 2.0, "face_camera": true, "fade_in": 0.2, "decay": 0.8, "opacity": 0.6, "priority": PRI_HALO - 1, "tier": TIER_DEBRIS}, far)
+	if grand > 0.5:
+		# Close behind the fighter: a broad shaft of heaven's light falls through the crown
+		# from past the top of the screen.
+		_light("shaft", 4, L_GOLD, L_WHITE, model(stage, Vector3(0.0, 0.22, -0.16), mirror), Vector3(h * 0.42, h * 1.3, 1.0), 0.05, seconds - 0.3, {"initial": 0.5, "grow": 3.0, "face_camera": true, "fade_in": 0.25, "decay": 0.82, "opacity": 0.5, "priority": PRI_HALO - 1, "tier": TIER_MID}, far)
 
 
 ## A model point of the giant staged as [param stage], relative to its root.
@@ -487,7 +500,7 @@ static func thotsakan_telegraph(art: StarSkillArt, caster: Node3D, skill: Dictio
 		var h := float(stage.h)
 		var basis: Basis = stage.basis
 		var rise := 0.55
-		giant._sculpt("thotsakan_arms", YAK_LOOK, model(stage, RamakienSculpt.ARM_PIVOT) - basis.y * h * 0.035, Vector3.ONE * h, basis.get_euler(), rise, stay - rise, {"initial": 0.3, "grow": 2.6, "overshoot": true, "travel": basis.y * h * 0.05, "fade_in": 0.04, "decay": 0.9, "opacity": 0.95, "priority": PRI_ARMS}, {"mist_lo": -0.1, "mist_hi": 0.02, "front_world": origin + Vector3.UP, "front_push": 1.5, "skin_alpha": 0.6, "rim_power": 1.3})
+		giant._sculpt("thotsakan_arms", YAK_LOOK, model(stage, RamakienSculpt.ARM_PIVOT) - basis.y * h * 0.035, Vector3.ONE * h, basis.get_euler(), rise, stay - rise, {"initial": 0.3, "grow": 2.6, "overshoot": true, "travel": basis.y * h * 0.05, "fade_in": 0.04, "decay": 0.9, "opacity": 0.95, "priority": PRI_ARMS}, {"mist_lo": -0.1, "mist_hi": 0.02, "front_world": origin + Vector3.UP, "front_push": 1.5, "skin_alpha": 0.72, "rim_power": 1.5})
 	return true
 
 
@@ -518,7 +531,7 @@ static func _fist_wave(root: RamakienArt, root_at: Vector3, wave: int, land: flo
 func _spirit_fist(from: Vector3, to: Vector3, start: float, snap: float, size: float, hold: float, tier: int, dir: Vector3) -> void:
 	var blow := {"initial": 0.85, "grow": 14.0, "travel": to - from, "snap": snap, "snap_in": true, "accelerate": true, "point": dir}
 	_light("trail", 7, L_JADE, L_WHITE, from, Vector3(size * 4.0, size * 1.4, 1.0), start, snap + hold * 0.4, blow.merged({"pop": 0.0, "fade_in": 0.02, "decay": 0.35, "opacity": 1.0, "tier": mini(tier + 1, TIER_DEBRIS)}, true))
-	_sculpt("spirit_fist", FIST_LOOK, from, Vector3.ONE * size, Vector3.ZERO, start, snap + hold, blow.merged({"fade_in": 0.02, "decay": 0.7, "opacity": 0.92, "tier": tier, "priority": 1}, true), {"rim_power": 1.8, "skin_alpha": 0.62})
+	_sculpt("spirit_fist", FIST_LOOK, from, Vector3.ONE * size, Vector3.ZERO, start, snap + hold, blow.merged({"fade_in": 0.02, "decay": 0.7, "opacity": 0.92, "tier": tier, "priority": 1}, true), {"rim_power": 2.2, "skin_alpha": 0.8})
 
 
 static func thotsakan_wave(art: StarSkillArt, parent: Node3D, skill: Dictionary, index: int, point: Vector3, source: Vector3) -> bool:
@@ -585,10 +598,10 @@ static func _merge(root: RamakienArt, origin: Vector3, land: float) -> void:
 	var hang := land - 0.11
 	# The god fist first (the root's cap keeps the first layers): it hangs a breath over
 	# the slam point, then hammers down on the finale beat.
-	root._sculpt("spirit_fist", FIST_LOOK, apex, Vector3.ONE * size, Vector3.ZERO, fused, hang - fused + 0.02, {"initial": 0.3, "grow": 4.0, "overshoot": true, "travel": -aim * 0.35, "point": aim, "fade_in": 0.03, "decay": 0.99, "opacity": 0.92, "priority": 1}, {"rim_power": 1.6, "skin_alpha": 0.72})
+	root._sculpt("spirit_fist", FIST_LOOK, apex, Vector3.ONE * size, Vector3.ZERO, fused, hang - fused + 0.02, {"initial": 0.3, "grow": 4.0, "overshoot": true, "travel": -aim * 0.35, "point": aim, "fade_in": 0.03, "decay": 0.99, "opacity": 0.92, "priority": 1}, {"rim_power": 2.0, "skin_alpha": 0.85})
 	var top := apex - aim * 0.35
 	var slam_style := {"initial": 1.0, "travel": knuckles - top, "snap": 0.11, "snap_in": true, "accelerate": true, "point": aim}
-	root._sculpt("spirit_fist", FIST_LOOK, top, Vector3.ONE * size, Vector3.ZERO, hang, 0.11 + 0.5, slam_style.merged({"decay": 0.75, "opacity": 0.92, "priority": 1}, true), {"rim_power": 1.6, "skin_alpha": 0.72})
+	root._sculpt("spirit_fist", FIST_LOOK, top, Vector3.ONE * size, Vector3.ZERO, hang, 0.11 + 0.5, slam_style.merged({"decay": 0.75, "opacity": 0.92, "priority": 1}, true), {"rim_power": 2.0, "skin_alpha": 0.85})
 	# The flash where the fists fuse, the trail of the slam, its halo.
 	root._light("quad", 10, L_JADE, L_WHITE, apex, Vector3.ONE * 4.0, fused - 0.03, 0.2, {"initial": 0.2, "grow": 10.0, "billboard": true, "decay": 0.4, "priority": 3})
 	root._light("trail", 7, L_JADE, L_WHITE, top, Vector3(size * 3.0, size * 1.2, 1.0), hang, 0.24, slam_style.merged({"pop": 0.0, "decay": 0.4, "opacity": 0.9, "tier": TIER_MID}, true))

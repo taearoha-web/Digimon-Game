@@ -15,8 +15,8 @@ extends RefCounted
 ##   thotsakan_arms  its eighteen other arms, fanned round the shoulders like a halo, with
 ##                   gold armlets and bracelets, holding swords, discs, tridents, clubs, or
 ##                   clenched (origin at their pivot behind the shoulders)
-##   spirit_fist     a clenched fist with its gold bracelet, knuckles along +X, back of the
-##                   hand to +Z, the forearm thinning into light
+##   spirit_fist     a clenched fist with its gold bracelet, knuckles along +X, the thumb's
+##                   side and the knuckle ridge to +Z, the forearm tapering into light
 ##   trident         the gold ตรีเพชร, along +X (prongs at +X), x from -1 to 1
 ## and the light's cards (RamakienLight shader): quad, shaft, disc, trail, embers, veil.
 
@@ -38,6 +38,8 @@ static var _st: SurfaceTool
 static var _xf := Transform3D.IDENTITY
 static var _glow := 0.0
 static var _mask := 1.0
+## A tone (COLOR.r) multiplier for what is emitted now: crevices are drawn deeper.
+static var _tone := 1.0
 ## Lean detail for the many small pieces (the eighteen halo arms): fewer sides, no caps
 ## where an end is buried.
 static var _lean := false
@@ -49,6 +51,7 @@ static func build(kind: String) -> ArrayMesh:
 	_xf = Transform3D.IDENTITY
 	_glow = 0.0
 	_mask = 1.0
+	_tone = 1.0
 	_lean = false
 	var aabb := AABB()
 	match kind:
@@ -106,7 +109,7 @@ static func _tri(pa: Vector3, pb: Vector3, pc: Vector3, na: Vector3, nb: Vector3
 
 
 static func _emit(p: Vector3, n: Vector3, uv: Vector2, mat: float, pat: int, tone: float) -> void:
-	_st.set_color(Color(tone, _mask, mat, _glow))
+	_st.set_color(Color(tone * _tone, _mask, mat, _glow))
 	_st.set_normal(n)
 	_st.set_uv(uv)
 	_st.set_uv2(Vector2(float(pat), 0.0))
@@ -543,13 +546,30 @@ static func _flame_on(at: Vector3, along: Vector3, thick: float) -> void:
 ## the palm, four fingers rolled into it (their knuckles a row of ridges), the thumb
 ## locked across them.
 static func _fist(size: float) -> void:
-	_ellipsoid(Vector3(0, size * 0.42, -size * 0.04), Vector3(size * 0.7, size * 0.6, size * 0.46), SKIN, P_NONE, 5 if _lean else 6, 8 if _lean else 10, 3.0)
+	_ellipsoid(Vector3(0, size * 0.42, -size * 0.04), Vector3(size * 0.7, size * 0.6, size * 0.46), SKIN, P_NONE, 5 if _lean else 6, 8 if _lean else 10, 3.0 if _lean else 2.4)
 	for k in 4:
 		var x := (float(k) - 1.5) * size * 0.34
 		var l := 1.0 - 0.07 * absf(float(k) - 1.2)
 		var pts := [Vector3(x, size * 0.82, size * 0.2), Vector3(x, size * 1.12 * l, size * 0.1), Vector3(x, size * 1.14 * l, -size * 0.22), Vector3(x, size * 0.9, -size * 0.42)]
-		_tube(pts, [size * 0.19, size * 0.185, size * 0.17, size * 0.15], 5 if _lean else 7, SKIN, P_NONE, not _lean)
-	_tube([Vector3(size * 0.7, size * 0.28, -size * 0.12), Vector3(size * 0.62, size * 0.7, -size * 0.46), Vector3(size * 0.08, size * 0.84, -size * 0.58)], [size * 0.22, size * 0.19, size * 0.16], 5 if _lean else 7, SKIN, P_NONE)
+		if _lean:
+			_tube(pts, [size * 0.19, size * 0.185, size * 0.17, size * 0.15], 5, SKIN, P_NONE, false)
+			continue
+		# A full-size fist (a spirit fist, a giant's hand): each finger its own rounded roll,
+		# shaded deeper where it tucks into the palm (the gaps between them read as lines),
+		# and a knuckle standing up on the back of the hand: a ridge of four bumps that
+		# keeps the fist a fist even end-on.
+		_tone = 0.82
+		_tube(pts, [size * 0.17, size * 0.2, size * 0.18, size * 0.14], 8, SKIN, P_NONE)
+		_tone = 1.0
+		_ellipsoid(Vector3(x, size * 1.04 * l, size * 0.17), Vector3(size * 0.15, size * 0.13, size * 0.14), SKIN, P_NONE, 5, 8)
+	# The thumb, thick and locked across the fingers' middle joints, a gold thumb ring
+	# (it reads against the jade from any side).
+	var t0 := Vector3(size * 0.7, size * 0.28, -size * 0.12)
+	var t1 := Vector3(size * 0.64, size * 0.72, -size * 0.48)
+	var t2 := Vector3(size * 0.08, size * 0.86, -size * 0.6)
+	_tube([t0, t1, t2], [size * 0.24, size * 0.21, size * 0.17] if not _lean else [size * 0.22, size * 0.19, size * 0.16], 5 if _lean else 8, SKIN, P_NONE)
+	if not _lean:
+		_torus(t1.lerp(t2, 0.35), t2 - t1, size * 0.2, size * 0.05, GOLD, P_ENGRAVE, 10, 4)
 
 
 ## จีบ: thumb and forefinger meeting in a ring, the other three fingers fanned up and
@@ -824,51 +844,98 @@ static func _crown_face(centre: Vector3, yaw: float, out: float, r: Vector3, pat
 
 
 ## The halo arms of ทศกัณฐ์, round [constant ARM_PIVOT] (the mesh's origin): each upper
-## arm leaves the shoulders on its own ray, the elbow bends hard and the forearm turns up
-## towards the crown, so the elbows draw an outer ring and the hands, holding their
-## weapons up, an inner one round the heads; the rays alternate in depth.
+## arm leaves the shoulders on its own ray and bends at the elbow by its own angle (most
+## turn up towards the crown, a few swing out or reach towards the viewer), so from any
+## side they read as arms, not rods: muscled upper arms tapering to thin wrists, flared
+## gold armlets with flame wings, and hands that hold swords, discs, tridents, clubs or
+## make the จีบ; the rays alternate in depth and overlap.
+const HALO_HOLDS := [1, 2, 3, 0, 4, 1, 3, 2, 5]
+## Per arm (shoulder to crown-side): elbow bend (degrees, + towards the crown), forearm
+## reach towards the viewer, forearm length, depth behind the shoulders.
+const HALO_BEND := [48.0, 72.0, 30.0, 60.0, -18.0, 66.0, 38.0, -28.0, 54.0]
+const HALO_REACH := [0.1, 0.42, -0.22, 0.3, 0.55, -0.18, 0.26, 0.62, -0.08]
+const HALO_FORE := [0.12, 0.1, 0.14, 0.11, 0.13, 0.095, 0.135, 0.115, 0.125]
+const HALO_DEPTH := [0.0, 0.05, 0.015, 0.06, 0.0, 0.045, 0.02, 0.065, 0.01]
+
+
 static func _thotsakan_arms() -> void:
-	var holds := [1, 2, 3, 4, 1, 2, 3, 1, 4]
 	_lean = true
 	for side in [-1.0, 1.0]:
 		for k in 9:
+			# The left and right fans differ a little (the same arm is not mirrored).
+			var j := k if side < 0.0 else (k + 4) % 9
 			var t := float(k) / 8.0
-			var theta := deg_to_rad(lerpf(32.0, 140.0, t))
-			var phi := deg_to_rad(maxf(lerpf(32.0, 140.0, t) - 44.0, 8.0))
+			var deg := lerpf(30.0, 146.0, t) + (4.0 if side > 0.0 else -3.0) * sin(float(k) * 2.3)
+			var theta := deg_to_rad(deg)
+			var phi := deg_to_rad(deg - float(HALO_BEND[j]))
 			var dir := Vector3(sin(theta) * side, cos(theta), 0.0)
-			var fdir := Vector3(sin(phi) * side, cos(phi), 0.12).normalized()
-			var back := -0.012 - 0.045 * float(k % 2) - 0.015 * t
-			var upper := 0.13 + 0.025 * sin(PI * t)
+			var fdir := Vector3(sin(phi) * side, cos(phi), float(HALO_REACH[j])).normalized()
+			var back := -0.012 - float(HALO_DEPTH[j]) - 0.015 * t
+			var upper := 0.125 + 0.03 * sin(PI * t)
 			var shoulder := dir * 0.055 + Vector3(0, -0.01, back)
-			var elbow := dir * (0.055 + upper) + Vector3(0, 0, back + 0.015)
-			var wrist := elbow + fdir * (0.12 + 0.015 * sin(PI * t))
-			var thick := 0.019 - 0.003 * t
-			_arm(shoulder, elbow, wrist, thick, 7, P_NONE)
+			var elbow := dir * (0.055 + upper) + Vector3(0, 0, back + 0.012)
+			var wrist := elbow + fdir * float(HALO_FORE[j])
+			var thick := 0.02 - 0.0035 * t
+			_halo_arm(shoulder, elbow, wrist, thick, dir, k % 2 == 0)
 			var keep := _xf
 			_xf = keep * _frame(wrist, wrist - elbow, Vector3.BACK + Vector3(side * 0.3, 0, 0))
-			var hold: int = holds[k]
-			_fist(thick * 1.2)
-			_xf = _xf * Transform3D(Basis(), Vector3(0, thick * 0.55, -thick * 0.15))
-			match hold:
-				1: _sword(0.22)
-				2: _chakra(0.04)
-				3: _small_trident(0.22)
-				4: _club(0.17)
+			var hold: int = HALO_HOLDS[j]
+			if hold == 0:
+				_jeeb(thick * 1.25)
+			else:
+				_fist(thick * 1.25)
+				_xf = _xf * Transform3D(Basis(), Vector3(0, thick * 0.55, -thick * 0.15))
+				match hold:
+					1: _sword(0.27)
+					2: _chakra(0.05)
+					3: _small_trident(0.26)
+					4: _club(0.2)
 			_xf = keep
 	_lean = false
 
 
+## One halo arm: a muscled upper arm, the elbow's turn, a forearm thinning to the wrist; a
+## flared gold armlet (พาหุรัด) with a flame wing standing out to the side ([param out]),
+## a second flame on every other arm, and a bracelet (ทองกร).
+static func _halo_arm(shoulder: Vector3, elbow: Vector3, wrist: Vector3, thick: float, out: Vector3, double: bool) -> void:
+	var bend_n := (elbow - shoulder).cross(wrist - elbow)
+	var bulge := (elbow - shoulder).cross(bend_n).normalized() if bend_n.length_squared() > 1e-10 else Vector3.ZERO
+	var biceps := shoulder.lerp(elbow, 0.45) - bulge * thick * 0.25
+	var fore := elbow.lerp(wrist, 0.3)
+	var pts := _spline([shoulder, biceps, elbow, fore, wrist], 3)
+	var radii := _lerp_list([thick * 1.2, thick * 1.38, thick * 0.78, thick * 0.98, thick * 0.5], pts.size())
+	_tube(pts, radii, 7, SKIN, P_NONE, false)
+	# The elbow's point, so the bend reads even edge-on.
+	_ellipsoid(elbow - bulge * thick * 0.1, Vector3.ONE * thick * 0.78, SKIN, P_NONE, 4, 6)
+	var band := shoulder.lerp(elbow, 0.6)
+	var along := elbow - shoulder
+	_torus(band, along, thick * 1.12, thick * 0.3, GOLD, P_ENGRAVE, 10, 4)
+	_torus(band + along.normalized() * thick * 0.5, along, thick * 1.0, thick * 0.16, GOLD, P_ENGRAVE, 10, 3)
+	var keep := _xf
+	var wing := (out * 0.7 + along.normalized() * 0.5 + Vector3.BACK * 0.2).normalized()
+	_xf = keep * _frame(band, wing, Vector3.BACK)
+	_plate(_flame_poly(thick * 1.3, thick * 2.6, 0.12, 0.3, 7), thick * 0.25, GOLD, P_ENGRAVE)
+	if double:
+		_xf = keep * _frame(band, (wing - out * 0.9).normalized(), Vector3.BACK)
+		_plate(_flame_poly(thick * 0.9, thick * 1.8, -0.15, -0.25, 6), thick * 0.22, GOLD, P_ENGRAVE)
+	_xf = keep
+	_torus(wrist.lerp(elbow, 0.12), wrist - elbow, thick * 0.78, thick * 0.22, GOLD, P_ENGRAVE, 10, 4)
+
+
 static func _spirit_fist() -> void:
 	# Built with Y out of the wrist, then laid along +X (knuckles first) with the thumb's
-	# side to +Z, so the camera sees the clenched fingers and the thumb locked over them.
-	_xf = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis(Vector3.BACK, -PI * 0.5), Vector3.ZERO)
+	# side to +Z and turned 46 degrees on the travel axis, the back of the hand towards
+	# the camera too (the layer keeps +Z to the camera): the knuckle ridge, the rolled
+	# fingers and the thumb locked over them all show, never a flat side.
+	_xf = Transform3D(Basis(Vector3.RIGHT, 0.8) * Basis(Vector3.RIGHT, -PI * 0.5) * Basis(Vector3.BACK, -PI * 0.5), Vector3.ZERO)
 	_fist(0.5)
 	_torus(Vector3(0, -0.04, 0), Vector3.UP, 0.34, 0.075, GOLD, P_ENGRAVE, 16, 6)
-	var pts := [Vector3(0, 0.08, 0), Vector3(0, -0.1, 0), Vector3(0, -0.22, 0), Vector3(0, -0.34, 0)]
-	var radii := [0.31, 0.29, 0.26, 0.22]
-	# The wrist thins into light (COLOR.g falls along it).
-	var masks := [1.0, 0.55, 0.15]
-	for k in 3:
+	var pts := [Vector3(0, 0.08, 0), Vector3(0, -0.06, 0), Vector3(0, -0.16, 0), Vector3(0, -0.26, 0), Vector3(0, -0.36, 0), Vector3(0, -0.46, 0), Vector3(0, -0.56, 0)]
+	var radii := [0.31, 0.29, 0.27, 0.24, 0.2, 0.15, 0.09]
+	# The wrist thins and tapers into light (COLOR.g falls along it, step by step, so no
+	# hard rim where the forearm ends).
+	var masks := [1.0, 0.72, 0.46, 0.26, 0.12, 0.04]
+	for k in 6:
 		_mask = float(masks[k])
 		_tube([pts[k], pts[k + 1]], [radii[k], radii[k + 1]], 10, SKIN, P_LAI, false)
 	_mask = 1.0

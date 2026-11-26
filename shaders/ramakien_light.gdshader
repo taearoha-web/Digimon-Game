@@ -42,6 +42,13 @@ void vertex() {
 	if (front_push > 0.0) {
 		// A giant's light: drawn at its depth (just behind the fighter), see RamakienSpirit.
 		float fake = max(-(VIEW_MATRIX * vec4(front_world, 1.0)).z + front_push, 0.3);
+		// Never cut by the flat ground under the fighter (front_world: its chest).
+		vec3 dir = (INV_VIEW_MATRIX * vec4(vp.xyz, 0.0)).xyz;
+		float gy = front_world.y - 0.7;
+		float cam_y = INV_VIEW_MATRIX[3].y;
+		if (dir.y < -1e-4 && cam_y > gy) {
+			fake = max(min(fake, -vp.z * (gy - cam_y) / dir.y * 0.97), 0.3);
+		}
 		vec4 fc = PROJECTION_MATRIX * vec4(0.0, 0.0, -fake, 1.0);
 		clip.z = fc.z / fc.w * clip.w;
 	}

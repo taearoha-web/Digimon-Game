@@ -12,7 +12,9 @@ shader_type spatial;
 //            -1..1 frame), 5 engraved gold (beads and bands).
 // front_push > 0: the figure's depth is drawn just behind front_world (the fighter), so
 // the giant standing far behind is hidden by the fighter and the near ground only, not
-// by the field between them (its parts keep their own order, a little compressed).
+// by the field between them (its parts keep their own order, a little compressed); and
+// never by the flat ground under the fighter (a hard flat edge across the bust): where
+// the ground would cover it, it is drawn just over the ground and fades out in its mist.
 render_mode unshaded, cull_back, blend_mix, depth_draw_always, shadows_disabled, fog_disabled;
 
 uniform vec4 skin : source_color = vec4(0.93, 0.97, 0.95, 1.0);
@@ -40,18 +42,37 @@ uniform float rim_power = 1.0;
 uniform float skin_alpha = 1.0;
 
 varying vec3 local;
-varying float whole;
+
+// The mist the body dissolves into below the chest: a ragged, drifting edge (not a plane).
+float mist(vec3 p) {
+	float wob = 0.03 * sin(p.x * 31.0 + p.z * 13.0 + age * 1.3) + 0.022 * sin(p.x * 67.0 - p.z * 41.0 - age * 2.1);
+	return smoothstep(mist_lo, mist_hi, p.y + wob);
+}
+
+// The view depth at which the view ray through [vp] (view space) meets the ground
+// plane at height [gy]; far away when the ray does not come down to it.
+float ground_depth(vec3 vp, mat4 inv_view, float gy) {
+	vec3 dir = (inv_view * vec4(vp, 0.0)).xyz;
+	float cam_y = inv_view[3].y;
+	if (dir.y > -1e-4 || cam_y <= gy) {
+		return 1e6;
+	}
+	return -vp.z * (gy - cam_y) / dir.y;
+}
 
 void vertex() {
 	local = VERTEX;
-	whole = smoothstep(mist_lo, mist_hi, VERTEX.y);
 	if (front_push > 0.0) {
+		float whole = smoothstep(mist_lo, mist_hi, VERTEX.y);
 		vec4 vp = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 		float anchor = -(MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z;
 		float front = -(VIEW_MATRIX * vec4(front_world, 1.0)).z + front_push;
 		float real = -vp.z;
 		float fake = max(front + (real - anchor) * 0.12, 0.3);
 		fake += (1.0 - whole) * 3.0;
+		// Over the ground under the fighter (front_world is its chest, a metre up): the plane
+		// 30 cm above that ground, so the view ray meets it before the ground itself.
+		fake = max(min(fake, ground_depth(vp.xyz, INV_VIEW_MATRIX, front_world.y - 0.7) * 0.97), 0.3);
 		vec4 clip = PROJECTION_MATRIX * vp;
 		vec4 fc = PROJECTION_MATRIX * vec4(0.0, 0.0, -fake, 1.0);
 		clip.z = fc.z / fc.w * clip.w;
@@ -347,6 +368,7 @@ void fragment() {
 	col += pow(max(dot(N, H), 0.0), 32.0) * shine * vec3(1.0, 0.94, 0.78) * 0.65;
 	col += rim.rgb * fres * 1.2 * rim_power;
 	col += mix(base, lines.rgb, 0.5) * glow * 0.45;
+	float whole = mist(local);
 	float alpha = opacity * mix(0.84, 1.0, fres) * whole * COLOR.g;
 	if (m < 0.125 && pat != 2 && pat != 3 && pat != 4) {
 		alpha *= mix(skin_alpha, 1.0, fres * 0.7);

@@ -686,6 +686,219 @@ add("muaythai", [
     ("muay_king", "god_holy", rays(16) + o("crown", 0, -62, .4) + o("fist", 0, 6, .7) + o("prajiad", 0, 6, 1.0, 0, .7)),
 ])
 
+# Character skins for the hand-drawn Ramakien portraits (Hanuman's white fur,
+# Thotsakan's green skin, open mouths and ruby gems). document() appends them to
+# <defs> only for pictures that reference them, so every other medallion is unchanged.
+CHARACTER_DEFS = (
+    '\n    <linearGradient id="fur" x2=".5" y2="1"><stop stop-color="#ffffff"/><stop offset=".6" stop-color="#f4f6fb"/><stop offset="1" stop-color="#c9d3e6"/></linearGradient>'
+    '\n    <linearGradient id="skin" x2=".6" y2="1"><stop stop-color="#c8f58c"/><stop offset=".45" stop-color="#55b545"/><stop offset="1" stop-color="#256b30"/></linearGradient>'
+    '\n    <linearGradient id="mouth" x2="0" y2="1"><stop stop-color="#3a0812"/><stop offset="1" stop-color="#8a1a2a"/></linearGradient>'
+    '\n    <linearGradient id="ruby" x2=".6" y2="1"><stop stop-color="#ff9aa6"/><stop offset="1" stop-color="#b0182e"/></linearGradient>'
+    '\n    '
+)
+CHARACTER_FILLS = ("url(#fur)", "url(#skin)", "url(#mouth)", "url(#ruby)")
+
+# หนุมานแผลงฤทธิ์ (heaven_ring_cataclysm): white monkey-warrior Hanuman in a tiered
+# gold chada, breathing out stars and a crescent moon, trident angled behind.
+# สิบเศียรสิบกรสะท้านสามภพ (three_realms_fist): green fanged Thotsakan, a pyramid of
+# crowned heads under a gold spire, ten arms fanned behind and one giant fist in front.
+# Authored element by element; kept verbatim so regeneration reproduces the committed SVGs.
+HANUMAN_ART = (
+    '<g transform="translate(16 8) rotate(46) scale(0.88)" opacity="1">'
+    '<path d="M-4.5 -52 L4.5 -52 L5 104 L-5 104Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="0" cy="104" rx="8" ry="6" fill="url(#gold)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M-6 -50 Q-34 -48 -34 -70 L-30 -92 L-22 -72 Q-20 -62 -4 -62Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M6 -50 Q34 -48 34 -70 L30 -92 L22 -72 Q20 -62 4 -62Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M0 -112 L12 -82 L6 -60 L-6 -60 L-12 -82Z" fill="url(#metal)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M0 -102 L0 -66" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-15 -62 L15 -62 L12 -48 L-12 -48Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="0" cy="-55" rx="4" ry="4" fill="url(#ruby)" stroke="#151c35" stroke-width="2"/>'
+    '</g>'
+    '<ellipse cx="78" cy="28" rx="31" ry="31" fill="#fff1a6" stroke="none" stroke-width="0" opacity=".22"/>'
+    '<path d="M-8 50 Q30 74 62 60 Q78 52 80 46" fill="none" stroke="#fff1a6" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" opacity=".3"/>'
+    '<path d="M-8 50 Q30 74 62 60 Q78 52 80 46" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" opacity=".75"/>'
+    '<g transform="translate(-16 18) rotate(0) scale(1.02)" opacity="1">'
+    '<path d="M-54.5 22.3 L-44.3 11.2 L-58.0 4.0 L-44.3 -3.2 L-54.5 -14.3 L-39.0 -16.7 L-44.4 -30.3 L-28.9 -27.7 L-29.0 -42.2 L-15.4 -34.9 L-10.1 -48.5 L0.0 -37.4 L10.1 -48.5 L15.4 -34.9 L29.0 -42.2 L28.9 -27.7 L44.4 -30.3 L39.0 -16.7 L54.5 -14.3 L44.3 -3.2 L58.0 4.0 L44.3 11.2 L54.5 22.3Z" fill="url(#fur)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-36 -30 Q-54 -34 -54 -64 Q-44 -52 -34 -44Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M36 -30 Q54 -34 54 -64 Q44 -52 34 -44Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-40 -26 Q-46 10 -34 30 Q0 50 34 30 Q46 10 40 -26Z" fill="url(#fur)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-42 -24 L42 -24 L34 -42 L24 -44 L20 -60 L12 -62 L9 -78 L4 -80 L0 -118 L-4 -80 L-9 -78 L-12 -62 L-20 -60 L-24 -44 L-34 -42Z" fill="url(#gold)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-30 -42 L30 -42 M-19 -60 L19 -60 M-9 -78 L9 -78" fill="none" stroke="#a67643" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-2 -110 L-5 -84 M-14 -56 L-12 -46" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-44 -16 Q0 -30 44 -16 L42 -26 Q0 -40 -42 -26Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M0 -46 L7 -34 L0 -24 L-7 -34Z" fill="url(#ruby)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-34 -10 Q-22 -18 -7 -6 L-9 -1 Q-22 -10 -33 -4Z" fill="#151c35" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M34 -10 Q22 -18 7 -6 L9 -1 Q22 -10 33 -4Z" fill="#151c35" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-29 4 Q-18 -6 -7 4 Q-18 12 -29 4Z" fill="#ffe27a" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-17" cy="3" rx="4.2" ry="4.6" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="-19" cy="1" rx="1.4" ry="1.4" fill="#ffffff" stroke="none" stroke-width="0"/>'
+    '<path d="M7 4 Q18 -6 29 4 Q18 12 7 4Z" fill="#ffe27a" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="17" cy="3" rx="4.2" ry="4.6" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="17" cy="1" rx="1.4" ry="1.4" fill="#ffffff" stroke="none" stroke-width="0"/>'
+    '<path d="M-32 22 Q-30 11 -14 12 Q0 15 14 12 Q30 11 32 22 Q34 48 0 56 Q-34 48 -32 22Z" fill="#e4eaf5" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4" cy="16" rx="2.2" ry="1.6" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="4" cy="16" rx="2.2" ry="1.6" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<path d="M-24 22 Q0 28 24 22 Q20 50 0 52 Q-20 50 -24 22Z" fill="url(#mouth)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-12 40 Q0 34 12 40 Q8 50 0 50 Q-8 50 -12 40Z" fill="#e8566a" stroke="none" stroke-width="0" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-19 24 L-13 25.5 L-15.5 35Z M19 24 L13 25.5 L15.5 35Z" fill="#ffffff" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(22 66) rotate(0) scale(0.45454545454545453)" opacity="1">'
+    '<path d="M0 -22 L6 -6 L22 0 L6 6 L0 22 L-6 6 L-22 0 L-6 -6Z" fill="url(#light)" stroke="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(52 56) rotate(0) scale(0.5909090909090909)" opacity="1">'
+    '<path d="M0 -22 L6 -6 L22 0 L6 6 L0 22 L-6 6 L-22 0 L-6 -6Z" fill="url(#light)" stroke="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(46 24) rotate(0) scale(0.36363636363636365)" opacity="1">'
+    '<path d="M0 -22 L6 -6 L22 0 L6 6 L0 22 L-6 6 L-22 0 L-6 -6Z" fill="url(#light)" stroke="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(96 58) rotate(0) scale(0.3181818181818182)" opacity="1">'
+    '<path d="M0 -22 L6 -6 L22 0 L6 6 L0 22 L-6 6 L-22 0 L-6 -6Z" fill="url(#light)" stroke="none" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(80 26) rotate(20) scale(1)" opacity="1">'
+    '<path d="M8 -22 A23 23 0 1 0 22 8 A17.9 17.9 0 0 1 8 -22Z" fill="url(#light)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-12.7 -8.0 Q-17.2 4.6 -6.9 13.8" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+)
+
+THOTSAKAN_ART = (
+    '<g transform="translate(0 -8) rotate(0) scale(0.94)" opacity="1">'
+    '<g transform="translate(-18 28) rotate(150) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q40.0 -10 70 -6 L70 6 Q40.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M44.0 -9.5 L51.0 -9 L51.0 9 L44.0 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="76" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M74 -6 L74 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(18 28) rotate(30) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q40.0 -10 70 -6 L70 6 Q40.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M44.0 -9.5 L51.0 -9 L51.0 9 L44.0 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="76" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M74 -6 L74 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-18 28) rotate(175) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q44.0 -10 78 -6 L78 6 Q44.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M48.4 -9.5 L55.4 -9 L55.4 9 L48.4 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="84" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M82 -6 L82 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(18 28) rotate(5) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q44.0 -10 78 -6 L78 6 Q44.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M48.4 -9.5 L55.4 -9 L55.4 9 L48.4 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="84" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M82 -6 L82 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-18 28) rotate(200) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q45.0 -10 80 -6 L80 6 Q45.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M49.5 -9.5 L56.5 -9 L56.5 9 L49.5 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="86" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M84 -6 L84 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(18 28) rotate(-20) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q45.0 -10 80 -6 L80 6 Q45.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M49.5 -9.5 L56.5 -9 L56.5 9 L49.5 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="86" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M84 -6 L84 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-18 28) rotate(225) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q43.0 -10 76 -6 L76 6 Q43.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M47.3 -9.5 L54.3 -9 L54.3 9 L47.3 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="82" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M80 -6 L80 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(18 28) rotate(-45) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q43.0 -10 76 -6 L76 6 Q43.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M47.3 -9.5 L54.3 -9 L54.3 9 L47.3 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="82" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M80 -6 L80 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-18 28) rotate(250) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q38.0 -10 66 -6 L66 6 Q38.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M41.8 -9.5 L48.8 -9 L48.8 9 L41.8 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="72" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M70 -6 L70 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(18 28) rotate(-70) scale(1)" opacity="1">'
+    '<path d="M0 -8 Q38.0 -10 66 -6 L66 6 Q38.0 10 0 8Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M41.8 -9.5 L48.8 -9 L48.8 9 L41.8 9.5Z" fill="url(#gold)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="72" cy="0" rx="11" ry="10" fill="url(#skin)" stroke="#151c35" stroke-width="3"/>'
+    '<path d="M70 -6 L70 6" fill="none" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<path d="M-44 46 Q-46 20 -20 18 L20 18 Q46 20 44 46 Q30 64 0 64 Q-30 64 -44 46Z" fill="url(#gold)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<g transform="translate(0 -80) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="11" ry="10.45" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-11 -2.8 Q0 -9.3 11 -2.8 L9.9 -7.7 Q0 -13.8 -9.9 -7.7Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.18" cy="0.55" rx="2.2" ry="2.2" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.18" cy="0.55" rx="2.2" ry="2.2" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.0 5.5 Q0 7.7 5.0 5.5" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-15 -63) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="12" ry="11.399999999999999" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-12 -3.0 Q0 -10.2 12 -3.0 L10.8 -8.4 Q0 -15.0 -10.8 -8.4Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.5600000000000005" cy="0.6000000000000001" rx="2.4000000000000004" ry="2.4000000000000004" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.5600000000000005" cy="0.6000000000000001" rx="2.4000000000000004" ry="2.4000000000000004" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.4 6.0 Q0 8.4 5.4 6.0" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(15 -63) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="12" ry="11.399999999999999" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-12 -3.0 Q0 -10.2 12 -3.0 L10.8 -8.4 Q0 -15.0 -10.8 -8.4Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.5600000000000005" cy="0.6000000000000001" rx="2.4000000000000004" ry="2.4000000000000004" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.5600000000000005" cy="0.6000000000000001" rx="2.4000000000000004" ry="2.4000000000000004" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.4 6.0 Q0 8.4 5.4 6.0" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(-31 -44) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="13" ry="12.35" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-13 -3.2 Q0 -11.0 13 -3.2 L11.7 -9.1 Q0 -16.2 -11.7 -9.1Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.9 6.5 Q0 9.1 5.9 6.5" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(0 -47) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="13" ry="12.35" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-13 -3.2 Q0 -11.0 13 -3.2 L11.7 -9.1 Q0 -16.2 -11.7 -9.1Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.9 6.5 Q0 9.1 5.9 6.5" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(31 -44) rotate(0) scale(1)" opacity="1">'
+    '<ellipse cx="0" cy="0" rx="13" ry="12.35" fill="url(#skin)" stroke="#151c35" stroke-width="2.5"/>'
+    '<path d="M-13 -3.2 Q0 -11.0 13 -3.2 L11.7 -9.1 Q0 -16.2 -11.7 -9.1Z" fill="url(#gold)" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<ellipse cx="4.94" cy="0.65" rx="2.6" ry="2.6" fill="#ffffff" stroke="#151c35" stroke-width="1.5"/>'
+    '<path d="M-5.9 6.5 Q0 9.1 5.9 6.5" fill="none" stroke="#151c35" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<path d="M-8 -89 L0 -104 L8 -89 Q0 -85 -8 -89Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-36 -24 Q-42 6 -30 22 Q-16 38 0 38 Q16 38 30 22 Q42 6 36 -24Z" fill="url(#skin)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-40 -20 Q0 -36 40 -20 L38 -32 Q0 -48 -38 -32Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M0 -48 L7 -38 L0 -28 L-7 -38Z" fill="url(#ruby)" stroke="#151c35" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-38 -18 Q-56 -20 -60 -42 Q-48 -34 -36 -30Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M38 -18 Q56 -20 60 -42 Q48 -34 36 -30Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-30 -14 L-6 -6 L-8 -1 L-30 -8Z" fill="#151c35" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M30 -14 L6 -6 L8 -1 L30 -8Z" fill="#151c35" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="-17" cy="2" rx="9" ry="8" fill="#ffffff" stroke="#151c35" stroke-width="3"/>'
+    '<ellipse cx="-15" cy="3" rx="3.8" ry="3.8" fill="#b0182e" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="-15" cy="3" rx="1.8" ry="1.8" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="17" cy="2" rx="9" ry="8" fill="#ffffff" stroke="#151c35" stroke-width="3"/>'
+    '<ellipse cx="15" cy="3" rx="3.8" ry="3.8" fill="#b0182e" stroke="none" stroke-width="0"/>'
+    '<ellipse cx="15" cy="3" rx="1.8" ry="1.8" fill="#151c35" stroke="none" stroke-width="0"/>'
+    '<path d="M-22 18 Q0 12 22 18 Q14 32 0 32 Q-14 32 -22 18Z" fill="url(#mouth)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-20 19 L-14 17 Q-18 8 -24 4 Q-20 12 -20 19Z M20 19 L14 17 Q18 8 24 4 Q20 12 20 19Z" fill="#ffffff" stroke="#151c35" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-6 15 L-3 22 L0 15Z M6 15 L3 22 L0 15Z" fill="#ffffff" stroke="#151c35" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+    '<g transform="translate(0 74) rotate(0) scale(0.8)" opacity="1">'
+    '<path d="M-24 40 L24 40 L27 60 L-27 60Z" fill="url(#skin)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-30 42 L30 42 L32 54 L-32 54Z" fill="url(#gold)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<ellipse cx="0" cy="48" rx="4" ry="4" fill="url(#ruby)" stroke="#151c35" stroke-width="2"/>'
+    '<path d="M-44 -10 Q-48 -34 -30 -36 L32 -36 Q48 -34 46 -10 L42 24 Q36 44 12 44 L-14 44 Q-40 42 -44 20Z" fill="url(#skin)" stroke="#151c35" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-40 -34 Q-41 -44 -30 -44 Q-19 -44 -20 -34 L-20 -14 Q-30 -8 -40 -14Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-20 -34 Q-21 -44 -10 -44 Q1 -44 0 -34 L0 -14 Q-10 -8 -20 -14Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M0 -34 Q-1 -44 10 -44 Q21 -44 20 -34 L20 -14 Q10 -8 0 -14Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M20 -34 Q19 -44 30 -44 Q41 -44 40 -34 L40 -14 Q30 -8 20 -14Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-42 6 Q-40 -10 -16 -8 L18 -4 Q26 4 18 12 L-30 16 Q-42 16 -42 6Z" fill="url(#skin)" stroke="#151c35" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-34 -2 L8 0" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '<path d="M-26 -38 L-26 -32 M-6 -38 L-6 -32" fill="none" stroke="#e8ffd0" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />'
+    '</g>'
+)
+
+
 # Star skills keep their own medallions beside the class catalogue (not part of its manifest).
 STAR_RECIPES = {
     "umbral_lacerate": ("night", o("moon",0,-10,.9)+o("slash",0,0,.9,30)+o("slash",0,0,.9,210)+o("twin",0,20,.6)),
@@ -702,7 +915,7 @@ STAR_RECIPES = {
     "naga_coil_fist": ("ember", o("vortex", s=.9, opacity=.6) + o("fist", 0, 0, .7) + o("flame", -46, 30, .4) + o("flame", 46, 30, .4)),
     "solar_knee_barrage": ("god_holy", rays(12) + o("knee", 0, 6, .8) + star(-46, -46, 14) + star(46, 40, 12)),
     "vow_of_the_ring": ("gold", o("wings", 0, -6, .9, 0, .5) + o("prajiad", 0, 0, .8) + o("prayer", 0, 6, .5)),
-    "heaven_ring_cataclysm": ("ember", o("ground", y=58, s=.85) + o("prajiad", 0, -30, .7) + o("prajiad", 0, -30, .45) + rain("bolt", 3, .4)),
+    "heaven_ring_cataclysm": ("ember", HANUMAN_ART),
     "cosmic_encore": ("dissonance", ring(.9, 40) + o("orb", -46, -46, .3) + o("orb", 52, 38, .22) + o("wings", 0, -6, .95) + o("lute", 0, -2, .58, -20)),
 }
 
@@ -717,7 +930,7 @@ GOD_RECIPES = {
     "pantheon_bastion": ("god_azure", o("wings", 0, -8, 1.12, 0, .6) + o("shield", 0, 8, .92) + o("crown", 0, -68, .34) + star(-56, 52, 12) + star(56, 52, 12)),
     "death_gods_eclipse": ("god_blood", rays(12) + o("orb", 6, -30, .56) + o("moon", -4, -30, .62) + o("twin", 0, 34, .72)),
     "abyssal_throne": ("god_abyss", o("flame", 0, 44, .62) + o("crown", 0, -50, .62) + o("scepter", -44, 14, .6, -16) + o("bolt", 46, 12, .5, 10)),
-    "three_realms_fist": ("god_ember", rays(16) + o("prajiad", 0, 4, 1.05) + o("fist", 0, 4, .62) + o("crown", 0, -70, .3)),
+    "three_realms_fist": ("god_ember", THOTSAKAN_ART),
     "divine_symphony": ("god_rose", rays(16) + o("lyre", 0, 4, .8) + o("crown", 0, -70, .3) + o("note", -54, -36, .34, -15) + o("note", 54, -36, .34, 15)),
 }
 
@@ -737,6 +950,8 @@ def document(palette, picture, god=False):
     <linearGradient id="gold_stroke" gradientUnits="userSpaceOnUse" x1="-64" y1="-80" x2="64" y2="80"><stop stop-color="#fff5cb"/><stop offset="1" stop-color="#d6ac60"/></linearGradient>
     <clipPath id="disc"><circle cx="128" cy="128" r="121"/></clipPath>
     </defs>'''
+    if any(fill in picture for fill in CHARACTER_FILLS):
+        defs = defs.replace('</defs>', CHARACTER_DEFS + '</defs>')
     body = '<circle cx="128" cy="128" r="123" fill="#101a30"/>'
     body += '<circle cx="128" cy="128" r="119" fill="url(#back)" stroke="url(#gold)" stroke-width="3"/>'
     body += f'<g clip-path="url(#disc)"><path d="M32 198 L172 13 L226 48 L74 233Z" fill="#{main}" opacity=".065"/>'
@@ -755,29 +970,39 @@ def document(palette, picture, god=False):
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 256 256">{defs}{body}</svg>\n'
 
 
-def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    source = (ROOT / 'data/class_data.gd').read_text()
+def main(out=OUT, catalogue_json=ROOT / 'tools/skill_icon_catalogue.json'):
+    # Optional argv[1]: author into another directory (e.g. to diff against the committed icons).
+    out.mkdir(parents=True, exist_ok=True)
+    # The runtime catalogue: ClassData plus each class's skill lines (data/skill_lines/).
+    sources = [ROOT / 'data/class_data.gd', *sorted((ROOT / 'data/skill_lines').glob('*.gd'))]
+    source = ''.join(f.read_text() for f in sources)
     # Both regular and summon helpers are the actual runtime catalogue source.
     catalogue = re.findall(r'(?:_sk\(\w+,|sm\.call\()\s*"([a-z_]+)",\s*"([^"]+)"', source)
-    assert len(catalogue) == 252, len(catalogue)
-    assert set(RECIPES) == {s[0] for s in catalogue}, (set(RECIPES) ^ {s[0] for s in catalogue})
+    # Every live skill has its medallion; ids retired by the skill-line rework keep theirs
+    # (old saves and migrations still name them).
+    missing = {s[0] for s in catalogue} - set(RECIPES)
+    assert not missing, missing
     scenes = [r[2] for r in RECIPES.values()]
-    assert len(set(scenes)) == 252, "Duplicate illustration even before colors/backgrounds"
+    assert len(set(scenes)) == len(RECIPES), "Duplicate illustration even before colors/backgrounds"
     names = dict(catalogue)
     manifest = []
     for skill, (family, palette, picture) in RECIPES.items():
         svg = document(palette,picture)
-        (OUT / f'{skill}.svg').write_text(svg)
-        manifest.append({'id':skill,'name':names[skill],'family':family,'palette':palette,
+        (out / f'{skill}.svg').write_text(svg)
+        manifest.append({'id':skill,'name':names.get(skill, skill),'family':family,'palette':palette,
                          'art_sha256':hashlib.sha256(picture.encode()).hexdigest()})
-    (ROOT / 'tools/skill_icon_catalogue.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    catalogue_json.write_text(json.dumps(manifest,indent=2)+'\n')
     for skill, (palette, picture) in STAR_RECIPES.items():
-        (OUT / f'{skill}.svg').write_text(document(palette,picture))
+        (out / f'{skill}.svg').write_text(document(palette,picture))
     for skill, (palette, picture) in GOD_RECIPES.items():
-        (OUT / f'{skill}.svg').write_text(document(palette,picture,god=True))
-    print(f'Authored {len(manifest)} distinct skill illustrations; {sum(p.stat().st_size for p in OUT.glob("*.svg")):,} SVG bytes.')
+        (out / f'{skill}.svg').write_text(document(palette,picture,god=True))
+    print(f'Authored {len(manifest)} distinct skill illustrations; {sum(p.stat().st_size for p in out.glob("*.svg")):,} SVG bytes.')
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if len(sys.argv) > 1:
+        target = Path(sys.argv[1])
+        main(target, target / 'skill_icon_catalogue.json')
+    else:
+        main()
