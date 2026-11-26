@@ -107,13 +107,26 @@ func _ready() -> void:
 				check(m == 1 or m == 2 or m == 3, "a world player's potion is x2 or x3")
 				if m > 1:
 					boosted += 1
-	check(online_hours > 0 and boosted > online_hours * WorldPlayers.HALLOWEEN_SHARE_MIN * 0.8 and boosted < online_hours * WorldPlayers.HALLOWEEN_SHARE_MAX * 1.2, "world players are under a potion for part of their play (%d of %d hours)" % [boosted, online_hours])
+	# The world reopened (WorldPlayers.START_UNIX) after this Halloween ended: today's world
+	# players did not exist then, so nobody played, drank or gained anything from it. Had
+	# the event run in their world, part of their play is under a potion and it adds up.
+	var in_world := float(WorldEvents.HALLOWEEN_END) > float(WorldPlayers.START_UNIX)
+	if in_world:
+		check(online_hours > 0 and boosted > online_hours * WorldPlayers.HALLOWEEN_SHARE_MIN * 0.8 and boosted < online_hours * WorldPlayers.HALLOWEEN_SHARE_MAX * 1.2, "world players are under a potion for part of their play (%d of %d hours)" % [boosted, online_hours])
+	else:
+		check(online_hours == 0 and boosted == 0, "nobody of the reopened world played (or drank) during an event before it opened (%d of %d hours)" % [boosted, online_hours])
+	for i in WorldPlayers.size():
+		var share := WorldPlayers.halloween_share(i)
+		check(share >= WorldPlayers.HALLOWEEN_SHARE_MIN and share <= WorldPlayers.HALLOWEEN_SHARE_MAX and share == WorldPlayers.halloween_share(i), "%s: its own steady potion share" % WorldPlayers.entry(i).name)
 	check(WorldPlayers.halloween_mult(0, start_hw - 3600.0) == 1, "no world player potion before the event")
 	var gained := 0.0
 	for i in WorldPlayers.size():
 		check(WorldPlayers.halloween_work(i, start_hw) == 0.0, "nothing added at the event's start")
 		gained += WorldPlayers.halloween_work(i, float(WorldEvents.HALLOWEEN_END) + 86400.0)
-	check(gained > 0.0, "the potions add to the world players' progress")
+	if in_world:
+		check(gained > 0.0, "the potions add to the world players' progress")
+	else:
+		check(gained == 0.0, "an event before the world opened adds nothing to its players' progress (%.1f)" % gained)
 	# The pumpkin: a head-sized jack-o'-lantern floating over a boosted character.
 	var visual := HeroVisual.new()
 	add_child(visual)

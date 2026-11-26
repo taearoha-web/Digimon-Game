@@ -225,6 +225,13 @@ static func roll_match(rng: RandomNumberGenerator, power_of_hero: float = -1.0) 
 			enemy_power = total
 		if gap < BALANCE_TOLERANCE * 0.4:
 			break
+	# Random line-ups rarely land all-low or all-high, so a draw of seven weak allies could
+	# leave the best rival far off. Then the best one is tuned a grade at a time (same
+	# classes, so the class cap and the support stay as drawn; it draws no random numbers).
+	if best_gap >= BALANCE_TOLERANCE * 0.4:
+		var tuned := _tune_grades(pool, enemy_keys, ally_power)
+		enemy_keys = tuned.keys
+		enemy_power = float(tuned.power)
 	var enemy: Array = _materialize(rng, pool, enemy_keys)
 	var all_fighters := enemy + best
 	for f in all_fighters:
@@ -434,6 +441,36 @@ static func _pick_keys(rng: RandomNumberGenerator, classes: Array[StringName], c
 		var grade: int = GRADES[rng.randi() % GRADES.size()]
 		keys.append("%s|%d" % [id, grade])
 	return keys
+
+
+## Line-up `keys` ("class|grade") moved toward `target` total power one grade change at a
+## time (the change that closes the gap most), until no change helps: {keys, power}.
+static func _tune_grades(pool: Dictionary, keys: Array[String], target: float) -> Dictionary:
+	var out: Array[String] = keys.duplicate()
+	var total := 0.0
+	for key in out:
+		total += float(pool[key].power)
+	for step in out.size() * GRADES.size():
+		var best_gap := absf(total - target)
+		var best_slot := -1
+		var best_key := ""
+		var best_total := total
+		for slot in out.size():
+			var id := out[slot].get_slice("|", 0)
+			var now := float(pool[out[slot]].power)
+			for grade in GRADES:
+				var key := "%s|%d" % [id, grade]
+				var t := total - now + float(pool[key].power)
+				if absf(t - target) < best_gap - 0.001:
+					best_gap = absf(t - target)
+					best_slot = slot
+					best_key = key
+					best_total = t
+		if best_slot < 0:
+			break
+		out[best_slot] = best_key
+		total = best_total
+	return {"keys": out, "power": total}
 
 
 ## Fighters for a line-up of pool keys: each a copy of the pool's candidate with its own face.

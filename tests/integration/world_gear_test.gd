@@ -64,8 +64,14 @@ func _api() -> void:
 	check(g.mount is Dictionary and ((g.mount as Dictionary).is_empty() or ((g.mount as Dictionary).has("name") and (g.mount as Dictionary).has("level"))), "mount is {name, level} or {}")
 	var before := WorldGear.gear(i, _t(0.0) - 60.0)
 	check(String(before.armor.name) == "" and int(before.weapon.plus) == 0 and int(before.set_pieces) == 0 and (before.mount as Dictionary).is_empty(), "before the world opens it has only what everyone starts with")
-	var early := WorldGear.gear(i, _t(0.05))
-	check(String(early.weapon.name).contains("มือใหม่") and int(early.weapon.plus) <= 6, "everyone sets out with the beginner's weapon (%s)" % early.weapon)
+	# Its first minutes of play (a hardcore player is past Lv.30 an hour in, with the
+	# band's finds: the beginner's weapon is what it sets out with, not what it has then).
+	var set_out := _t(0.0)
+	while WorldPlayers.played_minutes(i, set_out) <= 0.0 and set_out < _t(2.0):
+		set_out += 60.0
+	set_out += 5.0 * 60.0
+	var early := WorldGear.gear(i, set_out)
+	check(WorldPlayers.level_at(i, set_out) <= 10 and String(early.weapon.name).contains("มือใหม่") and int(early.weapon.plus) <= 6, "everyone sets out with the beginner's weapon (Lv.%d: %s)" % [WorldPlayers.level_at(i, set_out), early.weapon])
 	var ev := WorldGear.events(i, _t(0.0), _t(12.0))
 	check(not ev.is_empty(), "twelve days of play leave events")
 	var last := -INF

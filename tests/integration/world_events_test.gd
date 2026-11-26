@@ -226,9 +226,13 @@ func _exp() -> void:
 
 
 func _boss() -> void:
-	var t0 := thai(2026, 10, 28, 20, 35)
+	# Five minutes into the evening's window, wherever the schedule puts it.
+	var t0 := thai(2026, 10, 28, 0) + WorldEvents.BOSS_START + 5 * 60
 	WorldPresence.clock_offset = t0 - WorldPlayers.now()
 	var event := WorldEvents.boss_now(WorldPresence.clock())
+	check(not event.is_empty(), "the world boss window is on at %s" % Time.get_datetime_string_from_unix_time(int(t0) + 7 * 3600))
+	if event.is_empty():
+		return
 	var id := StringName(event.zone)
 	var source: Dictionary = ZoneData.get_zone(id)
 	Game.profile.level = int(source.level[0])

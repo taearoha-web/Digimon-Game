@@ -127,7 +127,8 @@ func _catalogue() -> void:
 			check(ItemLook.icon(piece) != null, "%s %s has an inventory icon (%s)" % [cls, slot, look])
 			check(ItemData.detail_lines(piece).any(func(line): return String(line).contains(SetGearData.set_label(String(cls)))), "%s %s detail names its set" % [cls, slot])
 			check(EnhanceFx.can_enhance(piece) == (slot not in ["ring", "amulet"]), "%s %s enhances by the normal forge rules" % [cls, slot])
-	check(looks.size() == 60, "60 distinct looks (%d)" % looks.size())
+	var want_looks := ClassData.IDS.size() * SetGearData.SLOTS.size()
+	check(looks.size() == want_looks, "%d distinct looks, one per class and slot (%d)" % [want_looks, looks.size()])
 	for id in SetGearData.catalogue().map(func(p): return SetGearData.look_of(p)):
 		check(ItemLook.all_icon_ids().has(id), "the icon tool renders %s" % id)
 
@@ -381,7 +382,7 @@ func _visuals() -> void:
 	var palettes := {}
 	for cls in SetGearData.PALETTES:
 		palettes[SetGearData.PALETTES[cls].glow.to_html()] = cls
-	check(palettes.size() == 10, "ten distinct set glows")
+	check(SetGearData.PALETTES.size() == ClassData.IDS.size() and palettes.size() == ClassData.IDS.size(), "one distinct set glow per class (%d of %d)" % [palettes.size(), ClassData.IDS.size()])
 	check(StarGearData.kind_from_look("set_greatshield_defender") == "greatshield" and WeaponKit.build("set_lute_bard").has_meta("set_gear"), "set looks resolve to their weapon kinds")
 	check(DarkRaven.look_for(SetGearData.item("darklord", "weapon")) == DarkRaven.Look.ABYSS, "the Dark Lord's raven takes the set look (อีกาจักรพรรดิอเวจี)")
 	check(DarkRaven.look_for(DivineGearData.item("darklord", "weapon", RandomNumberGenerator.new())) == DarkRaven.Look.DIVINE, "the divine scepter keeps the divine raven")

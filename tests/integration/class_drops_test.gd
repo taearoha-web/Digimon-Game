@@ -44,7 +44,7 @@ func _ready() -> void:
 	get_tree().quit(1 if failures > 0 else 0)
 
 
-## drop_class: 30% own, 70% spread over the other nine (all ten for a Vagabond).
+## drop_class: 30% own, 70% spread over the other classes (all of them for a Vagabond).
 func _split() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 30070
@@ -56,11 +56,13 @@ func _split() -> void:
 	var own := float(counts.get(&"warrior", 0)) / n
 	check(absf(own - ItemData.OWN_CLASS_DROP) < 0.01, "own class ~30%% (%.3f)" % own)
 	check(counts.size() == ClassData.IDS.size() and not counts.has(ClassData.LEGACY), "every class drops, never the Vagabond's (%d kinds)" % counts.size())
+	# The rest is shared evenly by every other class (ten of them since the Muay Thai).
+	var other := (1.0 - ItemData.OWN_CLASS_DROP) / float(ClassData.IDS.size() - 1)
 	for cls in ClassData.IDS:
 		if cls == &"warrior":
 			continue
 		var share := float(counts.get(cls, 0)) / n
-		check(absf(share - 0.7 / 9.0) < 0.008, "%s ~7.8%% (%.3f)" % [cls, share])
+		check(absf(share - other) < 0.008, "%s ~%.1f%% (%.3f)" % [cls, other * 100.0, share])
 	counts.clear()
 	for i in 20000:
 		var cls := ItemData.drop_class(ClassData.LEGACY, rng)

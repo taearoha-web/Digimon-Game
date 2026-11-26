@@ -73,7 +73,10 @@ func _test_invalid_backups() -> void:
 		check(Game.profile == original and Game.slot == 1, "invalid import preserves active profile")
 	check(not Game.import_code("not a save"), "invalid base64 rejected")
 	check(FileAccess.get_file_as_string(Game.save_path(1)) == disk_before, "invalid imports preserve saved file")
-	check(Game.preview_import(code({"class": "mage", "level": 7})).level == 7, "minimal legacy profile repairs missing optional fields")
+	# A bare profile of this world (it carries the reopening's epoch) is repaired; the same
+	# profile from before the world reopened (no epoch) is gone (Game.old_world).
+	check(int(Game.preview_import(code({"class": "mage", "level": 7, "world_epoch": Game.WORLD_EPOCH})).get("level", 0)) == 7, "minimal profile repairs missing optional fields")
+	check(Game.preview_import(code({"class": "mage", "level": 7})).is_empty(), "a minimal profile from before the world reopened is refused")
 	check(Game.save_code_roundtrip(), "new profile roundtrip compares actual data")
 	var imported := [0]
 	var watch_import := func(): imported[0] += 1
