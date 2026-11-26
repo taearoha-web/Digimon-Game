@@ -2285,12 +2285,11 @@ func _complete_capture() -> void:
 	_rehome(team)
 	if lost >= 0:
 		_rehome(lost)
-	if team_count() == 2:
-		_send_home(1 - team)
-	else:
-		for t in team_count():
-			if t != team:
-				_send_home(t, true)
+	# Every other guild, wherever it stands, goes back to its camp to start over (the
+	# owner's rule); the guild that took it keeps its place in the castle.
+	for t in team_count():
+		if t != team:
+			_send_home(t)
 	_color_crystal()
 	_make_plans()
 	VfxKit.pillar(zone, SiegeArena.altar_top(), _owner_color(), 14.0, 1.6, 1.6)

@@ -303,9 +303,15 @@ func _owner_war() -> void:
 	# A capture: the castle, its gates and the keep are the new holder's.
 	var taker := m.ai_leader(1)
 	m._gate_pass()
+	var taker_at: Vector3 = taker.global_position if taker != null else Vector3.ZERO
 	m.capture = {"team": 1, "who": taker, "progress": GuildWarMatch.CAPTURE_TIME, "paused": false}
 	m._complete_capture()
 	check(m.castle_owner == 1 and m.captures[1] == 1, "a capture changes the holder")
+	# Every other guild, wherever it stood, is back at its camp; the takers keep their place.
+	for t in [0, 2, 3]:
+		var away := m.side(t).filter(func(f): return is_instance_valid(f) and not f.is_dead() and f.global_position.distance_to(SiegeArena.camp(t)) > SiegeArena.CAMP_RADIUS + 1.0)
+		check(away.is_empty(), "guild %d is sent back to its camp after the capture (%d still out)" % [t, away.size()])
+	check(taker == null or taker.global_position.distance_to(taker_at) < 0.5, "the guild that took it keeps its place in the castle")
 	check(m.side(1).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(1)) < SiegeArena.CAMP_RADIUS) and m.side(2).all(func(f): return f.spawn_point.distance_to(SiegeArena.camp(2)) < SiegeArena.CAMP_RADIUS), "after a fall both the new holder and the old one come back at their camps outside")
 	check(m.passes_gates(raider) and not m.passes_gates(keeper), "the gates are the new holder's")
 	await _drop(zone)
