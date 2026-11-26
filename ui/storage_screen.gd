@@ -145,7 +145,7 @@ func _make_list(row: Control) -> Array:
 
 func open_storage() -> void:
 	is_open = true
-	get_tree().paused = true
+	# The game keeps running under it (auto-hunt goes on; Main._screen_open holds back world taps).
 	_root.visible = true
 	AudioManager.play_ui(&"ui_open")
 	_rebuild()
@@ -157,7 +157,6 @@ func close_storage() -> void:
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_bag_box)
 	UIUtil.clear(_store_box)
-	get_tree().paused = false
 	closed.emit()
 
 
@@ -222,6 +221,11 @@ func _row(item: Dictionary, action_label: String, action: Callable, lock := "") 
 	if lock != "":
 		icon.modulate = Color(0.55, 0.55, 0.6, 0.7)
 	line.add_child(icon)
+	# The player's lock (ItemData.is_locked) moves with the item: a padlock on the icon.
+	if ItemData.is_locked(item):
+		var padlock := ItemData.lock_badge(20.0)
+		padlock.position = Vector2(36, 0)
+		icon.add_child(padlock)
 	var info := UIUtil.vbox(1)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(info)
@@ -252,4 +256,11 @@ func _row(item: Dictionary, action_label: String, action: Callable, lock := "") 
 		AudioManager.play_sfx(&"pickup")
 		action.call())
 	line.add_child(button)
+	# ล็อก / ปลดล็อก (ItemData.set_locked), after the move button.
+	if ItemData.can_lock(item):
+		var lock_button := UIUtil.button("ปลดล็อก" if ItemData.is_locked(item) else "ล็อก", &"GhostButton", Vector2(96, 52))
+		lock_button.name = "LockToggle"
+		lock_button.add_theme_font_size_override("font_size", 17)
+		lock_button.pressed.connect(func(): Game.toggle_item_lock(item))
+		line.add_child(lock_button)
 	return panel

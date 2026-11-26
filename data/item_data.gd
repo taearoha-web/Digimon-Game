@@ -290,6 +290,65 @@ static func is_costume(item: Variant) -> bool:
 	return item is Dictionary and item.get("kind", "") == "costume"
 
 
+# --- item lock ("ล็อก") ------------------------------------------------------------
+## The field a locked item carries ("lock": true; gone when unlocked). A locked item is
+## never sold (one, a count, multi-select, the merchant's bulk buttons, auto-sell), set on
+## the stall, traded, or used up as a material (forging, fusing, set crafting, sockets);
+## it still moves to and from the storage with its lock.
+const LOCK_KEY := "lock"
+const LOCK_TEXT := "ไอเทมนี้ล็อกอยู่ (ปลดล็อกก่อน)"
+const LOCK_BADGE_COLOR := Color(1.0, 0.82, 0.3)
+## The line the detail panel and the tile tooltip show for a locked item.
+const LOCK_NOTE := "ล็อกอยู่ · ขาย ตั้งแผง แลกเปลี่ยน หรือใช้เป็นวัตถุดิบไม่ได้"
+
+
+static func is_locked(item: Variant) -> bool:
+	return item is Dictionary and (item as Dictionary).get(LOCK_KEY, false) == true
+
+
+## Whether the player may lock [param item]: anything in the bag or storage but a costume
+## (a costume is never sold or traded anyway).
+static func can_lock(item: Variant) -> bool:
+	return item is Dictionary and not is_costume(item) and String((item as Dictionary).get("kind", "")) in ["equip", "potion", "gem", "jewel"]
+
+
+## Sets or clears the lock on [param item] (a live bag/storage entry).
+static func set_locked(item: Dictionary, on: bool) -> void:
+	if on and can_lock(item):
+		item[LOCK_KEY] = true
+	else:
+		item.erase(LOCK_KEY)
+
+
+## The small gold padlock drawn on a locked item's bag tile / storage row (drawn, not a
+## glyph: the game's fonts carry no emoji).
+static func lock_badge(px := 22.0) -> Control:
+	var c := Control.new()
+	c.name = "LockBadge"
+	c.custom_minimum_size = Vector2(px, px)
+	c.size = Vector2(px, px)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.tooltip_text = LOCK_NOTE
+	c.draw.connect(func():
+		var s := c.size.x
+		var edge := Color(0, 0, 0, 0.85)
+		var top := Vector2(s * 0.5, s * 0.44)
+		c.draw_arc(top, s * 0.25, PI, TAU, 18, edge, s * 0.21, true)
+		c.draw_arc(top, s * 0.25, PI, TAU, 18, LOCK_BADGE_COLOR, s * 0.11, true)
+		var body := Rect2(s * 0.14, s * 0.44, s * 0.72, s * 0.5)
+		c.draw_rect(body.grow(s * 0.06), edge)
+		c.draw_rect(body, LOCK_BADGE_COLOR)
+		c.draw_circle(Vector2(s * 0.5, s * 0.64), s * 0.08, Color(0.3, 0.2, 0.05))
+		c.draw_rect(Rect2(s * 0.46, s * 0.66, s * 0.08, s * 0.16), Color(0.3, 0.2, 0.05)))
+	return c
+
+
+## A stack joining another keeps the lock of either (a locked pile stays locked).
+static func merge_lock(into: Dictionary, from: Dictionary) -> void:
+	if is_locked(from):
+		into[LOCK_KEY] = true
+
+
 ## The text on a bag / slot tile under the icon: "×5" for a stack, the level ("Lv.80",
 ## "ดาว50" above Lv.100) for gear, "คอสตูม" for a costume and nothing for anything else
 ## (a thing without a level never reads "Lv.0").

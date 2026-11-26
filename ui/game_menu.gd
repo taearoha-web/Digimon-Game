@@ -160,7 +160,8 @@ func close_menu() -> void:
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_content)
-	get_tree().paused = false
+	# The menu never pauses (open_menu), so closing it leaves a pause someone else holds
+	# (a result screen, the ending) alone.
 	AudioManager.play_ui(&"ui_cancel")
 	closed.emit()
 
@@ -667,6 +668,12 @@ func _build_bag_grid(middle: VBoxContainer) -> void:
 				mark.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 				mark.position = Vector2(6, 2)
 				b.add_child(mark)
+			if ItemData.is_locked(item):
+				# The player's lock (ล็อก): a gold padlock in the tile's top-right corner.
+				b.tooltip_text += "\n" + ItemData.LOCK_NOTE
+				var padlock := ItemData.lock_badge(22.0)
+				padlock.position = Vector2(64, 4)
+				b.add_child(padlock)
 			var entry := {"button": b, "slot": "", "index": i, "color": ItemData.color_of(item)}
 			if multi_sell:
 				# Multi-select: a check on the picked tiles; pieces bulk selling never
@@ -935,6 +942,17 @@ func _refresh_detail() -> void:
 		_detail.add_child(UIUtil.label("%s • %s • ใส่ได้ทุกอาชีพ" % [ItemData.SLOT_NAMES[Game.COSTUME_SLOT], ItemData.RARITY_NAMES[clampi(int(item.get("rarity", 1)), 0, 4)]], &"SmallLabel"))
 	if _selected_slot == "" and item.get("kind", "") == "equip" and not Game.is_other_class(item):
 		_build_compare(item)
+	var locked := ItemData.is_locked(item)
+	if locked:
+		var lock_row := UIUtil.hbox(6)
+		lock_row.name = "LockNote"
+		lock_row.add_child(ItemData.lock_badge(22.0))
+		var lock_label := UIUtil.label(ItemData.LOCK_NOTE, &"SmallLabel")
+		lock_label.add_theme_color_override("font_color", ItemData.LOCK_BADGE_COLOR)
+		lock_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lock_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lock_row.add_child(lock_label)
+		_detail.add_child(lock_row)
 	for line in ItemData.detail_lines(item):
 		var detail_label := UIUtil.label(line, &"BoldLabel" if not line.begins_with("เซ็ต") else &"SmallLabel")
 		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -965,8 +983,10 @@ func _refresh_detail() -> void:
 			wear.disabled = problem != ""
 			wear.pressed.connect(func(): Game.equip_from_bag(_selected_index); _selected_index = -1; _rebuild())
 			pair.add_child(wear)
-			var sell := UIUtil.button("ขาย +%d" % ItemData.sell_price(item), &"", Vector2(0, 58))
+			var sell := UIUtil.button("ล็อกอยู่" if locked else "ขาย +%d" % ItemData.sell_price(item), &"", Vector2(0, 58))
+			sell.name = "GearSell"
 			sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sell.disabled = locked
 			sell.pressed.connect(func(): _sell_selected(1))
 			pair.add_child(sell)
 	elif item.get("kind", "") == "jewel":
@@ -1007,7 +1027,7 @@ func _refresh_detail() -> void:
 			# height on a phone and hid every other button under it).
 			var fuse := UIUtil.button("รวม 3 → %s\n%d%% · %d เหรียญ" % [ItemData.GEM_SIZES[info.size + 1], int(float(ItemData.GEM_FUSE_CHANCE[info.size]) * 100.0), int(ItemData.GEM_FUSE_GOLD[info.size])], &"PrimaryButton", Vector2(0, 66))
 			fuse.name = "FuseOne"
-			fuse.disabled = int(item.get("count", 1)) < 3
+			fuse.disabled = int(item.get("count", 1)) < 3 or Game.gem_total(gem_id) < 3
 			fuse.clip_text = true
 			fuse.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			fuse.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -1056,9 +1076,18 @@ func _refresh_detail() -> void:
 	if _selected_slot == "" and not forge_mode and PlayerStall.fair_price(item) > 0:
 		var stall := UIUtil.button("ตั้งขายบนแผง", &"", Vector2(0, 58))
 		stall.name = "StallItem"
+		stall.disabled = locked
 		var index := _selected_index
 		stall.pressed.connect(func(): open_stall(index))
 		target.add_child(stall)
+	# The player's lock (ItemData.is_locked): no sale, stall, trade or use as a material.
+	if ItemData.can_lock(item):
+		var lock_button := UIUtil.button("ปลดล็อก" if locked else "ล็อก", &"GhostButton" if locked else &"", Vector2(0, 54))
+		lock_button.name = "LockToggle"
+		lock_button.pressed.connect(func():
+			Game.toggle_item_lock(item)
+			_rebuild())
+		target.add_child(lock_button)
 
 
 ## The bag actions of เกาะลอยฟ้าเทพมังกร's stackables (SkyIsleLoot): "เปิด" / "เปิดทั้งหมด"
@@ -1232,7 +1261,7 @@ func _build_multi_sell() -> void:
 		_multi_pick.clear()
 		_refresh_detail())
 	_detail.add_child(clear)
-	var keep := UIUtil.label("ไม่ถูกเลือกเด็ดขาด: ของที่สวมอยู่ ตีบวกแล้ว ใส่อัญมณี ปีก ชุดเซต/ดาว/เทพ/มังกร · เลือกด่วนไม่เกินเกรดหายาก แตะเลือกเพิ่มทีละชิ้นได้", &"DimLabel")
+	var keep := UIUtil.label("ไม่ถูกเลือกเด็ดขาด: ของที่ล็อก ของที่สวมอยู่ ตีบวกแล้ว ใส่อัญมณี ปีก ชุดเซต/ดาว/เทพ/มังกร · เลือกด่วนไม่เกินเกรดหายาก แตะเลือกเพิ่มทีละชิ้นได้", &"DimLabel")
 	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(keep)
 
@@ -1273,7 +1302,12 @@ func _add_stack_sell(item: Dictionary, target: Control) -> void:
 	var sell := UIUtil.button("ขาย +%d" % unit if stack <= 1 else "ขาย... (+%d/ชิ้น)" % unit, &"", Vector2(0, 58))
 	sell.name = "StackSell"
 	sell.clip_text = true
+	if ItemData.is_locked(item):
+		sell.text = "ล็อกอยู่"
+		sell.disabled = true
 	sell.pressed.connect(func():
+		if ItemData.is_locked(item):
+			return
 		if stack <= 1:
 			_sell_selected(1)
 			return

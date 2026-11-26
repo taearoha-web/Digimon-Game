@@ -130,7 +130,7 @@ func open_stall(world_index: int) -> void:
 
 func _open() -> void:
 	is_open = true
-	get_tree().paused = true
+	# The game keeps running under it (auto-hunt goes on; Main._screen_open holds back world taps).
 	_root.visible = true
 	AudioManager.play_ui(&"ui_open")
 	_rebuild()
@@ -143,7 +143,6 @@ func close_shop() -> void:
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_buy_box)
 	UIUtil.clear(_sell_box)
-	get_tree().paused = false
 	closed.emit()
 
 
@@ -219,10 +218,10 @@ func _rebuild() -> void:
 		if ItemData.is_costume(item):
 			continue
 		if stall >= 0:
-			_sell_box.add_child(_consign_row(item, i))
+			_sell_box.add_child(_locked_row(_consign_row(item, i), item))
 			continue
 		var price := ItemData.unit_sell_price(item)
-		_sell_box.add_child(_row(item, price, "ขาย", func(): _sell_pick(i, item, price, func(n: int): Game.sell_item(i, n))))
+		_sell_box.add_child(_locked_row(_row(item, price, "ขาย", func(): _sell_pick(i, item, price, func(n: int): Game.sell_item(i, n))), item))
 	if empty:
 		_sell_box.add_child(UIUtil.label("กระเป๋าว่างเปล่า", &"DimLabel"))
 	if stall >= 0:
@@ -355,6 +354,25 @@ func _consign_row(item: Dictionary, index: int) -> Control:
 			_qty[key] = 1
 		_stepper(panel.find_child("Info", true, false) as Control, key, steps, refresh)
 	refresh.call()
+	return panel
+
+
+## A sell row of a locked bag item (ItemData.is_locked): its sell and consign buttons
+## read "ล็อกอยู่" and do nothing, and a padlock sits on the icon.
+func _locked_row(panel: Control, item: Dictionary) -> Control:
+	if not ItemData.is_locked(item):
+		return panel
+	for button_name in ["Sell", "Consign"]:
+		var button := panel.find_child(button_name, true, false) as Button
+		if button != null:
+			button.text = "ล็อกอยู่"
+			button.disabled = true
+	# The row's first child is its line; the line's first child the item icon.
+	var line := panel.get_child(0) as Control
+	if line != null and line.get_child_count() > 0:
+		var padlock := ItemData.lock_badge(20.0)
+		padlock.position = Vector2(42, 0)
+		line.get_child(0).add_child(padlock)
 	return panel
 
 

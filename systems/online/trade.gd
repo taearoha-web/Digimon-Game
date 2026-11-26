@@ -99,6 +99,9 @@ static func tradable(item: Dictionary) -> bool:
 	# The Legendary Guild Wings stay with the account (the shared storage moves them).
 	if LegendWings.is_item(item):
 		return false
+	# The player's own lock (ItemData.is_locked): unlock it first.
+	if ItemData.is_locked(item):
+		return false
 	for key in ["bound", "quest", "no_trade"]:
 		if bool(item.get(key, false)):
 			return false
@@ -239,7 +242,7 @@ func offer(index: int, count := 1) -> bool:
 		return false
 	var item: Dictionary = Game.profile.inv[index]
 	if not tradable(item):
-		Game.say(LegendWings.TRADE_TEXT if LegendWings.is_item(item) else "ของชิ้นนี้แลกเปลี่ยนไม่ได้", &"warning")
+		Game.say(LegendWings.TRADE_TEXT if LegendWings.is_item(item) else ItemData.LOCK_TEXT if ItemData.is_locked(item) else "ของชิ้นนี้แลกเปลี่ยนไม่ได้", &"warning")
 		return false
 	if ItemData.is_stackable(item):
 		var n := mini(count, free_count(item))
@@ -383,7 +386,7 @@ static func _same(a: Dictionary, b: Dictionary) -> bool:
 static func _bag_index(item: Dictionary) -> int:
 	var inv: Array = Game.profile.get("inv", [])
 	for i in inv.size():
-		if _same(inv[i], item):
+		if _same(inv[i], item) and not ItemData.is_locked(inv[i]):
 			return i
 	return -1
 
@@ -391,7 +394,7 @@ static func _bag_index(item: Dictionary) -> int:
 static func _bag_count(item: Dictionary) -> int:
 	var n := 0
 	for entry in Game.profile.get("inv", []):
-		if _same(entry, item):
+		if _same(entry, item) and not ItemData.is_locked(entry):
 			n += int(entry.get("count", 1)) if ItemData.is_stackable(entry) else 1
 	return n
 
@@ -431,7 +434,7 @@ static func missing(give: Dictionary) -> String:
 		var found := -1
 		var inv: Array = Game.profile.get("inv", [])
 		for i in inv.size():
-			if not used.has(i) and _same(inv[i], item):
+			if not used.has(i) and _same(inv[i], item) and not ItemData.is_locked(inv[i]):
 				found = i
 				break
 		if found < 0:
@@ -450,7 +453,7 @@ static func _take_from_bag(item: Dictionary) -> void:
 		for i in range(inv.size() - 1, -1, -1):
 			if left <= 0:
 				break
-			if _same(inv[i], item):
+			if _same(inv[i], item) and not ItemData.is_locked(inv[i]):
 				var have := int(inv[i].get("count", 1))
 				if have > left:
 					inv[i]["count"] = have - left

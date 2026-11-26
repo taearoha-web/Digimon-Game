@@ -765,6 +765,9 @@ static func sell(index: int, count := 1) -> bool:
 	if LegendWings.is_item(item):
 		Game.say(LegendWings.SELL_TEXT, &"warning")
 		return false
+	if ItemData.is_locked(item):
+		Game.say(ItemData.LOCK_TEXT, &"warning")
+		return false
 	if ItemData.is_costume(item) or sell_price(item) <= 0:
 		Game.say(Game.COSTUME_SELL_TEXT if ItemData.is_costume(item) else "ของชิ้นนี้ขายไม่ได้", &"warning")
 		return false
@@ -807,6 +810,9 @@ static func consign(index: int, count := 0, t: float = -1.0) -> bool:
 		Game.say("ฝากขายได้ไม่เกิน %d ชิ้น" % CONSIGN_MAX, &"warning")
 		return false
 	var item: Dictionary = Game.profile.inv[index]
+	if ItemData.is_locked(item):
+		Game.say(ItemData.LOCK_TEXT, &"warning")
+		return false
 	var stack := int(item.get("count", 1)) if ItemData.is_stackable(item) else 1
 	var qty := stack if count <= 0 else clampi(count, 1, stack)
 	var gold := consign_price(item) * qty

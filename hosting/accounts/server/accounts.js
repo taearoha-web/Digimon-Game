@@ -232,6 +232,9 @@ function validateProfile(profile) {
       || (profile.inv ?? []).some(value => !dictionary(value))
       || (profile.storage ?? []).some(value => !dictionary(value))
       || Object.values(profile.equip ?? {}).some(value => !dictionary(value))) fail(400, 'invalid_save', 'The inventory or skill loadout is invalid.');
+  // The player's item lock (ItemData.LOCK_KEY in the game): only ever true where it is set.
+  if ([...(profile.inv ?? []), ...(profile.storage ?? []), ...Object.values(profile.equip ?? {})]
+      .some(item => 'lock' in item && item.lock !== true)) fail(400, 'invalid_save', 'An item lock is invalid.');
   // Reward-shop costumes are items (RewardShop.costume_item in the game): in the bag or an
   // old storage, never worn as gear (the worn one is rshop.cos) and never on a stall.
   if ([...(profile.inv ?? []), ...(profile.storage ?? [])].some(item => costumeItem(item) && !validCostumeItem(item))
@@ -504,10 +507,12 @@ function validRewardShop(shop) {
 const WCOL_THEMES = 8;
 const WCOL_PIECES = 5;
 const WCOL_PIECE = new RegExp(`^wk[0-${WCOL_THEMES - 1}]_[0-${WCOL_PIECES - 1}]$`);
-const WCOL_KEYS = new Set(['kind', 'id', 'count']);
+// 'lock': the player's item lock (ItemData.LOCK_KEY in the game), only ever true.
+const WCOL_KEYS = new Set(['kind', 'id', 'count', 'lock']);
+const lockOk = item => !('lock' in item) || item.lock === true;
 const weeklyPiece = item => dictionary(item) && item.kind === 'jewel' && typeof item.id === 'string' && item.id.startsWith('wk');
 function validWeeklyPiece(item) {
-  return WCOL_PIECE.test(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && integer(item.count ?? 1, 1, 1_000_000);
+  return WCOL_PIECE.test(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && lockOk(item) && integer(item.count ?? 1, 1, 1_000_000);
 }
 function validWeeklyCollect(record) {
   if (!dictionary(record) || Object.keys(record).length > 8) return false;
@@ -531,7 +536,7 @@ const LK_MAX = 1_000_000;
 const LK_RANGES = {day: [-1, 100_000], pgd: [-1, 100_000], n: [0, 100], pgg: [0, 1], got: [0, 3], fl: [0, LK_MAX], pts: [0, LK_MAX], pg: [0, LK_MAX]};
 const loyKrathongItem = item => dictionary(item) && item.kind === 'jewel' && typeof item.id === 'string' && item.id.startsWith('lk_');
 function validLoyKrathongItem(item) {
-  return LK_IDS.has(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && integer(item.count ?? 1, 1, 1_000_000);
+  return LK_IDS.has(item.id) && Object.keys(item).every(key => WCOL_KEYS.has(key)) && lockOk(item) && integer(item.count ?? 1, 1, 1_000_000);
 }
 function validLoyKrathong(record) {
   if (!dictionary(record) || Object.keys(record).length > Object.keys(LK_RANGES).length) return false;

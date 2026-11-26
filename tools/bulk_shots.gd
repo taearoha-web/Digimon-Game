@@ -24,11 +24,21 @@ func _ready() -> void:
 		var it := ItemData.generate(40 + i, &"warrior", rng, i % 4, ItemData.SLOTS[i % ItemData.SLOTS.size()])
 		if i == 3:
 			it["plus"] = 5
+		if i == 2:
+			ItemData.set_locked(it, true)
 		Game.profile.inv.append(it)
 	var menu := GameMenu.new()
 	add_child(menu)
 	menu.open_menu(&"inventory")
 	await _frames(4)
+	# 0. a locked piece (ล็อก): the padlock on its tile, the note and ปลดล็อก in the panel.
+	menu._selected_index = 4
+	menu._rebuild()
+	await _frames(3)
+	_shot("0_bag_locked")
+	menu._selected_index = -1
+	menu._rebuild()
+	await _frames(2)
 	# 1. the multi-select with a quick pick.
 	(menu.find_child("MultiSellToggle", true, false) as Button).pressed.emit()
 	await _frames(3)

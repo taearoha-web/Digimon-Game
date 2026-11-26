@@ -1565,6 +1565,9 @@ func _valid_item(value: Variant) -> bool:
 	if not value is Dictionary:
 		return false
 	var item: Dictionary = value
+	# The player's lock (ItemData.LOCK_KEY) is only ever true.
+	if item.has(ItemData.LOCK_KEY) and item[ItemData.LOCK_KEY] != true:
+		return false
 	if item.get("kind") in ["potion", "gem", "jewel"]:
 		# Stack items never contain equipment fields. Refuse ambiguous data before
 		# item repair or UI code can accidentally interpret those nested values.
@@ -2710,8 +2713,24 @@ func _stack_into(list: Array, item: Dictionary) -> bool:
 		for existing in list:
 			if existing.get("kind", "") == item.get("kind", "") and existing.id == item.id:
 				existing["count"] = int(existing["count"]) + int(item.get("count", 1))
+				ItemData.merge_lock(existing, item)
 				return true
 	return false
+
+
+## SharedStorage.put that keeps a locked stack's lock on the pile it joins.
+func _store_keeping_lock(item: Dictionary) -> bool:
+	var pile: Variant = null
+	if ItemData.is_stackable(item) and ItemData.is_locked(item):
+		for existing in SharedStorage.items():
+			if existing.get("kind", "") == item.get("kind", "") and existing.get("id") == item.get("id"):
+				pile = existing
+				break
+	if not SharedStorage.put(item):
+		return false
+	if pile is Dictionary:
+		ItemData.merge_lock(pile, item)
+	return true
 
 
 ## Moves a whole bag entry into the shared storage (any hero, any item). Returns false
@@ -2725,7 +2744,7 @@ func deposit_item(index: int) -> bool:
 	if lock != "":
 		say(lock, &"warning")
 		return false
-	if not SharedStorage.put(item):
+	if not _store_keeping_lock(item):
 		say("คลังรวมเต็ม (%d/%d) — เบิกของออกก่อน" % [SharedStorage.size(), STORAGE_SIZE], &"warning")
 		return false
 	profile["inv"].remove_at(index)
@@ -2796,11 +2815,12 @@ func give_or_store(item: Dictionary) -> bool:
 	return false
 
 
-## Jewels of `id` in the bag.
+## Jewels of `id` in the bag that can be used (a locked stack, ItemData.is_locked, is
+## never used up as a material, so it is not counted).
 func jewel_count(id: String) -> int:
 	var n := 0
 	for item in profile["inv"]:
-		if item.get("kind", "") == "jewel" and String(item.get("id", "")) == id:
+		if item.get("kind", "") == "jewel" and String(item.get("id", "")) == id and not ItemData.is_locked(item):
 			n += int(item.get("count", 1))
 	return n
 
@@ -2812,7 +2832,7 @@ func _spend_jewels(id: String, count: int) -> void:
 		var item: Dictionary = profile["inv"][i]
 		if left <= 0:
 			break
-		if item.get("kind", "") != "jewel" or String(item.get("id", "")) != id:
+		if item.get("kind", "") != "jewel" or String(item.get("id", "")) != id or ItemData.is_locked(item):
 			continue
 		var take := mini(left, int(item.get("count", 1)))
 		item["count"] = int(item.get("count", 1)) - take
@@ -2896,15 +2916,16 @@ const SET_WORN_CONFIRM := "ชิ้นประจำอาชีพที่�
 func set_divine_choices(slot: String) -> Array[Dictionary]:
 	var cls := String(class_id())
 	var out: Array[Dictionary] = []
+	# A locked piece (ItemData.is_locked) is never used up in the forge.
 	for item in profile["inv"]:
-		if SetGearData.divine_fits(item, cls, slot):
+		if SetGearData.divine_fits(item, cls, slot) and not ItemData.is_locked(item):
 			out.append({"where": "bag", "item": item})
 	for item in storage():
-		if SetGearData.divine_fits(item, cls, slot) and storage_lock(item) == "":
+		if SetGearData.divine_fits(item, cls, slot) and storage_lock(item) == "" and not ItemData.is_locked(item):
 			out.append({"where": "storage", "item": item})
 	out.sort_custom(func(a, b): return int(a.item.get("plus", 0)) < int(b.item.get("plus", 0)) or (int(a.item.get("plus", 0)) == int(b.item.get("plus", 0)) and a.where == "bag" and b.where != "bag"))
 	var worn: Variant = profile["equip"].get(slot)
-	if SetGearData.divine_fits(worn, cls, slot):
+	if SetGearData.divine_fits(worn, cls, slot) and not ItemData.is_locked(worn):
 		out.append({"where": "equip", "item": worn})
 	return out
 
@@ -3017,6 +3038,9 @@ func socket_gem(item: Dictionary, gem_index: int) -> bool:
 	var gem: Dictionary = profile["inv"][gem_index]
 	if gem.get("kind", "") != "gem" or item.get("kind", "") != "equip":
 		return false
+	if ItemData.is_locked(gem):
+		say(ItemData.LOCK_TEXT, &"warning")
+		return false
 	if not item.has("gems"):
 		item["gems"] = []
 	if (item["gems"] as Array).size() >= int(item.get("sockets", 0)):
@@ -3056,10 +3080,7 @@ func fuse_gem(gem_id: String) -> String:
 	var info := ItemData.gem_info({"id": gem_id})
 	if info.size >= ItemData.GEM_MAX_SIZE:
 		return "อัญมณีขั้นสูงสุดแล้ว"
-	var have := 0
-	for it in profile["inv"]:
-		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
-			have += int(it.get("count", 1))
+	var have := gem_total(gem_id)
 	if have < 3:
 		return "ต้องมี %s 3 เม็ด (มี %d)" % [info.name, have]
 	var gold := int(ItemData.GEM_FUSE_GOLD[info.size])
@@ -3085,10 +3106,11 @@ func _gem_id_of(type: String, size: int) -> String:
 	return "%s_%d" % [type, size]
 
 
+## The first unlocked bag stack of [param gem_id] (-1 when none).
 func _gem_index(gem_id: String) -> int:
 	for i in profile["inv"].size():
 		var it: Dictionary = profile["inv"][i]
-		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id and not ItemData.is_locked(it):
 			return i
 	return -1
 
@@ -3370,6 +3392,9 @@ func sell_item(index: int, count := 1) -> void:
 	if ItemData.is_costume(item):
 		say(COSTUME_SELL_TEXT, &"warning")
 		return
+	if ItemData.is_locked(item):
+		say(ItemData.LOCK_TEXT, &"warning")
+		return
 	var each := ItemData.unit_sell_price(item)
 	var qty := count if ItemData.is_stackable(item) else 1
 	add_gold(each * qty)
@@ -3380,6 +3405,21 @@ func sell_item(index: int, count := 1) -> void:
 const COSTUME_SELL_TEXT := "คอสตูมขายไม่ได้ (ฝากคลังเพื่อส่งให้ตัวละครอื่นได้)"
 
 
+## "ล็อก / ปลดล็อก" on a bag, worn or storage item (ItemData.set_locked). Returns the new
+## state; saves like any bag change (the storage is written when [param item] is there).
+func toggle_item_lock(item: Dictionary) -> bool:
+	if not ItemData.can_lock(item):
+		return false
+	var on := not ItemData.is_locked(item)
+	ItemData.set_locked(item, on)
+	say("ล็อก%s แล้ว" % ItemData.name_of(item) if on else "ปลดล็อก%s แล้ว" % ItemData.name_of(item), &"success")
+	if storage().any(func(entry): return is_same(entry, item)):
+		SharedStorage.store()
+	inventory_changed.emit()
+	mark_dirty()
+	return on
+
+
 # --- bulk actions (sell many / fuse many / move many in one pass) -----------------
 
 ## Why a bag piece of gear cannot be picked in the "เลือกหลายชิ้น" bulk sale ("" when
@@ -3387,6 +3427,8 @@ const COSTUME_SELL_TEXT := "คอสตูมขายไม่ได้ (ฝ�
 ## dragon, the 250★ set, the Legendary Guild Wings) stay out, as in auto-sell. Gear worn
 ## is in profile.equip, never in the bag, so it can never be picked.
 func bulk_sell_lock(item: Dictionary) -> String:
+	if ItemData.is_locked(item):
+		return "ล็อกอยู่"
 	if item.get("kind", "") != "equip":
 		return "ไม่ใช่อุปกรณ์"
 	if LegendWings.is_item(item) or item.get("slot", "") == "wings":
@@ -3424,7 +3466,7 @@ func sell_many(indices: Array) -> Dictionary:
 		if i < 0 or i >= profile["inv"].size() or picked.has(i):
 			continue
 		var item: Dictionary = profile["inv"][i]
-		if ItemData.is_costume(item) or LegendWings.is_item(item) or ItemData.sell_price(item) <= 0:
+		if ItemData.is_costume(item) or LegendWings.is_item(item) or ItemData.is_locked(item) or ItemData.sell_price(item) <= 0:
 			continue
 		if item.get("kind", "") == "equip" and bulk_sell_lock(item) != "":
 			continue
@@ -3457,10 +3499,11 @@ func fuse_gem_max_tries(gem_id: String) -> int:
 	return mini(by_gold, by_gems)
 
 
+## Gems of [param gem_id] in the bag a fuse may use (locked stacks left out).
 func gem_total(gem_id: String) -> int:
 	var have := 0
 	for it in profile["inv"]:
-		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id and not ItemData.is_locked(it):
 			have += int(it.get("count", 1))
 	return have
 
@@ -3546,7 +3589,7 @@ func deposit_many(indices: Array) -> Dictionary:
 	var left := 0
 	for k in range(sorted.size() - 1, -1, -1):
 		var item: Dictionary = profile["inv"][sorted[k]]
-		if MazeCrown.deposit_lock(item) != "" or not SharedStorage.put(item):
+		if MazeCrown.deposit_lock(item) != "" or not _store_keeping_lock(item):
 			left += 1
 			continue
 		profile["inv"].remove_at(sorted[k])
@@ -3607,7 +3650,7 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 		# jewels, reward-shop costumes) are never sold off in bulk.
 		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item) or DragonGearData.is_item(item):
 			continue
-		if not other_ok and is_other_class(item):
+		if (not other_ok and is_other_class(item)) or ItemData.is_locked(item):
 			continue
 		if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 			continue

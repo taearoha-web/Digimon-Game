@@ -47,7 +47,8 @@ static func rows(inv: Array) -> Array:
 	var have := {}
 	for i in inv.size():
 		var it: Dictionary = inv[i]
-		if it.get("kind", "") != "gem" or not ItemData.GEMS.has(String(it.id).split("_")[0]):
+		# A locked stack (ItemData.is_locked) is never set into a socket.
+		if it.get("kind", "") != "gem" or not ItemData.GEMS.has(String(it.id).split("_")[0]) or ItemData.is_locked(it):
 			continue
 		var id := String(it.id)
 		if not have.has(id):
@@ -119,7 +120,7 @@ static func fill_plan(piece: Dictionary, inv: Array, type: String) -> Array[Stri
 static func put(piece: Dictionary, gem_id: String) -> bool:
 	for i in Game.profile.inv.size():
 		var it: Dictionary = Game.profile.inv[i]
-		if it.get("kind", "") == "gem" and String(it.id) == gem_id:
+		if it.get("kind", "") == "gem" and String(it.id) == gem_id and not ItemData.is_locked(it):
 			return Game.socket_gem(piece, i)
 	return false
 
