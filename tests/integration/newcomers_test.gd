@@ -67,6 +67,13 @@ func _daily() -> void:
 	check(WorldPlayers._all.size() == again.size() and String(WorldPlayers._all[-1].name) == String(again[-1].name), "worked out again, the same newcomers")
 	WorldPlayers.ensure_until(_start() + 400.0 * DAY)
 	check(WorldPlayers._all.size() == 100 + WorldPlayers.NEWCOMER_MAX, "a year on, capped at 100 + %d (%d)" % [WorldPlayers.NEWCOMER_MAX, WorldPlayers._all.size()])
+	# 10-15 a day: the last newcomer comes about NEWCOMER_MAX / 12.5 days after the opening.
+	var last_day := int(WorldPlayers._all[-1].get("day", 0))
+	var expect := float(WorldPlayers.NEWCOMER_MAX) / 12.5
+	check(last_day >= int(expect * 0.85) and last_day <= int(expect * 1.15) + 1, "the last newcomer joins on day %d (about %d)" % [last_day, int(expect)])
+	print("the %d newcomers have all come by day %d" % [WorldPlayers.NEWCOMER_MAX, last_day])
+	var indices := WorldPlayers._all.size() < 4096
+	check(indices, "every index stays under 4096 (the per-player caches' keys)")
 	var newcomer := false
 	for i in WorldPlayers._all.size():
 		newcomer = newcomer or WorldPlayers.is_newcomer(i)
@@ -270,11 +277,14 @@ func _guild_war() -> void:
 		check(online_first, "%s's line-up lists the online first" % side[2])
 
 
-## What a world of a few hundred costs: a whole read of everyone (WorldPresence reads the
-## online ones a few a frame).
+## What the world costs: a whole read of everyone (WorldPresence reads the online ones a
+## few a frame), on day 30 and on day 130 with every newcomer in (tools/world_scale_bench
+## times the rest).
 func _perf() -> void:
 	for d: float in [30.0, 130.0]:
 		var t := _start() + d * DAY + 20.0 * 3600.0
+		# Everyone who has come by then (day 130: the whole world, NEWCOMER_MAX reached).
+		WorldPlayers.ensure_until(t)
 		var n := 0
 		for i in WorldPlayers._all.size():
 			n += 1 if t >= WorldPlayers.joined_at(i) else 0
@@ -289,3 +299,4 @@ func _perf() -> void:
 		var ms := float(Time.get_ticks_usec() - t0) / 1000.0
 		print("day %d: %d players, %d online; a sync's reads %.1f ms (%.0f us a player online)" % [int(d), n, on, ms, ms * 1000.0 / float(maxi(1, on))])
 		check(on > 0 and on < n, "day %d: some online, not all" % int(d))
+		check(ms * 1000.0 / float(maxi(1, on)) < 400.0, "day %d: a state read stays cheap (%.0f us)" % [int(d), ms * 1000.0 / float(maxi(1, on))])

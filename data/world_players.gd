@@ -9,8 +9,8 @@ extends RefCounted
 ## tests/tools/pace_probe.gd measured in the real fields, times the player's own
 ## efficiency (deaths, trips to town, slower hands than the probe's). A roster entry may
 ## start with a head start (vet, none at present), a few log in for the first time some
-## days after the opening (join; the daily newcomers made from the date alone are off
-## since the reopening, NEWCOMER_MAX = 0: the world is the ROSTER's hundred players), stall keepers stay in the
+## days after the opening (join), and from the day after the reopening 10-15 newcomers a
+## day made from the date alone join them (up to NEWCOMER_MAX), stall keepers stay in the
 ## village and everyone else plays hardcore, taking turns to rest. So levels,
 ## stars, whereabouts and who is online are the same for everyone at a given moment.
 ## A player with a play schedule spends its time online levelling: it hunts in the field
@@ -242,7 +242,7 @@ static func entry(i: int) -> Dictionary:
 
 # --- Newcomers ----------------------------------------------------------------------
 
-## Every Thai day from the opening on, NEWCOMERS (2 or 3, by the day) new players log in
+## Every Thai day from the opening on, NEWCOMERS (10 to 15, by the day) new players log in
 ## for the first time, each at a moment of that day of its own. They are made from the
 ## date alone (name, class, face, guild), so every device meets the same people at the
 ## same moment: they start at Lv.1 in their class on their day and play hardcore like
@@ -254,7 +254,12 @@ static func entry(i: int) -> Dictionary:
 const NEWCOMERS := Vector2i(10, 15)
 ## The first day (from the opening's Thai day) with newcomers: 23 Nov 2026.
 const NEWCOMER_FROM_DAY := 1
-## At most this many newcomers in all (about seven weeks of them), so a phone keeps up.
+## At most this many newcomers in all (about 48 days of them at 12.5 a day), so a phone
+## keeps up. tools/world_scale_bench.tscn timed the world's reads at 100 + 600 / 1500 /
+## 3000 players: every pass over everyone (a state ~80 us, a progress read ~40 us, an
+## online look-up ~3 us a player on a desktop, a phone several times that) grows with the
+## count, and the maze's cold MazeWar.slot_fights power read (1.4 s at 700 players on a
+## desktop, one frame) grows with it too: kept at 600 until that is split across frames.
 const NEWCOMER_MAX := 600
 ## How a newcomer talks in the chats (a play style's voice: ChatThreads.voice, ChatBrain).
 const NEWCOMER_VOICES: Array[String] = ["hardcore", "regular", "student", "night_owl", "casual", "daytime", "early"]
@@ -463,13 +468,21 @@ static func day_of(w: float) -> int:
 static var _sessions := {}
 
 
+## How many entries a per-player cache may hold before it starts again: `floor`, or `per`
+## entries for everyone in the world when that is more (a pass over a world of thousands
+## reads a few days, minutes and event windows of each player: a cache smaller than one
+## pass would be emptied in every pass and never hit).
+static func _cache_cap(floor_size: int, per: int) -> int:
+	return maxi(floor_size, per * _all.size())
+
+
 static func sessions_on(i: int, day: int) -> Array:
-	var key := day * 4096 + i
+	var key := day * 65536 + i
 	var hit: Variant = _sessions.get(key)
 	if hit != null:
 		return hit
 	var out := _make_sessions(i, day)
-	if _sessions.size() > 12000:
+	if _sessions.size() > _cache_cap(12000, 8):
 		_sessions.clear()
 	_sessions[key] = out
 	return out
@@ -528,7 +541,13 @@ static func _extend_cum(i: int, cum: PackedFloat64Array, upto: int, first: int, 
 	var total := cum[cum.size() - 1]
 	while cum.size() < upto:
 		var d := first + cum.size() - 1
-		if float(d) * DAY - TZ - 7200.0 >= origin:
+		var begins := float(d) * DAY - TZ
+		if begins + 3.0 * DAY <= origin:
+			# Every session of a day this long before the player joined is over by then
+			# (none runs two days past its midnight): nothing to count, nothing to draw.
+			cum.append(total)
+			continue
+		if begins - 7200.0 >= origin:
 			rng.seed = nh * 1000003 + d * 7919
 			if rng.randf() >= skip:
 				for length in (lengths[1] if (d + 3) % 7 >= 5 else lengths[0]) as PackedFloat64Array:
@@ -574,11 +593,11 @@ static func played_minutes(i: int, t: float) -> float:
 		return 0.0
 	# Kept per player and minute for the very moment read (another moment of the same
 	# minute is worked out again, so the answer never depends on what was read first).
-	var key := int(t / 60.0) * 4096 + i
+	var key := int(t / 60.0) * 65536 + i
 	var hit: Variant = _minutes_cache.get(key)
 	if hit != null and float(hit[0]) == t:
 		return float(hit[1])
-	if _minutes_cache.size() > 6000:
+	if _minutes_cache.size() > _cache_cap(6000, 8):
 		_minutes_cache.clear()
 	# A session can run past midnight (never past the next one), so the two latest days
 	# are cut at w and every earlier day counts whole.
@@ -794,7 +813,7 @@ static func halloween_work(i: int, t: float) -> float:
 	_load_bonus()
 	var key := String(entry(i).name)
 	# Asked for by every level read: kept per player for the same 10 s of the clock.
-	var cache_key: Variant = int(t / 10.0) * 4096 + i
+	var cache_key: Variant = int(t / 10.0) * 65536 + i
 	if paused.has(key) or hw_skipped.has(key):
 		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(hw_skipped.get(key, 0.0))]
 	var hw_hit: Variant = _hw_cache.get(cache_key)
@@ -805,7 +824,7 @@ static func halloween_work(i: int, t: float) -> float:
 	var upto := minf(float(paused[key]) if paused.has(key) else played_minutes(i, t), last)
 	var played := maxf(0.0, upto - from - float(hw_skipped.get(key, 0.0)))
 	var work := played * efficiency(i) * halloween_share(i) * HALLOWEEN_EXTRA
-	if _hw_cache.size() > 512:
+	if _hw_cache.size() > _cache_cap(512, 2):
 		_hw_cache.clear()
 	_hw_cache[cache_key] = [t, work]
 	return work
@@ -833,7 +852,7 @@ static func festival3_work(i: int, t: float) -> float:
 	_load_bonus()
 	var key := String(entry(i).name)
 	# Asked for by every level read: kept per player for the same 10 s of the clock.
-	var cache_key: Variant = int(t / 10.0) * 4096 + i
+	var cache_key: Variant = int(t / 10.0) * 65536 + i
 	if paused.has(key) or f3_skipped.has(key):
 		cache_key = "%d|%d|%s|%s" % [i, int(t / 10.0), str(paused.get(key, -1.0)), str(f3_skipped.get(key, 0.0))]
 	var hit: Variant = _f3_cache.get(cache_key)
@@ -841,7 +860,7 @@ static func festival3_work(i: int, t: float) -> float:
 		return float(hit[1])
 	var played := festival3_minutes(i, t)
 	var work := played * efficiency(i) * (1.0 + WorldParties.taste(i) * WorldParties.EXP_BONUS) * (WorldEvents.FESTIVAL3_EXP - 1.0)
-	if _f3_cache.size() > 512:
+	if _f3_cache.size() > _cache_cap(512, 2):
 		_f3_cache.clear()
 	_f3_cache[cache_key] = [t, work]
 	return work

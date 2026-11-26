@@ -106,8 +106,12 @@ func _roster() -> void:
 		check(ClassData.IDS.has(StringName(e["class"])) and WorldPlayers.STYLES.has(String(e.style)), "%s: a real class and play style" % e.name)
 		check(int(WorldPlayers.look(i).gender) == int(e.gender), "%s: the face matches the roster's gender" % e.name)
 		check(WorldPlayers.look(i) == WorldPlayers.look(i), "%s: always the same face" % e.name)
-		check(WorldPlayers.look(i).keys() == ["gender", "body", "style"] and int(WorldPlayers.look(i).body) == int(e.body) and FaceKit.hero_look(WorldPlayers.look(i)).body == int(e.body), "%s: its own body of its gender in a ready-made colouring, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
-		bodies["%d|%d" % [int(e.gender), int(e.body)]] = true
+		# The roster's players carry the body they picked; a daily newcomer draws its own
+		# from its name (WorldPlayers.look).
+		var body := int(e.body) if e.has("body") else int(WorldPlayers.look(i).body)
+		check(e.has("body") or bool(e.get("newcomer", false)), "%s: a roster player carries its body" % e.name)
+		check(WorldPlayers.look(i).keys() == ["gender", "body", "style"] and int(WorldPlayers.look(i).body) == body and FaceKit.hero_look(WorldPlayers.look(i)).body == body, "%s: its own body of its gender in a ready-made colouring, no custom colours (%s)" % [e.name, WorldPlayers.look(i)])
+		bodies["%d|%d" % [int(e.gender), body]] = true
 	# Each picked its look at random among all the characters of its gender: all eight show up.
 	check(bodies.size() == 8 and bodies.size() == ChibiBodies.count(0) + ChibiBodies.count(1), "every chibi body of both genders is worn by someone (%s)" % [bodies.keys()])
 	check(WorldPlayers.ROSTER_ID != "" and WorldPlayers.ROSTER.all(func(r): return r.has("body")), "the roster carries its id and every player's body")
@@ -437,8 +441,14 @@ func _online_moment(from: float) -> Array:
 		for i in WorldPlayers.size():
 			var s := WorldPlayers.state(i, t)
 			if bool(s.online) and String(s.place) not in ["", "town"] and int(s.level) >= 5 and int(s.level) < 90:
-				var later := WorldPlayers.state(i, t + 600.0)
-				if bool(later.online):
+				# Still there, in the same field, for the next ten minutes (the test walks up
+				# to it over a few real seconds of the running clock): never a moment it is
+				# about to move on or log out.
+				var stays := true
+				for k in range(1, 11):
+					var later := WorldPlayers.state(i, t + 60.0 * k)
+					stays = stays and bool(later.online) and String(later.place) == String(s.place)
+				if stays:
 					return [t, i]
 		t += 900.0
 	return []
@@ -514,12 +524,16 @@ func _party() -> void:
 		check(zone.presence.shown.get(bot.world_index) == bot and zone.companions.is_empty(), "it hunts here again")
 		main.player_card.close_card()
 	Game.profile.level = clampi(int(s.level), 10, 99)
+	# The world's clock has run on for the walk above (a few real seconds, and an early
+	# hardcore player gains a level every few minutes): its level is read as it joins.
+	var level_in := WorldPlayers.level_at(who, WorldPresence.clock())
 	check(Game.party_invite(who) == "" and Game.in_party(who), "an online player of a near level joins (%s Lv.%d)" % [s.name, int(s.level)])
+	var level_out := WorldPlayers.level_at(who, WorldPresence.clock())
 	await get_tree().create_timer(0.5).timeout
 	check(zone.companions.size() == 1 and zone.companions[0] is FieldPlayer and (zone.companions[0] as FieldPlayer).party_mode, "the member walks with the hero as a companion")
 	check(zone.companions[0].is_in_group("companions") and not zone.companions[0].is_in_group("world_players"), "its kills count for the party")
 	check(not zone.presence.shown.has(who), "it is not also hunting on its own in the field")
-	check(int(Game.party()[0].level) == int(s.level), "it keeps its own level")
+	check(int(Game.party()[0].level) >= level_in and int(Game.party()[0].level) <= maxi(level_in, level_out), "it keeps its own level (Lv.%d, Lv.%d as it joined)" % [int(Game.party()[0].level), level_in])
 	# The star tier (Lv.100, any stars) parties up with no level gap; below it the gap holds.
 	check(Game.party_levels_ok(100, 100) and Game.party_levels_ok(80, 100) and not Game.party_levels_ok(79, 100) and not Game.party_levels_ok(10, 31), "Lv.100 players party up whatever their stars; below, within the gap only")
 	# Who can be asked: offline players cannot; strangers far apart in level say no; guild mates say yes.
@@ -1023,16 +1037,45 @@ func _screens() -> void:
 	# The game registry: everyone, the hero among them, online filter and party buttons.
 	main.registry.open_screen()
 	await get_tree().process_frame
-	var rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
+	var registry: RegistryScreen = main.registry
+	var rows: int = registry.find_children("Row_*", "PanelContainer", true, false).size()
 	var joined := WorldPlayers.size()
 	for i in WorldPlayers.size():
-		joined -= 0 if WorldPresence.clock() >= WorldPlayers.joined_at(i) else 1
-	check(rows == mini(joined + 1, RegistryScreen.ROWS_MAX + 1) and main.registry.find_child("Row_you", true, false) != null, "the registry lists the %d players who have joined and the hero (%d rows)" % [joined, rows])
-	(main.registry.find_child("Filter_online", true, false) as Button).pressed.emit()
+		joined -= 0 if registry._t >= WorldPlayers.joined_at(i) else 1
+	var pinned := registry._all.filter(func(r): return RegistryScreen._pinned(r)).size()
+	check(registry._all.size() >= joined + 1 and rows == pinned + mini(RegistryScreen.PAGE_ROWS, registry._all.size() - pinned) and registry.find_child("Row_you", true, false) != null,
+		"the registry's first page: the %d pinned and the best of the %d players who have joined (%d rows)" % [pinned, joined, rows])
+	# Every page in turn: everyone listed once, only a page's rows built at a time.
+	var seen := {}
+	var most := 0
+	for p in registry.page_count():
+		if p > 0:
+			(registry.find_child("PageNext", true, false) as Button).pressed.emit()
+		var built := registry._list.get_children().filter(func(c): return String(c.name).begins_with("Row_"))
+		most = maxi(most, built.size())
+		for c in built:
+			seen[String(c.name)] = true
+	check(seen.size() == registry._all.size() and most <= RegistryScreen.PAGE_ROWS + pinned and registry.page == registry.page_count() - 1 and (registry.find_child("PageNext", true, false) as Button).disabled,
+		"the pages reach everyone (%d of %d, at most %d rows a page, %d pages)" % [seen.size(), registry._all.size(), most, registry.page_count()])
+	# The search finds the last one by name, on the first page.
+	var last := {}
+	for r in registry._all:
+		if not RegistryScreen._pinned(r):
+			last = r
+	var box := registry.find_child("Search", true, false) as LineEdit
+	box.text = String(last.name)
+	box.text_changed.emit(box.text)
+	check(registry.page == 0 and registry._list.find_child("Row_%d" % int(last.index), false, false) != null and registry.page_count() <= 2, "the search finds %s (ranked last) by name" % last.name)
+	box.text = ""
+	box.text_changed.emit("")
+	(registry.find_child("Filter_online", true, false) as Button).pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var online_rows: int = main.registry.find_children("Row_*", "PanelContainer", true, false).size()
-	check(online_rows == mini(WorldPresence.online_count() + 1, RegistryScreen.ROWS_MAX + 1), "the online filter shows who is on (%d)" % online_rows)
+	var online_rows: int = registry.find_children("Row_*", "PanelContainer", true, false).size()
+	var on_all := registry._all.filter(func(r): return bool(r.online))
+	var on_pinned := on_all.filter(func(r): return RegistryScreen._pinned(r)).size()
+	check(on_all.size() == WorldPresence.online_count(registry._t) + 1, "the registry's online are the world's online and the hero (%d)" % on_all.size())
+	check(on_all.size() >= 1 and online_rows == on_pinned + mini(RegistryScreen.PAGE_ROWS, on_all.size() - on_pinned) and registry.page == 0, "the online filter shows who is on (%d rows of %d online)" % [online_rows, on_all.size()])
 	main.registry.close_screen()
 	main.hud.update_online()
 	check(String(main.hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1), "the HUD shows how many are online")
