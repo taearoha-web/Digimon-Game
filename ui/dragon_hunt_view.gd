@@ -74,9 +74,12 @@ static func build(content: Control, changed: Callable) -> TouchScroll:
 	if rows.is_empty():
 		box.add_child(UIUtil.label("ยังไม่มีใครล่า — รอศึกเริ่ม", &"DimLabel"))
 	for row in rows:
-		var line := UIUtil.label("%d. %s — %d แต้ม%s" % [int(row.rank), String(row.name), int(row.pts), "  (ฉัน)" if bool(row.hero) else ""], &"BoldLabel" if bool(row.hero) else &"SmallLabel")
+		var line := UIUtil.label("%d. %s — %d แต้ม%s" % [int(row.rank), String(row.name), int(row.pts), "  (ฉัน)" if bool(row.hero) else MazeBoardView.MINE_TAG if bool(row.get("mine", false)) else ""], &"BoldLabel" if bool(row.hero) else &"SmallLabel")
+		line.name = "DhuntRank_%d" % int(row.rank)
 		if bool(row.hero):
 			line.add_theme_color_override("font_color", UIPalette.GOLD)
+		elif bool(row.get("mine", false)):
+			line.add_theme_color_override("font_color", Color("b8e6c4"))
 		box.add_child(line)
 	return scroll
 

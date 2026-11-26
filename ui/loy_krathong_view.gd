@@ -254,10 +254,12 @@ static func _pageant(t: float, refresh: Callable) -> Control:
 		if shown >= 6 and not bool(row.hero):
 			continue
 		shown += 1
-		var l := UIUtil.label("%d. %s — %s โหวต%s" % [int(row.rank), String(row.name), PlayerStall.thousands(int(row.votes)), "  (ฉัน)" if bool(row.hero) else ""], &"BoldLabel" if bool(row.hero) else &"SmallLabel")
+		var l := UIUtil.label("%d. %s — %s โหวต%s" % [int(row.rank), String(row.name), PlayerStall.thousands(int(row.votes)), "  (ฉัน)" if bool(row.hero) else MazeBoardView.MINE_TAG if bool(row.get("mine", false)) else ""], &"BoldLabel" if bool(row.hero) else &"SmallLabel")
 		l.name = "LoykRank_%d" % int(row.rank)
 		if bool(row.hero):
 			l.add_theme_color_override("font_color", UIPalette.GOLD)
+		elif bool(row.get("mine", false)):
+			l.add_theme_color_override("font_color", Color("b8e6c4"))
 		elif int(row.rank) == 1:
 			l.add_theme_color_override("font_color", Color("ff9ccb"))
 		col.add_child(l)

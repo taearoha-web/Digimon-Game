@@ -104,6 +104,14 @@ static var enabled := true
 static var _sinks: Array[Callable] = []
 ## Per AI player and week: its played minutes at the week's start.
 static var _week_minutes := {}
+## The other save slots' event records (account_alts), by slot: {stamp, ms, name, recs}.
+static var _alts := {}
+static var _alts_for := ""
+## How often (ms) the other slots' files are looked at again (the boards are read often).
+const ALT_CHECK_MS := 2000
+## The records account_alts reads from another slot's save (this one, LoyKrathong's and
+## DragonHunt's), each repaired the way its own module repairs a save.
+const ALT_KEYS: Array[String] = ["wcol", "loyk", "dhunt"]
 
 
 # --- The week ----------------------------------------------------------------------------
@@ -615,8 +623,10 @@ static func points_of(counts: Array) -> int:
 	return total
 
 
-## The week's top collectors at t: [{name, pts, hero, index}] best first (TOP of them),
-## the hero among the AI players by its points.
+## The week's top collectors at t: [{name, pts, hero, index, mine?, slot?}] best first
+## (TOP of them), the hero among the AI players by its points. Every character of the
+## account collects (account_rows): the one played (`hero`) and the others, not played now,
+## by the points in their own saves under their own names (`mine`, `slot`), each once.
 static func leaderboard(t: float, top := TOP) -> Array:
 	var rows: Array = []
 	if not on(t):
@@ -627,13 +637,29 @@ static func leaderboard(t: float, top := TOP) -> Array:
 		var pts := points_of(ai_counts(i, t))
 		if pts > 0:
 			rows.append({"name": String(WorldPlayers.entry(i).name), "pts": pts, "hero": false, "index": i})
-	if Game.has_profile:
-		rows.append({"name": String(Game.profile.get("name", "")), "pts": points(t), "hero": true, "index": -1})
+	rows.append_array(account_rows(t))
 	rows.sort_custom(func(a, b): return int(a.pts) > int(b.pts) if int(a.pts) != int(b.pts) else (bool(a.hero) and not bool(b.hero)) if bool(a.hero) != bool(b.hero) else String(a.name) < String(b.name))
 	return rows.slice(0, top)
 
 
-## The hero's place among everyone this week (1 = top), 0 without a profile.
+## The account's characters on the week's board at t: the one played (always, `hero`)
+## and every other save slot with points this week (read from its file).
+static func account_rows(t: float) -> Array:
+	var rows: Array = []
+	if not on(t):
+		return rows
+	if Game.has_profile:
+		rows.append({"name": String(Game.profile.get("name", "")), "pts": points(t), "hero": true, "mine": true, "slot": Game.slot, "index": -1})
+	var w := week_of(t)
+	for a in account_alts(KEY):
+		var d: Dictionary = a.rec
+		if int(d.get("week", -2)) == w and int(d.get("pts", 0)) > 0:
+			rows.append({"name": String(a.name), "pts": int(d.pts), "hero": false, "mine": true, "slot": int(a.slot), "index": -1})
+	return rows
+
+
+## The hero's place among everyone this week (1 = top), 0 without a profile: the world
+## players and the account's other characters with more points are before it.
 static func hero_rank(t: float) -> int:
 	if not Game.has_profile or not on(t):
 		return 0
@@ -642,7 +668,70 @@ static func hero_rank(t: float) -> int:
 	for i in WorldPlayers.size():
 		if WorldPlayers.joined_at(i) <= t and points_of(ai_counts(i, t)) > mine:
 			rank += 1
+	for r in account_rows(t):
+		if not bool(r.hero) and int(r.pts) > mine:
+			rank += 1
 	return rank
+
+
+# --- The account's other characters ------------------------------------------------------
+
+## The account's other characters (the save slots not played now) holding a record under
+## `key` (one of ALT_KEYS): [{slot, name, rec}], by slot. Their files are read once per
+## change (Game._slot_stamp), looked at every ALT_CHECK_MS at most, and all again once the
+## character played changes; a damaged or empty slot has none. The event boards
+## (WeeklyCollect, LoyKrathong, DragonHunt) list them under their own names, so a
+## character not played keeps its points and its place on them.
+static func account_alts(key: String) -> Array:
+	var out: Array = []
+	for i in range(1, Game.SLOT_COUNT + 1):
+		if Game.has_profile and i == Game.slot:
+			continue
+		var a := _alt(i)
+		if a.is_empty():
+			continue
+		var rec: Variant = (a.recs as Dictionary).get(key)
+		if rec is Dictionary:
+			out.append({"slot": i, "name": String(a.name), "rec": rec})
+	return out
+
+
+## Forgets what was read of the other slots (tests; a save written in the same second
+## with the same size keeps its stamp).
+static func reset_alts() -> void:
+	_alts.clear()
+	_alts_for = ""
+
+
+static func _alt(i: int) -> Dictionary:
+	var who := "%d|%s" % [Game.slot, Game.has_profile]
+	if who != _alts_for:
+		_alts_for = who
+		_alts.clear()
+	var ms := Time.get_ticks_msec()
+	var kept: Variant = _alts.get(i)
+	if kept is Dictionary and ms - int(kept.ms) < ALT_CHECK_MS:
+		return kept.alt
+	var stamp: String = Game._slot_stamp(i)
+	if stamp == "":
+		_alts[i] = {"stamp": "", "alt": {}, "ms": ms}
+		return {}
+	if kept is Dictionary and String(kept.stamp) == stamp:
+		kept.ms = ms
+		return kept.alt
+	var raw: Dictionary = Game._read_slot(i)
+	var alt := {}
+	if not raw.is_empty():
+		var holder := {}
+		for key in ALT_KEYS:
+			if raw.get(key) is Dictionary:
+				holder[key] = (raw[key] as Dictionary).duplicate(true)
+		repair(holder)
+		LoyKrathong.repair(holder)
+		DragonHunt.repair(holder)
+		alt = {"name": String(raw.get("name", "")), "recs": holder}
+	_alts[i] = {"stamp": stamp, "alt": alt, "ms": ms}
+	return alt
 
 
 ## A stall keeper's lot of spare pieces in the window starting at `at` ({} for none):

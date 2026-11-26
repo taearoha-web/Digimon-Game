@@ -674,15 +674,24 @@ static func ai_votes(i: int) -> int:
 	return votes
 
 
-## The ranked stage of `gender`: [{rank, name, votes, hero, index, splendour?}], best first;
-## the hero among them once it entered as that gender.
+## The ranked stage of `gender`: [{rank, name, votes, hero, index, mine?, slot?}], best
+## first; the hero among them once it entered as that gender. Every character of the
+## account that entered walks the same stage: the one played (`hero`) and the others, not
+## played now, by the best votes in their own saves (WeeklyCollect.account_alts) under
+## their own names (`mine`, `slot`), each once; each one's prize and title is its own place
+## (settle, the next time it is played when it is offline at the result).
 static func standings(gender: int) -> Array:
 	var rows: Array = []
 	for i in contestants(gender):
 		rows.append({"name": String(WorldPlayers.entry(i).name), "votes": ai_votes(i), "hero": false, "index": i})
 	var d := peek()
 	if Game.has_profile and int(d.get("pg", 0)) > 0 and int(d.get("pgg", 0)) == gender:
-		rows.append({"name": String(Game.profile.get("name", "")), "votes": int(d.pg), "hero": true, "index": -1})
+		rows.append({"name": String(Game.profile.get("name", "")), "votes": int(d.pg), "hero": true, "mine": true, "slot": Game.slot, "index": -1})
+	if enabled:
+		for a in WeeklyCollect.account_alts(KEY):
+			var r: Dictionary = a.rec
+			if int(r.get("pg", 0)) > 0 and int(r.get("pgg", 0)) == gender:
+				rows.append({"name": String(a.name), "votes": int(r.pg), "hero": false, "mine": true, "slot": int(a.slot), "index": -1})
 	rows.sort_custom(func(a, b): return int(a.votes) > int(b.votes) if int(a.votes) != int(b.votes) else (bool(a.hero) and not bool(b.hero)) if bool(a.hero) != bool(b.hero) else String(a.name) < String(b.name))
 	for k in rows.size():
 		rows[k]["rank"] = k + 1
@@ -869,9 +878,13 @@ static func chat_answer(_index: int, t: float) -> String:
 # --- The server's news ------------------------------------------------------------------
 
 ## Once a second (Announcer.tick): the opening, the night, each Naga window and the
-## pageant's result, once each a run of the game; the hero's pageant prize once out.
+## pageant's result, once each a run of the game; the hero's pageant prize once out, also
+## after the festival (a character not played at the result gets its prize, and its title
+## when it won, the next time it is played).
 static func tick(t: float) -> void:
 	if not on(t):
+		if result_out(t):
+			settle(t)
 		return
 	if not _told_open:
 		_told_open = true

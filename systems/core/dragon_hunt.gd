@@ -345,8 +345,12 @@ static func ai_points(i: int, n: int, t: float, windows: Array = []) -> int:
 	return pts
 
 
-## The top `count` hunters of the hunt of `t`, the hero among them: [{name, pts, hero}],
-## best first; the hero's own row is added after them when it is not in the top.
+## The top `count` hunters of the hunt of `t`, the hero among them: [{name, pts, hero,
+## index, rank, mine?, slot?}], best first; the hero's own row is added after them when it
+## is not in the top. Every character of the account hunts: the one played (`hero`) and
+## the others, not played now, by the points in their own saves (WeeklyCollect.account_alts)
+## under their own names (`mine`, `slot`), each once; their milestones stay theirs to
+## claim when they are played (until the next hunt starts).
 static func top(t := -1.0, count := 10) -> Array:
 	t = _t(t)
 	var n := index(t)
@@ -359,10 +363,14 @@ static func top(t := -1.0, count := 10) -> Array:
 		var p := ai_points(i, n, t, windows)
 		if p > 0:
 			rows.append({"name": String(WorldPlayers.entry(i).name), "pts": p, "hero": false, "index": i})
-	var me := {"name": String(Game.profile.get("name", "")), "pts": int(peek(t).pts), "hero": true, "index": -1} if Game.has_profile else {}
+	var me := {"name": String(Game.profile.get("name", "")), "pts": int(peek(t).pts), "hero": true, "mine": true, "slot": Game.slot, "index": -1} if Game.has_profile else {}
 	if not me.is_empty():
 		rows.append(me)
-	rows.sort_custom(func(x, y): return int(x.pts) > int(y.pts) or (int(x.pts) == int(y.pts) and bool(x.hero) and not bool(y.hero)))
+	for a in WeeklyCollect.account_alts(KEY):
+		var s: Dictionary = a.rec
+		if int(s.get("n", -2)) == n and int(s.get("pts", 0)) > 0:
+			rows.append({"name": String(a.name), "pts": int(s.pts), "hero": false, "mine": true, "slot": int(a.slot), "index": -1})
+	rows.sort_custom(func(x, y): return int(x.pts) > int(y.pts) or (int(x.pts) == int(y.pts) and (bool(x.hero) and not bool(y.hero) or (bool(x.hero) == bool(y.hero) and bool(x.get("mine", false)) and not bool(y.get("mine", false))))))
 	for k in rows.size():
 		rows[k]["rank"] = k + 1
 	var out := rows.slice(0, count)

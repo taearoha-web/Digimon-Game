@@ -197,7 +197,7 @@ static func _leaders(t: float) -> Control:
 		hero_in = hero_in or bool(r.hero)
 		col.add_child(_leader_row(n + 1, r))
 	if not hero_in and Game.has_profile:
-		col.add_child(_leader_row(WeeklyCollect.hero_rank(t), {"name": String(Game.profile.get("name", "")), "pts": WeeklyCollect.points(t), "hero": true}))
+		col.add_child(_leader_row(WeeklyCollect.hero_rank(t), {"name": String(Game.profile.get("name", "")), "pts": WeeklyCollect.points(t), "hero": true, "mine": true}))
 	return panel
 
 
@@ -208,10 +208,12 @@ static func _leader_row(rank: int, r: Dictionary) -> Control:
 	place.custom_minimum_size = Vector2(44, 0)
 	place.add_theme_color_override("font_color", [Color("ffd23a"), Color("dfe6f0"), Color("e0a060")][rank - 1] if rank >= 1 and rank <= 3 else UIPalette.TEXT_MUTED)
 	line.add_child(place)
-	var name := UIUtil.label(String(r.name) + (" (คุณ)" if bool(r.hero) else ""), &"SmallLabel")
+	var name := UIUtil.label(String(r.name) + MazeBoardView.who_tag(r), &"SmallLabel")
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if bool(r.hero):
 		name.add_theme_color_override("font_color", Color("8dffb0"))
+	elif bool(r.get("mine", false)):
+		name.add_theme_color_override("font_color", Color("b8e6c4"))
 	line.add_child(name)
 	var pts := UIUtil.label("%s แต้ม" % PlayerStall.thousands(int(r.pts)), &"SmallLabel")
 	pts.add_theme_color_override("font_color", WeeklyCollect.COLOR)
