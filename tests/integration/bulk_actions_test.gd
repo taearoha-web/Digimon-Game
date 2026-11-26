@@ -56,6 +56,7 @@ func _ready() -> void:
 	_storage_moves()
 	_mount_many()
 	await _picker()
+	_sell_next()
 	check(Game._valid_profile(Game.profile), "the profile still validates for the save / cloud path after every bulk action")
 	print("BULK ACTIONS: %s | %d checks, %d failures" % ["PASS" if failures == 0 else "FAILED", checks, failures])
 	get_tree().quit(1 if failures > 0 else 0)
@@ -244,3 +245,43 @@ func _picker() -> void:
 	check(got[0] == 1000, "confirm returns the count (%d)" % got[0])
 	await get_tree().process_frame
 	host.queue_free()
+
+
+## Selling a piece in the bag picks the tile shown right after it (the bag is shown sorted,
+## GameMenu.bag_order), so "ขาย" can be tapped again for the next one.
+func _sell_next() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	Game.profile.inv = []
+	# Mixed pickup order: gear, a gem, gear, a potion, gear.
+	Game.profile.inv.append(ItemData.generate(30, &"warrior", rng, 0, "helm"))
+	Game.add_item(ItemData.gem("ruby", 1))
+	Game.profile.inv.append(ItemData.generate(31, &"warrior", rng, 0, "boots"))
+	Game.add_item(ItemData.potion("hp_s", 3))
+	Game.profile.inv.append(ItemData.generate(32, &"warrior", rng, 0, "armor"))
+	var menu := GameMenu.new()
+	add_child(menu)
+	menu.open_menu(&"inventory")
+	var order := GameMenu.bag_order(Game.profile.inv)
+	# Pick the first gear tile shown, then sell it: the next shown tile is picked.
+	var at := -1
+	for k in order.size():
+		if String(Game.profile.inv[order[k]].get("kind", "")) not in ["gem", "potion", "jewel"]:
+			at = k
+			break
+	check(at >= 0 and at + 1 < order.size(), "a gear tile with another after it (%s)" % [order])
+	if at < 0 or at + 1 >= order.size():
+		menu.queue_free()
+		return
+	var next_item: Dictionary = Game.profile.inv[order[at + 1]]
+	menu._selected_index = order[at]
+	menu._sell_selected(1)
+	check(menu._selected_index >= 0 and Game.profile.inv[menu._selected_index] == next_item, "after a sale the next tile shown is picked (%d)" % menu._selected_index)
+	# The last tile: the one before it is picked.
+	order = GameMenu.bag_order(Game.profile.inv)
+	var before_last: Dictionary = Game.profile.inv[order[order.size() - 2]]
+	menu._selected_index = order[order.size() - 1]
+	menu._sell_selected(int(Game.profile.inv[order[order.size() - 1]].get("count", 1)))
+	check(menu._selected_index >= 0 and Game.profile.inv[menu._selected_index] == before_last, "selling the last tile picks the one before it")
+	menu.close_menu()
+	menu.queue_free()

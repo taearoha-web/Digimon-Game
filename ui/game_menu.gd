@@ -1183,9 +1183,24 @@ func _build_stall() -> void:
 func _sell_selected(count: int) -> void:
 	if _selected_index < 0 or _selected_index >= Game.profile.inv.size():
 		return
-	Game.sell_item(_selected_index, count)
-	if _selected_index >= Game.profile.inv.size():
-		_selected_index = Game.profile.inv.size() - 1
+	var sold := _selected_index
+	var before: int = Game.profile.inv.size()
+	# The bag shows its items sorted (bag_order): the next one is the one shown after
+	# this tile, not the next raw slot (which can sit anywhere on the screen).
+	var order := bag_order(Game.profile.inv)
+	var at := order.find(sold)
+	Game.sell_item(sold, count)
+	if Game.profile.inv.size() == before:
+		_rebuild()  # part of a stack sold: the same tile stays picked
+		return
+	var next := -1
+	if at >= 0 and at + 1 < order.size():
+		next = order[at + 1]
+	elif at > 0:
+		next = order[at - 1]
+	if next > sold:
+		next -= 1  # the slots after the sold one moved up by one
+	_selected_index = next if next >= 0 and next < Game.profile.inv.size() else -1
 	_rebuild()
 
 
