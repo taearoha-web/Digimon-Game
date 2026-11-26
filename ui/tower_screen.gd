@@ -8,6 +8,10 @@ signal climb_requested(start_floor: int)
 signal go_home_requested()
 
 var is_open := false
+## True while a result holds the game paused: the run or match behind it is over and
+## must stand still (no late hits, no death after the win) until the screen closes.
+## Only this screen's own pause is lifted when it closes.
+var holds_pause := false
 var _root: Control
 var _body: Control
 var _start_floor := 1
@@ -45,7 +49,7 @@ func _ready() -> void:
 
 func open_lobby() -> void:
 	is_open = true
-	get_tree().paused = true
+	# The game keeps running under the lobby (auto-hunt goes on; Main._screen_open holds back world taps).
 	_root.visible = true
 	AudioManager.play_ui(&"ui_open")
 	var best := int(Game.tower().best)
@@ -60,7 +64,9 @@ func close_screen() -> void:
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	_clear()
-	get_tree().paused = false
+	if holds_pause:
+		holds_pause = false
+		get_tree().paused = false
 
 
 func _clear() -> void:
@@ -233,6 +239,7 @@ func _refresh() -> void:
 
 func show_result(result: Dictionary) -> void:
 	is_open = true
+	holds_pause = true
 	get_tree().paused = true
 	_root.visible = true
 	_clear()

@@ -488,7 +488,7 @@ func _screen() -> void:
 	var screen := PetScreen.new()
 	add_child(screen)
 	screen.open_screen()
-	check(screen.is_open and get_tree().paused, "the pet screen opens (and pauses)")
+	check(screen.is_open and not get_tree().paused, "the pet screen opens (the game keeps running under it)")
 	screen.show_pet("earth")
 	check(screen.shown == "earth" and not screen.confirming, "a tab shows another pet")
 	var labels := screen.find_children("*", "Label", true, false).map(func(l): return (l as Label).text)
@@ -502,7 +502,7 @@ func _screen() -> void:
 	screen.show_pet("fire")
 	check(screen.shown == "earth", "after choosing, the screen shows only the hero's pet")
 	screen.close_screen()
-	check(not get_tree().paused, "closing unpauses")
+	check(not screen.is_open and not get_tree().paused, "closing leaves the game running")
 	screen.queue_free()
 	await wait(0.1)
 

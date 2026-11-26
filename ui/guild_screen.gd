@@ -70,7 +70,7 @@ func _ready() -> void:
 
 func open_screen() -> void:
 	is_open = true
-	get_tree().paused = true
+	# The game keeps running under it (auto-hunt goes on; Main._screen_open holds back world taps).
 	_root.visible = true
 	AudioManager.play_ui(&"ui_open")
 	_timer = REFRESH
@@ -102,7 +102,6 @@ func close_screen() -> void:
 	_root.visible = false
 	# A closed screen keeps nothing: its lists are built again when it opens.
 	UIUtil.clear(_body)
-	get_tree().paused = false
 	closed.emit()
 
 

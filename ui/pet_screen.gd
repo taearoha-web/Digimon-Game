@@ -50,7 +50,7 @@ func _ready() -> void:
 
 func open_screen() -> void:
 	is_open = true
-	get_tree().paused = true
+	# The game keeps running under it (auto-hunt goes on; Main._screen_open holds back world taps).
 	_root.visible = true
 	confirming = false
 	shown = Game.pet_id() if Game.pet_id() != "" else (shown if PetData.exists(shown) else PetData.ORDER[0])
@@ -64,7 +64,6 @@ func close_screen() -> void:
 	_root.visible = false
 	_preview_pivot = null
 	UIUtil.clear(_body)
-	get_tree().paused = false
 
 
 func _process(delta: float) -> void:

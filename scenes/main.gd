@@ -479,6 +479,7 @@ func _on_hero_died() -> void:
 	# The game runs under the menu: a fall closes it so the player sees what happened.
 	if menu and menu.is_open:
 		menu.close_menu()
+	_close_screens_on_death()
 	hud.show_death(true)
 	await get_tree().create_timer(2.6).timeout
 	var stats := Game.stats_now()
@@ -504,6 +505,29 @@ func _on_hero_died() -> void:
 		return
 	_traveling = false
 	await go(&"town")
+
+
+## The game runs under the shop, the storage and the other desks too: a fall closes the
+## one that is open. A result screen holding the game paused (holds_pause) stays: its
+## run is over and the hero cannot fall under it.
+func _close_screens_on_death() -> void:
+	if shop != null and shop.is_open:
+		shop.close_shop()
+	if trainer != null and trainer.is_open:
+		trainer.close_trainer()
+	if storage != null and storage.is_open:
+		storage.close_storage()
+	if warp != null and warp.is_open:
+		warp.close_warp()
+	if registry != null and registry.is_open:
+		registry.close_screen()
+	if guild_screen != null and guild_screen.is_open:
+		guild_screen.close_screen()
+	if pet_screen != null and pet_screen.is_open:
+		pet_screen.close_screen()
+	for s in [pvp_screen, guildwar_screen, tower_screen, raid_screen, dungeon_screen]:
+		if s != null and s.is_open and not s.holds_pause:
+			s.close_screen()
 
 
 func use_town_scroll() -> void:
