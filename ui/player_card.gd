@@ -74,7 +74,10 @@ func close_card() -> void:
 func _process(_delta: float) -> void:
 	if not is_open:
 		return
-	if get_tree().paused or not is_instance_valid(player) or player.is_queued_for_deletion() or not player.visible \
+	# A screen opened over the world (they no longer pause it) closes the card too.
+	var main := get_tree().current_scene
+	var screen_up := main != null and main.has_method("_screen_open") and bool(main.call("_screen_open"))
+	if get_tree().paused or screen_up or not is_instance_valid(player) or player.is_queued_for_deletion() or not player.visible \
 			or not is_instance_valid(hero) or player.global_position.distance_to(hero.global_position) > RANGE * 1.6:
 		close_card()
 
