@@ -155,14 +155,14 @@ func _progress() -> void:
 				zones_ok = false
 			# Only a stall keeper (or a ★300 divine player on a break, keeping a stall) and a
 			# scheduled player on a short errand are in the village.
-			var endgame := bool(s.divine) and int(s.stars) >= Game.PARAGON_MAX
+			var endgame := bool(s.divine) and int(s.stars) >= JobData.GOD_STARS
 			if place == "town" and not ((String(s.doing) == "stall" and (WorldPlayers.in_town_style(i) or endgame)) \
 					or (String(s.doing) == "errand" and not WorldPlayers.in_town_style(i) and String(s.errand) in WorldPlayers.ERRAND_KINDS)):
 				levels_online = false
 			# From ★200 to ★300 it keeps hunting in the ★200 fields (the drowned abyss or the
 			# lotus sanctum, a session each; gathering the divine set on the way), never the
 			# endgame's boss hunts, help or stall breaks.
-			if bool(s.online) and not WorldPlayers.in_town_style(i) and int(s.stars) >= WorldPlayers.DIVINE_STARS and int(s.stars) < Game.PARAGON_MAX \
+			if bool(s.online) and not WorldPlayers.in_town_style(i) and int(s.stars) >= WorldPlayers.DIVINE_STARS and int(s.stars) < JobData.GOD_STARS \
 					and not (String(s.doing) == "errand" or (String(s.doing) == "hunt" and StringName(place) in [DrownedAbyssData.ID, DivineRegionData.ID])):
 				climbs = false
 			t += day * 0.73
@@ -171,19 +171,23 @@ func _progress() -> void:
 		check(zones_ok, "%s: always hunts in a field it may enter" % e.name)
 		check(climbs, "%s: from ★200 it keeps hunting toward ★300" % e.name)
 		var end := WorldPlayers.state(i, start + 200.0 * day)
-		check(int(end.level) == 100 and int(end.stars) == Game.PARAGON_MAX and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★300 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
+		check(int(end.level) == 100 and int(end.stars) == Game.PARAGON_MAX and int(end.grade) == GuildWarData.DIVINE, "%s: reaches Lv.100 ★500 and the divine set in time (%s)" % [e.name, WorldPlayers.level_text(end)])
 		var top := WorldPlayers.profile(WorldPlayers.member(i, start + 200.0 * day))
-		check(int(top.adv) == JobData.GOD_ADV and JobData.is_god(int(top.adv)), "%s: takes the God promotion at ★300 (adv %d)" % [e.name, int(top.adv)])
-		check(WorldPlayers.god_title(end) == JobData.god_name(StringName(end["class"])), "%s: wears its God title (%s)" % [e.name, WorldPlayers.god_title(end)])
-		var below := WorldPlayers.profile({"class": String(end["class"]), "name": e.name, "level": 100, "stars": Game.PARAGON_MAX - 1, "frac": 0.0, "divine_frac": 0.0})
-		check(int(below.adv) == JobData.LEGEND_ADV and WorldPlayers.god_title({"class": end["class"], "level": 100, "stars": Game.PARAGON_MAX - 1}) == "", "%s: ★299 is still the legend step" % e.name)
-		var legend_sheet := top.duplicate(true)
+		# The God step at ★300 (past it the stars climb on to ★500).
+		var at_god := {"class": String(end["class"]), "name": e.name, "level": 100, "stars": JobData.GOD_STARS, "frac": 0.0, "divine_frac": 1.0}
+		var god_sheet := WorldPlayers.profile(at_god)
+		check(int(god_sheet.adv) == JobData.GOD_ADV and JobData.is_god(int(god_sheet.adv)), "%s: takes the God promotion at ★300 (adv %d)" % [e.name, int(god_sheet.adv)])
+		check(WorldPlayers.god_title(at_god) == JobData.god_name(StringName(end["class"])), "%s: wears its God title (%s)" % [e.name, WorldPlayers.god_title(at_god)])
+		var below := WorldPlayers.profile({"class": String(end["class"]), "name": e.name, "level": 100, "stars": JobData.GOD_STARS - 1, "frac": 0.0, "divine_frac": 0.0})
+		check(int(below.adv) == JobData.LEGEND_ADV and WorldPlayers.god_title({"class": end["class"], "level": 100, "stars": JobData.GOD_STARS - 1}) == "", "%s: ★299 is still the legend step" % e.name)
+		var legend_sheet := god_sheet.duplicate(true)
 		legend_sheet["adv"] = JobData.LEGEND_ADV
-		check(float(HeroStats.compute(top).atk) > float(HeroStats.compute(legend_sheet).atk), "%s: the God step's bonuses count in its stats" % e.name)
+		check(float(HeroStats.compute(god_sheet).atk) > float(HeroStats.compute(legend_sheet).atk), "%s: the God step's bonuses count in its stats" % e.name)
 		var spent := 0
 		for key in top.paragon.alloc:
 			spent += int(top.paragon.alloc[key])
-		check(int(top.paragon.level) == Game.PARAGON_MAX and spent == Game.PARAGON_MAX, "%s: all its ★300 points are spent (%d)" % [e.name, spent])
+		var special := Game.special_spent_of(top.paragon.get("special", {}))
+		check(int(top.paragon.level) == Game.PARAGON_MAX and spent == Game.PARAGON_BASE_MAX and special == Game.PARAGON_MAX - Game.PARAGON_BASE_MAX, "%s: all its ★500 points are spent (%d + %d special)" % [e.name, spent, special])
 		var early := WorldPlayers.state(i, start + 0.25 * day)
 		check(vet or int(early.level) < 100, "%s: no Lv.100 in the first six hours (%d)" % [e.name, int(early.level)])
 		# Hours a week: world_town_test checks every style, stall keepers and newcomers too.
@@ -199,22 +203,22 @@ func _progress() -> void:
 			var d11 := WorldPlayers.state(i, start + 11.0 * day)
 			var d16 := WorldPlayers.state(i, start + 16.0 * day)
 			check(int(d4.stars) < 200, "%s: a hardcore player is not at ★200 in four days (★%d)" % [e.name, int(d4.stars)])
-			check(int(d8.stars) >= 200 and int(d8.stars) < Game.PARAGON_MAX, "%s: a hardcore player reaches ★200 within eight days and climbs on (★%d)" % [e.name, int(d8.stars)])
+			check(int(d8.stars) >= 200 and int(d8.stars) < JobData.GOD_STARS, "%s: a hardcore player reaches ★200 within eight days and climbs on (★%d)" % [e.name, int(d8.stars)])
 			# (★245: the opening's hour of day moves each player's first sessions; from the
 			# 06:00 reopening one sits at ★249 on day 11.)
 			check(int(d11.stars) >= 245, "%s: a hardcore player is near ★250 within eleven days (★%d)" % [e.name, int(d11.stars)])
-			check(int(d16.stars) == Game.PARAGON_MAX and bool(d16.divine), "%s: a hardcore player reaches ★300 with the divine set within sixteen days (★%d)" % [e.name, int(d16.stars)])
+			check(int(d16.stars) >= JobData.GOD_STARS and bool(d16.divine), "%s: a hardcore player reaches ★300 with the divine set within sixteen days (★%d)" % [e.name, int(d16.stars)])
 	check(int(WorldPlayers.progress_for(0.0, 0.3).level) == 1, "no play, Lv.1")
 	var full := WorldPlayers.progress_for(1e9, 0.3)
-	check(int(full.level) == 100 and int(full.stars) == Game.PARAGON_MAX and bool(full.divine), "endless play stops at ★300 with the divine set")
+	check(int(full.level) == 100 and int(full.stars) == Game.PARAGON_MAX and bool(full.divine), "endless play stops at ★500 with the divine set")
 	# The divine set comes from the lotus sanctum at ★200, while the stars go on.
 	var steps := WorldPlayers._steps()
-	check(steps.size() == Game.MAX_LEVEL + Game.PARAGON_MAX, "the progress table runs Lv.1 to ★300 (%d steps)" % steps.size())
+	check(steps.size() == Game.MAX_LEVEL + Game.PARAGON_MAX, "the progress table runs Lv.1 to ★500 (%d steps)" % steps.size())
 	var at200 := steps[Game.MAX_LEVEL - 1 + 200]
 	var gathering := WorldPlayers.progress_for(at200 / 0.3 + WorldPlayers.DIVINE_HOURS * 30.0, 0.3)
 	var complete := WorldPlayers.progress_for(at200 / 0.3 + WorldPlayers.DIVINE_HOURS * 60.0 + 1.0, 0.3)
-	check(int(gathering.stars) >= 200 and int(gathering.stars) < Game.PARAGON_MAX and float(gathering.divine_frac) > 0.4 and float(gathering.divine_frac) < 0.6 and not bool(gathering.divine), "half the divine set's hours past ★200: half of it, still climbing (★%d, %.2f)" % [int(gathering.stars), float(gathering.divine_frac)])
-	check(bool(complete.divine) and int(complete.stars) < Game.PARAGON_MAX, "the divine set is complete on the way to ★300 (★%d)" % int(complete.stars))
+	check(int(gathering.stars) >= 200 and int(gathering.stars) < JobData.GOD_STARS and float(gathering.divine_frac) > 0.4 and float(gathering.divine_frac) < 0.6 and not bool(gathering.divine), "half the divine set's hours past ★200: half of it, still climbing (★%d, %.2f)" % [int(gathering.stars), float(gathering.divine_frac)])
+	check(bool(complete.divine) and int(complete.stars) < JobData.GOD_STARS, "the divine set is complete on the way to ★300 (★%d)" % int(complete.stars))
 	check(int(WorldPlayers.progress_for(steps[Game.MAX_LEVEL - 1 + 199] / 0.3, 0.3).divine_frac) == 0, "no divine piece below ★200")
 	# Past ★200 the stars cost more (4% a star) but the ★200-300 field pays more (STAR_RATE).
 	check(WorldPlayers.rate(100, 200) > WorldPlayers.rate(100, 199) * 1.25 and WorldPlayers.rate(100, 300) > WorldPlayers.rate(100, 200) * 1.2, "the ★200-300 field pays more and more")
@@ -302,7 +306,7 @@ func _gear() -> void:
 		var mid := WorldPlayers.equip({"name": name, "class": e["class"], "level": 55, "stars": 0, "frac": 0.5})
 		if mid.has("armor"):
 			variety["%s+%d" % [mid.armor.name, int(mid.armor.get("plus", 0))]] = true
-		var top := WorldPlayers.equip({"name": name, "class": e["class"], "level": 100, "stars": Game.PARAGON_MAX, "frac": 0.0, "divine_frac": 1.0})
+		var top := WorldPlayers.equip({"name": name, "class": e["class"], "level": 100, "stars": JobData.GOD_STARS, "frac": 0.0, "divine_frac": 1.0})
 		var divine := true
 		for slot in DivineGearData.SLOTS:
 			# The divine piece, or the 250★ set piece forged from it (WorldGear).
@@ -1079,7 +1083,7 @@ func _screens() -> void:
 	main.registry.close_screen()
 	main.hud.update_online()
 	check(String(main.hud._online_label.text) == "ออนไลน์ %d" % (WorldPresence.online_count() + 1), "the HUD shows how many are online")
-	# The league's round: register before it, go in while it is on (the hero, at ★300 in
+	# The league's round: register before it, go in while it is on (the hero, at ★500 in
 	# the whole divine set at +10, ranks among Neverdie's strongest twenty).
 	var day_n := WorldEvents.day_of(WorldPresence.clock())
 	var round_at := GuildLeague.slot_start(day_n + 1, 0)

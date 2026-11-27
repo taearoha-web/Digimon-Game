@@ -76,12 +76,12 @@ export function readChat(body) {
   const p = body.player && typeof body.player === 'object' ? body.player : {};
   const h = body.hero && typeof body.hero === 'object' ? body.hero : {};
   const player = {
-    name: text(p.name, 24), class: text(p.class, 20), level: number(p.level, 1, 100), stars: number(p.stars, 0, 300),
+    name: text(p.name, 24), class: text(p.class, 20), level: number(p.level, 1, 100), stars: number(p.stars, 0, 500),
     style: text(p.style, 30), doing: DOINGS.has(p.doing) ? p.doing : '', place: text(p.place, 40), guild: text(p.guild, 20),
     gender: p.gender === 1 ? 1 : 0, inParty: p.inParty === true, divine: p.divine === true,
   };
   if (!player.name) accountFail(400, 'invalid_chat', 'Say who you are talking to.');
-  const hero = {name: text(h.name, 24), class: text(h.class, 20), level: number(h.level, 1, 100), stars: number(h.stars, 0, 300), guild: text(h.guild, 20)};
+  const hero = {name: text(h.name, 24), class: text(h.class, 20), level: number(h.level, 1, 100), stars: number(h.stars, 0, 500), guild: text(h.guild, 20)};
   const history = (Array.isArray(body.history) ? body.history : []).slice(-MAX_HISTORY)
     .map(entry => ({who: entry?.who === 'player' ? 'player' : 'hero', text: text(entry?.text, MAX_TEXT)}))
     .filter(entry => entry.text);

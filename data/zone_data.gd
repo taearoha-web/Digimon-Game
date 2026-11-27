@@ -248,6 +248,9 @@ static func ensure() -> void:
 	# The ★300 field lies beyond the abyss.
 	ZONES[DrownedAbyssData.ID]["next"] = SkyIsleData.ID
 	ZONES[SkyIsleData.ID] = SkyIsleData.zone()
+	# ดินแดนเทวาลัย (★300 toward ★500): entered from the abyss's side portal or the warp
+	# crystal, outside the travel chain (HeavenRealmData).
+	ZONES[HeavenRealmData.ID] = HeavenRealmData.zone()
 
 static func get_zone(id: StringName) -> Dictionary:
 	ensure()
@@ -257,6 +260,9 @@ static func get_zone(id: StringName) -> Dictionary:
 	# The chapter 2 finale stage is entered through its quest portal in the abyss: not in ZONES.
 	if id == StoryChapter2.STAGE_ID:
 		return StoryChapter2.stage_zone()
+	# The ★500 trial stage (AscensionData) is entered from the celestial sage: not in ZONES.
+	if id == AscensionData.STAGE_ID:
+		return AscensionData.stage_zone()
 	# The guild halls are entered from the guild screen or the keep's door, by members only.
 	if GuildHallData.is_hall(id):
 		return GuildHallData.zone(id)

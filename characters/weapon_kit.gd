@@ -88,6 +88,7 @@ static func build(look: String) -> Node3D:
 	if look.begins_with("divine_"): return DivineGearArt.build(look)
 	if look.begins_with("set_"): return SetGearArt.build(look)
 	if look.begins_with("dragon_"): return DragonGearArt.build(look)
+	if look.begins_with("heaven_"): return Star500GearArt.build(look)
 	if HandWraps.is_look(look): return HandWraps.build(look)
 	var parts := look.rsplit("_", true, 1)
 	var kind := parts[0] if MODELS.has(parts[0]) else "sword"

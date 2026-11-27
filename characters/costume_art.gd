@@ -21,6 +21,10 @@ extends RefCounted
 ##              a gold sabai across the chest with a jewelled collar and a hanging end, a
 ##              gold belt with a ruby buckle and a silk front panel, gold armlets, little
 ##              krathong candle lights drifting round
+##   santa      the Christmas festival's costume (Christmas, gift boxes or pieces): a red
+##              Santa hat with a fluffy white brim and a drooping tip with a pompom, a white
+##              fur collar with gold buttons down the front, a black belt with a gold
+##              buckle over a fur hem, fur cuffs, snowflakes drifting down round the wearer
 ##   maze_sovereign เทพราชันหนึ่งในใต้หล้า, หนึ่งในใต้หล้า's crown (MazeCrown, a week's reward): an
 ##              imperial crown of gold sun-flames over black velvet with the imperial jade,
 ##              a pearl finial, crown wings and jade ear tassels; a breathing sun halo
@@ -66,6 +70,7 @@ const PARTS := {
 	"dragon_god": [["Head", "head"], ["Chest", "back"], ["Hips", "tail"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 	"loykrathong": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 	"maze_sovereign": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
+	"santa": [["Head", "head"], ["Chest", "back"], ["Hips", "belt"], ["LeftUpperArm", "arm_l"], ["RightUpperArm", "arm_r"]],
 }
 ## Each layer's look: sway (tip offset in model units), speed and lag down the piece,
 ## glow share, and for the cloth sheets the pattern, trim and lining (costume.gdshaderinc).
@@ -90,6 +95,8 @@ const STYLE := {
 	"loykrathong": {"solid": {"sway": Vector3(0.006, 0.0, -0.012), "speed": 1.4, "lag": 1.6, "glow": 0.06},
 		"sheet": {"pattern": 0.0, "trim": Color("e8264a"), "trim_width": 0.07, "lining": Color("c98a18"), "sway": Vector3(0.008, 0.0, -0.022), "speed": 1.3, "lag": 2.2, "glow": 0.08},
 		"sheet2": {"pattern": 0.0, "trim": Color("ffcf3a"), "trim_width": 0.16, "lining": Color("8a1428"), "sway": Vector3(0.01, 0.0, 0.016), "speed": 1.5, "lag": 1.8}},
+	# Santa's hat tip and pompom sway a little.
+	"santa": {"solid": {"sway": Vector3(0.012, 0.0, -0.016), "speed": 1.6, "lag": 2.2, "glow": 0.04}},
 	# The sovereign: glints sweep up its gold (shimmer) and its halo and gems breathe (pulse).
 	"maze_sovereign": {"solid": {"sway": Vector3(0.012, 0.0, 0.016), "speed": 1.3, "lag": 1.6, "glow": 0.07, "shimmer": 0.9, "pulse": 0.35},
 		"sheet": {"pattern": 5.0, "trim": Color("e0a32a"), "trim_width": 0.055, "lining": Color("8a1022"), "speck": Color("d9a030"), "sway": Vector3(0.012, 0.0, -0.034), "speed": 1.1, "lag": 2.6, "glow": 0.05, "shimmer": 0.6},
@@ -108,6 +115,8 @@ const MOTES := {
 	# Little krathong candle lights drifting round the wearer.
 	"loykrathong": {"n": 5, "shape": 0.0, "color": Color("ffc46a"), "size": 0.16, "r": [0.4, 0.5], "y": [0.25, 0.95], "orbit": 0.35, "bob": 0.05, "additive": 1.0},
 	"dragon_god": {"n": 3, "shape": 5.0, "align": 1.0, "color": Color("7dffd0"), "size": 0.62, "r": [0.4, 0.5], "y": [0.3, 1.0], "orbit": 1.25, "bob": 0.07, "additive": 1.0},
+	# Snowflakes drifting down round Santa (shape 6, a six-rayed flake turning slowly).
+	"santa": {"n": 9, "shape": 6.0, "color": Color("e8f4ff"), "size": 0.13, "r": [0.3, 0.55], "y_lo": -0.02, "y_hi": 1.2, "rise": -0.06, "orbit": 0.12, "drift": 0.05, "spin": 0.6, "additive": 0.6},
 	# Two golden imperial dragons circling the sovereign.
 	"maze_sovereign": {"n": 2, "shape": 5.0, "align": 1.0, "color": Color("ffd24a"), "size": 0.74, "r": [0.46, 0.52], "y": [0.35, 1.0], "orbit": 1.0, "bob": 0.08, "additive": 1.0},
 }
@@ -172,6 +181,7 @@ static func mesh_of(id: String, part: String, winged: bool) -> ArrayMesh:
 		"dragon_god": _dragon(b, part, winged)
 		"loykrathong": _loykrathong(b, part)
 		"maze_sovereign": _sovereign(b, part, winged)
+		"santa": _santa(b, part)
 	var mesh := _commit(b)
 	if _meshes.size() >= CACHE_LIMIT:
 		_meshes.erase(_meshes.keys()[0])
@@ -1465,3 +1475,90 @@ static func _dragon_horn_gold(b: Dictionary, ctrl: Array, fat: float) -> void:
 		func(t: float) -> float: return fat * pow(1.0 - t, 0.8) + 0.002,
 		func(t: float) -> Color: return IMP_GOLD_DEEP.lerp(IMP_GOLD_LIGHT, t),
 		func(_t: float) -> Vector2: return Vector2.ZERO)
+
+
+# --- Santa (ชุดซานต้า, Christmas) ------------------------------------------------------------
+
+const SANTA_RED := Color("d8202f")
+const SANTA_RED_DEEP := Color("9a1020")
+const FUR := Color("fbfbff")
+const FUR_SHADE := Color("dfe6f2")
+const SANTA_BLACK := Color("1e1a1c")
+const SANTA_GOLD := Color("ffcf3a")
+
+
+static func _santa(b: Dictionary, part: String) -> void:
+	match part:
+		"head":
+			_santa_hat(b)
+		"back":
+			_santa_collar(b)
+		"belt":
+			_santa_belt(b)
+		"arm_l", "arm_r":
+			var side := 1.0 if part == "arm_l" else -1.0
+			var at := Vector3(side * 0.16, 0.56, 0.022)
+			var turn := Basis(Vector3.FORWARD, side * deg_to_rad(26.0))
+			# A fluffy fur cuff: a fat white torus with a few tufts round it.
+			_prim(b, "solid", MeshKit.torus(), FUR, at, Vector3(0.112, 0.36, 0.106), Vector3.ZERO, Vector2.ZERO, turn)
+			for k in 6:
+				var a := TAU * float(k) / 6.0
+				_prim(b, "solid", _dot(), FUR if k % 2 == 0 else FUR_SHADE, at + turn * Vector3(cos(a) * 0.05, 0.0, sin(a) * 0.048), Vector3.ONE * 0.034)
+
+
+## The Santa hat: a red cap over the head under a fat fur brim, its tip curving up, back
+## and over to one side, a white pompom at the end.
+static func _santa_hat(b: Dictionary) -> void:
+	var c := Vector3(0, 0.948, -0.012)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(-10.0)) * Basis(Vector3.FORWARD, deg_to_rad(-6.0))
+	var at := func(p: Vector3) -> Vector3: return c + tilt * p
+	_prim(b, "solid", MeshKit.hemisphere(), SANTA_RED, at.call(Vector3(0, 0.012, 0)), Vector3(0.262, 0.2, 0.25), Vector3.ZERO, Vector2.ZERO, tilt)
+	# The tip: a sweep from the crown, up and back, flopping down over the left side.
+	var root: Vector3 = at.call(Vector3(0, 0.08, 0))
+	var pts := _bezier(root, root + Vector3(0.0, 0.12, -0.03), root + Vector3(0.1, 0.17, -0.08), root + Vector3(0.17, 0.07, -0.1), 12)
+	_sweep(b, "solid", pts, 9, func(t: float) -> float: return lerpf(0.105, 0.022, pow(t, 0.8)),
+		func(t: float) -> Color: return SANTA_RED.lerp(SANTA_RED_DEEP, t * 0.45),
+		func(t: float) -> Vector2: return Vector2(t * t, 0.0))
+	# The pompom, swaying with the tip's end.
+	var tip: Vector3 = pts[pts.size() - 1]
+	_prim(b, "solid", _dot(), FUR, tip + Vector3(0.012, -0.02, 0), Vector3.ONE * 0.075, Vector3.ZERO, Vector2(1.0, 0.0))
+	for k in 5:
+		var a := TAU * float(k) / 5.0
+		_prim(b, "solid", _dot(), FUR_SHADE, tip + Vector3(0.012 + cos(a) * 0.026, -0.02 + sin(a) * 0.026, 0.012), Vector3.ONE * 0.032, Vector3.ZERO, Vector2(1.0, 0.0))
+	# The fur brim: a fat ring with fluffy tufts all round.
+	_prim(b, "solid", MeshKit.torus(), FUR, at.call(Vector3(0, -0.004, 0)), Vector3(0.29, 0.5, 0.278), Vector3.ZERO, Vector2.ZERO, tilt)
+	for k in 14:
+		var a := TAU * float(k) / 14.0
+		var p: Vector3 = at.call(Vector3(sin(a) * 0.14, -0.004 + 0.012 * float(k % 2), cos(a) * 0.134))
+		_prim(b, "solid", _dot(), FUR if k % 3 != 0 else FUR_SHADE, p, Vector3.ONE * 0.05)
+	# A little gold holly-berry pin at the front of the brim.
+	_prim(b, "glow", _dot(), Color("ff3040"), at.call(Vector3(0.035, 0.012, 0.15)), Vector3.ONE * 0.022)
+	_prim(b, "glow", _dot(), Color("ff3040"), at.call(Vector3(0.012, 0.024, 0.152)), Vector3.ONE * 0.02)
+	var leaf_xf := _plane(at.call(Vector3(-0.012, 0.016, 0.152)), Vector3(1, 0.3, 0).normalized(), Vector3(-0.3, 1, 0).normalized(), 1.0)
+	_flat(b, "solid", _leaf(0.05, 0.026), leaf_xf, 0.004, Color("2f9a4a"), Color("1a6a30"))
+
+
+## The fur collar round the neck, a fur strip down the front with gold buttons.
+static func _santa_collar(b: Dictionary) -> void:
+	_prim(b, "solid", MeshKit.torus(), FUR, Vector3(0, 0.625, 0.03), Vector3(0.25, 0.55, 0.24))
+	for k in 12:
+		var a := TAU * float(k) / 12.0
+		_prim(b, "solid", _dot(), FUR if k % 2 == 0 else FUR_SHADE, Vector3(sin(a) * 0.118, 0.62 + 0.01 * float(k % 2), 0.03 + cos(a) * 0.112), Vector3.ONE * 0.05)
+	# The front strip of fur from the collar to the belt, three gold buttons on it.
+	_prim(b, "solid", MeshKit.box(), FUR, Vector3(0, 0.5, 0.15), Vector3(0.05, 0.2, 0.024), Vector3(-8, 0, 0))
+	for k in 3:
+		_prim(b, "glow", _dot(), SANTA_GOLD, Vector3(0, 0.565 - 0.055 * float(k), 0.163 + 0.004 * float(k)), Vector3(0.026, 0.026, 0.014))
+
+
+## The black belt with its gold buckle, over a fur hem round the hips.
+static func _santa_belt(b: Dictionary) -> void:
+	_prim(b, "solid", MeshKit.cylinder(), SANTA_BLACK, Vector3(0, 0.395, 0.035), Vector3(0.292, 0.05, 0.268))
+	var buckle := Vector3(0, 0.395, 0.17)
+	_prim(b, "solid", MeshKit.box(), SANTA_GOLD, buckle, Vector3(0.075, 0.06, 0.016))
+	_prim(b, "solid", MeshKit.box(), SANTA_BLACK, buckle + Vector3(0, 0, 0.006), Vector3(0.045, 0.032, 0.012))
+	_prim(b, "glow", _dot(), Color("fff0a0"), buckle + Vector3(0.026, 0.02, 0.01), Vector3.ONE * 0.012)
+	# The hem: a ring of fur tufts lower down.
+	_prim(b, "solid", MeshKit.torus(), FUR, Vector3(0, 0.3, 0.035), Vector3(0.31, 0.45, 0.29))
+	for k in 14:
+		var a := TAU * float(k) / 14.0
+		_prim(b, "solid", _dot(), FUR if k % 2 == 0 else FUR_SHADE, Vector3(sin(a) * 0.15, 0.298 - 0.008 * float(k % 2), 0.035 + cos(a) * 0.142), Vector3.ONE * 0.048)

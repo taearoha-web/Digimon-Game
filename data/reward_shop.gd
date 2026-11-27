@@ -68,6 +68,9 @@ const COSTUMES := {
 	# The Loy Krathong festival's costume (LoyKrathong.COSTUME): `frag_id` names the piece the
 	# exchange takes (else SkyIsleLoot.FRAGMENT); `festival` keeps it to the festival's days.
 	"loykrathong": {"name": "ชุดลอยกระทง", "cloth": Color("d6365a"), "sheen": 0.6, "glow": Color(0.3, 0.16, 0.02), "desc": "สไบทองปักลายกนกพาดไหล่ · มงกุฎดอกบัวทองยอดชฎา · เข็มขัดทองหัวพลอยกับชายผ้าห้อยหน้า · กำไลต้นแขนทอง · ดวงไฟกระทงน้อยลอยวนรอบตัว · แลกด้วยชิ้นส่วนหรือแต้มลอยกระทงช่วงเทศกาลเท่านั้น", "lc": 0, "ep": 0, "fragments": 30, "frag_id": "lk_piece", "festival": "loyk"},
+	# The Christmas and New Year festival's costume (Christmas.COSTUME): pieces from the gift
+	# boxes, exchanged only while the festival runs (or the rare box that holds it whole).
+	"santa": {"name": "ชุดซานต้า", "cloth": Color("d8202f"), "sheen": 0.35, "glow": Color(0.22, 0.04, 0.04), "desc": "หมวกซานต้าขนปุยปลายพู่ห้อย · ปกขนเฟอร์ขาวกับกระดุมทอง · เข็มขัดดำหัวทองกับชายเสื้อขนเฟอร์ · ข้อมือขนปุย · เกล็ดหิมะโปรยรอบตัว · แลกด้วยชิ้นส่วนชุดซานต้า 30 ชิ้นช่วงเทศกาลคริสต์มาสและปีใหม่ หรือลุ้นจากกล่องของขวัญ", "lc": 0, "ep": 0, "fragments": 30, "frag_id": "xm_piece", "festival": "xmas"},
 	"dragon_god": {"name": "ชุดเทพมังกร", "cloth": Color("1f9c86"), "sheen": 0.65, "glow": Color(0.05, 0.3, 0.22), "desc": "เขามังกรทองและหงอนหยก · หางมังกรเกล็ดหยกยาวส่ายไปมา · ผ้าคลุมไหล่เกล็ดมังกรเข็มกลัดทอง · มังกรวิญญาณตัวน้อยบินวนรอบตัว · แลกด้วยชิ้นส่วนจากเกาะลอยฟ้าเทพมังกรเท่านั้น", "lc": 0, "ep": 0, "fragments": 50},
 	# หนึ่งในใต้หล้า's crown (MazeCrown.COSTUME_ID): never sold nor exchanged (`crown`), won by
 	# the week's champion of เขาวงกตหนึ่งในใต้หล้า, an item that ends (`expires`) with the crown.
@@ -243,7 +246,7 @@ static func boss_defeated(t := -1.0) -> int:
 
 ## Whether the event hours (EXP x2 evening or the festival) run at t.
 static func event_hours(t: float) -> bool:
-	return WorldEvents.evening_exp(t) or WorldEvents.any_festival_on(t) or LoyKrathong.night_on(t)
+	return WorldEvents.evening_exp(t) or WorldEvents.any_festival_on(t) or LoyKrathong.night_on(t) or Christmas.bonus_on(t)
 
 
 ## A kill at t (Game.report_kill): KILL_EP during the event hours, KILL_CAP a Thai day.
@@ -335,7 +338,7 @@ static func price_text(e: Dictionary) -> String:
 	if bool(e.get("crown", false)):
 		return "รางวัลผู้ครอง%s (อันดับ 1 ยอดสังหาร%sประจำสัปดาห์) · ไม่มีขาย" % [MazeCrown.TITLE_NAME, MazeWar.TITLE]
 	if fragments_of(e) > 0:
-		var where := LoyKrathong.TITLE if String(e.get("festival", "")) == "loyk" else "ดรอปที่%s" % SkyIsleData.TITLE
+		var where := LoyKrathong.TITLE if String(e.get("festival", "")) == "loyk" else (Christmas.TITLE if String(e.get("festival", "")) == "xmas" else "ดรอปที่%s" % SkyIsleData.TITLE)
 		return "แลกด้วยชิ้นส่วน %d ชิ้น (มี %d) · %s" % [fragments_of(e), Game.jewel_count(fragment_id(e)) if Game.has_profile else 0, where]
 	if int(e.get("lc", 0)) > 0:
 		parts.append("%d %s" % [int(e.lc), COIN_NAME])
@@ -617,6 +620,8 @@ static func problem(tab: String, id: String, t := -1.0) -> String:
 		return "กระเป๋าและคลังเต็ม"
 	if String(e.get("festival", "")) == "loyk" and not LoyKrathong.on():
 		return "แลกได้เฉพาะช่วง%s" % LoyKrathong.TITLE
+	if String(e.get("festival", "")) == "xmas" and not Christmas.on():
+		return "แลกได้เฉพาะช่วง%s (%s)" % [Christmas.TITLE, Christmas.window_text()]
 	if fragments_of(e) > Game.jewel_count(fragment_id(e)):
 		return "%sไม่พอ (มี %d/%d)" % [String(ItemData.JEWELS[fragment_id(e)].name), Game.jewel_count(fragment_id(e)), fragments_of(e)]
 	if coins() < int(e.get("lc", 0)):

@@ -473,6 +473,57 @@ func _build_paragon(parent: Control) -> void:
 			else:
 				Game.say("เหรียญไม่พอ", &"warning"))
 		parent.add_child(reset)
+	_build_special(parent)
+
+
+func _spend_special(key: String, count: int) -> void:
+	if Game.special_spend(key, count) and not Game.save():
+		Game.say("อัปแต้มแล้ว แต่ยังบันทึกไม่ได้ ระบบจะลองบันทึกให้อีกครั้ง", &"warning")
+
+
+## The special pool of ★301-★500 (Game.SPECIAL_STATS): a point a star past ★300, 40 a stat,
+## its own gold reset. Locked (one line) below ★301.
+func _build_special(parent: Control) -> void:
+	var para := Game.paragon()
+	var box := UIUtil.vbox(4)
+	box.name = "SpecialStats"
+	parent.add_child(box)
+	box.add_child(HSeparator.new())
+	var points := Game.special_points()
+	box.add_child(UIUtil.label("ค่าสถานะพิเศษ (★%d+)  ·  แต้มพิเศษที่ใช้ได้ %d" % [Game.SPECIAL_FROM, points], &"SubHeaderLabel"))
+	if int(para.level) < Game.SPECIAL_FROM:
+		var locked := UIUtil.label("ล็อกอยู่: ปลดล็อกที่ดาว %d\nดาว %d-%d ให้แต้มพิเศษดาวละ 1 แต้ม\nดาเมจคริติคอล · เจาะเกราะ · ลดความเสียหาย · ดูดเลือด · ลดคูลดาวน์" % [Game.SPECIAL_FROM, Game.SPECIAL_FROM, Game.PARAGON_MAX], &"SmallLabel")
+		locked.name = "SpecialLocked"
+		locked.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(locked)
+		return
+	for key in Game.SPECIAL_STATS:
+		var info: Array = Game.SPECIAL_STATS[key]
+		var used := int(para.special.get(key, 0))
+		var line := UIUtil.hbox(6)
+		box.add_child(line)
+		var label := UIUtil.label("%s %d/%d  (+%s%%)" % [info[0], used, int(info[2]), String.num(float(info[1]) * float(used) * 100.0, 2)], &"BoldLabel")
+		label.custom_minimum_size = Vector2(200, 0)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(label)
+		var room := mini(points, int(info[2]) - used)
+		for step in PARAGON_STEPS:
+			var count := room if step == 0 else mini(int(step), room)
+			var plus := UIUtil.button("สุด" if step == 0 else "+%d" % int(step), &"PrimaryButton", Vector2(68, 52))
+			plus.name = "Special_%s_%s" % [key, "max" if step == 0 else str(step)]
+			plus.disabled = room <= 0
+			plus.pressed.connect(func(): _spend_special(key, count))
+			line.add_child(plus)
+		box.add_child(UIUtil.label(String(info[3]).replace("%%", "%"), &"SmallLabel"))
+	if Game.special_spent_of(para.special) > 0:
+		var reset := UIUtil.button("คืนแต้มพิเศษทั้งหมด (%d เหรียญ)" % Game.SPECIAL_RESET_COST, &"", Vector2(0, 48))
+		reset.name = "SpecialReset"
+		reset.pressed.connect(func():
+			if Game.special_reset():
+				Game.say("คืนแต้มพิเศษแล้ว", &"success")
+			else:
+				Game.say("เหรียญไม่พอ", &"warning"))
+		box.add_child(reset)
 
 
 # ---------------------------------------------------------------------------
@@ -821,6 +872,61 @@ func _build_set_craft(middle: VBoxContainer) -> void:
 		craft.tooltip_text = problem
 		craft.pressed.connect(func(): _craft_set_piece(slot, pick, worn_pick))
 		line.add_child(craft)
+	_build_star500_craft(box, cls)
+
+
+## ผสมชุดเทวาลัย (under the 250★ set on the same page): the seven ★500 pieces of the
+## hero's class (Star500Gear), each for แก่นเทวาลัย and gold, a sure success.
+func _build_star500_craft(box: VBoxContainer, cls: String) -> void:
+	box.add_child(UIUtil.label("ผสม%s (★%d)" % [Star500Gear.set_label(cls), Star500Gear.STARS], &"HeaderLabel"))
+	var intro := UIUtil.label("สวมใส่ได้ที่ ดาว %d · %s ดรอปที่%s (บอสดรอปบ่อย) · มีอยู่ %d · ผสมสำเร็จทุกครั้ง · โบนัสเซต: %s" % [Star500Gear.STARS, String(ItemData.JEWELS[Star500Gear.CORE].name), Star500Gear.FIELD, Game.jewel_count(Star500Gear.CORE), Star500Gear.bonus_text()], &"SmallLabel")
+	intro.name = "Star500Intro"
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(intro)
+	for slot in Star500Gear.SLOTS:
+		var piece := Star500Gear.item(cls, slot)
+		var panel := UIUtil.panel(&"CardPanel")
+		panel.name = "Star500Piece_" + slot
+		box.add_child(panel)
+		var line := UIUtil.hbox(10)
+		panel.add_child(line)
+		var icon := TextureRect.new()
+		icon.texture = ItemLook.icon(piece)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(64, 64)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(icon)
+		var col := UIUtil.vbox(2)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(col)
+		var title := UIUtil.label("%s · %s" % [String(piece.name), ItemData.SLOT_NAMES[slot]], &"BoldLabel")
+		title.add_theme_color_override("font_color", ItemData.color_of(piece))
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(title)
+		var stats := UIUtil.label(" · ".join(ItemData.stat_lines(piece)), &"SmallLabel")
+		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(stats)
+		var problem := Star500Gear.craft_problem(slot)
+		var need := UIUtil.label("ต้องใช้: " + Star500Gear.cost_text(slot), &"DimLabel")
+		need.add_theme_color_override("font_color", Color("8dffb0") if problem == "" else Color("ff8a8a"))
+		need.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(need)
+		var craft := UIUtil.button("ผสม", &"PrimaryButton", Vector2(140, 56))
+		craft.name = "Craft"
+		craft.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		craft.disabled = problem != ""
+		craft.tooltip_text = problem
+		craft.pressed.connect(func():
+			var result := Star500Gear.craft(slot)
+			if result == "ok":
+				Game.say("ผสมสำเร็จ! ได้ %s แสงแห่งเทวาลัยเจิดจ้า!" % Star500Gear.item_name(cls, slot), &"success")
+				AudioManager.play_sfx(&"level_up")
+				Game.screen_flash.emit(Star500Gear.COLOR, 0.3)
+			else:
+				Game.say(result, &"warning")
+			_queue_rebuild())
+		line.add_child(craft)
 
 
 ## The divine piece the card of [param slot] uses: the player's pick while it still
@@ -995,6 +1101,7 @@ func _refresh_detail() -> void:
 		var how := UIUtil.label(("วัตถุดิบผสมชุดเซต 250 ดาว: ชิ้นเดียวผสมได้ทุกชิ้นของชุดเซตอาชีพตัวเอง (อาวุธ เกราะ หมวก รองเท้า แหวน สร้อย) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ชิ้นละ %s + ชุดประจำอาชีพชิ้นเดียวกัน +%d (แหวน/สร้อยใช้เกล็ดบัวดารา %d) · สำเร็จ %d%% พลาดแล้วแก่นเทพกับเพชรหาย · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร" % [SetGearData.cost_text(), SetGearData.DIVINE_PLUS, SetGearData.SCALES, int(SetGearData.CRAFT_CHANCE * 100.0)]) if String(item.get("id", "")) == SetGearData.CORE
 			else ("วัตถุดิบแหวนและสร้อยชุดเซต 250 ดาว: ชิ้นละ %d เกล็ด + %s ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" (ผสมพลาดเกล็ดยังอยู่) · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร (บอสให้ %d เกล็ดทุกตัว)" % [SetGearData.SCALES, SetGearData.cost_text(), EndgameFields.SCALE_BOSS]) if String(item.get("id", "")) == SetGearData.SCALE
 			else SkyIsleLoot.help(String(item.get("id", ""))) if SkyIsleLoot.help(String(item.get("id", ""))) != ""
+			else Christmas.help(String(item.get("id", ""))) if Christmas.help(String(item.get("id", ""))) != ""
 			else ("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"
@@ -1126,6 +1233,39 @@ func _build_isle_actions(item: Dictionary, target: Control) -> void:
 				_selected_index = RewardShop.bag_index(SkyIsleLoot.COSTUME)
 				_rebuild())
 			target.add_child(swap)
+		Christmas.GIFT:
+			# The Christmas gift boxes: "เปิด" / "เปิดทั้งหมด" (Christmas.open_gifts).
+			var count := int(item.get("count", 1))
+			var pair := UIUtil.vbox(6)
+			pair.name = "GiftActions"
+			target.add_child(pair)
+			var open := UIUtil.button("เปิดกล่องของขวัญ", &"PrimaryButton", Vector2(0, 58))
+			open.name = "GiftOpen"
+			open.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			open.pressed.connect(func(): _open_gifts(1))
+			pair.add_child(open)
+			var all := UIUtil.button("เปิดทั้งหมด (%d)" % mini(count, Christmas.OPEN_ALL_MAX), &"AccentButton", Vector2(0, 58))
+			all.name = "GiftOpenAll"
+			all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			all.disabled = count < 2
+			all.pressed.connect(func(): _open_gifts(Christmas.OPEN_ALL_MAX))
+			pair.add_child(all)
+		Christmas.PIECE:
+			# The Santa costume's pieces: exchanged in the reward shop while the festival runs.
+			var problem := RewardShop.problem("costume", Christmas.COSTUME)
+			var swap := UIUtil.button("แลกชุดซานต้า (%d/%d)" % [Game.jewel_count(Christmas.PIECE), Christmas.COSTUME_PIECES] if problem != "มีแล้ว" else "มีชุดซานต้าแล้ว", &"PrimaryButton", Vector2(0, 58))
+			swap.name = "SantaExchange"
+			swap.disabled = problem != ""
+			swap.tooltip_text = problem
+			swap.pressed.connect(func():
+				var result := RewardShop.buy("costume", Christmas.COSTUME)
+				if result != "ok":
+					Game.say(result, &"warning")
+				else:
+					Game.say("แลกชุดซานต้าแล้ว! ใส่ได้จากกระเป๋า", &"success")
+				_selected_index = RewardShop.bag_index(Christmas.COSTUME)
+				_rebuild())
+			target.add_child(swap)
 		SkyIsleLoot.EGG:
 			var hatch := UIUtil.button("ไปหน้าสัตว์ขี่ (ฟัก%s)" % String(MountData.info(SkyIsleLoot.MOUNT).name), &"PrimaryButton", Vector2(0, 58))
 			hatch.name = "EggHatch"
@@ -1150,6 +1290,26 @@ func _open_chests(count: int) -> void:
 	for i in Game.profile.inv.size():
 		var it: Dictionary = Game.profile.inv[i]
 		if it.get("kind", "") == "jewel" and String(it.get("id", "")) == SkyIsleLoot.CHEST:
+			_selected_index = i
+	_rebuild()
+
+
+## Opens up to [param count] Christmas gift boxes (Christmas.open_gifts): a flash, the
+## sound and the prizes read out; the box stack stays selected while boxes are left.
+func _open_gifts(count: int) -> void:
+	var result := Christmas.open_gifts(count)
+	if int(result.opened) > 0:
+		AudioManager.play_sfx(&"coin")
+		Game.screen_flash.emit(Color("ff6a6a"), 0.12)
+		Game.say("เปิด%s %d กล่อง: %s" % [String(ItemData.JEWELS[Christmas.GIFT].name), int(result.opened), SkyIsleLoot.prize_text(result)], &"success")
+		for item in result.jackpots:
+			SkyIsleLoot.celebrate(item)
+	if String(result.stopped) != "":
+		Game.say(String(result.stopped), &"warning")
+	_selected_index = -1
+	for i in Game.profile.inv.size():
+		var it: Dictionary = Game.profile.inv[i]
+		if it.get("kind", "") == "jewel" and String(it.get("id", "")) == Christmas.GIFT:
 			_selected_index = i
 	_rebuild()
 

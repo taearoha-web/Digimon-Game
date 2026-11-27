@@ -1434,6 +1434,37 @@ def sky_dragon_isle():
     return master(tr, 0.28, tone=4800, drive=1.2)
 
 
+@track("heaven_realm", "celestial temple above the clouds: harp-like koto and glass arps, choir and string hymn, temple bells, a solemn brass refrain with soft taiko", "G lydian / major", "4/4 88")
+def heaven_realm():
+    tr = Track("heaven_realm", 88, 32, seed=57)
+    A = prog("G A D G Em C D G")
+    B = prog("C D Bm Em Am D G G")
+    mel_a = bars("B5:1.5 C#6:.5 D6:1 B5:1 | A5:2 F#5:1 A5:1 | G5:1.5 A5:.5 B5:1 D6:1 | E6:3 D6:1 | B5:1.5 A5:.5 G5:1 E5:1 | G5:2 A5:1 C6:1 | B5:1 A5:1 F#5:1 D5:1 | G5:4")
+    mel_b = bars("E6:1 D6:1 C6:1 G5:1 | F#6:2 D6:2 | D6:1.5 C6:.5 B5:1 G5:1 | E6:3 B5:1 | C6:1 E6:1 A6:1.5 G6:.5 | F#6:2 D6:1 A5:1 | G6:1.5 F#6:.5 D6:1 B5:1 | G6:4")
+    for s in range(2):
+        sb = s * 8
+        chords(tr, pad, A, sb, 0.11, octave=3, cutoff=1500)
+        chords(tr, choir, A, sb, 0.07 + 0.03 * s, octave=4)
+        arp(tr, koto, A, sb, 0.12, step=0.5, pattern="updown", octave=4, length=0.9)
+        arp(tr, glass, A, sb, 0.06, step=1.0 / 3.0, pattern="up", octave=5, spread=2)
+        bass(tr, sub, A, sb, 0.4, "whole", octave=2)
+    melody(tr, flute, mel_a, 0, 0.28, fx=(0.341, 0.32, 3))
+    melody(tr, flute, mel_a, 8, 0.28, fx=(0.341, 0.32, 3), unison=[(glock, 1, 0.14), (choir, 0, 0.25)])
+    for s in range(2):
+        sb = 16 + s * 8
+        chords(tr, strings, B, sb, 0.11, octave=3)
+        chords(tr, choir, B, sb, 0.1, octave=3)
+        arp(tr, koto, B, sb, 0.1, step=0.5, pattern="broken", octave=4)
+        bass(tr, low_brass, B, sb, 0.34, "roots", octave=2)
+        drums(tr, sb, 8, "ominous", 0.4 if s == 0 else 0.55, fills=False)
+    melody(tr, brass, mel_b, 16, 0.3, unison=[(strings, 0, 0.45)])
+    melody(tr, brass, mel_b, 24, 0.32, unison=[(strings, 0, 0.45), (glock, 1, 0.14), (choir, 0, 0.3)])
+    for bar in range(0, 32, 2):
+        tr.note(bell, tr.bar_pos(bar), 1.5, "G4" if bar % 8 == 0 else ("D4" if bar % 4 == 0 else "B3"), 0.13)
+    bed(tr, "wind", 0.05)
+    return master(tr, 0.3, tone=5200, drive=1.1)
+
+
 @track("pvp", "coliseum: crowd bed, stomp-stomp-clap, taiko, staccato brass riff, chant hits", "E minor", "4/4 136")
 def pvp():
     tr = Track("pvp", 136, 40, seed=30)

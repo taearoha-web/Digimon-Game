@@ -337,9 +337,20 @@ static func pierce(attacker: Variant) -> float:
 	return value(&"lancer") if has(attacker, &"lancer") else 0.0
 
 
-## [param defence] after the attacker's party pierces it.
+## [param defence] after the attacker's party pierces it, and then the attacker's own
+## ★301+ เจาะเกราะ (own_pierce).
 static func pierced(attacker: Variant, defence: float) -> float:
-	return defence * (1.0 - pierce(attacker))
+	return defence * (1.0 - pierce(attacker)) * (1.0 - own_pierce(attacker))
+
+
+## The attacker's own เจาะเกราะ from the special star pool (HeroStats.compute "pierce"):
+## the hero's and a companion's stats, a rival's or a guild fighter's rstats.
+static func own_pierce(attacker: Variant) -> float:
+	if attacker == null or not is_instance_valid(attacker):
+		return 0.0
+	var obj := attacker as Object
+	var sheet: Variant = obj.get("rstats") if obj is Rival else obj.get("stats")
+	return clampf(float((sheet as Dictionary).get("pierce", 0.0)), 0.0, 0.5) if sheet is Dictionary else 0.0
 
 
 ## Multiplier of the damage [param victim] takes (กำแพงเหล็ก).

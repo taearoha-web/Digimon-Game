@@ -1,6 +1,7 @@
 extends Node
 ## The star cap at ★300 and the God promotion ("เทพเจ้าแห่ง<อาชีพ>"):
-## - Game.PARAGON_MAX is 300; the EXP curve is unchanged up to ★200 and grows
+## - Game.PARAGON_MAX is 500 now (star500_test: the special pool past ★300); the
+##   five star stats still take the points of ★1-★300 (PARAGON_BASE_MAX); the EXP curve is unchanged up to ★200 and grows
 ##   faster from ★200 to ★300; a hero climbs to exactly ★300 with 300 points and
 ##   every point has a stat to go into.
 ## - The God step (JobData.GOD_ADV, adv 5) needs Lv.100, ★300 (JobData.GOD_STARS)
@@ -45,12 +46,12 @@ func _ready() -> void:
 
 
 func _cap() -> void:
-	check(Game.PARAGON_MAX == 300, "the star cap is 300 (%d)" % Game.PARAGON_MAX)
-	check(JobData.GOD_STARS == 300 and JobData.GOD_ADV == 5 and JobData.MAX_ADV == 5 and JobData.LEGEND_ADV == 4, "the God step is adv 5 at ★300")
+	check(Game.PARAGON_MAX == 500 and Game.PARAGON_BASE_MAX == 300, "the star cap is 500, the five stats' stars 300 (%d)" % Game.PARAGON_MAX)
+	check(JobData.GOD_STARS == 300 and JobData.GOD_ADV == 5 and JobData.MAX_ADV == JobData.ASCEND_ADV and JobData.LEGEND_ADV == 4, "the God step is adv 5 at ★300 (adv 6 is the ★500 trial's, ascension_test)")
 	var room := 0
 	for key in Game.PARAGON_STATS:
 		room += int(Game.PARAGON_STATS[key][2])
-	check(room >= Game.PARAGON_MAX, "the star stats hold every point up to ★300 (%d)" % room)
+	check(room >= Game.PARAGON_BASE_MAX, "the star stats hold every point up to ★300 (%d)" % room)
 	for key in ["atk", "def", "hp"]:
 		check(int(Game.PARAGON_STATS[key][2]) == 60, "%s keeps its cap of 60" % key)
 
@@ -86,14 +87,12 @@ func _climb() -> void:
 	legend(&"mage", 198)
 	var gold0 := int(Game.profile.gold)
 	var guard := 0
-	while int(Game.paragon().level) < Game.PARAGON_MAX and guard < 400:
+	while int(Game.paragon().level) < JobData.GOD_STARS and guard < 400:
 		Game.add_exp(maxi(1, Game.paragon_need() - int(Game.paragon().exp)))
 		guard += 1
 	var p := Game.paragon()
 	check(int(p.level) == 300 and int(p.points) == 300, "EXP climbs past ★200 to ★300 with one point per star (★%d, %d points)" % [int(p.level), int(p.points)])
-	check(Game.paragon_need() == 0 and int(p.exp) == 0, "no EXP is kept at the cap")
-	Game.add_exp(99999999)
-	check(int(Game.paragon().level) == 300, "no star past 300")
+	check(Game.paragon_need() > 0 and Game.special_points() == 0, "★300 climbs on toward ★500 (star500_test), no special point yet")
 	check(Game.exp_ratio() >= 0.0 and Game.exp_ratio() <= 1.0, "the EXP bar stays valid at the cap")
 	var milestone := 0
 	for star in [200, 225, 250, 275, 300]:
@@ -107,8 +106,8 @@ func _climb() -> void:
 	Game.paragon().alloc.crit = 61
 	check(not Game._valid_profile(Game.profile), "a stat above its cap is refused")
 	Game.paragon().alloc.crit = 60
-	Game.paragon().level = 301
-	check(not Game._valid_profile(Game.profile), "★301 is refused")
+	Game.paragon().level = Game.PARAGON_MAX + 1
+	check(not Game._valid_profile(Game.profile), "★501 is refused")
 	Game.paragon().level = 300
 
 

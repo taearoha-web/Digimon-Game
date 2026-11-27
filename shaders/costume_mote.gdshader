@@ -20,6 +20,7 @@ uniform float twinkle = 0.0;
 uniform float spin = 0.0;
 // 0 soft glow, 1 four-point star, 2 petal, 3 bubble, 4 smoke puff, 5 a little spirit
 // dragon (a wriggling wisp with a bright head; use with align).
+// 6 a snowflake (six thin rays with little side branches round a bright dot).
 uniform float shape = 0.0;
 // 1 adds light (glows), 0 covers like paint (petals, smoke).
 uniform float additive = 1.0;
@@ -93,6 +94,18 @@ void fragment() {
 		c = mix(c, vec3(1.0), shine);
 	} else if (shape < 4.5) {
 		a = smoothstep(0.5, 0.05, d) * 0.55;
+	} else if (shape > 5.5) {
+		// Fold the quad into one 30-degree wedge of the six rays: a ray along +x with two
+		// short branches, a bright core.
+		float ang = atan(q.y, q.x);
+		float sector = 1.0471976;
+		float w = mod(ang + sector * 0.5, sector) - sector * 0.5;
+		vec2 f = vec2(cos(w), abs(sin(w))) * d;
+		float ray = smoothstep(0.035, 0.0, f.y) * smoothstep(0.48, 0.3, f.x);
+		vec2 br = f - vec2(0.27, 0.0);
+		float branch = smoothstep(0.03, 0.0, abs(br.y - br.x * 0.9)) * step(0.0, br.x) * smoothstep(0.12, 0.05, br.x);
+		a = clamp(max(ray, branch) + smoothstep(0.1, 0.0, d), 0.0, 1.0);
+		c = mix(c, vec3(1.0), 0.5);
 	} else {
 		// A spirit dragon: a body wriggling from the tail (-x) to the head (+x), thicker
 		// towards the head, a white-hot head with two little horns swept back.

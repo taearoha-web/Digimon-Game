@@ -766,9 +766,13 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	var now := GameClock.msec() * 0.001
 	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
 	amount = ClassRoles.guard(self, amount)
-	# The player's own character: its guard and shield buffs work as the hero's do.
+	# The player's own character: its guard and shield buffs work as the hero's do. Every
+	# fighter's own ★301+ guard (rstats "guard") cuts with them, under the same cap.
+	var own_guard := float(rstats.get("guard", 0.0))
 	if faithful:
-		amount = maxi(1, BuffBook.absorb(_buff_art.buffs, amount))
+		amount = maxi(1, BuffBook.absorb(_buff_art.buffs, amount, own_guard))
+	elif own_guard > 0.0:
+		amount = maxi(1, BuffBook.absorb([], amount, own_guard))
 	# Nobody is deleted by one hit or one combo, however many enemies pile on.
 	amount = BurstGuard.take(get_instance_id(), amount, max_hp)
 	dbg.recv += 1

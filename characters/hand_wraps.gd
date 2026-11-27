@@ -97,6 +97,9 @@ static func palette(look: String) -> Array:
 		return [s.metal, s.cloth, s.glow, 1.2]
 	if look.begins_with("dragon_"):
 		return [DragonGearData.GOLD, DragonGearData.JADE_DEEP, DragonGearData.GLOW, 1.3]
+	# The ★500 set's (Star500Gear): celestial gold over pearl, in the class's fire.
+	if look.begins_with("heaven_"):
+		return [Star500Gear.GOLD, Star500Gear.PEARL, Color("ffb04a"), 1.5]
 	var tier := clampi(int(look.rsplit("_", true, 1)[-1]), 0, TIERS.size() - 1)
 	var row: Array = TIERS[tier]
 	return [row[0], row[1], row[2], 0.0 if tier < 8 else 0.8 + 0.4 * float(tier - 8)]
@@ -104,7 +107,7 @@ static func palette(look: String) -> Array:
 
 ## How grand a look is (0 plain .. 3 the top weapons): more pieces as it rises.
 static func grade(look: String) -> int:
-	if look.begins_with("divine_") or look.begins_with("dragon_") or look.begins_with("set_"):
+	if look.begins_with("divine_") or look.begins_with("dragon_") or look.begins_with("set_") or look.begins_with("heaven_"):
 		return 3
 	if look.begins_with("star_"):
 		return 2 if StarGearData.stars_from_look(look) < 150 else 3

@@ -631,6 +631,9 @@ static func find_skill(class_id: StringName, skill_id: String) -> Dictionary:
 ## Advancement tier a skill needs: the class's own skills below Lv.20 need none (0),
 ## then the four advancements at Lv.20 / 40 / 60 / 80 give tiers 2..5.
 static func skill_tier(skill: Dictionary) -> int:
+	# The Ascension skills (AscendSkillData) need the trial's step (JobData.ASCEND_TIER).
+	if bool(skill.get("ascend", false)):
+		return JobData.ASCEND_TIER
 	var level := int(skill.get("level", 1))
 	if level < 20:
 		return 0
@@ -645,6 +648,9 @@ static func skill_tier(skill: Dictionary) -> int:
 static func tier_of(class_id: StringName, adv: int) -> int:
 	if class_id == LEGACY:
 		return 0
+	# The Ascension (adv 6) opens its own tier, above the God step's (still 5).
+	if adv >= JobData.ASCEND_ADV:
+		return JobData.ASCEND_TIER
 	return 1 + clampi(adv, 0, 4)
 
 
@@ -769,6 +775,8 @@ static func _build_pools() -> void:
 		_pools[line_class] = _line_pool(line_class)
 	for star_class in IDS:
 		_pools[star_class].append_array(StarSkillData.pool(star_class))
+		# The Ascension's ultimate and buff (adv 6, ★500): after the god skill.
+		_pools[star_class].append_array(AscendSkillData.pool(star_class))
 	# The party-buff rule (BuffBook.reaches_party): only these buffs reach the party.
 	for cls in _pools:
 		for skill in _pools[cls]:

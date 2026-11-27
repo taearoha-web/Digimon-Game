@@ -190,7 +190,9 @@ func _band() -> void:
 	check(god.hp > tyrant.hp * 2.0 and god.atk > tyrant.atk * 3.0 and god.def > tyrant.def and god.exp > tyrant.exp and god.gold > tyrant.gold, "the Dragon God is the hardest field boss (%s / %s)" % [god, tyrant])
 	for zone_id in ZoneData.ZONES:
 		var other: Dictionary = ZoneData.ZONES[zone_id]
-		if zone_id != ID and other.has("boss") and other.has("camps"):
+		# ดินแดนเทวาลัย (HeavenRealmData) is the next tier, from ★300 toward ★500: its boss
+		# is meant to outclass the Dragon God.
+		if zone_id != ID and zone_id != HeavenRealmData.ID and other.has("boss") and other.has("camps"):
 			var rival := MonsterData.stats_for(StringName(other.boss.monster), int(other.boss.level))
 			check(god.hp > rival.hp and god.atk > rival.atk, "the Dragon God outclasses %s's boss" % zone_id)
 	# The fight itself, for the hero the field is made for: ★300, the 250★ set at +15.

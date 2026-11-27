@@ -31,7 +31,7 @@ static func look(cls: String) -> String:
 
 ## Lv.100 wings that the forge can craft into 100★ wings.
 static func can_craft(item: Dictionary) -> bool:
-	return item.get("kind","")=="equip" and item.get("slot","")=="wings" and not is_wing(item) and not DragonGearData.is_item(item) and int(item.get("level",0))>=ItemData.WING_DROP_LEVEL
+	return item.get("kind","")=="equip" and item.get("slot","")=="wings" and not is_wing(item) and not DragonGearData.is_item(item) and not Star500Gear.is_item(item) and int(item.get("level",0))>=ItemData.WING_DROP_LEVEL
 
 static func item(cls: String, rng: RandomNumberGenerator, rarity := -1) -> Dictionary:
 	if not INFO.has(cls): cls="warrior"

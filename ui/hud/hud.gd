@@ -543,6 +543,9 @@ func _update_tracker(delta: float) -> void:
 	var story_line := StoryChapter2.tracker_line()
 	if story_line != "":
 		lines.append(story_line)
+	var ascend_line := AscensionData.tracker_line()
+	if ascend_line != "":
+		lines.append(ascend_line)
 	if PetData.quest_open(Game.profile):
 		lines.append("เควสต์: %s (ผู้ดูแลสัตว์เลี้ยงในหมู่บ้าน)" % PetData.QUEST_NAME)
 	var done := 0

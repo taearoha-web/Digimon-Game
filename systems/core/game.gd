@@ -390,7 +390,8 @@ func _convert_weapon(item: Dictionary, new_class: StringName, rng: RandomNumberG
 	item["name"] = ("%s ของมือใหม่" % ItemData.NAMES[fresh.base][0]) if starter else fresh.name
 
 
-## How many advancement steps (Lv.20/40/60/80, then the God step at ★300) the hero has taken (0-5).
+## How many advancement steps (Lv.20/40/60/80, then the God step at ★300, then the
+## Ascension at ★500 from the trial, AscensionData) the hero has taken (0-6).
 func adv() -> int:
 	return clampi(int(profile.get("adv", 0)), 0, JobData.MAX_ADV)
 
@@ -400,24 +401,30 @@ func is_god() -> bool:
 	return has_profile and JobData.is_god(adv())
 
 
-## The next advancement step ({} when none is left, or an old Vagabond save).
+## True once the hero passed the trial of the celestial halls (adv 6, AscensionData).
+func is_ascended() -> bool:
+	return has_profile and JobData.is_ascended(adv())
+
+
+## The next advancement step the Job Master sells ({} when none is left, or an old
+## Vagabond save). The Ascension past the God step is the trial's (AscensionData), never his.
 func next_step() -> Dictionary:
-	if class_id() == ClassData.LEGACY or adv() >= JobData.MAX_ADV:
+	if class_id() == ClassData.LEGACY or adv() >= JobData.GOD_ADV:
 		return {}
 	return JobData.step(class_id(), adv())
 
 
 func next_step_level() -> int:
-	return int(JobData.TIER_LEVELS[adv()]) if adv() < JobData.MAX_ADV else 0
+	return int(JobData.TIER_LEVELS[adv()]) if adv() < JobData.GOD_ADV else 0
 
 
 func next_step_cost() -> int:
-	return int(JobData.TIER_COSTS[adv()]) if adv() < JobData.MAX_ADV else 0
+	return int(JobData.TIER_COSTS[adv()]) if adv() < JobData.GOD_ADV else 0
 
 
 ## Stars the next advancement needs (★300 for the God step, otherwise 0).
 func next_step_stars() -> int:
-	return JobData.step_stars(adv()) if adv() < JobData.MAX_ADV else 0
+	return JobData.step_stars(adv()) if adv() < JobData.GOD_ADV else 0
 
 
 ## Why the next advancement cannot be taken yet ("" when it can): its level, its
@@ -1269,6 +1276,9 @@ func _valid_profile(data: Dictionary) -> bool:
 	# The God step exists only at Lv.100 with ★300.
 	if int(data.get("adv", 0)) >= JobData.GOD_ADV and (int(data.get("level", 1)) < MAX_LEVEL or not data.get("paragon", {}) is Dictionary or not _valid_integer(data.get("paragon", {}).get("level", 0), JobData.GOD_STARS, PARAGON_MAX)):
 		return false
+	# The Ascension (adv 6) exists only at ★500 (JobData.ASCEND_STARS, AscensionData).
+	if int(data.get("adv", 0)) >= JobData.ASCEND_ADV and not _valid_integer(data.get("paragon", {}).get("level", 0), JobData.ASCEND_STARS, PARAGON_MAX):
+		return false
 	if not _valid_integer(data.get("bag_slots", BASE_BAG), BASE_BAG, MAX_BAG):
 		return false
 	for key in ["name", "zone", "job", "spawn_override"]:
@@ -1401,7 +1411,7 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 	var para: Dictionary = data.get("paragon", {})
 	for key in para:
-		if key not in ["level", "exp", "points", "spent", "alloc"]:
+		if key not in ["level", "exp", "points", "spent", "alloc", "special"]:
 			return false
 	if not _valid_integer(para.get("level", 0), 0, PARAGON_MAX) or not para.get("alloc", {}) is Dictionary:
 		return false
@@ -1410,6 +1420,15 @@ func _valid_profile(data: Dictionary) -> bool:
 			return false
 	for key in para.get("alloc", {}):
 		if not PARAGON_STATS.has(key) or not _valid_integer(para.alloc[key], 0, int(PARAGON_STATS[key][2])):
+			return false
+	# The special pool (★301+): ints 0..40 a stat, no more in all than the stars earned.
+	if para.has("special"):
+		if not para.special is Dictionary:
+			return false
+		for key in para.special:
+			if not SPECIAL_STATS.has(key) or not _valid_integer(para.special[key], 0, int(SPECIAL_STATS[key][2])):
+				return false
+		if special_spent_of(para.special) > special_earned(int(para.get("level", 0))):
 			return false
 	for member in data.get("party", []):
 		if not member is Dictionary or not member.get("class") is String or not ClassData.IDS.has(StringName(member["class"])):
@@ -1597,6 +1616,9 @@ func _valid_item(value: Variant) -> bool:
 	# A Dragon God weapon or pair of 300★ wings (DragonGearData): fixed fields, stats in range.
 	if item.has(DragonGearData.KEY) and not DragonGearData.valid(item):
 		return false
+	# A ★500 piece (Star500Gear): its class, slot, base, Lv.600 and stats in range.
+	if item.has(Star500Gear.KEY) and not Star500Gear.valid(item):
+		return false
 	# A pair of the Legendary Guild Wings (LegendWings): its fixed fields and stats.
 	if (item.has("legend_week") or item.has("legend_guild")) and not LegendWings.valid_item(item):
 		return false
@@ -1743,10 +1765,16 @@ func _repair(data: Dictionary) -> Dictionary:
 				break
 			para["exp"] = int(para.exp) - need
 			para["level"] = int(para.level) + 1
-			para["points"] = int(para.points) + 1
+			if int(para.level) <= PARAGON_BASE_MAX:
+				para["points"] = int(para.points) + 1
 		if int(para.level) == PARAGON_MAX:
 			para["exp"] = 0
 		data["exp"] = 0
+	# The special pool (★301+): its five stats only, 0..40 each, no more than earned.
+	repair_special(data.paragon)
+	# The Ascension needs ★500: below it the hero is back to the God step.
+	if int(data["adv"]) >= JobData.ASCEND_ADV and int(data.paragon.get("level", 0)) < JobData.ASCEND_STARS:
+		data["adv"] = JobData.GOD_ADV
 	# The God step needs Lv.100 and ★300: anything less falls back to the legend step.
 	if int(data["adv"]) >= JobData.GOD_ADV and (int(data.level) < MAX_LEVEL or int(data.paragon.get("level", 0)) < JobData.GOD_STARS):
 		data["adv"] = JobData.LEGEND_ADV
@@ -1852,6 +1880,10 @@ func _repair_item(item: Dictionary) -> void:
 	if DragonGearData.is_item(item):
 		level_cap = maxi(level_cap, DragonGearData.LEVEL)
 		item[DragonGearData.KEY] = 1
+	# The ★500 set is Lv.600 (Star500Gear.LEVEL).
+	if Star500Gear.is_item(item):
+		level_cap = maxi(level_cap, Star500Gear.LEVEL)
+		item[Star500Gear.KEY] = 1
 	if item.has("level") and int(item.level) > level_cap:
 		item["level"] = level_cap
 	for key in ["count", "rarity", "level", "price", "plus", "sockets"]:
@@ -2099,19 +2131,20 @@ func set_party_stance(stance: String) -> void:
 func party_profile(member: Dictionary) -> Dictionary:
 	var stars := party_stars(member)
 	return {"class": member["class"], "level": int(member.level), "attrs": {}, "equip": party_equip(member), "adv": JobData.adv_for_level(int(member.level)),
-		"paragon": {"level": stars, "alloc": party_star_alloc(stars)}}
+		"paragon": {"level": stars, "alloc": party_star_alloc(stars), "special": party_special_alloc(stars, member["class"])}}
 
 
-## A companion's ★ (0-300).
+## A companion's ★ (0-500).
 func party_stars(member: Dictionary) -> int:
 	return clampi(int(member.get("stars", 0)), 0, PARAGON_MAX)
 
 
 ## The ★ points a companion spends by itself: half into attack, then health,
-## defence, critical and skill haste, up to each stat's cap (all 300 by ★300).
+## defence, critical and skill haste, up to each stat's cap (all 300 by ★300; the stars
+## past ★300 are the special pool's, party_special_alloc).
 func party_star_alloc(stars: int) -> Dictionary:
 	var alloc := {}
-	var spend := stars
+	var spend := mini(stars, PARAGON_BASE_MAX)
 	for key in ["atk", "hp", "def", "crit", "haste"]:
 		var put := mini(spend / 2 if key == "atk" else spend, int(PARAGON_STATS[key][2]))
 		alloc[key] = put
@@ -2220,6 +2253,9 @@ func tower_spend(cost: int) -> bool:
 func tower_reroll_wings(item: Dictionary) -> String:
 	if String(item.get("slot", "")) != "wings":
 		return "ใช้กับปีกเท่านั้น"
+	# The ★500 wings' stats are fixed (Star500Gear.stats_for): nothing to re-roll.
+	if Star500Gear.is_item(item):
+		return "ปีกเทวาลัยมีค่าพลังตายตัว สุ่มใหม่ไม่ได้"
 	if int(tower().shards) < TowerData.COST_REROLL:
 		return "ผลึกไม่พอ (ต้องใช้ %d)" % TowerData.COST_REROLL
 	var fresh := StarWingData.item(String(item.get("wing","warrior")),rng) if StarWingData.is_wing(item) else ItemData.wings(rng, String(item.get("wing", "warrior")))
@@ -2258,14 +2294,22 @@ func tower_buy(kind: String) -> String:
 
 
 # ---------------------------------------------------------------------------
-# Paragon: after Lv.100 EXP keeps levelling the hero up to ★300. Each ★ gives a
-# point to spend on permanent bonuses (see PARAGON_STATS). ★300 also opens the
-# God promotion (JobData.GOD_STARS).
+# Paragon: after Lv.100 EXP keeps levelling the hero up to ★500. Each ★ up to ★300
+# gives a point to spend on permanent bonuses (see PARAGON_STATS); ★301-★500 give a
+# point each to the special pool (SPECIAL_STATS). ★300 also opens the God promotion
+# (JobData.GOD_STARS).
 # ---------------------------------------------------------------------------
 
-const PARAGON_MAX := 300
+const PARAGON_MAX := 500
+## The stars whose points go to PARAGON_STATS; every star past it goes to SPECIAL_STATS.
+const PARAGON_BASE_MAX := 300
+## The special pool (HeroStats.SPECIAL_STATS): unlocked at ★301, 40 points a stat.
+const SPECIAL_STATS := HeroStats.SPECIAL_STATS
+const SPECIAL_FROM := PARAGON_BASE_MAX + 1
+## Gold to give every special point back (the five old stats keep their own reset).
+const SPECIAL_RESET_COST := 1000000
 ## key: [name, bonus per point, max points, what it does]. The caps add up to
-## PARAGON_MAX, so every point up to ★300 has somewhere to go (crit and haste
+## PARAGON_BASE_MAX, so every point up to ★300 has somewhere to go (crit and haste
 ## grew from 50 / 40 when the cap rose from ★200; atk/def/hp stay at 60).
 const PARAGON_STATS := {
 	"atk": ["พลังโจมตี", 0.003, 60, "พลังโจมตี +0.3%% ต่อแต้ม"],
@@ -2286,7 +2330,104 @@ func paragon() -> Dictionary:
 		p["alloc"] = {}
 	for key in PARAGON_STATS:
 		p["alloc"][key] = int(p["alloc"].get(key, 0))
+	if not p.get("special") is Dictionary:
+		p["special"] = {}
+	for key in SPECIAL_STATS:
+		p["special"][key] = int(p["special"].get(key, 0))
 	return p
+
+
+## Makes a paragon's "special" whole: the five SPECIAL_STATS, ints 0..cap, no more in
+## all than special_earned (the first stats in SPECIAL_STATS' order keep theirs). Idempotent.
+static func repair_special(para: Dictionary) -> void:
+	var raw: Variant = para.get("special", {})
+	var room := special_earned(int(para.get("level", 0)))
+	var spec := {}
+	for key in SPECIAL_STATS:
+		var v: Variant = (raw as Dictionary).get(key, 0) if raw is Dictionary else 0
+		var put := mini(clampi(int(v) if (v is int or v is float) else 0, 0, int(SPECIAL_STATS[key][2])), room)
+		spec[key] = put
+		room -= put
+	para["special"] = spec
+
+
+## Special points ★`stars` has earned (one a star past ★300, 0 below ★301).
+static func special_earned(stars: int) -> int:
+	return clampi(stars, 0, PARAGON_MAX) - PARAGON_BASE_MAX if stars > PARAGON_BASE_MAX else 0
+
+
+## Special points spent ({cdmg, pierce, ...} of the paragon's "special").
+static func special_spent_of(spec: Variant) -> int:
+	var total := 0
+	if spec is Dictionary:
+		for key in spec:
+			total += maxi(0, int(spec[key]))
+	return total
+
+
+## Special points the hero can still spend (earned less spent).
+func special_points() -> int:
+	var p := paragon()
+	return maxi(0, special_earned(int(p.level)) - special_spent_of(p.special))
+
+
+## Spends up to `count` special points on one stat (fewer when points or the cap run out).
+func special_spend(key: String, count := 1) -> bool:
+	var p := paragon()
+	var info: Array = SPECIAL_STATS.get(key, [])
+	if info.is_empty() or count <= 0:
+		return false
+	var put := mini(count, mini(special_points(), int(info[2]) - int(p.special[key])))
+	if put <= 0:
+		return false
+	p["special"][key] = int(p.special[key]) + put
+	clamp_vitals()
+	profile_changed.emit()
+	mark_dirty()
+	return true
+
+
+## Gives every special point back for SPECIAL_RESET_COST gold.
+func special_reset() -> bool:
+	var p := paragon()
+	if special_spent_of(p.special) <= 0 or not spend_gold(SPECIAL_RESET_COST):
+		return false
+	for key in SPECIAL_STATS:
+		p["special"][key] = 0
+	clamp_vitals()
+	profile_changed.emit()
+	mark_dirty()
+	return true
+
+
+## The special points a companion or a world player spends by itself, by its class's
+## role: damage classes crit damage then pierce, the Defender guard then lifesteal, the
+## healers and support (Priest, Bard, Summoner) cooldown then guard; then the rest in a
+## fixed order. Deterministic: the same stars and class give the same points.
+const SPECIAL_ORDER := {
+	"damage": ["cdmg", "pierce", "leech", "cdr", "guard"],
+	"defender": ["guard", "leech", "cdr", "pierce", "cdmg"],
+	"support": ["cdr", "guard", "leech", "cdmg", "pierce"],
+}
+
+
+static func special_role(cls: Variant) -> String:
+	match String(cls):
+		"defender":
+			return "defender"
+		"priest", "bard", "summoner":
+			return "support"
+	return "damage"
+
+
+static func party_special_alloc(stars: int, cls: Variant) -> Dictionary:
+	var alloc := {}
+	var spend := special_earned(stars)
+	for key in SPECIAL_ORDER[special_role(cls)]:
+		var put := mini(spend, int(SPECIAL_STATS[key][2]))
+		alloc[key] = put
+		spend -= put
+	return alloc
 
 
 ## EXP for the next ★ (grows with each ★).
@@ -2307,7 +2448,9 @@ func _add_paragon_exp(amount: int) -> void:
 	while int(p.level) < PARAGON_MAX and int(p.exp) >= paragon_need():
 		p["exp"] = int(p.exp) - paragon_need()
 		p["level"] = int(p.level) + 1
-		p["points"] = int(p.points) + 1
+		# ★301 on: the point is the special pool's (special_points), not PARAGON_STATS'.
+		if int(p.level) <= PARAGON_BASE_MAX:
+			p["points"] = int(p.points) + 1
 		gained += 1
 		flag_max("paragon_level", int(p.level))
 		if int(p.level) % 25 == 0:
@@ -2401,6 +2544,8 @@ func class_tier() -> int:
 
 ## Why a skill cannot be used yet ("" when it can).
 func skill_lock_reason(skill: Dictionary) -> String:
+	if bool(skill.get("ascend", false)) and int(paragon().level) >= int(skill.get("star", 0)) and adv() < JobData.ASCEND_ADV:
+		return "ต้องผ่าน%s เป็น%s" % [AscensionData.TITLE, JobData.ascend_step(class_id()).get("name", "")]
 	if skill.has("star") and int(paragon().level) < int(skill.star):
 		return "ปลดล็อกที่เลเวล 100 ดาว %d" % int(skill.star)
 	if profile["level"] < int(skill.level):
@@ -3437,8 +3582,8 @@ func bulk_sell_lock(item: Dictionary) -> String:
 		return "ตีบวกแล้ว"
 	if not (item.get("gems", []) as Array).is_empty():
 		return "ใส่อัญมณีอยู่"
-	if str(item.get("set", "")) != "" or SetGearData.is_item(item) or DragonGearData.is_item(item) or DivineGearData.is_item(item) or StarGearData.is_star(item):
-		return "ของพิเศษ (ชุดเซต/ดาว/เทพ/มังกร)"
+	if str(item.get("set", "")) != "" or SetGearData.is_item(item) or DragonGearData.is_item(item) or DivineGearData.is_item(item) or StarGearData.is_star(item) or Star500Gear.is_item(item):
+		return "ของพิเศษ (ชุดเซต/ดาว/เทพ/มังกร/เทวาลัย)"
 	if ItemData.sell_price(item) <= 0:
 		return "ขายไม่ได้"
 	return ""
@@ -3648,7 +3793,7 @@ func auto_sell_indices(mask: int, below_level: int) -> Array[int]:
 		var item: Dictionary = profile["inv"][i]
 		# Wings, the forged 250★ set pieces and everything that is not gear (potions, gems,
 		# jewels, reward-shop costumes) are never sold off in bulk.
-		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item) or DragonGearData.is_item(item):
+		if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or SetGearData.is_item(item) or DragonGearData.is_item(item) or Star500Gear.is_item(item):
 			continue
 		if (not other_ok and is_other_class(item)) or ItemData.is_locked(item):
 			continue
@@ -3712,7 +3857,7 @@ func is_other_class(item: Dictionary) -> bool:
 
 ## Gold a picked-up [param item] is sold for at once (sells_other_class), 0 to keep it.
 func pickup_sale(item: Dictionary) -> int:
-	if not has_profile or not sells_other_class() or not is_other_class(item) or item.get("slot", "") == "wings" or DragonGearData.is_item(item):
+	if not has_profile or not sells_other_class() or not is_other_class(item) or item.get("slot", "") == "wings" or DragonGearData.is_item(item) or Star500Gear.is_item(item):
 		return 0
 	if int(item.get("plus", 0)) > 0 or not (item.get("gems", []) as Array).is_empty():
 		return 0
@@ -3722,7 +3867,7 @@ func pickup_sale(item: Dictionary) -> int:
 ## Whether a drop is kept: potions, gems, jewels, gold and wings always are; gear only
 ## when its grade is switched on in the pickup filter (gear of every class alike).
 func keeps_loot(item: Dictionary) -> bool:
-	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or DragonGearData.is_item(item):
+	if item.get("kind", "") != "equip" or item.get("slot", "") == "wings" or DragonGearData.is_item(item) or Star500Gear.is_item(item):
 		return true
 	return (loot_mask() >> clampi(int(item.get("rarity", 0)), 0, 4)) & 1 == 1
 
@@ -3786,6 +3931,8 @@ func report_kill(monster_id: StringName, is_boss := false) -> void:
 		quest_changed.emit()
 	# บทที่ 2's kill and boss quests (StoryChapter2) count the same kill.
 	StoryChapter2.on_kill(monster_id)
+	# บททดสอบเทวาลัย (AscensionData): the trial's hunt and its tokens.
+	AscensionData.on_kill(monster_id, is_boss)
 	if is_boss:
 		profile["boss_kills"][String(monster_id)] = int(profile["boss_kills"].get(String(monster_id), 0)) + 1
 	# The same emperor also appears in the tower; only the final field ends

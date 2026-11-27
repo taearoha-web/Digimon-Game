@@ -28,11 +28,19 @@ const EMPTY_BUNDLE = JSON.stringify({slots: {}, selectedSlot: 1});
  * stored before it is handed out without them (currentWorld). */
 export const WORLD_EPOCH = 1795302000;
 const CLASSES = new Set(['vagabond', 'warrior', 'archer', 'mage', 'priest', 'summoner', 'lancer', 'defender', 'assassin', 'darklord', 'bard', 'muaythai']);
-// Game.PARAGON_MAX (the star cap) and JobData: four level advancements, then the
+// Game.PARAGON_MAX (the star cap, ★500) and JobData: four level advancements, then the
 // God promotion (adv 5, "เทพเจ้าแห่ง<อาชีพ>") that needs Lv.100 and 300 stars.
-const MAX_STARS = 300;
-const MAX_ADV = 5;
+const MAX_STARS = 500;
+// Game.SPECIAL_STATS: the special pool of ★301-★500 (paragon.special), one point a star
+// past BASE_STARS, at most SPECIAL_CAP points a stat.
+const BASE_STARS = 300;
+const SPECIAL_STATS = new Set(['cdmg', 'pierce', 'guard', 'leech', 'cdr']);
+const SPECIAL_CAP = 40;
+// The Ascension (adv 6, JobData.ASCEND_ADV, "เปลี่ยนอาชีพขั้นที่ 6"): the ★500 trial's step.
+const MAX_ADV = 6;
 const GOD_ADV = 5;
+const ASCEND_ADV = 6;
+const ASCEND_STARS = 500;
 const GOD_STARS = 300;
 const COMMON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -215,7 +223,14 @@ function validateProfile(profile) {
   }
   const stars = profile.paragon?.level ?? 0;
   if (!integer(stars, 0, MAX_STARS)) fail(400, 'invalid_save', `The character stars must be 0 to ${MAX_STARS}.`);
+  if (profile.paragon && 'special' in profile.paragon) {
+    const special = profile.paragon.special;
+    const values = dictionary(special) ? Object.entries(special) : null;
+    if (!values || values.some(([key, value]) => !SPECIAL_STATS.has(key) || !integer(value, 0, SPECIAL_CAP))
+        || values.reduce((sum, [, value]) => sum + value, 0) > Math.max(0, stars - BASE_STARS)) fail(400, 'invalid_save', 'The character special star points are invalid.');
+  }
   if ((profile.adv ?? 0) >= GOD_ADV && (profile.level !== 100 || stars < GOD_STARS)) fail(400, 'invalid_save', `The God promotion needs level 100 and ${GOD_STARS} stars.`);
+  if ((profile.adv ?? 0) >= ASCEND_ADV && stars < ASCEND_STARS) fail(400, 'invalid_save', `The Ascension (adv 6) needs ${ASCEND_STARS} stars.`);
   // Mounts: {id: level 0-5}; saves from before mount levels kept a list of owned ids.
   if ('mounts' in profile) {
     const mounts = profile.mounts;
@@ -243,6 +258,10 @@ function validateProfile(profile) {
   if ([...(profile.inv ?? []), ...(profile.storage ?? []), ...Object.values(profile.equip ?? {}),
        ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
       .some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item is invalid.');
+  // The 500-star class sets (Star500Gear in the game).
+  if ([...(profile.inv ?? []), ...(profile.storage ?? []), ...Object.values(profile.equip ?? {}),
+       ...(Array.isArray(profile.stall?.lots) ? profile.stall.lots.map(lot => lot?.item) : [])]
+      .some(item => star500Gear(item) && !validStar500Gear(item))) fail(400, 'invalid_save', 'A 500-star set item is invalid.');
   // The hero's guild (flags.guild): none (0) or one of the world's four (Alpha 1, Neverdie 2,
   // Titan 3, 3DLnw 4); flags.guild4 marks a save that went through the four-guild re-pick.
   if (profile.flags && 'guild' in profile.flags && !integer(profile.flags.guild, 0, GUILD_COUNT)) fail(400, 'invalid_save', 'The character guild is invalid.');
@@ -327,6 +346,28 @@ function validDragonGear(item) {
   if (item.slot === 'weapon') {
     if (item.base !== DRAGON_WEAPONS[item.class]) return false;
   } else if (item.slot !== 'wings' || item.base !== 'wings' || item.wing !== item.class) return false;
+  const stats = item.stats ?? {};
+  return dictionary(stats) && Object.entries(stats).every(([key, value]) => DRAGON_STATS.has(key)
+    && typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100_000);
+}
+
+// The 500-star class sets (Star500Gear in the game: keep these equal): the class weapon,
+// armour, helm, boots, ring, amulet or wings, marked star500: 1, Lv.600 (worn from 500
+// stars), mythic (4), of one class, +0 to +15, and never a star, divine, set, dragon or
+// legend piece.
+const STAR500_LEVEL = 600;
+const STAR500_SLOTS = new Set(['weapon', 'armor', 'helm', 'boots', 'ring', 'amulet', 'wings']);
+const star500Gear = item => dictionary(item) && 'star500' in item;
+function validStar500Gear(item) {
+  if (item.star500 !== 1 || item.kind !== 'equip' || item.level !== STAR500_LEVEL || item.rarity !== 4) return false;
+  if (typeof item.class !== 'string' || !Object.hasOwn(DRAGON_WEAPONS, item.class)) return false;
+  if (['star_tier', 'star_class', 'set_gear', 'collection', 'dragon', 'legend_week', 'legend_guild'].some(key => key in item)) return false;
+  if (!integer(item.plus ?? 0, 0, 15) || !integer(item.sockets ?? 0, 0, 4) || !STAR500_SLOTS.has(item.slot)) return false;
+  if (item.slot === 'weapon') {
+    if (item.base !== DRAGON_WEAPONS[item.class]) return false;
+  } else if (item.slot === 'wings') {
+    if (item.base !== 'wings' || item.wing !== item.class) return false;
+  } else if (item.base !== item.slot) return false;
   const stats = item.stats ?? {};
   return dictionary(stats) && Object.entries(stats).every(([key, value]) => DRAGON_STATS.has(key)
     && typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100_000);
@@ -572,6 +613,7 @@ function validateSharedStorage(bundle) {
   }
   if ((bundle.storage ?? []).some(item => costumeItem(item) && !validCostumeItem(item))) fail(400, 'invalid_save', 'A costume item in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => dragonGear(item) && !validDragonGear(item))) fail(400, 'invalid_save', 'A Dragon God item in the shared storage is invalid.');
+  if ((bundle.storage ?? []).some(item => star500Gear(item) && !validStar500Gear(item))) fail(400, 'invalid_save', 'A 500-star set item in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => weeklyPiece(item) && !validWeeklyPiece(item))) fail(400, 'invalid_save', 'A weekly collection piece in the shared storage is invalid.');
   if ((bundle.storage ?? []).some(item => loyKrathongItem(item) && !validLoyKrathongItem(item))) fail(400, 'invalid_save', 'A Loy Krathong item in the shared storage is invalid.');
   if ('storageMigrated' in bundle) {

@@ -44,10 +44,21 @@ const STAR_STEEP_FROM := 200
 const STAR_STEEP_GROWTH := 0.02
 
 
+## Past ★300 (STAR_SPECIAL_FROM, the stars of the special pool, Game.SPECIAL_STATS) every
+## star asks STAR_SPECIAL_MULT times the curve's continuation: ★300 costs about 13.5x the
+## ★0 star, ★499 about 27x, and ★300 -> ★500 asks about 3x the EXP of the whole
+## ★0 -> ★300 climb (the long goal of the endgame, festivals or not).
+const STAR_SPECIAL_FROM := 300
+const STAR_SPECIAL_MULT := 1.5
+
+
 ## EXP from star `star` to the next (★0 -> ★1 is `star` 0).
 static func star_need(star: int) -> int:
 	var growth := STAR_GROWTH * float(star) + STAR_STEEP_GROWTH * float(maxi(0, star - STAR_STEEP_FROM))
-	return int(float(exp_to_next(100)) * STAR_EXP * (1.0 + growth))
+	var need := float(exp_to_next(100)) * STAR_EXP * (1.0 + growth)
+	if star >= STAR_SPECIAL_FROM:
+		need *= STAR_SPECIAL_MULT
+	return int(need)
 
 
 ## The whole outfit enhanced (the owner's rule): when the armour, the helm and the boots
@@ -172,6 +183,29 @@ const MAX_CDR := 0.3
 const MAX_FORTUNE := 0.5
 ## Onyx crit damage on top of CRIT_DAMAGE (1.6): at most +0.6, crits up to x2.2.
 const MAX_CRIT_DMG := 0.6
+## The special star pool (★301-★500, Game.SPECIAL_STATS): key: [name, share per point,
+## max points, Thai line]. 5 x 40 points = the 200 stars past ★300. They add on top of
+## the gems' capped parts: cdmg to crit_dmg, leech to lifesteal, cdr to cdr; pierce is
+## the share of the target's DEF ignored (ClassRoles.pierced) and guard a cut of the
+## damage taken that counts with the guard buffs under their 45% (BuffBook.absorb).
+const SPECIAL_STATS := {
+	"cdmg": ["ดาเมจคริติคอล", 0.005, 40, "ดาเมจคริติคอล +0.5%% ต่อแต้ม (สูงสุด +20%%)"],
+	"pierce": ["เจาะเกราะ", 0.005, 40, "ไม่สนพลังป้องกันของเป้าหมาย 0.5%% ต่อแต้ม (สูงสุด 20%%)"],
+	"guard": ["ลดความเสียหาย", 0.0015, 40, "รับดาเมจลดลง 0.15%% ต่อแต้ม (สูงสุด 6%%, รวมทุกแหล่งไม่เกิน 45%%)"],
+	"leech": ["ดูดเลือด", 0.0005, 40, "ดูดเลือด 0.05%% ของดาเมจที่ทำ ต่อแต้ม (สูงสุด 2%%)"],
+	"cdr": ["ลดคูลดาวน์", 0.001, 40, "คูลดาวน์สกิลสั้นลง 0.1%% ต่อแต้ม (สูงสุด 4%%)"],
+}
+
+
+## The special pool's shares of a profile: {cdmg, pierce, guard, leech, cdr} (0 without).
+static func special_bonus(profile: Dictionary) -> Dictionary:
+	var para: Variant = profile.get("paragon")
+	var spec: Variant = (para as Dictionary).get("special") if para is Dictionary else null
+	var out := {}
+	for key in SPECIAL_STATS:
+		var pts := clampi(int((spec as Dictionary).get(key, 0)), 0, int(SPECIAL_STATS[key][2])) if spec is Dictionary else 0
+		out[key] = float(SPECIAL_STATS[key][1]) * float(pts)
+	return out
 
 
 static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
@@ -181,6 +215,7 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var gear := gear_bonus(profile)
 	var passive := passive_bonus(profile)
 	var para: Dictionary = (profile.get("paragon", {}) as Dictionary).get("alloc", {}) if profile.get("paragon") is Dictionary else {}
+	var spec := special_bonus(profile)
 	var main_stat: int = attrs[data.main]
 	var sub_stat: float = float(attrs[data.sub]) * 0.5 if data.has("sub") else 0.0
 	var gems: Dictionary = gear.get("gems", {})
@@ -208,9 +243,11 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 	var out := {
 		"legend_aura": aura > 1.0,
 		"set_gear": int(gear.get("set_gear", 0)),
-		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG) + float(set_bonus.get("crit_dmg", 0.0)),
-		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL),
-		"cdr": minf(float(gems.get("cdr", 0.0)), MAX_CDR),
+		"crit_dmg": minf(float(gems.get("crit_dmg", 0.0)), MAX_CRIT_DMG) + float(set_bonus.get("crit_dmg", 0.0)) + float(spec.cdmg),
+		"lifesteal": minf(float(gems.get("lifesteal", 0.0)), MAX_LIFESTEAL) + float(spec.leech),
+		"cdr": minf(float(gems.get("cdr", 0.0)), MAX_CDR) + float(spec.cdr),
+		"pierce": float(spec.pierce),
+		"guard": float(spec.guard),
 		"fortune": minf(float(gems.get("fortune", 0.0)), MAX_FORTUNE),
 		"gem_set": gem_set,
 		"attrs": attrs,
@@ -225,8 +262,9 @@ static func compute(profile: Dictionary, buffs := {}) -> Dictionary:
 		"dodge": clampf(attrs.dex * 0.0012 + float(passive.dodge) + float(buffs.get("dodge",0.0)), 0.0, 0.35),
 		"haste": clampf(MAX_HASTE * float(attrs.dex) / (float(attrs.dex) + HASTE_HALF_DEX) + 0.001 * float(para.get("haste", 0)), 0.0, MAX_HASTE),
 	}
-	# The Dragon God weapon's own line for the class (DragonGearData.SIGNATURE).
-	return DragonGearData.apply_signature(out, profile)
+	# The Dragon God weapon's own line for the class (DragonGearData.SIGNATURE), then the
+	# ★500 set's 2/4/6/7 piece bonus (Star500Gear.BONUS).
+	return Star500Gear.apply_bonus(DragonGearData.apply_signature(out, profile), profile)
 
 
 ## Stat shares of the profile's active mount at its level (MountData.bonus; {} with none).

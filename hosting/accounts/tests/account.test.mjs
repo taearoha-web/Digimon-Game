@@ -702,7 +702,7 @@ test('หนึ่งในใต้หล้า: the timed crown costume (expir
   assert.equal(Number(game.match(/const MAX_LIFE := (\d+) \* 86400/)[1]), Number(server.match(/const MAZE_MAX_LIFE = (\d+) \* 86_400/)[1]));
 });
 
-test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
+test('stars go to 500 and the God promotion (adv 5) needs Lv.100 and 300 stars', async t => {
   const {register, call} = harness(t);
   const account = await register();
   const god = {...sample(), class: 'darklord', level: 100, adv: 5, paragon: {level: 300, exp: 0, points: 300, spent: 0, alloc: {}}};
@@ -710,10 +710,21 @@ test('stars go to 300 and the God promotion (adv 5) needs Lv.100 and 300 stars',
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
   const legend = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle({...god, adv: 4, paragon: {level: 250}})}});
   assert.equal(legend.status, 200, JSON.stringify(legend.body));
-  for (const bad of [{...god, paragon: {level: 299}}, {...god, level: 99}, {...god, adv: 6}, {...god, adv: 4, paragon: {level: 301}}, {...god, paragon: {level: 300.5}}]) {
+  for (const bad of [{...god, paragon: {level: 299}}, {...god, level: 99}, {...god, adv: 6}, {...god, adv: 4, paragon: {level: 501}}, {...god, paragon: {level: 300.5}}]) {
     const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle(bad)}});
     assert.equal(result.status, 400, JSON.stringify(bad));
   }
+  // ★301-★500: the special pool (Game.SPECIAL_STATS), 0-40 a stat, no more than stars past 300.
+  const special = {cdmg: 40, pierce: 40, guard: 40, leech: 40, cdr: 40};
+  const top = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 2, bundle: bundle({...god, paragon: {level: 500, exp: 0, points: 0, spent: 300, alloc: {}, special}})}});
+  assert.equal(top.status, 200, JSON.stringify(top.body));
+  for (const bad of [{level: 499, special}, {level: 310, special: {cdmg: 11}}, {level: 500, special: {cdmg: 41}}, {level: 500, special: {crit: 1}},
+    {level: 500, special: {cdmg: 1.5}}, {level: 500, special: [1]}, {level: 300, special: {guard: 1}}]) {
+    const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 3, bundle: bundle({...god, paragon: bad})}});
+    assert.equal(result.status, 400, JSON.stringify(bad));
+  }
+  const some = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 3, bundle: bundle({...god, paragon: {level: 310, special: {cdmg: 6, pierce: 4}}})}});
+  assert.equal(some.status, 200, JSON.stringify(some.body));
 });
 
 test('malformed, oversized and dangerous save structures are rejected without changing previous save', async t => {
@@ -898,4 +909,16 @@ test('the world reopening: characters and storage from before WORLD_EPOCH are re
   assert.equal(refused.body.error.code, 'old_world');
   const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle()}});
   assert.equal(saved.status, 200, JSON.stringify(saved.body));
+});
+
+test('the Ascension (adv 6, the ★500 trial) needs 500 stars; adv 7 does not exist', async t => {
+  const {register, call} = harness(t);
+  const account = await register();
+  const ascended = {...sample(), class: 'lancer', level: 100, adv: 6, paragon: {level: 500, exp: 0, points: 0, spent: 300, alloc: {}}};
+  const saved = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 0, bundle: bundle(ascended)}});
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  for (const bad of [{...ascended, paragon: {level: 499}}, {...ascended, adv: 7}, {...ascended, level: 99}]) {
+    const result = await call('save', {method: 'POST', cookie: account.cookie, body: {expectedRevision: 1, bundle: bundle(bad)}});
+    assert.equal(result.status, 400, JSON.stringify(bad));
+  }
 });

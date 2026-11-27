@@ -92,7 +92,14 @@ const QUESTS := {
 	"lotus_guardians": {"name": "โกเลมพิทักษ์วิหาร", "desc": "โกเลมทองคำเฝ้าศาลาในวิหาร ทลายพวกมันเพื่อไปพบเทพพิทักษ์", "target": "temple_guardian", "count": 5, "level": 100, "star": 200,
 		"items": [["hp_god", 15], ["mp_xxl", 15]], "zone": "lotus_sanctum", "next": "lotus_seraph"},
 	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร บอสให้เกล็ดบัวดาราทุกครั้ง ใช้ผสมแหวนและสร้อยชุดเซต 250 ดาว", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
-		"items": [["hp_god", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": ""},
+		"items": [["hp_god", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": "heaven_lanterns"},
+	# ดินแดนเทวาลัย (HeavenRealmData), from ★300 toward ★500.
+	"heaven_lanterns": {"name": "โคมสวรรค์ดับแสง", "desc": "ภูตโคมสวรรค์คลั่งและเผาระเบียงหินอ่อนของดินแดนเทวาลัย ขึ้นไปดับไฟพวกมันให้หมด (ประตูอยู่ที่ห้วงสมุทรอสูร หรือวาปจากคริสตัล)", "target": "heaven_lantern", "count": 20, "level": 100, "star": 300,
+		"items": [["hp_god", 20], ["mp_xxl", 20]], "zone": "heaven_realm", "next": "heaven_guardians"},
+	"heaven_guardians": {"name": "ทวารบาลผู้หลงผิด", "desc": "ท้าวยักษ์เฝ้าทวารสวรรค์กับพญานาคทองถูกมนตร์ร้ายครอบงำ ปราบพวกมันให้ได้สติคืนมา", "target": "heaven_gatekeeper", "count": 8, "level": 100, "star": 330,
+		"items": [["hp_god", 20], ["mp_xxl", 20]], "zone": "heaven_realm", "next": "heaven_monkey_king"},
+	"heaven_monkey_king": {"name": "พญาวานรป่วนเทวาลัย", "desc": "พญาวานรวายุบุกลานทวารเทวาลัยหน้าวิหารเทพ ปราบมันเพื่อคืนความสงบสู่สรวงสวรรค์ (บอสดรอปแก่นเทพทุกครั้ง และอาจได้อุปกรณ์ 500 ดาว)", "target": "heaven_monkey_king", "count": 1, "level": 100, "star": 360,
+		"items": [["hp_god", 30], ["mp_xxl", 30]], "zone": "heaven_realm", "next": ""},
 }
 
 const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs", "ghosts", "dragon", "wolves", "sand_dragon", "yetis", "yeti_king", "lava", "magma", "bones", "bone_lord", "toxic", "toad_king", "thunder", "storm_dragon", "angels", "gold_dragon", "hell", "abyss_dragon",
@@ -100,7 +107,8 @@ const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs
 	"crystal_wolves", "crystal_yetis", "crystal_behemoths", "crystal_king",
 	"sky_wardens", "sky_spirits", "sky_commanders", "sky_king",
 	"eclipse_knights", "eclipse_wraiths", "eclipse_dreadknights", "eclipse_sovereign",
-	"lotus_monks", "lotus_guardians", "lotus_seraph"]
+	"lotus_monks", "lotus_guardians", "lotus_seraph",
+	"heaven_lanterns", "heaven_guardians", "heaven_monkey_king"]
 
 
 ## Meadow keeps its introductory rewards. Later turn-ins pay a predictable

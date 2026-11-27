@@ -215,7 +215,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def") + legend_aura()))))))
 	amount = ClassRoles.guard(self, amount)
-	amount = BuffBook.absorb(_book.buffs,amount)
+	amount = BuffBook.absorb(_book.buffs,amount, float(stats.get("guard", 0.0)))
 	hp = maxi(0, hp - amount)
 	_since_hurt = 0.0
 	BattleVfx.other_number(field, global_position + Vector3(0, 2.4, 0), str(amount), Color("ff7a8a"), 1.0)

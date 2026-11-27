@@ -24,10 +24,10 @@ extends RefCounted
 const MAX := 150
 const MAX_ACTS := 3
 ## A line with one of these is about it, not the general one.
-const PRE_COVERS := {"weekly": ["events", "help"], "loyk": ["events", "help"], "isle": ["events", "help"], "festival": ["events", "help"],
+const PRE_COVERS := {"weekly": ["events", "help"], "loyk": ["events", "help"], "xmas": ["events", "help"], "isle": ["events", "help"], "festival": ["events", "help"],
 	"dragonhunt": ["events", "help", "isle"], "forge": ["enhance", "help"], "war": ["guild", "help", "events"], "playtime": ["level"]}
 ## Acts with a topic of their own: a "ที่ไหน" beside one asks about it.
-const TOPICAL := ["skill", "guild", "shop", "help", "set", "wings", "mount", "gems", "isle", "events", "weekly", "loyk", "forge", "war", "pet",
+const TOPICAL := ["skill", "guild", "shop", "help", "set", "wings", "mount", "gems", "isle", "events", "weekly", "loyk", "xmas", "forge", "war", "pet",
 	"festival", "dragonhunt", "duel", "trade", "enhance", "class"]
 ## Words that hold another act's word ("กิล" of "สกิล"): masked out when reading that act.
 const MASKS := {"guild": ["สกิล"], "party": ["ปาร์ตี้ทำ"], "praise": ["เทพเจ้า", "ชุดเทพ", "เทพมังกร"], "leave": ["สบาย"], "sad": ["ฝันดี"], "greet": ["พิทักษ์"]}

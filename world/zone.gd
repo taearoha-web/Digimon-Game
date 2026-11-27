@@ -310,6 +310,11 @@ func _ready() -> void:
 		tower_run.setup(self, hero, tower_start_floor)
 		tower_run.finished.connect(func(result: Dictionary): tower_finished.emit(result))
 		add_child(tower_run)
+	elif bool(data.get("ascend_trial", false)):
+		# บททดสอบเทวาลัย (AscensionData): the ★500 trial's guardian.
+		var trial := AscendTrial.new()
+		trial.setup(self, hero)
+		add_child(trial)
 	elif bool(data.get("story_stage", false)):
 		story_stage = StoryStage.new()
 		story_stage.setup(self, hero)
@@ -504,10 +509,10 @@ func _build_field() -> void:
 	var fog: Color = data.get("fog", sky.lerp(Color.WHITE, 0.35))
 	_env = Scenery.environment(self, sky, fog, data.get("ambient", Color(0.9, 0.95, 1.0)), data.get("sun", Color(1.0, 0.96, 0.88)), _sky_look())
 	_ambient_base = _env.environment.ambient_light_energy
-	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID or zone_id == SkyIsleData.ID:
+	if StarProgression.is_region(zone_id) or zone_id == DivineRegionData.ID or zone_id == DrownedAbyssData.ID or zone_id == SkyIsleData.ID or zone_id == HeavenRealmData.ID:
 		await _build_star_field()
 		return
-	var story := bool(data.get("story_stage", false))
+	var story := bool(data.get("story_stage", false)) or bool(data.get("ascend_trial", false))
 	if not is_tower and not bool(data.get("arena", false)) and not story:
 		field_radius = HUNT_RADIUS
 	_start = Vector3(-field_radius + 8.0, 0, 0)
@@ -593,13 +598,16 @@ func _build_star_field() -> void:
 	var divine := zone_id == DivineRegionData.ID
 	var deep := zone_id == DrownedAbyssData.ID
 	var isle := zone_id == SkyIsleData.ID
+	var heaven := zone_id == HeavenRealmData.ID
 	var layout := DrownedAbyssArt.layout() if deep else (DivineRegionArt.layout() if divine else StarRegionArt.layout(zone_id))
 	if isle: layout = SkyIsleArt.layout()
+	if heaven: layout = HeavenRealmArt.layout()
 	_start = layout.spawn
 	_boss_spot = layout.boss_pos
 	# Built over a few frames behind the travel fade, like the other fields.
 	var pace := get_tree() if staged and is_inside_tree() else null
 	if isle: await SkyIsleArt.build(self, zone_id, pace)
+	elif heaven: await HeavenRealmArt.build(self, zone_id, pace)
 	elif deep: await DrownedAbyssArt.build(self, zone_id, pace)
 	elif divine: await DivineRegionArt.build(self, zone_id, pace)
 	else: await StarRegionArt.build(self, zone_id, pace)
@@ -625,6 +633,7 @@ func _build_star_field() -> void:
 		_make_weather(StringName(data.get("weather", &"")))
 		if StoryChapter2.portal_open():
 			add_story_portal()
+		_add_heaven_portal()
 	if isle:
 		# เกาะลอยฟ้าเทพมังกร: its wind and leaves, the stele at the entrance naming the
 		# drops (SkyIsleData.drop_text) and the name of the Dragon God's court.
@@ -632,6 +641,23 @@ func _build_star_field() -> void:
 		for sign in [[SkyIsleArt.sign_spot() + Vector3(0, 3.6, 0), "%s • ดาว %d ขึ้นไป\nดรอป: %s" % [SkyIsleData.TITLE, SkyIsleData.ENTRY_STAR, SkyIsleData.drop_text()], 40],
 				[_boss_spot + Vector3(0, 4, 0), "ลานศาลเทพมังกร • ดาว %d" % SkyIsleData.ENTRY_STAR, 48]]:
 			var plaque := Label3D.new()
+			plaque.text = sign[1]
+			plaque.position = sign[0]
+			plaque.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			plaque.font_size = sign[2]
+			plaque.outline_size = 10
+			plaque.modulate = Color("fff0c2")
+			plaque.pixel_size = 0.005
+			plaque.visibility_range_end = 32
+			add_child(plaque)
+	if heaven:
+		# ดินแดนเทวาลัย: its motes and feathers, the stele naming the realm and its drops,
+		# and the name of the court before the Hall of the Gods.
+		_make_weather(StringName(data.get("weather", &"")))
+		for sign in [[HeavenRealmArt.sign_spot() + Vector3(0, 3.8, 0), "%s\nดรอป: %s" % [HeavenRealmData.sign_text(), HeavenRealmData.drop_text()], 40],
+				[_boss_spot + Vector3(0, 4, 0), "ลานทวารเทวาลัย • ดาว %d ขึ้นไป" % HeavenRealmData.ENTRY_STAR, 48]]:
+			var plaque := Label3D.new()
+			plaque.name = "HeavenSign"
 			plaque.text = sign[1]
 			plaque.position = sign[0]
 			plaque.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -663,6 +689,32 @@ func add_story_portal() -> void:
 	var holder := get_node_or_null("Portal_" + String(StoryChapter2.STAGE_ID))
 	if holder != null:
 		VfxKit.shockwave(self, portal.pos + Vector3(0, 0.1, 0), StoryChapter2Art.VIOLET, 4.0)
+
+
+## Where the ห้วงสมุทรอสูร's side portal to ดินแดนเทวาลัย stands (north-west of the
+## entrance, off the ways and camps).
+const HEAVEN_PORTAL_SPOT := Vector3(-47.0, 0, 12.0)
+
+
+## The abyss's side portal to ดินแดนเทวาลัย (HeavenRealmData, outside the travel chain),
+## gated at its ★ like every star field, with a plaque over it.
+func _add_heaven_portal() -> void:
+	if zone_id != DrownedAbyssData.ID or portals.any(func(p): return StringName(p.to) == HeavenRealmData.ID):
+		return
+	var portal := {"to": HeavenRealmData.ID, "pos": HEAVEN_PORTAL_SPOT, "label": HeavenRealmData.sign_text(), "level": 100}
+	portals.append(portal)
+	_make_portal(portal)
+	var plaque := Label3D.new()
+	plaque.name = "HeavenPortalSign"
+	plaque.text = "%s\nดรอป: %s" % [HeavenRealmData.sign_text(), HeavenRealmData.drop_text()]
+	plaque.position = HEAVEN_PORTAL_SPOT + Vector3(0, 4.6, 0)
+	plaque.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	plaque.font_size = 40
+	plaque.outline_size = 10
+	plaque.modulate = Color("fff0c2")
+	plaque.pixel_size = 0.005
+	plaque.visibility_range_end = 30
+	add_child(plaque)
 
 
 func story_portal_open() -> bool:
@@ -802,6 +854,9 @@ func _build_town() -> void:
 	# The Loy Krathong festival's pond (LoyKrathongPier): its stage and pier kept clear.
 	if LoyKrathong.decor_on():
 		clear.append_array(LoyKrathongPier.clear_spots())
+	# The Christmas festival's snowmen (ChristmasTown) kept clear too.
+	if Christmas.decor_on():
+		clear.append_array(ChristmasTown.clear_spots())
 	await Scenery.populate(self, &"village", rng, TOWN_RADIUS, clear, 0.7, true, get_tree() if staged else null,
 		VillageGround.grows.bind(TOWN_RADIUS, green, streets))
 	# Potted plants, lantern posts, crates and signposts along the streets (visual only).
@@ -809,6 +864,10 @@ func _build_town() -> void:
 	await _slice()
 	if LoyKrathong.decor_on():
 		LoyKrathongPier.build(self, npcs)
+		await _slice()
+	# The Christmas and New Year festival: snow, the tree, the lights, fireworks (ChristmasTown).
+	if Christmas.decor_on():
+		ChristmasTown.build(self)
 		await _slice()
 	WorldArt.landscape(self, &"meadow", TOWN_RADIUS, 2)
 	Scenery.sky_dressing(self, &"village", look, TOWN_RADIUS, 2)
@@ -920,6 +979,8 @@ func _villagers() -> Array:
 		["pvp", "ผู้จัดการลีกจัดอันดับ", &"warrior", "ดวลผู้เล่น AI · ไต่แรงก์", V.RING + Vector3(4.0, 0, -9.0), "Knight", V.RING + Vector3(4.0, 0, -30)],
 		# บทที่ 2 (StoryChapter2): the star scholar reads the sky beside the pagoda.
 		["scholar", StoryChapter2.role_name("scholar"), &"mage", String(StoryChapter2.ROLES.scholar[1]), V.PAGODA + Vector3(-7.0, 0, 9.0), "Mage", V.PAGODA + Vector3(-7.0, 0, 30)],
+		# บททดสอบเทวาลัย (AscensionData): the celestial sage beside the Job Master, ★500.
+		[AscensionData.ROLE, AscensionData.SAGE, &"priest", AscensionData.SAGE_TITLE, V.DOJO + Vector3(-7.5, 0, 9.0), "Mage", V.DOJO + Vector3(-7.5, 0, 20)],
 		["guild", "นายทะเบียนกิลด์", &"warrior", "กิลด์ Alpha · Neverdie", V.GUILD_HALL + Vector3(-3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(-3.0, 0, 30)],
 		["guildwar", "ผู้บัญชาการสงครามกิลด์", &"warrior", "ชิงปราสาท ทุกคนในกิลด์ · %d นาที" % int(GuildWarData.DURATION / 60.0), V.GUILD_HALL + Vector3(3.0, 0, 8.0), "Knight", V.GUILD_HALL + Vector3(3.0, 0, 30)],
 		["reward", RewardShop.KEEPER, &"mage", "%s · %s / %s" % [RewardShop.SHOP_NAME, RewardShop.COIN_NAME, RewardShop.POINT_NAME], V.GUILD_HALL + Vector3(9.5, 0, 8.0), "Mage", V.GUILD_HALL + Vector3(9.5, 0, 30)],
@@ -1274,6 +1335,8 @@ func _update_interact() -> void:
 			npc.marker.visible = quest_id != "" and Game.quest_status(quest_id) in ["new", "ready"] and QuestData.unlock_problem(QuestData.get_quest(quest_id)) == ""
 		if StoryChapter2.ROLES.has(npc.role):
 			npc.marker.visible = StoryChapter2.marker_for(npc.role)
+		if npc.role == AscensionData.ROLE:
+			npc.marker.visible = AscensionData.marker()
 	interact_changed.emit(label)
 
 
@@ -1989,6 +2052,9 @@ func _drop_loot(mob: Mob) -> void:
 	_drop_jewels(from)
 	_weekly_drop(mob, from)
 	_loyk_drop(mob, from)
+	# The Christmas festival's gift boxes (Christmas.kill_drops), on the festival RNG.
+	for item in Christmas.kill_drops(data if not (is_town or is_pvp or is_tower) else {}, mob.is_boss or mob == _wboss or mob.has_meta("world_boss"), WorldPresence.clock(), _loyk_rng):
+		_spawn_loot(item, 0, from)
 	var source := &"field_boss" if _is_field_boss(mob) else (&"star" if is_star_field() and not mob.is_boss else &"")
 	for item in gem_bonus_drops(source, _drop_fortune(), rng):
 		_spawn_loot(item, 0, from)
@@ -1997,6 +2063,10 @@ func _drop_loot(mob: Mob) -> void:
 	# The two ★200-300 fields share one table (EndgameFields).
 	if bool(data.get("endgame_loot", false)):
 		_endgame_loot(mob, from)
+		return
+	# ดินแดนเทวาลัย has its own table (HeavenRealmData.kill_drops).
+	if bool(data.get("heaven_loot", false)):
+		_heaven_loot(mob, from)
 		return
 	# เกาะลอยฟ้าเทพมังกร has its own table (SkyIsleLoot).
 	if bool(data.get("sky_isle_loot", false)):
@@ -2190,6 +2260,31 @@ func _sky_isle_loot(mob: Mob, from: Vector3) -> void:
 					Game.say("%sตกแล้ว! ใช้ผสมแหวน/สร้อยชุดเซต 250 ดาวที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
 		elif DivineGearData.is_item(item):
 			Game.say("ชุดประจำอาชีพ 200 ดาวตกแล้ว! (ใช้ +10 ผสมชุดเซต 250 ดาว)%s" % _tag_text(item), &"quest")
+
+
+## ดินแดนเทวาลัย: HeavenRealmData.kill_drops with a line for the rare ones. A ★500 gear
+## piece (Star500Gear, when that module is in the game) lands under a gold beam whatever
+## the pickup filter says.
+func _heaven_loot(mob: Mob, from: Vector3) -> void:
+	var elite := bool(mob.template.get("elite", false))
+	for item in HeavenRealmData.kill_drops(Game.class_id(), mob.is_boss, elite, _drop_fortune(), rng):
+		if HeavenRealmData.is_star500_item(item):
+			var drop := LootDrop.new()
+			drop.setup(item, 0, hero, from)
+			add_child(drop)
+			VfxKit.loot_beam(drop, Color("ffe08a"), 10.0)
+			BattleVfx.floating_text(self, from + Vector3(0, 2.4, 0), "อุปกรณ์ 500 ดาว! %s" % ItemData.name_of(item), Color("ffe08a"), 1.5)
+			Game.say("อุปกรณ์ 500 ดาวตกแล้ว! %s" % ItemData.name_of(item), &"quest")
+			continue
+		_spawn_loot(item, 0, from)
+		if item.get("kind", "") == "jewel":
+			match String(item.get("id", "")):
+				HeavenRealmData.SET_CORE:
+					Game.say("%sตกแล้ว! วัตถุดิบหายากสำหรับผสมชุดเซตที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
+				EndgameFields.SCALE:
+					Game.say("%sตกแล้ว! ใช้ผสมแหวน/สร้อยชุดเซต 250 ดาวที่ช่างตีเหล็ก" % ItemData.name_of(item), &"quest")
+		elif item.get("slot", "") == "wings":
+			Game.say("ปีกเทพตกจากบอส!" if mob.is_boss else "ปีกเทพตกจากมอนสเตอร์!", &"quest")
 
 
 ## Chance that a ★ region kill drops a piece of that region's ★ gear.

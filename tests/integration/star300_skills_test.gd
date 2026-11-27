@@ -66,7 +66,8 @@ func _ready() -> void:
 func _catalogue() -> void:
 	var names := {}
 	for cls in ClassData.IDS:
-		var gods := ClassData.pool(cls).filter(func(s): return int(s.get("star", 0)) >= StarSkillData.GOD_STAR)
+		# The Ascension's ★500 skills (AscendSkillData, ascension_test) sit above the god one.
+		var gods := ClassData.pool(cls).filter(func(s): return int(s.get("star", 0)) >= StarSkillData.GOD_STAR and not s.get("ascend", false))
 		check(gods.size() == 1, "%s has exactly one 300-star skill (%d)" % [cls, gods.size()])
 		var god := god_of(cls)
 		if god.is_empty():
@@ -86,7 +87,7 @@ func _catalogue() -> void:
 		var star200: Dictionary = ClassData.pool(cls).filter(func(s): return int(s.get("star", 0)) == 200)[0]
 		check(float(god.mult) > float(star200.mult), "%s god %.2f above its 200-star skill %.2f" % [cls, float(god.mult), float(star200.mult)])
 		for skill in ClassData.pool(cls):
-			if skill.id != god.id:
+			if skill.id != god.id and not skill.get("ascend", false):
 				check(float(god.mult) > float(skill.mult), "%s god %.2f is stronger than %s %.2f" % [cls, float(god.mult), skill.id, float(skill.mult)])
 		check(float(god.mp) > float(star200.mp) and float(god.cd) > float(star200.cd), "%s god skill costs more MP and cooldown than 200 stars" % cls)
 		check(ResourceLoader.exists("res://assets/icons/skills/%s.svg" % god.id), "icon file " + String(god.id))

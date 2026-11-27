@@ -82,10 +82,11 @@ var cast_until := 0.0
 var _closing := -1.0
 
 static func handles(skill: Dictionary) -> bool:
-	return COLORS.has(String(skill.get("id", "")))
+	return COLORS.has(String(skill.get("id", ""))) or AscendSkillData.COLORS.has(String(skill.get("id", "")))
 
 static func look(skill: Dictionary) -> Dictionary:
-	var colors: Array = COLORS.get(String(skill.get("id", "")), ["eaca80","fffbe9","565274"])
+	# The Ascension's skills (★500) wear their own palette (AscendSkillData.COLORS).
+	var colors: Array = COLORS.get(String(skill.get("id", "")), AscendSkillData.COLORS.get(String(skill.get("id", "")), ["eaca80","fffbe9","565274"]))
 	return {"primary":Color(colors[0]),"accent":Color(colors[1]),"shade":Color(colors[2])}
 
 static func _visual(caster: Node3D) -> HeroVisual:

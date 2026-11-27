@@ -30,6 +30,8 @@ const INTENTS := [
 	# The weekly rare collection (WeeklyCollect.chat_answer: the theme and its own finds).
 	# The Loy Krathong festival (LoyKrathong.chat_answer: dates, the pier, the night, the Naga).
 	["loyk", ["ลอยกระทง", "กระทง", "พญานาค", "นพมาศ", "โคมลอย", "ใบตอง"]],
+	# The Christmas and New Year festival (Christmas.chat_answer: dates, gifts, the costume).
+	["xmas", ["คริสต์มาส", "คริสมาส", "ซานต้า", "ซานตา", "กล่องของขวัญ", "ปีใหม่", "เคาท์ดาวน์", "นับถอยหลัง"]],
 	["weekly", ["ของแรร์", "สะสมของ", "สะสมแรร์", "ธีมสัปดาห์", "ธีมอะไร", "อีเว้นสัปดาห์", "อีเว้นประจำสัปดาห์", "อีเวนต์สัปดาห์"]],
 	["help", ["วิธี", "ยังไง", "ทำไง", "ทำยังไง", "สอนหน่อย", "แนะนำหน่อย", "คืออะไร", "กี่โมง", "เมื่อไหร่", "ตอนไหน", "เวลาไหน", "อีเวนต์", "อีเว้นท์", "อีเว้น", "บอสโลก", "exp x2"]],
 	["party", ["ปาร์ตี้", "ปาตี้", "ตี้", "party", "ไปด้วยกัน", "ไปด้วยไหม", "ไปล่าด้วย", "ล่าด้วยกัน", "เก็บเลเวลด้วย", "เข้ากลุ่ม", "จอยกัน", "จอยไหม"]],
@@ -377,6 +379,8 @@ static func _answer(intent: String, text: String, p: Dictionary, h: Dictionary, 
 			return {"reply": help_text("isle"), "action": "none"}
 		"loyk":
 			return {"reply": LoyKrathong.chat_answer(int(p.get("index", -1)), float(mine.get("t", WorldPresence.clock()))), "action": "none"}
+		"xmas":
+			return {"reply": Christmas.chat_answer(int(p.get("index", -1)), float(mine.get("t", WorldPresence.clock()))), "action": "none"}
 		"weekly":
 			return {"reply": WeeklyCollect.chat_answer(int(p.get("index", -1)), float(mine.get("t", WorldPresence.clock()))), "action": "none"}
 		"party":

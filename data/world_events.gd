@@ -185,9 +185,10 @@ static func boss_zone(t: float) -> StringName:
 
 ## EXP multiplier at `t`: the evening EXP x2 times the running festival's (x3 or x5).
 ## The Loy Krathong night's x2 (LoyKrathong.exp_bonus) is ADDED to the evening's rather
-## than multiplied: 19:00-21:00 x3, 21:00-23:00 x2 on that night, never x4.
+## than multiplied: 19:00-21:00 x3, 21:00-23:00 x2 on that night, never x4. So is the
+## Christmas night's and the New Year countdown's +50% (Christmas.exp_bonus): x2.5 / x1.5.
 static func exp_multiplier(t: float) -> float:
-	var evening := 1.0 + (EXP_MULT - 1.0 if evening_exp(t) else 0.0) + LoyKrathong.exp_bonus(t)
+	var evening := 1.0 + (EXP_MULT - 1.0 if evening_exp(t) else 0.0) + LoyKrathong.exp_bonus(t) + Christmas.exp_bonus(t)
 	return evening * (FESTIVAL_EXP if festival_on(t) else 1.0) * (FESTIVAL5_EXP if festival5_on(t) else 1.0) * (FESTIVAL3_EXP if festival3_on(t) else 1.0)
 
 
@@ -296,7 +297,7 @@ static func forge_text(t: float) -> String:
 ## week's rare collection (WeeklyCollect), the weekend jewel rush and the Halloween event,
 ## each only while it has something to say.
 static func chip_lines(t: float) -> Array:
-	return [festival_text(t), LoyKrathong.chip_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
+	return [festival_text(t), LoyKrathong.chip_text(t), Christmas.chip_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), rare_text(t), describe(t), forge_text(t), weekend_text(t), halloween_text(t)].filter(func(line: String): return line != "")
 
 
 ## A levelling field (the golden monster's ground): a field with monster camps, not the
@@ -427,6 +428,7 @@ static func current(t: float) -> Array[Dictionary]:
 	if festival3_on(t):
 		list.append({"id": "festival3", "name_th": NAME_FESTIVAL3, "until": float(FESTIVAL3_END)})
 	list.append_array(LoyKrathong.events(t))
+	list.append_array(Christmas.events(t))
 	var weekly := WeeklyCollect.event(t)
 	if not weekly.is_empty():
 		list.append(weekly)

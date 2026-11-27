@@ -478,6 +478,12 @@ static func line_for(s: Dictionary, seed_value: int, t := -1.0) -> String:
 		var loyk := LoyKrathong.chat_line(s, seed_value, t)
 		if loyk != "":
 			return loyk
+	# During the Christmas and New Year festival (Christmas.chat_line): greetings, the snow,
+	# the tree, the countdown. Its own roll, too.
+	if float(hash(seed_value * 5153 + 61) % 1000) < Christmas.CHAT_SHARE * 1000.0:
+		var xmas := Christmas.chat_line(s, seed_value, t)
+		if xmas != "":
+			return xmas
 	var pool: Array = []
 	var errand := String(s.get("errand", ""))
 	if doing == "errand" and ERRAND.has(errand):

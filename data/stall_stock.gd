@@ -620,7 +620,7 @@ static func goods_price(item: Dictionary) -> int:
 ## dozens of jewels).
 static func bulk_count(id: String, level: int, stars: int, rng: RandomNumberGenerator) -> int:
 	var span: Array = BULK.get(id, [1, 1])
-	var reach := clampf(float(progress(level, stars)) / float(Game.MAX_LEVEL + Game.PARAGON_MAX), 0.15, 1.0)
+	var reach := clampf(float(progress(level, stars)) / float(Game.MAX_LEVEL + JobData.GOD_STARS), 0.15, 1.0)
 	var hi := int(span[0]) + int(round(float(int(span[1]) - int(span[0])) * reach))
 	return rng.randi_range(int(span[0]), maxi(int(span[0]), hi))
 

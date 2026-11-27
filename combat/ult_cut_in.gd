@@ -224,7 +224,7 @@ func _begin(skill: Dictionary, pvp: bool, view_size: Vector2) -> void:
 	_title.add_theme_color_override("font_color", Color(1, 0.98, 0.9))
 	_title.position = Vector2(text_x, top + (bottom - top) * 0.12)
 	var god := StarSkillData.is_god(skill)
-	_sub.text = ("สกิลเทพ ★%d" if god else "ท่าไม้ตาย ★%d") % int(skill.get("star", 200))
+	_sub.text = ("สกิลเทวาลัย ★%d" if AscendSkillData.is_ult(skill) else "สกิลเทพ ★%d" if god else "ท่าไม้ตาย ★%d") % int(skill.get("star", 200))
 	if job.has("name"):
 		_sub.text += "  •  " + String(job.name)
 	_sub.add_theme_font_size_override("font_size", int(clampf(h * 0.04, 18.0, 40.0)))

@@ -106,7 +106,7 @@ func _pace() -> void:
 		var d16 := WorldPlayers.state(i, j + 16.0 * DAY)
 		check(int(d4.stars) < 200, "%s: not at ★200 in four days (%s)" % [e.name, WorldPlayers.level_text(d4)])
 		check(int(d8.level) == 100 and int(d8.stars) >= 200, "%s: ★200 within eight days (%s)" % [e.name, WorldPlayers.level_text(d8)])
-		check(int(d16.stars) == Game.PARAGON_MAX and bool(d16.divine), "%s: ★300 with the divine set within sixteen days (%s)" % [e.name, WorldPlayers.level_text(d16)])
+		check(int(d16.stars) >= JobData.GOD_STARS and bool(d16.divine), "%s: ★300 with the divine set within sixteen days (%s)" % [e.name, WorldPlayers.level_text(d16)])
 		check(int(d8.guild) == int(e.guild) and int(first.guild) == 0, "%s: in %s from Lv.100" % [e.name, WorldPlayers.guild_name(int(e.guild))])
 		var steady := true
 		var last := 0

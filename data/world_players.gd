@@ -17,7 +17,8 @@ extends RefCounted
 ## that fits its level (WorldPresence shows it there, fighting the field's monsters for
 ## real) and only comes to the village for short errands (errand_at: a quest, the forge,
 ## new skills); with the divine set complete it spends its sessions on the endgame
-## (endgame_plan) and enhances the set once it has climbed to ★300 (Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
+## (endgame_plan) and enhances the set once it has climbed to ★300 (JobData.GOD_STARS; the
+## stars go on to ★500, Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
 ## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
 ## players who sell the good things they found (StallStock).
 ## Everyone plays the roster's class from Lv.1 (no Vagabond start any more).
@@ -924,8 +925,8 @@ static func _lerp_table(table: Array, x: int) -> float:
 	return float(table[-1][1])
 
 
-## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 99..399 are ★0..300
-## (Game.PARAGON_MAX).
+## Probe minutes from Lv.1 to step k: steps 0..99 are Lv.1..100, steps 99..599 are ★0..500
+## (Game.PARAGON_MAX; past ★300 HeroStats.star_need asks 1.5x, at STAR_RATE's ★300 pace).
 static func _steps() -> PackedFloat64Array:
 	if not _table.is_empty():
 		return _table
@@ -982,8 +983,8 @@ static func progress_for(minutes: float, eff: float, extra := 0.0) -> Dictionary
 
 
 ## A veteran's head start in probe minutes: where it stood when the world reopened, as a
-## point (Lv.1-100 = 1-100, ★1-300 = 101-400, past 400 = tenths of DIVINE_HOURS played
-## since ★300: 410 has played DIVINE_HOURS there, 420 twice as long).
+## point (Lv.1-100 = 1-100, ★1-500 = 101-600, past 600 = tenths of DIVINE_HOURS played
+## since ★500: 610 has played DIVINE_HOURS there, 620 twice as long).
 static func head_work(i: int) -> float:
 	var point := int(entry(i).get("vet", 0))
 	if point <= 1:
@@ -1229,13 +1230,15 @@ static func _find_last_seen(i: int, t: float) -> float:
 
 ## What a player with a play schedule does in the session that started at real time s0:
 ## {place, doing}. On the way up it hunts the field that fits it ("hunt"), to ★300 with
-## the divine set too; once it is at ★300 (Game.PARAGON_MAX) with the divine set complete
+## the divine set too; once it is at ★300 (JobData.GOD_STARS) with the divine set complete
 ## each session is one of the endgame's: the lotus sanctum's
 ## boss hunts ("boss"), helping friends in a star field ("help") or a break from it,
 ## keeping a stall in the village with what it found ("stall").
 static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool) -> Dictionary:
 	var home := session_zone(i, s0, level, stars)
-	if not divine or stars < Game.PARAGON_MAX:
+	# The endgame opens at ★300 (JobData.GOD_STARS); the stars climb on to ★500 meanwhile
+	# (progress_for follows the play, not the session's plan).
+	if not divine or stars < JobData.GOD_STARS:
 		return {"place": home, "doing": "hunt"}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("plan|%s|%d" % [entry(i).name, int(s0 / 60.0)])
@@ -1252,6 +1255,8 @@ static func endgame_plan(i: int, s0: float, level: int, stars: int, divine: bool
 ## the two endgame maps with the same drops and monster band, a session each by turns of
 ## its own (WorldGear's drops are the same in either).
 const ISLE_SHARE := 60
+## Of the ★300+ sessions not on the isle, the share that hunts in ดินแดนเทวาลัย.
+const HEAVEN_SHARE := 70
 
 
 static func session_zone(i: int, s0: float, level: int, stars: int) -> StringName:
@@ -1260,6 +1265,10 @@ static func session_zone(i: int, s0: float, level: int, stars: int) -> StringNam
 	# so the turns between the two older maps stay as they were).
 	if home == DrownedAbyssData.ID and stars >= SkyIsleData.ENTRY_STAR and WorldEvents.roll("isle|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 100 < ISLE_SHARE:
 		return SkyIsleData.ID
+	# The rest of the ★300+ sessions mostly go to ดินแดนเทวาลัย (HEAVEN_SHARE of them, a roll
+	# of its own), the hunt toward ★500.
+	if home == DrownedAbyssData.ID and stars >= HeavenRealmData.ENTRY_STAR and WorldEvents.roll("heaven|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 100 < HEAVEN_SHARE:
+		return HeavenRealmData.ID
 	if home == DrownedAbyssData.ID and hash("map|%s|%d" % [entry(i).name, int(s0 / 60.0)]) % 2 == 1:
 		return DivineRegionData.ID
 	return home
@@ -1356,7 +1365,7 @@ static func profile(m: Dictionary) -> Dictionary:
 	var level := int(m.level)
 	var stars := Game.party_stars(m)
 	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for(level, stars),
-		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars)}}
+		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars), "special": Game.party_special_alloc(stars, m["class"])}}
 	var points := Game.STAT_POINTS_PER_LEVEL * (level - 1)
 	var main := String(JobData.resolve(StringName(m["class"]), int(p.adv)).main)
 	var attrs := {"str": 0, "int": 0, "dex": 0, "vit": 0}
@@ -1381,6 +1390,8 @@ static func skill_points(level: int, stars: int) -> int:
 	if level >= Game.MAX_LEVEL:
 		for tier in StarProgression.TIERS:
 			points += 2 if stars >= int(tier) else 0
+	if JobData.is_ascended(JobData.adv_for(level, stars)):
+		points += JobData.ASCEND_SKILL_POINTS
 	return points
 
 
@@ -1394,6 +1405,9 @@ static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
 	# A class with skill lines: its lines (ranks are kept per line, ClassData.rank_id).
 	for skill in ClassData.pool(cls):
 		if int(skill.level) <= level and (not ClassData.has_lines(cls) or ClassData.is_line(cls, String(skill.id)) or skill.has("star")):
+			# The Ascension's skills only once it has passed the trial (★500, JobData.adv_for).
+			if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(level, stars)):
+				continue
 			unlocked.append(skill)
 	unlocked.sort_custom(func(a, b): return int(a.level) < int(b.level))
 	var ranks := {}
@@ -1552,7 +1566,7 @@ static var _gear_sig := {}
 
 
 ## Where a member sheet is on the way, as one number: Lv.1-100 with the part of the
-## level done, then 100 + stars (to 400 at ★300, Game.PARAGON_MAX).
+## level done, then 100 + stars (to 600 at ★500, Game.PARAGON_MAX).
 static func point_of(m: Dictionary) -> float:
 	var level := int(m.level)
 	var frac := clampf(float(m.get("frac", 0.0)), 0.0, 0.999)
@@ -1767,6 +1781,9 @@ static func is_god(s: Dictionary) -> bool:
 
 ## Its God title ("เทพเจ้าแห่งนักรบ"), "" before the promotion.
 static func god_title(s: Dictionary) -> String:
+	# A hardcore player at ★500 has passed the trial (JobData.adv_for): its Ascension name.
+	if JobData.is_ascended(JobData.adv_for(int(s.get("level", 1)), int(s.get("stars", 0)))):
+		return String(JobData.ascend_step(StringName(s.get("class", "warrior"))).name)
 	return JobData.god_name(StringName(s.get("class", "warrior"))) if is_god(s) else ""
 
 

@@ -127,6 +127,8 @@ static func tank_build(info: Dictionary) -> Dictionary:
 	var para: Dictionary = profile.get("paragon", {})
 	if not para.is_empty():
 		para["alloc"] = tank_star_alloc(int(para.get("level", 0)))
+		# Its ★301+ points like a Defender's: guard, then lifesteal (Game.party_special_alloc).
+		para["special"] = Game.party_special_alloc(int(para.get("level", 0)), "defender")
 	out["power"] = power_of(HeroStats.compute(profile))
 	out["tank"] = true
 	return out
@@ -136,7 +138,7 @@ static func tank_build(info: Dictionary) -> Dictionary:
 ## its cap; the same total as Game.party_star_alloc.
 static func tank_star_alloc(stars: int) -> Dictionary:
 	var alloc := {}
-	var spend := stars
+	var spend := mini(stars, Game.PARAGON_BASE_MAX)
 	for key in ["hp", "def", "atk", "crit", "haste"]:
 		var put := mini(spend, int(Game.PARAGON_STATS[key][2]))
 		alloc[key] = put
@@ -173,7 +175,10 @@ static func leader_index(lineup: Array, leader_name := "") -> int:
 
 ## One number for "how strong": attack times staying power.
 static func power_of(stats: Dictionary) -> float:
-	return sqrt(float(stats.atk) * float(stats.max_hp) * (1.0 + float(stats.def) / 100.0))
+	# The ★301+ special pool's pierce (DEF ignored: more of its attack lands) and guard
+	# (less of the enemy's lands) count for half their share each (0 below ★301).
+	var special := 1.0 + 0.5 * float(stats.get("pierce", 0.0)) + 0.5 * float(stats.get("guard", 0.0))
+	return sqrt(float(stats.atk) * float(stats.max_hp) * (1.0 + float(stats.def) / 100.0)) * special
 
 
 static func hero_power() -> float:

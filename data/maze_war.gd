@@ -94,12 +94,31 @@ const GEM_DRIVE := 1.2
 ## -1: the world players' fights follow WorldPresence.enabled (off headless: tests turn
 ## them on); 0 off; 1 on.
 static var ai_mode := -1
+## -1: the boards are paced (pace_on) while the game runs warm each frame (WorldPresence.
+## enabled, warm called in the last PACE_MS); 0 never; 1 always. A paced board counts the
+## slots warm has worked out (it never works a slot's fights out itself: a cold one needs
+## the gear of everyone in it, seconds at hundreds of players): right after a start it
+## lags while warm catches up, a frame budget at a time, then is the very same board.
+## Unpaced (tests, headless) every read works out whatever it needs at once.
+static var pace_mode := -1
+const PACE_MS := 2000
+## Slots warm works out ahead of the one running now (their powers ready before needed).
+const AHEAD := 3
+## Days of powers kept (the newest ones; an older day read again is worked out again).
+const POWER_DAYS := 10
+## Slots of fights kept (about three weeks); past it the oldest are dropped.
+const SLOTS_KEPT := 3000
 ## The maze race's drive at the forge (tests turn it off to compare; WorldGear.clear after).
 static var drive_on := true
 
 static var _interest := {}
 static var _ready := {}
+## Powers by Thai day: day -> {index: power}.
 static var _power := {}
+## The slot warm is working out: {k, mid, cand (next candidate to look at), people, next
+## (next person whose power to read)}; {} none.
+static var _prep := {}
+static var _warm_ms := -100000
 static var _cands: Array[int] = []
 static var _cands_n := -1
 static var _slots := {}
@@ -279,17 +298,39 @@ static func inside_at(t: float) -> Array[int]:
 ## real stats (its gear, stats, stars and skills on its own schedule), read once a Thai day.
 static func power(i: int, t: float) -> float:
 	var day := WorldEvents.day_of(t)
-	var key := day * 4096 + i
-	var hit: Variant = _power.get(key)
+	var per := _powers_of(day)
+	var hit: Variant = per.get(i)
 	if hit != null:
 		return float(hit)
-	var start := maxf(float(day) * 86400.0 - float(WorldPlayers.TZ), WorldPlayers.joined_at(i))
-	var sheet := WorldPlayers.profile(_sheet_at(i, start))
-	var p := maxf(1.0, GuildWarData.power_of(HeroStats.compute(sheet)))
-	if _power.size() > 4096:
-		_power.clear()
-	_power[key] = p
+	var p := maxf(1.0, GuildWarData.power_of(HeroStats.compute(WorldPlayers.profile(_power_sheet(i, day)))))
+	per[i] = p
 	return p
+
+
+## The sheet power reads world player i's strength of Thai day `day` from: where its own
+## schedule stood as the day began (or as it joined).
+static func _power_sheet(i: int, day: int) -> Dictionary:
+	var start := maxf(float(day) * 86400.0 - float(WorldPlayers.TZ), WorldPlayers.joined_at(i))
+	return _sheet_at(i, start)
+
+
+## The powers kept for `day` (the newest POWER_DAYS days are kept).
+static func _powers_of(day: int) -> Dictionary:
+	var hit: Variant = _power.get(day)
+	if hit != null:
+		return hit
+	var per := {}
+	_power[day] = per
+	while _power.size() > POWER_DAYS:
+		var oldest: int = _power.keys().min()
+		_power.erase(oldest)
+	return per
+
+
+## Whether world player i's power of the day of t is a look-up (warm read it already).
+static func has_power(i: int, t: float) -> bool:
+	var per: Variant = _power.get(WorldEvents.day_of(t))
+	return per != null and (per as Dictionary).has(i)
 
 
 ## The chance that a player of power a beats one of power b.
@@ -319,7 +360,8 @@ static func slot_fights(k: int) -> Array:
 	var t0 := slot_start(k)
 	if k >= 0:
 		var mid := t0 + SLOT * 0.5
-		var people := inside_at(mid)
+		# Who is in: what warm found looking through everyone (_prepare), else at once.
+		var people: Array[int] = _prep.people if not _prep.is_empty() and int(_prep.k) == k and int(_prep.cand) < 0 else inside_at(mid)
 		var n := people.size()
 		if n >= 2:
 			var rng := RandomNumberGenerator.new()
@@ -340,11 +382,69 @@ static func slot_fights(k: int) -> Array:
 				var a_wins := rng.randf() < win_chance(powers[a], powers[b])
 				out.append([at, people[a] if a_wins else people[b], people[b] if a_wins else people[a]])
 			out.sort_custom(func(x, y): return float(x[0]) < float(y[0]))
-	if _slots.size() > 3000:
-		_slots.clear()
-		_sums.clear()
+	if _slots.size() >= SLOTS_KEPT:
+		# The oldest slots go (a week's sums stay: what they counted never changes).
+		var keys := _slots.keys()
+		keys.sort()
+		for n in keys.size() - SLOTS_KEPT / 2:
+			_slots.erase(keys[n])
 	_slots[k] = out
 	return out
+
+
+## Whether the boards are paced now (pace_mode).
+static func pace_on() -> bool:
+	if pace_mode >= 0:
+		return pace_mode == 1
+	return WorldPresence.enabled and Time.get_ticks_msec() - _warm_ms < PACE_MS
+
+
+## Works slot k's fights out a step at a time until Time.get_ticks_usec() reaches
+## `until`: who is in (a candidate at a time: its Lv.MIN_LEVEL moment may be a first
+## read), each one's power of the day (its forging run on a stretch at a time,
+## WorldGear.advance), then the fights (slot_fights, then a look-up). True once they are
+## worked out. The same fights as slot_fights alone: only the order of the work differs.
+static func _prepare(k: int, until: int) -> bool:
+	if _slots.has(k):
+		return true
+	if k < 0:
+		slot_fights(k)
+		return true
+	var cands := candidates()
+	# Begun again when the roster grew meanwhile (the candidates are read afresh).
+	if _prep.is_empty() or int(_prep.k) != k or (int(_prep.cand) >= 0 and int(_prep.n) != _cands_n):
+		var fresh: Array[int] = []
+		_prep = {"k": k, "mid": slot_start(k) + SLOT * 0.5, "cand": 0, "people": fresh, "next": 0, "n": _cands_n}
+	var mid := float(_prep.mid)
+	var people: Array[int] = _prep.people
+	if int(_prep.cand) >= 0:
+		var c := int(_prep.cand)
+		while c < cands.size():
+			if in_maze(cands[c], mid):
+				people.append(cands[c])
+			c += 1
+			if Time.get_ticks_usec() >= until and c < cands.size():
+				_prep.cand = c
+				return false
+		_prep.cand = -1
+	if people.size() >= 2:
+		var day := WorldEvents.day_of(mid)
+		var per := _powers_of(day)
+		var n := int(_prep.next)
+		while n < people.size():
+			var i := people[n]
+			if not per.has(i):
+				if not WorldGear.advance(i, WorldPlayers.work_of(_power_sheet(i, day), i), until):
+					_prep.next = n
+					return false
+				power(i, mid)
+			n += 1
+			if Time.get_ticks_usec() >= until and n < people.size():
+				_prep.next = n
+				return false
+	slot_fights(k)
+	_prep = {}
+	return true
 
 
 ## The world players' simulated kills of week `week` up to real time t, this device's held
@@ -361,14 +461,23 @@ static func sim_kills(week: int, t: float) -> Dictionary:
 	var k1 := slot_of(until)
 	var sum := _sum_of(week, held)
 	var kills: Dictionary = sum.kills
+	# Paced (pace_on), this week's board counts the slots worked out so far (warm).
+	var paced := _exact == 0 and pace_on() and week == week_of(now())
 	while int(sum.next) < k1:
+		if paced and not _slots.has(int(sum.next)):
+			break
 		_add_slot(kills, int(sum.next), held, INF)
 		sum.next = int(sum.next) + 1
 	for i in kills:
 		out[i] = (kills[i] as Array).duplicate()
 	# The slot running now, up to t.
-	_add_slot(out, k1, held, until)
+	if not paced or (int(sum.next) == k1 and _slots.has(k1)):
+		_add_slot(out, k1, held, until)
 	return out
+
+
+## Above 0 while a read must be exact whatever the pace (champion: it is kept).
+static var _exact := 0
 
 
 ## The whole slots of `week` summed so far (kept per week and held revision).
@@ -386,21 +495,29 @@ static func _sum_of(week: int, held: Dictionary) -> Dictionary:
 
 ## Works the current week's slots out ahead, for at most `budget` microseconds (Game
 ## calls it each frame), so a board opened later is a look-up. True when up to date.
+## Each slot is worked out a step at a time (_prepare), so no frame takes much more than
+## the budget however cold the world is; the next AHEAD slots too, once caught up.
 static func warm(budget: int) -> bool:
+	_warm_ms = Time.get_ticks_msec()
 	if not ai_on():
 		return true
 	var t := now()
 	if t < float(OPEN_UNIX):
 		return true
+	var until := Time.get_ticks_usec() + budget
 	var week := week_of(t)
 	var held := _held_set(week)
 	var sum := _sum_of(week, held)
 	var k1 := slot_of(t)
-	var start := Time.get_ticks_usec()
 	while int(sum.next) < k1:
+		if not _prepare(int(sum.next), until):
+			return false
 		_add_slot(sum.kills, int(sum.next), held, INF)
 		sum.next = int(sum.next) + 1
-		if Time.get_ticks_usec() - start > budget:
+		if Time.get_ticks_usec() >= until:
+			return false
+	for k in range(k1, k1 + AHEAD + 1):
+		if not _prepare(k, until):
 			return false
 	return true
 
@@ -574,7 +691,9 @@ static func champion(week: int) -> Dictionary:
 			return _shown(_stored(saved[key]))
 	if _champs.has(week) and not _outdone(week, _champs[week]):
 		return _shown(_champs[week])
+	_exact += 1
 	var board := standings(week, week_end(week))
+	_exact -= 1
 	var out := {}
 	if not board.is_empty():
 		var top: Dictionary = board[0]
@@ -979,6 +1098,7 @@ static func reset() -> void:
 	_interest.clear()
 	_ready.clear()
 	_power.clear()
+	_prep = {}
 	_cands.clear()
 	_cands_n = -1
 	_slots.clear()

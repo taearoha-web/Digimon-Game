@@ -19,7 +19,7 @@ extends RefCounted
 ## item's bytes (a frame is at most 8 KB).
 const WIRE_DROP: Array[String] = ["stats", "price"]
 ## Item fields that must be numbers when present (Game._repair_item turns them to ints).
-const NUMBER_KEYS: Array[String] = ["count", "rarity", "level", "price", "plus", "sockets", "star_tier", "dragon"]
+const NUMBER_KEYS: Array[String] = ["count", "rarity", "level", "price", "plus", "sockets", "star_tier", "dragon", "star500"]
 ## Item fields that must be text when present.
 const TEXT_KEYS: Array[String] = ["kind", "slot", "uid", "name", "class", "set", "base", "boss", "wing", "star_class", "collection", "set_gear"]
 

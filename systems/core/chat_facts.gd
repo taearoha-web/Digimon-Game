@@ -186,6 +186,11 @@ static func item_source(key: String, t: float) -> String:
 				int(m.chaos), MountData.chance_text(id).trim_suffix("%"), pct(float(m.drop))]
 		"costume":
 			var c: Dictionary = RewardShop.COSTUMES.get(id, {})
+			# A festival's or the isle's costume is pieces, not coins.
+			if id == Christmas.COSTUME:
+				return "%s ใช้%s %d ชิ้นแลกที่ร้านแลกของรางวัลช่วง%s ชิ้นส่วนได้จากกล่องของขวัญ" % [name, String(ItemData.JEWELS[Christmas.PIECE].name), Christmas.COSTUME_PIECES, Christmas.TITLE]
+			if RewardShop.fragments_of(c) > 0:
+				return "%s ใช้%s %d ชิ้นแลกที่ร้านแลกของรางวัล" % [name, String(ItemData.JEWELS[RewardShop.fragment_id(c)].name), RewardShop.fragments_of(c)]
 			var cost := "เหรียญลีก %d" % int(c.get("lc", 0))
 			if int(c.get("ep", 0)) > 0:
 				cost += " แต้มกิจกรรม %d" % int(c.ep)
@@ -230,6 +235,8 @@ static func jewel_source(id: String, t: float) -> String:
 		return "%sเป็นของสะสมประจำสัปดาห์ ดรอปช่วงสัปดาห์ที่เป็นธีมของมัน %s" % [name, WeeklyCollect.chat_answer(-1, t)]
 	if id.begins_with("lk_"):
 		return LoyKrathong.chat_answer(-1, t)
+	if Christmas.is_own_id(id):
+		return Christmas.chat_answer(-1, t)
 	var hint := ChatTrade.hint({"kind": "jewel", "ids": [id]})
 	return hint if hint != "" and not hint.begins_with("เพชรดรอป") else ""
 

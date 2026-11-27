@@ -382,7 +382,11 @@ func take_hit(amount: int, crit: bool, color := Color.WHITE, attacker: Node = nu
 	if randf() < _dodge:
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return false
-	return super.take_hit(ClassRoles.guard(self, int(ceil(float(amount) * war_scale))), crit, color, attacker)
+	var amount_in := ClassRoles.guard(self, int(ceil(float(amount) * war_scale)))
+	# Its own ★301+ guard (rstats "guard", BuffBook.absorb's cap).
+	if float(rstats.get("guard", 0.0)) > 0.0:
+		amount_in = maxi(1, BuffBook.absorb([], amount_in, float(rstats.guard)))
+	return super.take_hit(amount_in, crit, color, attacker)
 
 
 ## HP a victim has now (the hero's lives in the profile): what a hit took off it.

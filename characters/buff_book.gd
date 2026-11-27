@@ -258,12 +258,20 @@ static func reflect(entries: Array, now := -1) -> float:
 	return minf(best, 0.4)
 
 
-static func absorb(entries: Array, incoming: int) -> int:
+## [param extra]: the victim's own guard (the special star pool's ลดความเสียหาย,
+## HeroStats.compute "guard"), a separate cut on top of the buffs', all under GUARD_CAP.
+const GUARD_CAP := 0.45
+
+
+static func absorb(entries: Array, incoming: int, extra := 0.0) -> int:
 	var now := Time.get_ticks_msec()
 	var guards: Array=[]
 	for entry in entries:
 		if int(entry.until)>now: guards.append(float(entry.get("guard",0.0)))
-	var amount := int(ceil(incoming*(1.0-clampf(stack(guards),0.0,0.45))))
+	var cut := clampf(stack(guards),0.0,GUARD_CAP)
+	if extra > 0.0:
+		cut = minf(1.0 - (1.0 - cut) * (1.0 - clampf(extra, 0.0, 1.0)), GUARD_CAP)
+	var amount := int(ceil(incoming*(1.0-cut)))
 	for entry in entries:
 		if int(entry.until)<=now or not entry.has("shield_left"): continue
 		var absorbed := mini(amount,int(entry.shield_left))

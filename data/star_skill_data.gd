@@ -9,10 +9,12 @@ const GOD_STAR := 300
 ## carry a low area tune, so theirs is raised until the god skill tops the class's
 ## strongest skill (Judgment Ray, Heartbreak Sonata) and stays its strongest. The Dark
 ## Lord's band-2 tune is single 1.5 / area 0.75 (skill lines), so its god skill is
-## raised to stay above Raven Sovereign (27 single at that band).
+## raised to stay above Raven Sovereign (27 single at that band). The Muay Thai
+## single-target tune sits far above its area share, so Three Realms Fist is raised
+## until it tops Solar Knee Barrage even against one target.
 const GOD_MULT := {
 	&"warrior": 50.0, &"archer": 50.0, &"lancer": 50.0, &"mage": 62.0, &"priest": 50.0,
-	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 92.0, &"bard": 78.0, &"muaythai": 50.0,
+	&"summoner": 50.0, &"defender": 50.0, &"assassin": 50.0, &"darklord": 92.0, &"bard": 78.0, &"muaythai": 90.0,
 }
 ## Contact beats of a god-tier cast (StarSkillSequence): four waves and the finale.
 const GOD_BEATS := [0.0, 0.32, 0.64, 0.96, 1.5]
@@ -133,9 +135,11 @@ static func pool(cls: StringName) -> Array:
 		out.append(s)
 	return out
 
-## A god-tier skill: the fifth and strongest star skill of its class (GOD_STAR stars).
+## A god-tier skill: the fifth and strongest star skill of its class (GOD_STAR stars), and
+## the Ascension's ultimate above it (AscendSkillData); the Ascension's buff (shape "self")
+## plays as a star buff, never a god-tier attack.
 static func is_god(skill: Dictionary) -> bool:
-	return int(skill.get("star", 0)) >= GOD_STAR
+	return int(skill.get("star", 0)) >= GOD_STAR and String(skill.get("shape", "")) != "self"
 
 static func unlock_label(skill: Dictionary) -> String:
 	return "ดาว %d" % int(skill.star) if skill.has("star") else "Lv.%d" % int(skill.get("level",1))

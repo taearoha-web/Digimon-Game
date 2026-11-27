@@ -162,6 +162,10 @@ func _ready() -> void:
 	story = StoryChapter.new()
 	story.main = self
 	add_child(story)
+	# บททดสอบเทวาลัย (AscensionData): the celestial sage's ★500 trial.
+	var ascension := AscensionFlow.new()
+	ascension.main = self
+	add_child(ascension)
 	tower_screen = TowerScreen.new()
 	add_child(tower_screen)
 	tower_screen.climb_requested.connect(func(floor_no: int):
@@ -602,7 +606,7 @@ func _on_level_up(level: int) -> void:
 				Game.say("ปลดล็อกสกิลใหม่: %s! (ใส่ในแถบสกิลได้ที่เมนูสกิล)" % skill.name, &"quest")
 			else:
 				Game.say("สกิล %s ต้อง%s ก่อน — ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % [skill.name, Game.skill_lock_reason(skill).trim_prefix("ต้อง")], &"quest")
-	if Game.class_id() != ClassData.LEGACY and Game.adv() < JobData.MAX_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
+	if Game.class_id() != ClassData.LEGACY and Game.adv() < JobData.GOD_ADV and level == Game.next_step_level() and Game.next_step_stars() <= int(Game.paragon().level):
 		hud.show_banner("เปลี่ยนอาชีพขั้นต่อไปได้แล้ว!")
 		Game.say("สกิลเลเวล %d ขึ้นไปต้องเปลี่ยนอาชีพ ไปหาปรมาจารย์ผู้เปลี่ยนชะตา" % level, &"quest")
 
@@ -616,6 +620,9 @@ func _on_npc(role: String) -> void:
 		return
 	if StoryChapter2.ROLES.has(role):
 		story.talk(role)
+		return
+	if role == AscensionData.ROLE:
+		(get_node("AscensionFlow") as AscensionFlow).talk()
 		return
 	match role:
 		"elder":
@@ -917,8 +924,11 @@ func _talk_job() -> void:
 	if Game.class_id() == ClassData.LEGACY:
 		dialog.say(speaker, "เจ้ายังไม่ได้เลือกอาชีพ กลับไปหน้าเลือกตัวละครแล้วเข้าเกมใหม่ จะได้เลือกอาชีพที่ใจเจ้าเรียกหา")
 		return
-	if Game.adv() >= JobData.MAX_ADV:
-		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านก้าวพ้นขั้นตำนานสู่ความเป็นเทพแล้ว ไม่มีสิ่งใดที่ข้าจะสอนได้อีก!" % [Game.class_data().name, Game.class_data().title])
+	if Game.adv() >= JobData.ASCEND_ADV:
+		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านผ่าน%sแล้ว แม้แต่เทพเจ้ายังต้องก้มหัวให้ท่าน!" % [Game.class_data().name, Game.class_data().title, AscensionData.TITLE])
+		return
+	if Game.adv() >= JobData.GOD_ADV:
+		dialog.say(speaker, "ข้าน้อยขอคารวะ \"%s\" — %s ท่านก้าวพ้นขั้นตำนานสู่ความเป็นเทพแล้ว ไม่มีสิ่งใดที่ข้าจะสอนได้อีก! แต่เหนือเทพยังมี%s (ดาว %d) — ถาม%sข้างข้าดู" % [Game.class_data().name, Game.class_data().title, AscensionData.TITLE, JobData.ASCEND_STARS, AscensionData.SAGE])
 		return
 	_show_advance()
 

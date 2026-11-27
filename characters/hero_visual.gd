@@ -440,6 +440,9 @@ func _wing_model(item: Dictionary) -> Node3D:
 	# The 300★ Dragon God wings (the Dark Lord's: a dragon-scale cape with small wings).
 	if DragonGearData.is_wings(item):
 		return DragonWingArt.build(DragonGearData.item_class(item), decor_light)
+	# The ★500 wings (Star500WingArt; the Dark Lord's and the Muay Thai fighter's: a cape).
+	if Star500Gear.is_wings(item):
+		return Star500WingArt.build(Star500Gear.item_class(item), decor_light)
 	return StarWingData.build(_wing_kind(item)) if StarGearData.is_star(item) else GearKit.wings(_wing_kind(item))
 
 
@@ -491,11 +494,13 @@ func _star_piece(part: String, bone: String, item: Dictionary, side := 1.0) -> N
 
 ## Star gear (50-200★) and the 250★ class sets wear the same crafted pieces.
 static func _starish(item: Variant) -> bool:
-	return StarGearData.is_star(item) or SetGearData.is_item(item)
+	return StarGearData.is_star(item) or SetGearData.is_item(item) or Star500Gear.is_item(item)
 
 
 ## One worn piece of a star or set item (part: chest, pauldron, belt, helm, boots, ring, amulet).
 static func _crafted_piece(part: String, item: Dictionary, side := 1.0) -> Node3D:
+	if Star500Gear.is_item(item):
+		return Star500GearArt.armor_piece(part, Star500Gear.item_class(item), side)
 	if SetGearData.is_item(item):
 		return SetGearArt.armor_piece(part, SetGearData.item_class(item), side)
 	return StarGearArt.armor_piece(part, StarGearData.item_class(item), int(item.star_tier), side)
@@ -566,12 +571,16 @@ func _dress_chibi(armor: Variant) -> void:
 		ChibiLook.set_material(mat, look, int(look.get("gender", 0)))
 		if armor != null:
 			var tier := ItemLook.tier_of(armor)
-			var set_armor := SetGearData.is_item(armor)
+			var heaven_armor := Star500Gear.is_item(armor)
+			var set_armor := SetGearData.is_item(armor) or heaven_armor
 			var cloth := _armor_cloth(armor)
 			mat.set_shader_parameter("outfit_color", cloth)
 			mat.set_shader_parameter("outfit_amount", 0.96 if divine_armor else (0.9 if set_armor else 0.5 + 0.04 * float(tier)))
 			mat.set_shader_parameter("sheen", 0.22 if divine_armor else (0.0 if tier < 2 else 0.2 + 0.08 * float(tier)))
-			if set_armor:
+			if heaven_armor:
+				# The ★500 set's celestial gold runs through the cloth (Star500GearArt.palette).
+				mat.set_shader_parameter("glow_color", Star500GearArt.palette(Star500Gear.item_class(armor)).glow * 0.25)
+			elif set_armor:
 				# The set's own glow runs through the cloth (SetGearData.PALETTES).
 				mat.set_shader_parameter("glow_color", SetGearData.palette(SetGearData.item_class(armor)).glow * 0.3)
 			elif tier >= 7 and not divine_armor:
@@ -677,6 +686,8 @@ static func _armor_cloth(armor: Variant) -> Color:
 		return Color(0, 0, 0, 0)
 	if DivineGearData.is_item(armor):
 		return DivineOutfitArt.palette(StarGearData.item_class(armor)).body
+	if Star500Gear.is_item(armor):
+		return Star500GearArt.cloth(Star500Gear.item_class(armor))
 	if SetGearData.is_item(armor):
 		return SetGearArt.cloth(SetGearData.item_class(armor))
 	if StarGearData.is_star(armor):
@@ -988,7 +999,14 @@ func _make_aura() -> void:
 			made.set_meta("far_decor", true)
 			_body_nodes.append(made)
 	# The 250★ class set: its aura from AURA_PIECES worn pieces (SetGearArt.aura).
-	if SetGearData.worn_count(equip, String(class_id)) >= SetGearData.AURA_PIECES:
+	# The ★500 set's celestial lotus (Star500GearArt.aura) takes the 250★ aura's place.
+	var heaven_aura := Star500Gear.worn_count(equip, String(class_id)) >= Star500Gear.AURA_PIECES
+	if heaven_aura:
+		var star500_aura := Star500GearArt.aura(String(class_id), decor_light)
+		star500_aura.set_meta("far_decor", true)
+		add_child(star500_aura)
+		_body_nodes.append(star500_aura)
+	if not heaven_aura and SetGearData.worn_count(equip, String(class_id)) >= SetGearData.AURA_PIECES:
 		var set_aura := SetGearArt.aura(String(class_id), decor_light)
 		set_aura.set_meta("far_decor", true)
 		add_child(set_aura)
@@ -1111,6 +1129,10 @@ func _hold_gear() -> void:
 		var dragon_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if dragon_offhand != "": _hold("dragon_%s_%s" % [dragon_offhand, DragonGearData.item_class(equip.weapon)], "handslot.l", plus if dragon_offhand == "dagger" else 0, true)
 		return
+	if Star500Gear.is_weapon(equip.get("weapon")):
+		var heaven_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
+		if heaven_offhand != "": _hold("heaven_%s_%s" % [heaven_offhand, Star500Gear.item_class(equip.weapon)], "handslot.l", plus if heaven_offhand == "dagger" else 0, true)
+		return
 	if SetGearData.is_item(equip.get("weapon")):
 		var set_offhand: String = {&"warrior":"shield",&"priest":"book",&"summoner":"tome",&"assassin":"dagger"}.get(class_id, "")
 		if set_offhand != "": _hold("set_%s_%s" % [set_offhand, SetGearData.item_class(equip.weapon)], "handslot.l", plus if set_offhand == "dagger" else 0, true)
@@ -1173,6 +1195,8 @@ func _hold(look: String, bone: String, plus := 0, offhand := false) -> void:
 		item = StarGearArt.build(look)
 	elif look.begins_with("set_"):
 		item = SetGearArt.build(look)
+	elif look.begins_with("heaven_"):
+		item = Star500GearArt.build(look)
 	elif look.begins_with("dragon_"):
 		item = DragonGearArt.build(look)
 		# The dragon's breath round the weapon in the hand (never in a crowd's light dress).

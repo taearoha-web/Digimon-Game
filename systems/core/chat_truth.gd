@@ -53,7 +53,7 @@ static func rules() -> Dictionary:
 			stars[int(ZoneData.ZONES[zid].star)] = true
 	var rates: Array = [Game.PARTY_EXP_BONUS, float(SetGearData.BONUS[4].atk), SetGearData.CRAFT_CHANCE, StarWingData.CRAFT_CHANCE,
 		EndgameFields.SET_CORE_DROP, EndgameFields.SCALE_NORMAL, EndgameFields.SCALE_ELITE, SkyIsleLoot.WEAPON_DROP, SkyIsleLoot.WING_DROP,
-		SkyIsleLoot.FRAGMENT_DROP, SkyIsleLoot.EGG_DROP, SkyIsleLoot.CHEST_NORMAL, SkyIsleLoot.CHEST_ELITE, WorldEvents.HALLOWEEN_DROP,
+		SkyIsleLoot.FRAGMENT_DROP, SkyIsleLoot.EGG_DROP, SkyIsleLoot.CHEST_NORMAL, SkyIsleLoot.CHEST_ELITE, WorldEvents.HALLOWEEN_DROP, Christmas.GIFT_DROP, Christmas.BONUS_EXP,
 		WorldEvents.WEEKEND_GOLD - 1.0, WorldEvents.FORGE_BONUS, WorldEvents.FORGE_CAP, WorldEvents.GOLDEN_CHAOS, WorldEvents.GOLDEN_GEM]
 	for k in ItemData.JEWEL_DROP:
 		rates.append(float(ItemData.JEWEL_DROP[k]))
@@ -100,7 +100,8 @@ static func times(t: float) -> Dictionary:
 	var dates: Array = [DragonHunt.date_text(DragonHunt.next_start(t)), DragonHunt.date_text(DragonHunt.end_of(DragonHunt.index(t))),
 		DragonHunt.date_text(float(WorldEvents.FESTIVAL_END)), DragonHunt.date_text(float(WorldEvents.FESTIVAL5_START)), DragonHunt.date_text(float(WorldEvents.FESTIVAL5_END)),
 		DragonHunt.date_text(float(WorldEvents.FESTIVAL3_START)), DragonHunt.date_text(float(WorldEvents.FESTIVAL3_END)),
-		LoyKrathong.chat_answer(-1, t), WeeklyCollect.chat_answer(-1, t), ChatBrain.help_text("events")]
+		LoyKrathong.chat_answer(-1, t), WeeklyCollect.chat_answer(-1, t), ChatBrain.help_text("events"),
+		Christmas.chat_answer(-1, t), Christmas.chip_text(t), "18:00 06:00 23:00 01:00 23:59 00:00"]
 	for d in dates:
 		for m in _re("hhmm", "(\\d\\d):(\\d\\d)").search_all(String(d)):
 			out[m.get_string(0)] = true

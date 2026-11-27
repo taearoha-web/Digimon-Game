@@ -361,7 +361,7 @@ static func tier_of(level: int, stars: int) -> int:
 		return 0
 	if level < Game.MAX_LEVEL:
 		return 1
-	if stars >= Game.PARAGON_MAX:
+	if stars >= JobData.GOD_STARS:
 		return 5
 	return 2 + clampi(stars / 100, 0, 2)
 

@@ -11,11 +11,17 @@ extends RefCounted
 ## The fifth and last step is the God promotion ("เทพเจ้าแห่ง<อาชีพ>"): it needs
 ## Lv.100 and ★300 (GOD_STARS) on top of its fee, and lifts the legend step's
 ## bonuses by GOD_SCALE (see god_step).
+##
+## Past the God step lies the Ascension (adv 6, ASCEND_ADV, "เปลี่ยนอาชีพขั้นที่ 6"): never
+## bought from the Job Master, it is granted by the celestial sage's trial (AscensionData,
+## "บททดสอบเทวาลัย") to a God at ★500 (ASCEND_STARS). Its grand title (ASCEND_TITLES) lifts
+## the legend step's bonuses by ASCEND_SCALE (a step above the God step, see ascend_step)
+## and opens the two Ascension skills of the class (AscendSkillData, tier ASCEND_TIER).
 
 const TIER_LEVELS := [20, 40, 60, 80, 100]
 const TIER_COSTS := [1500, 6000, 20000, 60000, 1000000]
 const TIER_SKILL_POINTS := [2, 3, 4, 5, 6]
-const MAX_ADV := 5
+const MAX_ADV := 6
 ## The steps a hero takes by level alone (Lv.20/40/60/80); companions and guild-war
 ## fighters stop here, a world player at ★300 takes the God step too (adv_for).
 const LEGEND_ADV := 4
@@ -27,6 +33,32 @@ const GOD_STARS := 300
 ## STR/INT/DEX/VIT bonus (x1.5).
 const GOD_SCALE := 1.4
 const GOD_ATTR_SCALE := 1.5
+## The Ascension (adv 6): ★500, granted by the trial (AscensionData), never bought.
+const ASCEND_ADV := 6
+const ASCEND_STARS := 500
+## Skill points the Ascension gives (the God step gives 6).
+const ASCEND_SKILL_POINTS := 8
+## The class tier the Ascension skills need (ClassData.skill_tier / tier_of): above every
+## level tier (2..5), so a God at ★500 still needs the trial to cast them.
+const ASCEND_TIER := 7
+## How much bigger the Ascension is than the legend step (the God step is 1.4 / 1.5):
+## atk 1.18 -> 1 + 0.18 * 1.9 = 1.342; crit / speed x1.9; STR/INT/DEX/VIT x2.1.
+const ASCEND_SCALE := 1.9
+const ASCEND_ATTR_SCALE := 2.1
+## The Ascension of each class: [name, title (ฉายา), colour].
+const ASCEND_TITLES := {
+	&"warrior": ["จักรพรรดิดาบสวรรค์", "ผู้ปกครองคมดาบแห่งเทวาลัย", Color("fff6c8")],
+	&"archer": ["จักรพรรดิศรดารา", "ผู้ยิงดวงตะวันให้หยุดนิ่ง", Color("d8fff4")],
+	&"mage": ["มหาเทพแห่งจักรวาลเวท", "ผู้เขียนกฎของดวงดาว", Color("f0dcff")],
+	&"priest": ["มหาเทพแห่งแสงนิรันดร์", "ผู้ปลุกรุ่งอรุณแห่งเทวาลัย", Color("fffdf0")],
+	&"summoner": ["จักรพรรดิอสูรเทวะ", "ผู้บัญชาสรรพสัตว์สามภพ", Color("e4ffc8")],
+	&"lancer": ["จักรพรรดิหอกมังกรสวรรค์", "ผู้ทะลวงประตูเทวาลัย", Color("e0f6ff")],
+	&"defender": ["ปราการเทวะนิรันดร์", "กำแพงที่สวรรค์พิงหลัง", Color("eef6ff")],
+	&"assassin": ["จักรพรรดิเงาไร้กาล", "ผู้พิพากษาในราตรีนิรันดร์", Color("ffd8ee")],
+	&"darklord": ["มหาจักรพรรดิอเวจีสวรรค์", "ผู้สวมมงกุฎแห่งแสงและความมืด", Color("ffe48a")],
+	&"bard": ["คีตเทพแห่งจักรวาล", "ผู้ขับขานบทเพลงนิรันดร์", Color("fff0fa")],
+	&"muaythai": ["บรมครูมวยเทวะ", "หมัดที่สะเทือนเทวาลัย", Color("ffe8c4")],
+}
 ## The God step of each class: its title (ฉายา) and colour; the name is
 ## "เทพเจ้าแห่ง" + the class's Thai name.
 const GOD_TITLES := {
@@ -202,10 +234,12 @@ const PATHS := {
 }
 
 
-## Step [param index] (0..3, or 4 for the God step) of a class path, or {}.
+## Step [param index] (0..3, 4 for the God step, 5 for the Ascension) of a class path, or {}.
 static func step(class_id: StringName, index: int) -> Dictionary:
 	if index == GOD_ADV - 1:
 		return god_step(class_id)
+	if index == ASCEND_ADV - 1:
+		return ascend_step(class_id)
 	var path: Array = PATHS.get(class_id, [])
 	return path[index] if index >= 0 and index < path.size() else {}
 
@@ -236,6 +270,37 @@ static func god_step(class_id: StringName) -> Dictionary:
 	return result
 
 
+static var _ascends: Dictionary = {}
+
+
+## The Ascension of a class (adv 6): its grand name, the legend step's bonuses scaled by
+## ASCEND_SCALE / ASCEND_ATTR_SCALE (above the God step's on every key).
+static func ascend_step(class_id: StringName) -> Dictionary:
+	if not PATHS.has(class_id):
+		return {}
+	if _ascends.has(class_id):
+		return _ascends[class_id]
+	var legend: Dictionary = PATHS[class_id][LEGEND_ADV - 1]
+	var bonus := {}
+	for key in legend.bonus:
+		var value := float(legend.bonus[key])
+		bonus[key] = snappedf(1.0 + (value - 1.0) * ASCEND_SCALE, 0.001) if key in ["hp", "mp", "atk", "def"] else snappedf(value * ASCEND_SCALE, 0.001)
+	var attrs := {}
+	for key in legend.attrs:
+		attrs[key] = int(round(float(legend.attrs[key]) * ASCEND_ATTR_SCALE))
+	var info: Array = ASCEND_TITLES.get(class_id, ["จักรพรรดิเทวาลัย", "ผู้ผ่านบททดสอบเทวาลัย", Color("fff6c8")])
+	var result := {"name": info[0], "title": info[1], "color": info[2], "god": true, "ascend": true, "stars": ASCEND_STARS,
+		"desc": "เปลี่ยนอาชีพขั้นที่ 6 เหนือเทพเจ้า ต้องดาว %d และผ่านบททดสอบเทวาลัย ปลดล็อกสกิลเทวาลัย 2 สกิล พลังทุกด้านเหนือขั้นเทพเจ้า" % ASCEND_STARS,
+		"bonus": bonus, "attrs": attrs}
+	_ascends[class_id] = result
+	return result
+
+
+## True once a hero with [param adv] steps has taken the Ascension (adv 6).
+static func is_ascended(adv: int) -> bool:
+	return adv >= ASCEND_ADV
+
+
 ## "เทพเจ้าแห่ง" + the class's Thai name, e.g. เทพเจ้าแห่งดาร์กลอร์ด.
 static func god_name(class_id: StringName) -> String:
 	return "เทพเจ้าแห่ง" + String(ClassData.get_class_data(class_id).name)
@@ -248,7 +313,7 @@ static func is_god(adv: int) -> bool:
 
 ## Stars the step after [param adv] steps needs (0 for the level steps).
 static func step_stars(adv: int) -> int:
-	return GOD_STARS if adv == GOD_ADV - 1 else 0
+	return GOD_STARS if adv == GOD_ADV - 1 else (ASCEND_STARS if adv == ASCEND_ADV - 1 else 0)
 
 
 ## "พลังโจมตี +25%  HP +20%  คริติคอล +3.5%" for a step's bonus.
@@ -270,16 +335,19 @@ static func current(class_id: StringName, adv: int) -> Dictionary:
 	return step(class_id, adv - 1)
 
 
-## Name of tier 1..6 of a class: the class, then the four steps and the God step.
+## Name of tier 1..6 of a class: the class, then the four steps and the God step
+## (ASCEND_TIER names the Ascension).
 static func tier_name(class_id: StringName, tier: int) -> String:
 	if tier <= 1:
 		return String(ClassData.get_class_data(class_id).name)
+	if tier >= ASCEND_TIER:
+		return String(ascend_step(class_id).get("name", "?"))
 	return String(step(class_id, tier - 2).get("name", "?"))
 
 
 ## Level at which tier 2..5 (steps 1..4) is reached.
 static func tier_level(tier: int) -> int:
-	return int(TIER_LEVELS[clampi(tier - 2, 0, MAX_ADV - 1)])
+	return int(TIER_LEVELS[clampi(tier - 2, 0, TIER_LEVELS.size() - 1)])
 
 
 ## Attribute bonuses (STR/INT/DEX/VIT) of all steps reached.
@@ -311,8 +379,12 @@ static func adv_for_level(level: int) -> int:
 
 
 ## The steps a world player has taken (WorldPlayers.profile): the level steps, and at
-## Lv.100 with ★300 (GOD_STARS) the God step too (the fee is earned along the way).
+## Lv.100 with ★300 (GOD_STARS) the God step too (the fee is earned along the way), and a
+## hardcore player at ★500 (ASCEND_STARS) has passed the trial: the Ascension, the same
+## for every client (guild war, name plates), never rolled.
 static func adv_for(level: int, stars: int) -> int:
+	if level >= 100 and stars >= ASCEND_STARS:
+		return ASCEND_ADV
 	if level >= 100 and stars >= GOD_STARS:
 		return GOD_ADV
 	return adv_for_level(level)

@@ -173,6 +173,9 @@ const JEWELS := {
 	# The 250-star set's ring and amulet need these (SetGearData.recipe), dropped in
 	# the two 200-300 star fields (EndgameFields.SCALE_*).
 	"lotus_scale": {"name": "เกล็ดบัวดารา", "color": Color("f8a8dc"), "price": 30000},
+	# The 500-star set's material (Star500Gear.CRAFT_CORES), dropped in ดินแดนเทวาลัย
+	# (Star500Gear.drop) and forged with gold into any piece of the hero's own set.
+	"heaven_core": {"name": "แก่นเทวาลัย", "color": Color("ffe07a"), "price": 80000},
 	# The mechanics dungeon's material (DungeonData.SCALE): dropped by its boss only and
 	# exchanged at the tomb keeper for dungeon-only gear.
 	"dragon_scale": {"name": "เกล็ดมังกรโบราณ", "color": Color("5cf28a"), "price": 40000},
@@ -199,6 +202,10 @@ const JEWELS := {
 	"lk_k0": {"name": "กระทงใบตอง", "color": Color("7ad06a"), "price": 8000}, "lk_k1": {"name": "กระทงดอกบัว", "color": Color("ff8fc8"), "price": 20000},
 	"lk_k2": {"name": "กระทงทองคำ", "color": Color("ffd23a"), "price": 50000}, "lk_k3": {"name": "กระทงเทพนาคา", "color": Color("5cf2d0"), "price": 150000},
 	"lk_piece": {"name": "ชิ้นส่วนชุดลอยกระทง", "color": Color("ffc24a"), "price": 20000},
+	# The Christmas and New Year festival (Christmas): the gift box monsters drop during it
+	# (opened from the bag) and the Santa costume's piece (xm_piece).
+	"xm_gift": {"name": "กล่องของขวัญ", "color": Color("ff4a5a"), "price": 500},
+	"xm_piece": {"name": "ชิ้นส่วนชุดซานต้า", "color": Color("f4f4ff"), "price": 10000},
 }
 ## Drop chance per kill in every levelling field.
 const JEWEL_DROP := {"purple": 0.01, "pink": 0.005, "chaos": 0.01}
@@ -648,6 +655,8 @@ static func color_of(item: Dictionary) -> Color:
 		return LegendWings.COLOR
 	if DragonGearData.is_item(item):
 		return DragonGearData.COLOR
+	if Star500Gear.is_item(item):
+		return Star500Gear.COLOR
 	if item.get("kind", "") == "potion":
 		return POTIONS[item.id].color
 	if item.get("kind", "") == "jewel":
@@ -738,6 +747,8 @@ static func detail_lines(item: Dictionary) -> Array[String]:
 		lines.append_array(LegendWings.detail_lines(item))
 	if DragonGearData.is_item(item):
 		lines.append_array(DragonGearData.detail_lines(item))
+	if Star500Gear.is_item(item):
+		lines.append_array(Star500Gear.detail_lines(item))
 	if SetGearData.is_item(item):
 		lines.append("%s · อุปกรณ์ 250 ดาว (ผสมที่ช่างตีเหล็ก)" % SetGearData.set_label(SetGearData.item_class(item)))
 		lines.append("โบนัสเซต: " + SetGearData.bonus_text())

@@ -74,6 +74,9 @@ const MOODS := {
 	# เกาะลอยฟ้าเทพมังกร: a bright high sky, golden-hour light, long gold shafts.
 	&"sky_dragon_isle": {"clouds": Color(1.0, 0.95, 0.88, 0.75), "warm": 0.7, "rays": Color(1.0, 0.86, 0.52, 0.3), "ray_count": 6,
 		"shadows": 0.14, "exposure": 0.98, "sky_light": 0.25, "grade": Vector3(1.0, 1.1, 1.22)},
+	# ดินแดนเทวาลัย: white-gold clouds, a bright noon over the temple, long gold shafts.
+	&"heaven_realm": {"clouds": Color(1.0, 0.97, 0.9, 0.8), "warm": 0.6, "rays": Color(1.0, 0.9, 0.6, 0.34), "ray_count": 7,
+		"shadows": 0.12, "exposure": 1.0, "sky_light": 0.3, "grade": Vector3(1.0, 1.08, 1.16)},
 	# The drowned abyss: no clouds, the surface's light falling as teal shafts.
 	&"drowned_abyss": {"clouds": Color(0.4, 0.85, 0.9, 0.25), "warm": 0.0, "rays": Color(0.45, 0.95, 1.0, 0.36), "ray_count": 7,
 		"sky_light": 0.45, "grade": Vector3(1.0, 1.06, 1.08)},

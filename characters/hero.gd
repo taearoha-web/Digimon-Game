@@ -1808,7 +1808,7 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, effective_def())))))
 	amount = ClassRoles.guard(self, amount)
-	amount = BuffBook.absorb(_buffs, amount)
+	amount = BuffBook.absorb(_buffs, amount, float(stats.get("guard", 0.0)))
 	_reflect(amount, _attacker)
 	if StarProgression.has_full_set(Game.profile,"warrior"):
 		amount=int(ceil(amount*0.9))

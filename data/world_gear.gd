@@ -220,6 +220,7 @@ static func warm(t: float, budget: int) -> bool:
 		if sim == null:
 			sim = _new_sim(i)
 			_sims[i] = sim
+		sim.fest = []
 		while _edge(sim.chunks) <= w:
 			_run_chunk(i, sim, sim.chunks)
 			sim.chunks += 1
@@ -230,6 +231,25 @@ static func warm(t: float, budget: int) -> bool:
 			_warm_next = (i + 1) % n
 			return false
 	_warm_next = (_warm_next + mini(n, WARM_PLAYERS)) % n
+	return true
+
+
+## Runs player i's simulation on to cover work w, a stretch (chunk) at a time, until
+## Time.get_ticks_usec() reaches `until`: true once it covers w (a read is then a
+## look-up), false to be carried on later (MazeWar.warm). The same simulation as _sim's.
+static func advance(i: int, w: float, until: int) -> bool:
+	var sim: Sim = _sims.get(i)
+	if sim == null:
+		sim = _new_sim(i)
+		_sims[i] = sim
+	if _edge(sim.chunks) > w:
+		return true
+	sim.fest = []
+	while _edge(sim.chunks) <= w:
+		_run_chunk(i, sim, sim.chunks)
+		sim.chunks += 1
+		if Time.get_ticks_usec() >= until and _edge(sim.chunks) <= w:
+			return false
 	return true
 
 
@@ -289,16 +309,41 @@ static func gear_at_work(i: int, w: float) -> Dictionary:
 ## holds emeralds; the special gem is crit damage for the damage dealers, lifesteal for
 ## the Defender and cooldown for the supports.
 static func gem_plan(cls: String) -> Dictionary:
+	return _plan(cls).duplicate()
+
+
+## gem_plan, kept per class (the simulation reads it every stretch; never changed).
+static func _plan(cls: String) -> Dictionary:
+	var hit: Variant = _plans.get(cls)
+	if hit != null:
+		return hit
 	var main := String(GEM_MAIN.get(cls, "sapphire" if String(ClassData.get_class_data(StringName(cls)).get("main", "str")) == "int" else "ruby"))
-	return {"main": main, "body": "emerald", "special": String(GEM_SPECIAL.get(cls, "onyx"))}
+	var plan := {"main": main, "body": "emerald", "special": String(GEM_SPECIAL.get(cls, "onyx"))}
+	_plans[cls] = plan
+	return plan
+
+
+static var _plans := {}
+static var _slot_gems := {}
 
 
 ## The gem kind slot `slot` of a `cls` holds (gem_plan).
 static func gem_for_slot(cls: String, slot: String) -> String:
-	var plan := gem_plan(cls)
+	var per: Variant = _slot_gems.get(cls)
+	if per == null:
+		per = {}
+		_slot_gems[cls] = per
+	var hit: Variant = (per as Dictionary).get(slot)
+	if hit != null:
+		return hit
+	var plan := _plan(cls)
+	var kind := ""
 	if cls == "defender":
-		return String(plan.body) if slot in ["ring", "amulet"] else String(plan.main)
-	return String(plan.body) if slot == "armor" else String(plan.main)
+		kind = String(plan.body) if slot in ["ring", "amulet"] else String(plan.main)
+	else:
+		kind = String(plan.body) if slot == "armor" else String(plan.main)
+	(per as Dictionary)[slot] = kind
+	return kind
 
 
 ## The sockets of the piece player i wears in `slot` in state st (its own and the drilled
@@ -466,6 +511,25 @@ static func _kind_of(key: String) -> String:
 ## band's find, "s<tier>" a star tier's, "divine", "set", "w<n>" its n-th Lv.100 wings,
 ## "sw" the 100★ wings, DRAGON the Dragon God weapon / wings (DragonGearData).
 static func _item(i: int, slot: String, key: String) -> Dictionary:
+	# Kept on the player's simulation too (the forge and the gems read them every stretch).
+	var own: Sim = _sims.get(i)
+	var per: Dictionary = {}
+	if own != null:
+		var got: Variant = own.items.get(slot)
+		if got == null:
+			own.items[slot] = per
+		else:
+			per = got
+			var mine: Variant = per.get(key)
+			if mine != null:
+				return mine
+	var item := _make_item(i, slot, key)
+	if own != null:
+		per[key] = item
+	return item
+
+
+static func _make_item(i: int, slot: String, key: String) -> Dictionary:
 	var ck := "%d|%s|%s" % [i, slot, key]
 	var hit: Variant = _items.get(ck)
 	if hit != null:
@@ -538,6 +602,10 @@ class Sim:
 	var drills := 0
 	## The work from which the maze race drives it (MazeWar.drive_from; INF never).
 	var maze_from := INF
+	## Its items by slot and find key (_item), and the festival's work bounds of the
+	## extension running now ([] until read: festival_kill_share).
+	var items := {}
+	var fest: Array = []
 	## เกาะลอยฟ้าเทพมังกร: the Dragon God's drops on their own rolls, its isle kills so far
 	## and the pieces of its class they dropped (worn or spare).
 	var drng := RandomNumberGenerator.new()
@@ -567,9 +635,11 @@ static func _sim(i: int, w: float) -> Sim:
 	if sim == null:
 		sim = _new_sim(i)
 		_sims[i] = sim
-	while _edge(sim.chunks) <= w:
-		_run_chunk(i, sim, sim.chunks)
-		sim.chunks += 1
+	if _edge(sim.chunks) <= w:
+		sim.fest = []
+		while _edge(sim.chunks) <= w:
+			_run_chunk(i, sim, sim.chunks)
+			sim.chunks += 1
 	return sim
 
 
@@ -819,7 +889,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	# What the kills of this stretch drop. Its work inside the festival (EXP x3) took a
 	# third of the kills, and their jewels dropped x3 (festival_kill_share).
 	var rng := sim.rng
-	var share: Array = festival_kill_share(i, w0, w1)
+	var share: Array = festival_kill_share(i, w0, w1, sim)
 	var all_kills := (w1 - w0) * kills_per_minute(level, stars)
 	var kills := all_kills * float(share[0])
 	var jewel_kills := all_kills * float(share[1])
@@ -906,13 +976,19 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 ## often: so a third of the kills (every other drop a third) and the jewels as they were
 ## a work, x3 a real minute, as the hero's. (1, 1) outside it. The festival's work is read
 ## off the clock (work_at at its start and end), the same on every device.
-static func festival_kill_share(i: int, w0: float, w1: float) -> Array:
+static func festival_kill_share(i: int, w0: float, w1: float, sim: Sim = null) -> Array:
 	if not WorldEvents.festival_enabled or w1 <= w0:
 		return [1.0, 1.0]
-	var a := WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_START))
+	# The bounds are read once in an extension of the simulation (sim.fest, emptied as
+	# each one starts: nothing changes them in between).
+	if sim != null and sim.fest.is_empty():
+		sim.fest = [WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_START)), -1.0]
+	var a := float(sim.fest[0]) if sim != null else WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_START))
 	if w1 <= a:
 		return [1.0, 1.0]
-	var b := WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_END))
+	if sim != null and float(sim.fest[1]) < 0.0:
+		sim.fest[1] = WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_END))
+	var b := float(sim.fest[1]) if sim != null else WorldPlayers.work_at(i, float(WorldEvents.FESTIVAL3_END))
 	var inside := maxf(0.0, minf(w1, b) - maxf(w0, a)) / (w1 - w0)
 	if inside <= 0.0:
 		return [1.0, 1.0]
@@ -958,7 +1034,7 @@ static func _isle_drops(sim: Sim, at: float, isle_kills: float) -> float:
 static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: float, drive := 1.0, fuse_drive := 1.0) -> void:
 	var g := sim.grng
 	var cls := sim.job
-	var plan := gem_plan(cls)
+	var plan := _plan(cls)
 	var top := level >= Game.MAX_LEVEL
 	var endgame := top and stars >= ENDGAME_STARS
 	# Stat gems: a fifth of the drops are of each kind; it keeps its two.
@@ -976,12 +1052,12 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 	var mean := kills * rate * (GEM_KEEN_ENDGAME if endgame else GEM_KEEN_FIELD) * drive / float(ItemData.STAT_GEMS.size())
 	if mean > 0.0:
 		for kind in [String(plan.main), String(plan.body)]:
-			_bag_add(sim, "%s_%d" % [kind, size], _count(g, mean * (1.0 - perfect)))
-			_bag_add(sim, "%s_3" % kind, _count(g, mean * perfect))
+			_bag_add(sim, _gem_id(kind, size), _count(g, mean * (1.0 - perfect)))
+			_bag_add(sim, _gem_id(kind, 3), _count(g, mean * perfect))
 	# The ★ fields: special gems (it keeps its own kind) and drills.
 	if top and stars >= 1:
 		for n in _count(g, kills * Zone.SPECIAL_GEM_STAR * GEM_KEEN * drive / float(ItemData.SPECIAL_GEMS.size())):
-			_bag_add(sim, "%s_%d" % [String(plan.special), g.randi_range(0, 1)], 1)
+			_bag_add(sim, _gem_id(String(plan.special), g.randi_range(0, 1)), 1)
 		sim.drills += _count(g, kills * Zone.DRILL_STAR * GEM_KEEN * ZEAL)
 	var live: Dictionary = sim.live
 	var worn: Dictionary = live.worn
@@ -1060,14 +1136,14 @@ static func _gems(i: int, sim: Sim, at: float, level: int, stars: int, kills: fl
 			e += 1
 			var best := -1
 			for id in list:
-				best = maxi(best, int(String(id).split("_")[1]))
+				best = maxi(best, int(_gem_bits(String(id))[1]))
 			_emit(sim, at + 0.0001 * float(e), "gems", slot, had.size(), list.size(), "", {"gems": list, "socks": int(drill.get(slot, 0)), "best": best})
 	sim.bag.clear()
 	for kind in pool:
 		var sizes: Array = pool[kind]
 		for s in sizes.size():
 			if sizes[s] > 0:
-				sim.bag["%s_%d" % [kind, s]] = sizes[s]
+				sim.bag[_gem_id(String(kind), s)] = sizes[s]
 
 
 static func _bag_add(sim: Sim, id: String, n: int) -> void:
@@ -1076,12 +1152,40 @@ static func _bag_add(sim: Sim, id: String, n: int) -> void:
 
 
 static func _pool_add(pool: Dictionary, id: String, n: int) -> void:
-	var bits := id.split("_")
-	if not pool.has(bits[0]):
-		pool[bits[0]] = [0, 0, 0, 0, 0]
-	var sizes: Array = pool[bits[0]]
+	var bits := _gem_bits(id)
+	var kind := String(bits[0])
+	if not pool.has(kind):
+		pool[kind] = [0, 0, 0, 0, 0]
+	var sizes: Array = pool[kind]
 	sizes[int(bits[1])] += n
-	pool[bits[0]] = sizes
+
+
+## A gem id ("ruby_2") as [kind, size], kept.
+static func _gem_bits(id: String) -> Array:
+	var hit: Variant = _bits.get(id)
+	if hit != null:
+		return hit
+	var parts := id.split("_")
+	var out := [parts[0], int(parts[1])]
+	_bits[id] = out
+	return out
+
+
+## The gem id of `kind` and `size` ("ruby_2"), kept.
+static func _gem_id(kind: String, size: int) -> String:
+	var per: Variant = _ids.get(kind)
+	if per == null:
+		per = []
+		for s in 5:
+			(per as Array).append("%s_%d" % [kind, s])
+		_ids[kind] = per
+	if size < (per as Array).size():
+		return (per as Array)[size]
+	return "%s_%d" % [kind, size]
+
+
+static var _bits := {}
+static var _ids := {}
 
 
 ## The biggest gem of `kind` left in the pool ("" when none), taken out.
@@ -1092,8 +1196,7 @@ static func _pool_take(pool: Dictionary, kind: String) -> String:
 	for s in range(sizes.size() - 1, -1, -1):
 		if sizes[s] > 0:
 			sizes[s] -= 1
-			pool[kind] = sizes
-			return "%s_%d" % [kind, s]
+			return _gem_id(kind, s)
 	return ""
 
 

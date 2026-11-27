@@ -99,7 +99,9 @@ static func get_monster(id: StringName) -> Dictionary:
 	if DivineRegionData.has_monster(id): return DivineRegionData.monster(id)
 	if DrownedAbyssData.has_monster(id): return DrownedAbyssData.monster(id)
 	if SkyIsleData.has_monster(id): return SkyIsleData.monster(id)
+	if HeavenMonsters.has_monster(id): return HeavenMonsters.monster(id)
 	if StoryChapter2.has_monster(id): return StoryChapter2.monster(id)
+	if AscensionData.has_monster(id): return AscensionData.monster(id)
 	if StarMonsters.has(id): return StarMonsters.get_monster(id)
 	return MONSTERS.get(id, MONSTERS[&"pink_slime"])
 
@@ -131,6 +133,8 @@ const ZONE_TUNING := {
 	&"drowned_abyss": EndgameFields.TUNING,
 	# เกาะลอยฟ้าเทพมังกร: its own band, above them (SkyIsleData).
 	&"sky_dragon_isle": SkyIsleData.TUNING,
+	# ดินแดนเทวาลัย: above the isle (HeavenRealmData).
+	&"heaven_realm": HeavenRealmData.TUNING,
 }
 ## Late bosses gained boss health (index 2) when single-target skills began to
 ## out-hit area skills (ClassData.SINGLE_EDGE), so boss fights keep their length.
@@ -139,7 +143,7 @@ const ZONE_TUNING := {
 const LATE_HP := {
 	&"void": 2.0, &"dawn_forest": 2.5, &"crystal_valley": 3.0,
 	&"sky_citadel": 3.5, &"eclipse_realm": 4.0, &"lotus_sanctum": EndgameFields.LATE_HP, &"drowned_abyss": EndgameFields.LATE_HP,
-	&"sky_dragon_isle": SkyIsleData.LATE_HP,
+	&"sky_dragon_isle": SkyIsleData.LATE_HP, &"heaven_realm": HeavenRealmData.LATE_HP,
 }
 static var _home_zone := {}
 
@@ -149,6 +153,9 @@ static func home_zone(id: StringName) -> StringName:
 	# The chapter 2 bosses fight with the tuning of the field they appear in.
 	if StoryChapter2.has_monster(id):
 		return StoryChapter2.home_of(id)
+	# The trial guardian of บททดสอบเทวาลัย (AscensionData) fights as the top star field's boss.
+	if AscensionData.has_monster(id):
+		return AscensionData.home_of(id)
 	if _home_zone.is_empty():
 		ZoneData.ensure()
 		for zone_id in ZoneData.ZONES:
