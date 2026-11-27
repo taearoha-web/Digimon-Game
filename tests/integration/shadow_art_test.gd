@@ -59,8 +59,10 @@ func _ready() -> void:
 		var core_sum := 0
 		var low_sum := 0
 		var skills := ClassData.pool(cls)
-		# Skill lines: 8 lines of 1..3 stages each and 5 star skills.
-		check(skills.size() >= 8 + 5 + 8 and skills.filter(func(s): return s.has("star")).size() == 5, "%s has its skills and star skills (%d)" % [cls, skills.size()])
+		# Skill lines: 8 lines of 1..3 stages each, 5 star skills and the 2 skills of the
+		# ★500 Ascension (AscendSkillData, star skills too).
+		var ascend := skills.filter(func(s): return bool(s.get("ascend", false))).size()
+		check(skills.size() >= 8 + 5 + 2 + 8 and skills.filter(func(s): return s.has("star")).size() == 5 + 2 and ascend == 2, "%s has its skills, star skills and Ascension skills (%d)" % [cls, skills.size()])
 		for skill in skills:
 			check(ClassSignature.handles(skill), "%s %s is a signature skill" % [cls, skill.id])
 			# A god skill with its own signature art (GodSkillArt.owns) draws every beat itself.
