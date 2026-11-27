@@ -1812,7 +1812,8 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	# The Ascension trial's guardian: a share of max HP at least (AscensionData.FLOOR_SHARE).
 	if _attacker != null and is_instance_valid(_attacker) and _attacker.has_meta(AscensionData.FLOOR_META):
 		var base := maxf(1.0, float(_attacker.get_meta(AscensionData.FLOOR_META)))
-		amount = maxi(amount, int(round(raw / base * AscensionData.FLOOR_SHARE * float(stats.max_hp))))
+		var scale := minf(raw / base, AscensionData.FLOOR_MAX_SCALE)
+		amount = maxi(amount, int(round(scale * AscensionData.FLOOR_SHARE * float(stats.max_hp))))
 	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_buffs, amount, float(stats.get("guard", 0.0)))
 	_reflect(amount, _attacker)

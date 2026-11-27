@@ -469,6 +469,14 @@ func _trial() -> void:
 	Mob.strike(hero, float(boss.stats.atk), boss)
 	var floor_hit := hp0 - int(Game.profile.hp)
 	check(floor_hit >= int(float(hero.stats.max_hp) * AscensionData.FLOOR_SHARE * 0.5), "a huge DEF still takes a real share a blow (%d of %d HP, before guard: %.0f%%)" % [floor_hit, int(hero.stats.max_hp), AscensionData.FLOOR_SHARE * 100.0])
+	# A story move's blow (StoryBoss, raw many times the guardian's attack) is never
+	# lifted past FLOOR_MAX_SCALE x the floor (it once took 300k+ off a 155k hero).
+	Game.profile.hp = int(hero.stats.max_hp)
+	hero._invulnerable_until = 0
+	hp0 = int(Game.profile.hp)
+	Mob.strike(hero, float(boss.stats.atk) * 12.0, boss)
+	var story_hit := hp0 - int(Game.profile.hp)
+	check(story_hit <= int(ceil(float(hero.stats.max_hp) * AscensionData.FLOOR_SHARE * AscensionData.FLOOR_MAX_SCALE)) + 1, "a huge raw blow is held to the floor's cap (%d of %d HP)" % [story_hit, int(hero.stats.max_hp)])
 	hero.stats.def = saved_def
 	Game.profile.hp = int(hero.stats.max_hp)
 	# The phases.

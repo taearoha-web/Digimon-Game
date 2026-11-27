@@ -58,6 +58,11 @@ const ENRAGE_ATK := 2.5
 ## of k times its strength k times that; enraged, ENRAGE_ATK times). The owner found a
 ## +15 ★500 hero took about 1% a blow. FLOOR_META on the guardian holds its base attack.
 const FLOOR_SHARE := 0.15
+## ... and the floor never grows past FLOOR_MAX_SCALE times that (37.5%): the story moves
+## already hit a share of max HP of their own (StoryBoss.HIT_FRACTION, 35%), and their raw
+## blow, many times the guardian's attack, once made the floor over 100% (300k+ on the
+## owner's hero).
+const FLOOR_MAX_SCALE := 2.5
 const FLOOR_META := &"hp_floor_atk"
 const STEPS := [
 	{"name": "ล่าผู้พิทักษ์แห่งเทวาลัย", "desc": "ปราบมอนสเตอร์ชั้นยอดในดินแดนเทวาลัย %d ตัว (บอสนับ %d)"},
