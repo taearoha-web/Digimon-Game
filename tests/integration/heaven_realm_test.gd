@@ -108,9 +108,13 @@ func _bestiary() -> void:
 	for id in HeavenMonsters.NORMALS + HeavenMonsters.ELITES:
 		check(MobAttack.knows(HeavenMonsters.monster(id)), "%s fights with a MobAttack move" % id)
 	check(MonsterData.get_monster(&"heaven_hound").name == HeavenMonsters.MONSTERS[&"heaven_hound"].name, "MonsterData knows the realm's monsters")
-	# The look: tinted rigs with the golden halo; the elites crowned.
-	for id in [&"heaven_lantern", &"heaven_gatekeeper"]:
+	# The look: the haloed kinds wear the golden halo (elites crowned); the gate giants
+	# and the golden naga are sculpted in code and dress themselves (no "aura").
+	for id in HeavenMonsters.NORMALS + HeavenMonsters.ELITES:
 		var tm := MonsterData.get_monster(id)
+		if not tm.has("aura"):
+			check(HeavenYaksha.has(String(tm.get("yaksha", ""))) or HeavenNaga.has(String(tm.get("naga", ""))), "%s: no halo, a sculpted body instead" % id)
+			continue
 		var visual := Node3D.new()
 		add_child(visual)
 		DeepMonsterArt.attach(visual, tm)
@@ -323,10 +327,15 @@ func _in_game() -> void:
 		check(int((mob as Mob).level) >= HeavenRealmData.CAMP_MIN, "camp level in the band")
 	check(kinds.size() == 7, "every kind is about (%d)" % kinds.size())
 	var aura := 0
+	var haloed := 0
 	for mob in mobs:
-		if (mob as Mob).visual.get_node_or_null("DeepAura") != null:
-			aura += 1
-	check(aura == mobs.size(), "every monster wears the golden halo")
+		if (mob as Mob).template.has("aura"):
+			haloed += 1
+			if (mob as Mob).visual.get_node_or_null("DeepAura") != null:
+				aura += 1
+		else:
+			check((mob as Mob).visual.get_node_or_null("DeepAura") == null, "the sculpted giants and naga wear no halo")
+	check(aura == haloed, "every haloed monster wears the golden halo (%d / %d)" % [aura, haloed])
 	var texts := []
 	for node in zone.find_children("*", "Label3D", true, false):
 		texts.append((node as Label3D).text)

@@ -40,6 +40,26 @@ static func make(parent: Node, template: Dictionary) -> MonsterVisual:
 		parent.add_child(kirin)
 		kirin.build(float(template.height))
 		return kirin
+	# ดินแดนเทวาลัย's gate giants ("yaksha": HeavenYaksha) and golden naga ("naga": HeavenNaga).
+	if HeavenYaksha.has(String(template.get("yaksha", ""))) and not template.has("celestial"):
+		var giant := HeavenYakshaVisual.new()
+		parent.add_child(giant)
+		giant.build(String(template.yaksha), float(template.height))
+		return giant
+	if HeavenNaga.has(String(template.get("naga", ""))) and not template.has("celestial"):
+		var naga := HeavenNagaVisual.new()
+		parent.add_child(naga)
+		naga.build(String(template.naga), float(template.height), float(template.get("hover", 0.0)))
+		return naga
+	# ดินแดนเทวาลัย's lantern deva and cloud hermit ("folk": HeavenFolk).
+	if HeavenFolk.has(String(template.get("folk", ""))):
+		return HeavenFolkVisual.make(parent, template)
+	# ดินแดนเทวาลัย's กินรี and ครุฑน้อย ("bird": HeavenBird).
+	if HeavenBird.has(String(template.get("bird", ""))):
+		var bird := HeavenBirdVisual.new()
+		parent.add_child(bird)
+		bird.build(String(template.bird), float(template.height), float(template.get("hover", 0.0)))
+		return bird
 	var kind_id := String(template.get("celestial", ""))
 	if CelestialDragon.has(kind_id):
 		var dragon := CelestialDragonVisual.new()

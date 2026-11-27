@@ -94,7 +94,7 @@ const QUESTS := {
 	"lotus_seraph": {"name": "ออเรเลีย ราชันปีกบัวดารา", "desc": "บททดสอบสุดท้ายของวีรบุรุษ: ปราบราชันปีกบัวดาราผู้เฝ้าวิหาร บอสให้เกล็ดบัวดาราทุกครั้ง ใช้ผสมแหวนและสร้อยชุดเซต 250 ดาว", "target": "lotus_seraph", "count": 1, "level": 100, "star": 200,
 		"items": [["hp_god", 25], ["mp_xxl", 25]], "star_gear": 200, "zone": "lotus_sanctum", "next": "heaven_lanterns"},
 	# ดินแดนเทวาลัย (HeavenRealmData), from ★300 toward ★500.
-	"heaven_lanterns": {"name": "โคมสวรรค์ดับแสง", "desc": "ภูตโคมสวรรค์คลั่งและเผาระเบียงหินอ่อนของดินแดนเทวาลัย ขึ้นไปดับไฟพวกมันให้หมด (ประตูอยู่ที่ห้วงสมุทรอสูร หรือวาปจากคริสตัล)", "target": "heaven_lantern", "count": 20, "level": 100, "star": 300,
+	"heaven_lanterns": {"name": "โคมสวรรค์ดับแสง", "desc": "เทวดาน้อยถือโคมถูกมนตร์ร้ายครอบงำ ซัดลูกแสงจากโคมทิพย์ใส่ทุกคนที่ขึ้นมาบนระเบียงหินอ่อนของดินแดนเทวาลัย ขึ้นไปสยบพวกเธอให้โคมกลับมาส่องแสงอ่อนโยนดังเดิม (ประตูอยู่ที่ห้วงสมุทรอสูร หรือวาปจากคริสตัล)", "target": "heaven_lantern", "count": 20, "level": 100, "star": 300,
 		"items": [["hp_god", 20], ["mp_xxl", 20]], "zone": "heaven_realm", "next": "heaven_guardians"},
 	"heaven_guardians": {"name": "ทวารบาลผู้หลงผิด", "desc": "ท้าวยักษ์เฝ้าทวารสวรรค์กับพญานาคทองถูกมนตร์ร้ายครอบงำ ปราบพวกมันให้ได้สติคืนมา", "target": "heaven_gatekeeper", "count": 8, "level": 100, "star": 330,
 		"items": [["hp_god", 20], ["mp_xxl", 20]], "zone": "heaven_realm", "next": "heaven_monkey_king"},

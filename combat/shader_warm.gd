@@ -51,6 +51,13 @@ const MESH_SHADERS: Array[String] = [
 	# that walks into view does not stall the frame compiling its body shader.
 	"res://shaders/kirin.gdshader",
 	"res://shaders/celestial_dragon.gdshader",
+	# ดินแดนเทวาลัย's lantern deva and cloud hermit (HeavenFolk) and their ink.
+	"res://shaders/heaven_folk.gdshader",
+	"res://shaders/heaven_folk_line.gdshader",
+	# ดินแดนเทวาลัย's gate giants (HeavenYaksha), their ink, and the golden naga.
+	"res://shaders/heaven_yaksha.gdshader",
+	"res://shaders/heaven_yaksha_outline.gdshader",
+	"res://shaders/heaven_naga.gdshader",
 	# The enhanced gear's looks (EnhanceFx): the pieces' glow, the set's orbs, lightning
 	# and the +15 god looks (all three: EnhanceFx.GOD_STYLE), worn by whoever walks in.
 	"res://shaders/enhance_glow.gdshader",
