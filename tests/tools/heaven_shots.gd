@@ -33,7 +33,6 @@ func _rig(yaw: float, pitch: float, distance: float) -> void:
 	rig._target_distance = distance
 	rig._apply_rotation()
 	rig.snap_to_target()
-	rig.camera.make_current()
 
 
 func _ready() -> void:
@@ -53,7 +52,7 @@ func _ready() -> void:
 	main.title_screen = null
 	Game.profile.level = 100
 	Game.profile.adv = 4
-	Game.profile.paragon = {"level": 300, "exp": 0, "points": 0, "spent": 300, "alloc": {"atk": 90, "hp": 90, "def": 90, "haste": 30}}
+	Game.paragon()["level"] = 300
 	Game.profile.attrs = {"str": 400, "int": 0, "dex": 150, "vit": 150}
 	for slot in DivineGearData.SLOTS:
 		Game.profile.equip[slot] = DivineGearData.item(&"warrior", slot, Game.rng)
@@ -74,16 +73,18 @@ func _ready() -> void:
 	cam.global_position = Vector3(14, 9, -20)
 	cam.look_at(Vector3(0, 9, -76), Vector3.UP)
 	await shot("hall_of_gods")
-	cam.queue_free()
 	# The arrival: the gate, the stele and its sign.
-	hero.global_position = HeavenRealmArt.layout().spawn + Vector3(-2, 0.3, 2)
-	_rig(PI * 0.15, -18.0, 13.0)
+	var spawn: Vector3 = HeavenRealmArt.layout().spawn
+	hero.global_position = spawn + Vector3(2.5, 0.3, -4.5)
+	cam.global_position = spawn + Vector3(-4, 6, 14)
+	cam.look_at(spawn + Vector3(2, 2.5, -6), Vector3.UP)
 	await get_tree().create_timer(0.8).timeout
 	await shot("arrival_sign")
 	# A camp fight at the jade yaksha's terrace.
 	var camp: Vector2 = HeavenRealmArt.layout().camp_positions[3]
 	hero.global_position = Vector3(camp.x - 5.0, 0.3, camp.y + 3.0)
-	_rig(-PI * 0.4, -24.0, 12.0)
+	cam.global_position = Vector3(camp.x - 16.0, 8.0, camp.y + 10.0)
+	cam.look_at(Vector3(camp.x - 1.0, 1.0, camp.y), Vector3.UP)
 	var near: Array = get_tree().get_nodes_in_group("mobs").filter(func(m): return (m as Node3D).global_position.distance_to(hero.global_position) < 14.0)
 	for m in near:
 		(m as Mob)._victim = hero
@@ -105,7 +106,8 @@ func _ready() -> void:
 		main.zone._spawn_field_boss(false)
 	await get_tree().create_timer(0.6).timeout
 	var boss: Mob = main.zone._boss
-	_rig(PI * 0.1, -16.0, 15.0)
+	cam.global_position = Vector3(6, 7, -6)
+	cam.look_at(Vector3(0, 3, -28), Vector3.UP)
 	await get_tree().create_timer(0.5).timeout
 	await shot("boss_court")
 	if boss:
@@ -121,7 +123,7 @@ func _ready() -> void:
 	hero = main.zone.hero
 	hero._invulnerable_until = Time.get_ticks_msec() + 600000
 	hero.global_position = Zone.HEAVEN_PORTAL_SPOT + Vector3(5.0, 0.3, 5.0)
-	_rig(PI * 0.75, -14.0, 11.0)
+	var cam2 := _camera(Zone.HEAVEN_PORTAL_SPOT + Vector3(9.0, 5.0, 9.0), Zone.HEAVEN_PORTAL_SPOT + Vector3(0, 2.6, 0), 62.0)
 	await get_tree().create_timer(1.2).timeout
 	await shot("abyss_portal")
 	get_tree().quit(0)

@@ -158,11 +158,13 @@ func _gear_hook() -> void:
 	check(not any, "without the module no kill drops ★500 gear")
 	# With a stand-in module: the boss's pieces come through it, at about its rate.
 	var f := FileAccess.open(STUB, FileAccess.WRITE)
-	f.store_string("extends RefCounted\nstatic func drop(rng: RandomNumberGenerator, cls: StringName, from_boss: bool) -> Dictionary:\n\treturn {\"kind\": \"gear\", \"slot\": \"weapon\", \"id\": \"stub500_%s\" % cls, \"name\": \"stub\", \"star_tier\": 500, \"cls\": String(cls), \"boss\": from_boss, \"r\": rng.randf()}\n")
+	f.store_string("extends RefCounted\nstatic func drop(rng: RandomNumberGenerator, cls: StringName, from_boss: bool) -> Dictionary:\n\tif rng.randf() >= (0.1 if from_boss else 0.002):\n\t\treturn {}\n\treturn {\"kind\": \"gear\", \"slot\": \"weapon\", \"id\": \"stub500_%s\" % cls, \"name\": \"stub\", \"star_tier\": 500, \"cls\": String(cls), \"boss\": from_boss, \"r\": rng.randf()}\n")
 	f.close()
 	HeavenRealmData.star500_path = STUB
 	check(HeavenRealmData.star500_ready(), "the stand-in module is found")
-	var piece := HeavenRealmData.star500_drop(rng, &"mage", true)
+	var piece := {}
+	while piece.is_empty():
+		piece = HeavenRealmData.star500_drop(rng, &"mage", true)
 	check(String(piece.get("id", "")) == "stub500_mage" and bool(piece.boss), "Star500Gear.drop(rng, cls, from_boss) is called as agreed")
 	var boss_pieces := 0
 	var normal_pieces := 0

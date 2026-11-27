@@ -60,9 +60,12 @@ const WING_BOSS := 0.7
 ## ★500 gear (Star500Gear.drop): rare from ordinary monsters, better from elites and
 ## the boss. Each chance is raised by the drop luck (fortune).
 const STAR500_GEAR_PATH := "res://data/star500_gear_data.gd"
+## The ★500 piece chance of a kill these give (Star500Gear.PIECE_CHANCE / BOSS_PIECE_CHANCE,
+## an elite ELITE_TRIES rolls), before fortune.
 const STAR500_NORMAL := 0.002
-const STAR500_ELITE := 0.02
-const STAR500_BOSS := 0.35
+const ELITE_TRIES := 3
+const STAR500_ELITE := 0.006
+const STAR500_BOSS := 0.1
 ## Where the ★500 gear module is looked for (a test points it at a stand-in).
 static var star500_path := STAR500_GEAR_PATH
 
@@ -92,7 +95,7 @@ static func zone() -> Dictionary:
 		camps.append({"name": CAMP_NAMES[i], "monsters": ids, "levels": camp_levels(i, 7), "pos": positions[i], "radius": 9.0, "count": 9})
 	return {"name": TITLE, "scene": "field", "theme": ID,
 		"level": [100, 100], "music": ID, "ambience": &"wind", "weather": &"motes",
-		"sky": Color("8fc4f2"), "fog": Color("fff0dc"), "ambient": Color("fff2de"), "sun": Color("ffe4b0"), "ground": Color("efe6d2"),
+		"sky": Color("7fbcf0"), "fog": Color("dcebf8"), "ambient": Color("fff2de"), "sun": Color("ffe4b0"), "ground": Color("efe6d2"),
 		"sky_palette": [Color("3f86dc"), Color("a8d4f6"), Color("fff0d8")], "sun_size": 1.8, "moon": false,
 		"camps": camps,
 		"boss": {"monster": HeavenMonsters.BOSS, "level": BOSS_LEVEL, "respawn": BOSS_RESPAWN, "star": ENTRY_STAR},
@@ -162,12 +165,18 @@ static func kill_drops(cls: StringName, boss: bool, elite: bool, fortune: float,
 	var out: Array = []
 	var luck := 1.0 + maxf(fortune, 0.0)
 	_star500_items.clear()
-	# ★500 gear first (its own roll, the gear module's own pick of piece and class).
-	if roll.randf() < star500_chance(boss, elite) * luck:
-		var piece := star500_drop(roll, ItemData.drop_class(cls, roll), boss)
+	# ★500 gear first: Star500Gear.drop makes the one chance roll (a piece, else its
+	# แก่นเทวาลัย) and picks the class itself; an elite gets ELITE_TRIES of it, fortune
+	# a share of one more.
+	var tries := ELITE_TRIES if elite and not boss else 1
+	if roll.randf() < luck - 1.0:
+		tries += 1
+	for i in tries:
+		var piece := star500_drop(roll, cls, boss)
 		if not piece.is_empty():
 			out.append(piece)
-			_star500_items.append(piece)
+			if String(piece.get("kind", "")) != "jewel":
+				_star500_items.append(piece)
 	if ItemData.JEWELS.has(SET_CORE):
 		if boss:
 			out.append(ItemData.jewel(SET_CORE, SET_CORE_BOSS))
