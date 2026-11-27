@@ -17,9 +17,9 @@ static var war_capped := false
 
 ## Returns how much of `amount` may land on `victim_id` right now and records it.
 static func take(victim_id: int, amount: int, max_hp: int, now := -1.0) -> int:
-	# The guild war measures real attack against real defence (the owner's rule): no
-	# per-hit or burst cap there, so a blow never shrinks to 1.
-	if not war_capped and Game.current_zone == &"guildwar":
+	# The guild war and the ranked PvP coliseum measure real attack against real defence
+	# (the owner's rule): no per-hit or burst cap there, so a blow never shrinks to 1.
+	if not war_capped and Game.current_zone in [&"guildwar", &"pvp"]:
 		return amount
 	if now < 0.0:
 		now = GameClock.now()

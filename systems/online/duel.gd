@@ -326,8 +326,8 @@ func send_hit(amount: int, crit: bool, reflected := false) -> int:
 	return scaled
 
 
-## The opponent's hit landing on the hero: its defence and dodge (Hero.take_damage), and
-## BurstGuard like a Rival's blow in the arena.
+## The opponent's hit landing on the hero: its defence and dodge (Hero.take_damage), real
+## damage with no per-hit cap.
 func take_pvp_hit(dmg: Variant, _crit := false) -> void:
 	if not (dmg is int or dmg is float) or hero == null or not is_instance_valid(hero):
 		return
@@ -337,11 +337,8 @@ func take_pvp_hit(dmg: Variant, _crit := false) -> void:
 	var raw := clampf(float(dmg), 0.0, float(max_hp) * MAX_HIT_FACTOR)
 	if raw <= 0.0:
 		return
-	var armour := hero.effective_def()
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, armour))))
-	var allowed := BurstGuard.take(hero.get_instance_id(), amount, max_hp)
-	if allowed < amount:
-		raw *= float(allowed) / float(amount)
+	# A duel is real damage (the owner's rule): attack against defence, no per-hit or
+	# burst cap (MAX_HIT_FACTOR above only drops impossible values from the network).
 	var by: Node = proxy if is_instance_valid(proxy) else null
 	if by != null:
 		proxy.reflecting = true
