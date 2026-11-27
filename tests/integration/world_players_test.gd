@@ -165,10 +165,11 @@ func _progress() -> void:
 			if bool(s.online) != (place != ""):
 				zones_ok = false
 			# Only a stall keeper (or a ★300 divine player on a break, keeping a stall) and a
-			# scheduled player on a short errand are in the village.
+			# scheduled player on a short errand are in the village (a stall keeper's only
+			# errand is its forge trip to the blacksmith: WorldGear.forge_window).
 			var endgame := bool(s.divine) and int(s.stars) >= JobData.GOD_STARS
 			if place == "town" and not ((String(s.doing) == "stall" and (WorldPlayers.in_town_style(i) or endgame)) \
-					or (String(s.doing) == "errand" and not WorldPlayers.in_town_style(i) and String(s.errand) in WorldPlayers.ERRAND_KINDS)):
+					or (String(s.doing) == "errand" and (not WorldPlayers.in_town_style(i) or String(s.errand) == "enhance") and String(s.errand) in WorldPlayers.ERRAND_KINDS)):
 				levels_online = false
 			# From ★200 to ★300 it keeps hunting in the ★200 fields (the drowned abyss or the
 			# lotus sanctum, a session each; gathering the divine set on the way), never the

@@ -280,7 +280,8 @@ static func party_of(i: int, t: float, skip_hero := true) -> Dictionary:
 
 
 ## The parties of `zone` at the step of real time t: member -> party, with only the people
-## still online and still hunting this field (the hero's own party not looked at here).
+## still online, still hunting this field and not off on a forge trip (the hero's own
+## party not looked at here).
 static func _table(zone: StringName, t: float) -> Dictionary:
 	var slot := slot_of(zone, t)
 	var step := int(floorf(t / STEP))
@@ -288,11 +289,14 @@ static func _table(zone: StringName, t: float) -> Dictionary:
 	if _now.has(key):
 		return _now[key]
 	var table := {}
+	var tb := float(step) * STEP
 	for p in formed(zone, slot):
 		var left: Array[int] = []
 		for m in p.members:
 			var h := hunter_at(int(m), t)
-			if not h.is_empty() and StringName(h.zone) == zone:
+			# One gone to the blacksmith on a forge trip (WorldGear.forge_window) is away
+			# from the party for it.
+			if not h.is_empty() and StringName(h.zone) == zone and not WorldPlayers.on_forge_trip(int(m), tb):
 				left.append(int(m))
 		if left.size() < SIZE_MIN:
 			continue

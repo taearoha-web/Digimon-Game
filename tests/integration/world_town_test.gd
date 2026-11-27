@@ -103,7 +103,9 @@ func _busy(from_day: float, days: float) -> void:
 				wrong.append("%s %s/%s" % [s.name, s.place, s.doing])
 			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not (bool(s.divine) and int(s.stars) >= JobData.GOD_STARS):
 				wrong.append("%s (%s) keeps a stall" % [s.name, s.style])
-			if WorldPlayers.in_town_style(i) and String(s.doing) != "stall":
+			# (A stall keeper leaves its stall only for its forge trips to the blacksmith,
+			# WorldGear.forge_window: its enhancing is done there.)
+			if WorldPlayers.in_town_style(i) and String(s.doing) != "stall" and not (String(s.doing) == "errand" and String(s.errand) == "enhance"):
 				wrong.append("%s (stall keeper) away from its stall" % s.name)
 			keepers += 1 if String(s.doing) == "stall" else 0
 		stalls_full += 1 if keepers >= JapanVillage.STALLS.size() else 0
@@ -204,11 +206,14 @@ func _errands() -> void:
 					kinds[kind] = int(kinds.get(kind, 0)) + 1
 					if not kind in WorldPlayers.ERRAND_KINDS:
 						bad.append("%s: kind %s" % [name, kind])
-					if length < WorldPlayers.ERRAND_MIN - 0.01 or length > WorldPlayers.ERRAND_MAX + 0.01:
+					# (A forge trip, WorldGear.forge_window, follows the player's work: one cut by
+					# logging out goes on as the next session starts, so it may be cut short.)
+					var cut := kind == "enhance" and (float(e.from) == float(sess[0]) or float(e.until) > float(sess[1]) - 60.0)
+					if (length < WorldPlayers.ERRAND_MIN - 0.01 and not cut) or length > WorldPlayers.ERRAND_MAX + 0.01:
 						bad.append("%s: %.1f minutes" % [name, length])
 					if float(sess[0]) == last_session and float(e.from) - last_until < 8.0 * 60.0 - 1.0:
 						bad.append("%s: two errands %.0f s apart" % [name, float(e.from) - last_until])
-					if float(e.until) > float(sess[1]) - 60.0:
+					if float(e.until) > float(sess[1]) - 60.0 and not cut:
 						bad.append("%s: an errand runs into the session's end" % name)
 					var s := WorldPlayers.state(i, t)
 					if String(s.place) != "town" or String(s.doing) != "errand" or String(s.errand) != kind or not is_equal_approx(float(s.errand_until), float(e.until)):

@@ -35,7 +35,9 @@ extends RefCounted
 ##   star tiers' pieces after ★50/100/150/200, the divine set's four pieces as its divine
 ##   hours go by (WorldPlayers.DIVINE_HOURS); worn when better than what it has (its +
 ##   counts). A find comes at +0.
-## * The forge, with the hero's own rules, every chunk:
+## * The forge, with the hero's own rules, at the village's blacksmith only: on its forge
+##   trips (forge_window, about every WorldPlayers.ERRAND_EVERY real minutes of its play;
+##   WorldPlayers.errand_at sends it there for them), with what it gathered since:
 ##   1. the 250★ set (from ★250, SetGearData.SLOTS order, the weapon skipped while the
 ##      Dragon God weapon stands in for it): weapon / armour / helm / boots
 ##      each take the divine piece of that slot at +10 or more, ring and amulet their Lotus
@@ -154,6 +156,9 @@ static func clear() -> void:
 	fuse_tries = [0, 0, 0, 0]
 	fuse_made = [0, 0, 0, 0]
 	_sims.clear()
+	_every.clear()
+	_trip_seed.clear()
+	_fest.clear()
 	_items.clear()
 	_read.clear()
 
@@ -267,6 +272,183 @@ static func piece(i: int, slot: String, key: String) -> Dictionary:
 static var _warm_next := 0
 ## Players warm() looks at in one call.
 const WARM_PLAYERS := 3
+
+
+# --- The forge trips ------------------------------------------------------------------
+
+## The owner: every world player does its enhancing at the village's blacksmith, like a
+## real player. It gathers its jewels (and cores, scales, feathers, mount materials) while
+## it hunts, and about every WorldPlayers.ERRAND_EVERY real minutes of its play (at its
+## own pace: forge_every probe minutes of its work) it goes to town on a forge trip of
+## ERRAND_MIN..ERRAND_MAX real minutes, at a moment of its own in each stretch (forge_window,
+## seeded by its name and the trip's number). The forge (the 250★ set pieces, the +, the
+## 100★ wings, the mount) runs there and only there: its events are stamped inside the
+## trip (FORGE_MARGIN of each end kept clear), and WorldPlayers.errand_at sends it to the
+## blacksmith ("enhance") for exactly that stretch of its work. So the + a card, a fight
+## or a chat line reads only ever rises while it stands at the blacksmith, on every device
+## alike. A stretch's forging (with the tries of the stretches since the last trip: credit,
+## so the forge's pace stays what it was) is shared out in order over its trips.
+const FORGE_EDGE := 4.0
+const FORGE_EARLY := 6
+const FORGE_MARGIN := 0.05
+const CREDIT_MAX := 48.0
+## The share of a stretch after which its kills' drops come.
+const DROP_AT := 0.05
+## Work a hero's party member may stand short of a trip and be on it (WorldPlayers.add_exp
+## holds its party EXP at the trip's start).
+const FORGE_EPS := 1e-6
+static var _every := {}
+
+
+## Probe minutes of work between two forge trips of player i: ERRAND_EVERY real minutes of
+## its play at its pace (its efficiency, its parties' EXP).
+static func forge_every(i: int) -> float:
+	var hit: Variant = _every.get(i)
+	if hit != null:
+		return hit
+	var every := maxf(0.01, WorldPlayers.ERRAND_EVERY * WorldPlayers.efficiency(i) * (1.0 + WorldParties.taste(i) * WorldParties.EXP_BONUS))
+	_every[i] = every
+	return every
+
+
+## Forge trip k of player i as work [start, end]: one in each cell of its work (forge_cell:
+## ERRAND_EVERY real minutes of play, half that for its first FORGE_EARLY trips, when a new
+## player's few jewels go a long way), at a moment and for a length of its own.
+static func forge_window(i: int, k: int) -> Array:
+	var cell := forge_cell(i, k)
+	var minutes := WorldPlayers.ERRAND_EVERY * (0.5 if k < FORGE_EARLY else 1.0)
+	var h := _trip_roll(i, k)
+	var length := lerpf(WorldPlayers.ERRAND_MIN, WorldPlayers.ERRAND_MAX, float(h % 1000) / 999.0) / minutes
+	var edge := FORGE_EDGE / minutes
+	var start := edge + float(h / 1000 % 1000) / 999.0 * maxf(0.0, 1.0 - length - 2.0 * edge)
+	var c0 := float(cell[0])
+	var size := float(cell[1])
+	return [_work_of_pace(i, c0 + start * size), _work_of_pace(i, c0 + (start + length) * size)]
+
+
+## The trips are laid out on the player's pace (forge_pace: its work as if the third
+## festival's x3 were not in it), so they come every ERRAND_EVERY real minutes of play and
+## last their real minutes inside the festival too (where its work runs three times as
+## fast): the pace of work w, and the work of pace u.
+static func forge_pace(i: int, w: float) -> float:
+	var span := _fest_span(i)
+	if span.is_empty() or w <= float(span[0]):
+		return w
+	var a := float(span[0])
+	var b := float(span[1])
+	var x := WorldEvents.FESTIVAL3_EXP
+	if w < b:
+		return a + (w - a) / x
+	return a + (b - a) / x + (w - b)
+
+
+static func _work_of_pace(i: int, u: float) -> float:
+	var span := _fest_span(i)
+	if span.is_empty() or u <= float(span[0]):
+		return u
+	var a := float(span[0])
+	var b := float(span[1])
+	var x := WorldEvents.FESTIVAL3_EXP
+	var ub := a + (b - a) / x
+	if u < ub:
+		return a + (u - a) * x
+	return b + (u - ub)
+
+
+## Player i's work at the third festival's start and end on its own schedule alone (the
+## same on every device; [] with the festival off).
+static func _fest_span(i: int) -> Array:
+	if not WorldEvents.festival_enabled:
+		return []
+	var hit: Variant = _fest.get(i)
+	if hit != null:
+		return hit
+	var rate := WorldPlayers.efficiency(i) * (1.0 + WorldParties.taste(i) * WorldParties.EXP_BONUS)
+	var p0 := WorldPlayers.played_minutes(i, float(WorldEvents.FESTIVAL3_START))
+	var p1 := WorldPlayers.played_minutes(i, float(WorldEvents.FESTIVAL3_END))
+	var a := p0 * rate + WorldPlayers.head_work(i)
+	var span := [a, a + (p1 - p0) * rate * WorldEvents.FESTIVAL3_EXP]
+	_fest[i] = span
+	return span
+
+
+static var _fest := {}
+
+
+## Cell k of player i's pace (forge_pace) as [start, size].
+static func forge_cell(i: int, k: int) -> Array:
+	var every := forge_every(i)
+	if k < FORGE_EARLY:
+		return [float(k) * every * 0.5, every * 0.5]
+	return [float(FORGE_EARLY) * every * 0.5 + float(k - FORGE_EARLY) * every, every]
+
+
+## The cell player i's work w falls in.
+static func forge_cell_of(i: int, w: float) -> int:
+	w = forge_pace(i, w)
+	var every := forge_every(i)
+	var early := float(FORGE_EARLY) * every * 0.5
+	if w < early:
+		return maxi(0, int(floor(w / (every * 0.5))))
+	return FORGE_EARLY + int(floor((w - early) / every))
+
+
+## A roll of its own for player i's forge trip k (an integer mix of its name's seed and k:
+## the same on every device, and cheap: the simulation reads one a trip).
+static func _trip_roll(i: int, k: int) -> int:
+	var seed_v: Variant = _trip_seed.get(i)
+	if seed_v == null:
+		seed_v = hash("forge_trip|%s" % WorldPlayers.entry(i).name) & 0xFFFFFFFF
+		_trip_seed[i] = seed_v
+	var x: int = (int(seed_v) ^ ((k & 0x7FFFFFFF) * 2654435761)) & 0xFFFFFFFF
+	x = (((x >> 16) ^ x) * 0x45d9f3b) & 0xFFFFFFFF
+	x = (((x >> 16) ^ x) * 0x45d9f3b) & 0xFFFFFFFF
+	return (x >> 16) ^ x
+
+
+static var _trip_seed := {}
+
+
+## The forge trip player i is on at work w: [k, start, end], k -1 when it is on none.
+static func forge_trip_at(i: int, w: float) -> Array:
+	var k := forge_cell_of(i, w)
+	var win := forge_window(i, k)
+	if w >= float(win[0]) - FORGE_EPS and w < float(win[1]):
+		return [k, float(win[0]), float(win[1])]
+	return [-1, 0.0, 0.0]
+
+
+## The work player i may reach from w before its next forge trip: that trip's start (w
+## itself while it is on one).
+static func forge_hold(i: int, w: float) -> float:
+	var k := forge_cell_of(i, w)
+	var win := forge_window(i, k)
+	var a := float(win[0])
+	if w < float(win[1]):
+		return maxf(a, w) if w >= a - FORGE_EPS else a
+	return float(forge_window(i, k + 1)[0])
+
+
+## The first forge trip of player i that starts in work [w0, w1), or [].
+static func _first_trip(i: int, w0: float, w1: float) -> Array:
+	var k := forge_cell_of(i, w0)
+	for n in 2:
+		var win := forge_window(i, k + n)
+		if float(win[0]) >= w1:
+			return []
+		if float(win[0]) >= w0:
+			return win
+	return []
+
+
+## The forge trips of player i that start in work [w0, w1), oldest first.
+static func _trips_in(i: int, w0: float, w1: float) -> Array:
+	var out: Array = []
+	for k in range(forge_cell_of(i, w0), forge_cell_of(i, w1) + 1):
+		var win := forge_window(i, k)
+		if float(win[0]) >= w0 and float(win[0]) < w1:
+			out.append(win)
+	return out
 
 
 # --- Reading the state ---------------------------------------------------------------
@@ -468,7 +650,7 @@ static func _time_of(i: int, w: float, t0: float, t1: float, w0: float, w1: floa
 	var hi := t1
 	if t1 - t0 < 2.0:
 		return t1
-	for step in 14:
+	for step in 20:
 		var mid := (lo + hi) * 0.5
 		if WorldPlayers.work_at(i, mid) >= w:
 			hi = mid
@@ -614,6 +796,13 @@ class Sim:
 	var isle_carry := 0.0
 	var dragon_weapons := 0
 	var dragon_wings := 0
+	## The forge trips (forge_window): the stretches' worth of forge tries not used yet, and
+	## the work of the latest event (the next one never comes before it).
+	var credit := 0.0
+	var last_w := 0.0
+	## Whether anything came in since the last trip that left something undone (new
+	## jewels or materials, a new piece): a trip with nothing new to forge is a look.
+	var fresh := true
 
 
 ## The fixed chunk grid: edges[c] is where chunk c starts (narrow while levelling, wider
@@ -863,8 +1052,11 @@ static func _worn_worth(sim: Sim, slot: String) -> float:
 	return score * (1.0 + HeroStats.PLUS_BONUS * float(int(worn[1])))
 
 
-## One chunk of play: its finds, its kills' drops, then the forge. Events of the chunk
-## are stamped in order inside it: the finds at their own work, the forge after them.
+## One chunk of play: what its kills bring, then the stretch in the order of its work:
+## its finds at their own work, the kills' drops a little way in (DROP_AT), and its forge
+## trips (forge_window): the forge runs only there, with what it has gathered by then, and
+## its events are stamped inside the trip. Then its gems. Every event comes after the one
+## before it (a trip running on past the stretch's end pushes the next stretch's on: last_w).
 static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var w0 := _edge(c)
 	var w1 := _edge(c + 1)
@@ -873,21 +1065,9 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	var stars := step.y
 	var live: Dictionary = sim.live
 	var worn: Dictionary = live.worn
-	var at := w0
-	while sim.next_find < sim.finds.size() and float(sim.finds[sim.next_find][0]) < w1:
-		var f: Array = sim.finds[sim.next_find]
-		sim.next_find += 1
-		var slot := String(f[1])
-		var key := String(f[2])
-		at = maxf(at, float(f[0]))
-		if key == "divine":
-			var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine", DRAGON]
-			_emit(sim, at, "divine_piece", slot, int(live.divine), 0, "", {"wear": wear, "key": "divine"})
-			sim.events[-1].to = int(live.divine)
-		elif float(f[3]) > _worn_worth(sim, slot):
-			_emit(sim, at, "drop", slot, int(worn[slot][1]) if worn.has(slot) else 0, 0, "", {"key": key})
-	# What the kills of this stretch drop. Its work inside the festival (EXP x3) took a
-	# third of the kills, and their jewels dropped x3 (festival_kill_share).
+	# What the kills of this stretch drop (rolled before the finds, which roll nothing). Its
+	# work inside the festival (EXP x3) took a third of the kills, and their jewels dropped
+	# x3 (festival_kill_share).
 	var rng := sim.rng
 	var share: Array = festival_kill_share(i, w0, w1, sim)
 	var all_kills := (w1 - w0) * kills_per_minute(level, stars)
@@ -920,8 +1100,115 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 			_mount_drops.append(float(MountData.info(id).drop))
 	for k in _mount_drops.size():
 		sim.mats[k] += _count(rng, kills * _mount_drops[k])
-	at = maxf(at, w0 + (w1 - w0) * 0.05)
-	var e0 := sim.events.size()
+	sim.fresh = true
+	# The stretch in the order of its work. A stretch without a trip saves its tries for
+	# the next one (credit), so the forge's pace stays as it was.
+	# (Only the first trip is looked up unless there is forging to share out: cheap.)
+	var first := _first_trip(i, w0, w1)
+	var forged := first.is_empty()
+	sim.credit = minf(sim.credit + 1.0, CREDIT_MAX)
+	var drop_at := w0 + (w1 - w0) * DROP_AT
+	var dropped := false
+	var at := maxf(w0, sim.last_w)
+	while true:
+		var fw := INF
+		if sim.next_find < sim.finds.size() and float(sim.finds[sim.next_find][0]) < w1:
+			fw = float(sim.finds[sim.next_find][0])
+		var tw: float = INF if forged else float(first[0])
+		var dw := INF if dropped else drop_at
+		if fw == INF and tw == INF and dw == INF:
+			break
+		if fw <= dw and fw <= tw:
+			var f: Array = sim.finds[sim.next_find]
+			sim.next_find += 1
+			var slot := String(f[1])
+			var key := String(f[2])
+			at = maxf(at, fw)
+			if key == "divine":
+				var wear := not worn.has(slot) or String(worn[slot][0]) not in ["set", "divine", DRAGON]
+				_emit(sim, at, "divine_piece", slot, int(live.divine), 0, "", {"wear": wear, "key": "divine"})
+				sim.events[-1].to = int(live.divine)
+			elif float(f[3]) > _worn_worth(sim, slot):
+				_emit(sim, at, "drop", slot, int(worn[slot][1]) if worn.has(slot) else 0, 0, "", {"key": key})
+			sim.fresh = true
+		elif dw <= tw:
+			dropped = true
+			at = maxf(at, drop_at)
+			var d0 := sim.events.size()
+			_drops(sim, at, w0, w1, kills, float(share[0]), top, endgame, stars)
+			if sim.events.size() > d0:
+				sim.fresh = true
+			# Spread up to whatever comes next in the stretch.
+			var upto := minf(w1, minf(fw, tw))
+			at = _stamp(sim, d0, at, maxf(upto, at), at)
+		else:
+			# The stretch's forging (its tries: the stretches' since the last trip), shared out
+			# in order over its trips: what it can pay for at the first, the rest at the
+			# next ones (one forge a stretch, as it always was). What it finds meanwhile
+			# comes after them.
+			var f0 := sim.events.size()
+			if sim.fresh:
+				# Left with tries undone (and so with nothing it can pay for), it only forges
+				# again once something new comes in.
+				sim.fresh = _forge(sim, at, level, stars, sim.credit)
+			sim.credit = 0.0
+			forged = true
+			var n := sim.events.size() - f0
+			if n > 0:
+				var trips := _trips_in(i, w0, w1)
+				var k := trips.size()
+				for m in k:
+					var win: Array = trips[m]
+					var e0 := f0 + n * m / k
+					var e1 := f0 + n * (m + 1) / k
+					if e1 > e0:
+						at = _stamp_part(sim, e0, e1, maxf(float(win[0]), at), float(win[1]), FORGE_MARGIN)
+	var g0 := sim.events.size()
+	_gems(i, sim, at, level, stars, kills, ZEAL * (MazeWar.GEM_DRIVE if driven else 1.0), MazeWar.GEM_DRIVE if driven else 1.0)
+	_stamp(sim, g0, at, maxf(w1, at), at)
+	if not sim.works.is_empty():
+		sim.last_w = sim.works[sim.works.size() - 1]
+
+
+## Stamps the events from index e0 on evenly between work a and b (a margin of each end
+## kept clear), in their order; the work of the last one (`at` when there is none).
+static func _stamp(sim: Sim, e0: int, a: float, b: float, at: float, margin := 0.0) -> float:
+	var count := sim.events.size() - e0
+	if count <= 0:
+		return at
+	if b <= a:
+		b = a + 0.001
+	var lo := a + (b - a) * margin
+	var span := (b - a) * (1.0 - 2.0 * margin)
+	var ws := a
+	for k in count:
+		ws = lo + span * float(k + 1) / float(count + 1)
+		sim.events[e0 + k].w = ws
+		sim.works[e0 + k] = ws
+	return ws
+
+
+## _stamp for the events from index e0 to e1 (before e1).
+static func _stamp_part(sim: Sim, e0: int, e1: int, a: float, b: float, margin: float) -> float:
+	if b <= a:
+		b = a + 0.001
+	var count := e1 - e0
+	var lo := a + (b - a) * margin
+	var span := (b - a) * (1.0 - 2.0 * margin)
+	var ws := a
+	for k in count:
+		ws = lo + span * float(k + 1) / float(count + 1)
+		sim.events[e0 + k].w = ws
+		sim.works[e0 + k] = ws
+	return ws
+
+
+## The drops of a stretch's kills: more divine pieces of its own class once the set's
+## hours are done, Lv.100 wings in the star fields, the Dragon God's on the isle.
+static func _drops(sim: Sim, at: float, w0: float, w1: float, kills: float, kill_share: float, top: bool, endgame: bool, stars: int) -> void:
+	var rng := sim.rng
+	var live: Dictionary = sim.live
+	var worn: Dictionary = live.worn
 	# More divine pieces of its own class once the set's hours are done (a forged one
 	# is made good this way): DIVINE_DROP a kill, its own class's at OWN_CLASS_DROP.
 	if endgame and w0 >= sim.divine_done:
@@ -935,14 +1222,14 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 	# The isle drops none (its kills are left out). Its kills are the stretch's work from
 	# ★300 on; those of the stretch it reaches ★300 in are rolled with the next one, so
 	# every Dragon God piece falls at ★300 or later.
-	var isle_kills := maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * float(share[0])
+	var isle_kills := maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * kill_share
 	if w0 < isle_work():
 		sim.isle_carry += isle_kills
 	else:
 		isle_kills += sim.isle_carry
 		sim.isle_carry = 0.0
 	if top and stars >= 1 and int(live.wtier) < 2:
-		var field_kills := kills - maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * float(share[0])
+		var field_kills := kills - maxf(0.0, w1 - maxf(w0, isle_work())) * KILLS_ISLE * isle_share() * kill_share
 		for n in _count(rng, maxf(0.0, field_kills) * WING_DROP * ItemData.OWN_CLASS_DROP):
 			var r := rng.randf()
 			var rarity := 4 if r < 0.03 else (3 if r < 0.12 else (2 if r < 0.30 else (1 if r < 0.60 else 0)))
@@ -957,16 +1244,7 @@ static func _run_chunk(i: int, sim: Sim, c: int) -> void:
 				else:
 					_emit(sim, at, "wings_up", "wings", 0, 1, "", {"key": key})
 	if isle_kills > 0.0 and w0 >= isle_work():
-		at = _isle_drops(sim, at, isle_kills)
-	_forge(sim, at, level, stars)
-	_gems(i, sim, at + 0.01, level, stars, kills, ZEAL * (MazeWar.GEM_DRIVE if driven else 1.0), MazeWar.GEM_DRIVE if driven else 1.0)
-	# What the kills brought is picked up and forged bit by bit over the stretch: its
-	# events are spread evenly after the finds (their order kept).
-	var count := sim.events.size() - e0
-	for k in count:
-		var ws := at + (w1 - at) * float(k + 1) / float(count + 1)
-		sim.events[e0 + k].w = ws
-		sim.works[e0 + k] = ws
+		_isle_drops(sim, at, isle_kills)
 
 
 ## The third festival (WorldEvents.FESTIVAL3_*) in the stretch of work w0..w1 of player
@@ -1216,8 +1494,15 @@ static func _set_slot(sim: Sim, level: int, stars: int) -> String:
 	return ""
 
 
-static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
+## The forge of a stretch with trips (credit: the stretches' worth of tries since the last
+## trip; the tries of one stretch are those the forge always had: 12 set tries, 200 steps up
+## to +9, 60 for the mount, 200 more from +9).
+static func _forge(sim: Sim, at: float, level: int, stars: int, credit := 1.0) -> bool:
 	var rng := sim.rng
+	var try_cap := maxi(1, int(round(200.0 * credit)))
+	var mount_cap := int(round(60.0 * credit))
+	var set_cap := maxi(1, int(ceil(12.0 * credit)))
+	var e0 := sim.events.size()
 	var cls := sim.job
 	var worn: Dictionary = sim.live.worn
 	var ts := _set_slot(sim, level, stars)
@@ -1232,7 +1517,7 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 	# it wears there at +divine_plus (used up on success), a ring or amulet its Lotus
 	# Scales (used up on success); every try a set core and the jewels, lost on a fail.
 	var guard := 0
-	while ts != "" and guard < 12:
+	while ts != "" and guard < set_cap:
 		guard += 1
 		var divine_slot := String(need.get("divine_slot", "")) != ""
 		if divine_slot:
@@ -1291,9 +1576,10 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 	# +1 for the lowest worn piece (the focus first), as long as the jewels last: first
 	# the steps up to +9 (no chaos jewel), then the mount, then the steps from +9 on.
 	var tries := 0
+	var limited := ts != "" and guard >= set_cap
 	for pass_n in 2:
 		var cap := 9 if pass_n == 0 else ItemData.MAX_PLUS
-		while tries < 200 * (pass_n + 1):
+		while tries < try_cap * (pass_n + 1):
 			tries += 1
 			var pick := focus if focus != "" and int(worn[focus][1]) < SET_DIVINE_PLUS else ""
 			var low := ItemData.MAX_PLUS
@@ -1329,10 +1615,11 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 				_emit(sim, at, "enhance_ok", pick, low, low + 1, "", ref)
 			else:
 				_emit(sim, at, "enhance_fail", pick, low, low, "", ref)
+		limited = limited or tries >= try_cap * (pass_n + 1)
 		if pass_n == 0:
 			# The mount: the newest one levelled to the top, then the next one crafted.
 			if sim.rides and level >= sim.ride_from:
-				while tries < 200 * (pass_n + 1) + 60:
+				while tries < try_cap * (pass_n + 1) + mount_cap:
 					tries += 1
 					var k := -1
 					for m in MountData.ORDER.size():
@@ -1354,3 +1641,7 @@ static func _forge(sim: Sim, at: float, level: int, stars: int) -> void:
 						_emit(sim, at, "mount_up", "mount", lv, lv + 1, mname, {"id": id})
 					else:
 						_emit(sim, at, "mount_fail", "mount", lv, lv, mname, {"id": id})
+				limited = limited or tries >= try_cap + mount_cap
+	# Something left undone, or a change that may open more (a divine piece at +10 for its
+	# set piece): the next trip forges again. Otherwise it would find nothing to do.
+	return limited or sim.events.size() > e0

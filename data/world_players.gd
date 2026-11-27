@@ -673,11 +673,15 @@ static func town_time(i: int, _s0: float, _s1: float, _t: float) -> bool:
 	return in_town_style(i)
 
 
-## Errands: like a real player, a scheduled player pops back to the village now and then
-## for a few real minutes (ERRAND_MIN-ERRAND_MAX), at most once in every ERRAND_EVERY real
-## minutes of a session, at its own moment: to hand in a quest at the elder ("quest"),
-## to enhance at the blacksmith ("enhance") or to learn skills at the skill master
-## ("skill"; always when a skill of its class unlocked since the stretch began).
+## Errands: like a real player, a player pops back to the village now and then for a few
+## real minutes (ERRAND_MIN-ERRAND_MAX). Its enhancing is done there and only there (the
+## owner's rule): about every ERRAND_EVERY real minutes of its play it goes to the
+## blacksmith ("enhance") with the jewels it gathered while hunting, on the forge trips
+## WorldGear works out (WorldGear.forge_window: the + only rises during them), a stall
+## keeper too (it leaves its stall for them). Besides, a scheduled player now and then hands
+## in a quest at the elder ("quest") or learns skills at the skill master ("skill"; always
+## when a skill of its class unlocked since the stretch began), at most once in every
+## ERRAND_EVERY real minutes of a session, never over a forge trip.
 const ERRAND_EVERY := 70.0
 const ERRAND_CHANCE := 0.35
 const ERRAND_MIN := 2.5
@@ -689,6 +693,68 @@ static var _unlock_levels := {}
 ## The errand player i is on at real time t of the session (real start s0, end s1):
 ## {kind, from, until} (real unix seconds), or {} while it hunts.
 static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
+	var forge := forge_errand(i, s0, s1, t)
+	if not forge.is_empty():
+		return forge
+	return _side_errand(i, s0, s1, t)
+
+
+## The forge trip (WorldGear.forge_window) player i is on at real time t of its session
+## (real start s0, end s1): {kind "enhance", from, until, trip}, or {}. It runs from when its
+## work reaches the trip's start to when it reaches its end (within the session: one cut
+## off by logging out goes on as the next session starts).
+static func forge_errand(i: int, s0: float, s1: float, t: float) -> Dictionary:
+	if t < s0 or t >= s1:
+		return {}
+	var w := work_at(i, t)
+	var trip := WorldGear.forge_trip_at(i, w)
+	if int(trip[0]) < 0:
+		return {}
+	# Kept per player for the trip and the session (and the party EXP / pauses it was
+	# worked out with), so the many reads of a trip cost a look-up.
+	var key := String(entry(i).name)
+	var sig := PackedFloat64Array([float(trip[0]), s0, float(bonus.get(key, 0.0)), float(paused.get(key, -1.0)), float(skipped.get(key, 0.0))])
+	var hit: Variant = _forge_runs.get(i)
+	if hit != null and hit[0] == sig:
+		return {"kind": "enhance", "from": float(hit[1]), "until": float(hit[2]), "trip": int(trip[0])}
+	var start := float(trip[1])
+	var end := float(trip[2])
+	var from := s0 if work_at(i, s0) >= start - WorldGear.FORGE_EPS else _when_work(i, start, s0, t)
+	var until := s1 if work_at(i, s1 - 1.0) < end else _when_work(i, end, t, s1)
+	if _forge_runs.size() > _cache_cap(512, 1):
+		_forge_runs.clear()
+	_forge_runs[i] = [sig, from, until]
+	return {"kind": "enhance", "from": from, "until": until, "trip": int(trip[0])}
+
+
+## Per player: [the trip and session signature, from, until] of its latest forge trip.
+static var _forge_runs := {}
+
+
+## The real time in [lo, hi] at which player i's work reaches w (to the second; its work
+## only grows while it plays).
+static func _when_work(i: int, w: float, lo: float, hi: float) -> float:
+	if work_at(i, lo) >= w - WorldGear.FORGE_EPS:
+		return lo
+	for step in 24:
+		if hi - lo < 1.0:
+			break
+		var mid := (lo + hi) * 0.5
+		if work_at(i, mid) >= w - WorldGear.FORGE_EPS:
+			hi = mid
+		else:
+			lo = mid
+	return hi
+
+
+## Whether player i is on a forge trip at real time t (online, at the blacksmith).
+static func on_forge_trip(i: int, t: float) -> bool:
+	var s := session_at(i, t)
+	return not s.is_empty() and int(WorldGear.forge_trip_at(i, work_at(i, t))[0]) >= 0
+
+
+## A quest or skill errand of a scheduled player (never over a forge trip).
+static func _side_errand(i: int, s0: float, s1: float, t: float) -> Dictionary:
 	if in_town_style(i) or t < s0 or t >= s1:
 		return {}
 	var slot := int((t - s0) / 60.0 / ERRAND_EVERY)
@@ -705,9 +771,17 @@ static func errand_at(i: int, s0: float, s1: float, t: float) -> Dictionary:
 	if _unlocks_between(i, s0 + float(slot) * ERRAND_EVERY * 60.0, from):
 		kind = "skill"
 	elif roll < ERRAND_CHANCE:
-		kind = "quest" if pick < 0.5 else ("enhance" if pick < 0.88 else "skill")
+		kind = "quest" if pick < 0.65 else "skill"
 	else:
 		return {}
+	# Never over a forge trip, nor right next to one (its work from 8 minutes before the
+	# errand's start to 8 minutes after its end).
+	var wa := work_at(i, from - 480.0)
+	var wb := work_at(i, until + 480.0)
+	for k in range(WorldGear.forge_cell_of(i, wa), WorldGear.forge_cell_of(i, wb) + 1):
+		var win := WorldGear.forge_window(i, k)
+		if float(win[0]) <= wb and float(win[1]) > wa:
+			return {}
 	# One hunting with a party of world players stays with it (no errand meanwhile).
 	if not WorldParties.party_of(i, t).is_empty():
 		return {}
@@ -1015,6 +1089,8 @@ static var bonus := {}
 ## schedule minutes of those in it now (own_minutes).
 static var skipped := {}
 static var paused := {}
+## Party EXP (probe minutes, by name) held back until its forge trip is done (add_exp).
+static var held := {}
 static var _bonus_loaded := false
 static var _bonus_dirty := false
 
@@ -1088,8 +1164,24 @@ static func add_exp(i: int, amount: float, level: int, stars: int) -> void:
 		return
 	_load_bonus()
 	var key := String(entry(i).name)
-	bonus[key] = float(bonus.get(key, 0.0)) + amount / maxf(1.0, rate(level, stars))
+	# Its forging is done at the blacksmith (WorldGear.forge_window): the EXP carries it up
+	# to its next forge trip's start and the rest is held until the trip is behind it (the
+	# hero's party lets it go there: Game.party_refresh), so no + of the trip comes early.
+	var gain := amount / maxf(1.0, rate(level, stars)) + float(held.get(key, 0.0))
+	var w := work_at(i, WorldPresence.clock())
+	var room := maxf(0.0, WorldGear.forge_hold(i, w) - w)
+	var take := minf(gain, room)
+	bonus[key] = float(bonus.get(key, 0.0)) + take
+	if gain - take > 0.0:
+		held[key] = gain - take
+	else:
+		held.erase(key)
 	_bonus_dirty = true
+
+
+## Probe minutes of party EXP player i has waiting for its forge trip (add_exp).
+static func held_work(i: int) -> float:
+	return float(held.get(String(entry(i).name), 0.0))
 
 
 ## Writes the party EXP when it changed (Game.save calls this).
@@ -1098,7 +1190,7 @@ static func store() -> void:
 		return
 	var file := FileAccess.open(BONUS_PATH, FileAccess.WRITE)
 	if file:
-		file.store_string(JSON.stringify({"start": START_UNIX, "roster": ROSTER_ID, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped, "saved": now()}))
+		file.store_string(JSON.stringify({"start": START_UNIX, "roster": ROSTER_ID, "bonus": bonus, "skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped, "held": held, "saved": now()}))
 		_bonus_dirty = false
 
 
@@ -1122,7 +1214,7 @@ static func _load_bonus() -> void:
 		var value: Variant = parsed.bonus[key]
 		if (value is float or value is int) and float(value) >= 0.0 and float(value) < 1e9:
 			bonus[String(key)] = float(value)
-	var tables := {"skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped}
+	var tables := {"skipped": skipped, "paused": paused, "hw_skipped": hw_skipped, "f3_skipped": f3_skipped, "held": held}
 	for field in tables:
 		var table: Variant = parsed.get(field, {})
 		if not table is Dictionary:
@@ -1144,6 +1236,8 @@ static func clear_bonus() -> void:
 	skipped.clear()
 	paused.clear()
 	hw_skipped.clear()
+	held.clear()
+	_forge_runs.clear()
 	_hw_cache.clear()
 	f3_skipped.clear()
 	_f3_cache.clear()
@@ -1166,7 +1260,13 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 	var errand := {}
 	var party := {}
 	if not s.is_empty():
-		if town_time(i, float(s[0]), float(s[1]), t):
+		# A forge trip (WorldGear.forge_window) takes it to the blacksmith from anywhere: a
+		# field, the maze or its stall.
+		errand = forge_errand(i, float(s[0]), float(s[1]), t)
+		if not errand.is_empty():
+			place = "town"
+			doing = "errand"
+		elif town_time(i, float(s[0]), float(s[1]), t):
 			place = "town"
 			doing = "stall"
 		else:
@@ -1178,7 +1278,7 @@ static func state(i: int, t: float = -1.0) -> Dictionary:
 				place = String(MazeWar.ID)
 				doing = "maze"
 			if doing != "stall" and doing != "maze":
-				errand = errand_at(i, float(s[0]), float(s[1]), t)
+				errand = _side_errand(i, float(s[0]), float(s[1]), t)
 				if not errand.is_empty():
 					place = "town"
 					doing = "errand"

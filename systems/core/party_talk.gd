@@ -78,6 +78,36 @@ var _hero_at := Vector3.INF
 var _queue: Array = []
 
 
+## A member with forging to do goes back to the village's blacksmith (its forge trip,
+## WorldGear.forge_window; Game.party_refresh lets it go), and after it either comes back to
+## keep levelling or goes its own way.
+const FORGE_GO_LINES := ["ขอกลับไปตีบวกที่หมู่บ้านแป๊บนะ", "หินตีบวกเต็มกระเป๋าแล้ว ขอแวะไปหาช่างตีเหล็กก่อนนะ",
+	"ขอวาร์ปกลับไปตีของแป๊บนึง เดี๋ยวมา", "ไปลุ้นบวกที่ช่างหนวดแดงแป๊บนะ 555", "เพชรพอแล้ว ขอกลับเมืองไปตีบวกก่อนนะ",
+	"ขอตัวไปตีบวกแป๊บ ของจะได้แรงขึ้น", "รอแป๊บนะ ขอไปตีบวกที่หมู่บ้านก่อน"]
+const FORGE_BACK_LINES := ["กลับมาแล้ว! ตีบวกเสร็จแล้ว ไปเก็บเลเวลต่อกัน", "ตีเสร็จแล้ว บวกขึ้นด้วย มาลุยต่อกัน!",
+	"มาแล้วจ้า ของแรงขึ้นนิดนึง ไปต่อกันเลย", "กลับมาแล้วนะ ตีผ่านฉลุย 555 ไปฟาร์มต่อ", "เรียบร้อย ตีบวกเสร็จละ ลุยต่อกัน!"]
+const FORGE_BYE_LINES := ["ตีบวกเสร็จแล้ว ขอแยกไปเก็บเลเวลเองนะ ขอบคุณที่พาเล่น!", "ตีเสร็จแล้ว ขอไปเล่นต่อทางนี้นะ ไว้เจอกันใหม่",
+	"ขอบคุณสำหรับปาร์ตี้นะ ตีบวกเสร็จละ ขอแยกไปฟาร์มเองก่อน บาย!", "ตีของเสร็จแล้ว ขอไปลุยเองต่อนะ ไว้ตี้กันใหม่นะ",
+	"ขอบใจที่ชวนนะ ตีบวกเสร็จแล้ว ขอไปเก็บเควสต์ต่อเอง ไว้เจอกัน"]
+
+
+## Player i's line about its forge trip ("go", "back" or "bye"), picked by its name and the
+## trip (the same on every device): its bubble while it stands here, and the party chat.
+static func forge_line(i: int, what: String, trip: int) -> String:
+	var pool: Array = FORGE_GO_LINES if what == "go" else (FORGE_BACK_LINES if what == "back" else FORGE_BYE_LINES)
+	var name := String(WorldPlayers.entry(i).name)
+	var text := String(pool[hash("forge_line|%s|%s|%d" % [what, name, trip]) % pool.size()])
+	if current != null and is_instance_valid(current) and is_instance_valid(current.zone):
+		for c in current.zone.companions:
+			var p := c as FieldPlayer
+			if p != null and is_instance_valid(p) and p.world_index == i:
+				p.bubble(text)
+		current.spoken.append([name, text])
+	var g := WorldPlayers.guild_at(i, WorldPlayers.level_at(i, WorldPresence.clock()))
+	Game.post_chat("party", name, text, WorldPlayers.GUILD_COLORS.get(g, CHAT_COLOR))
+	return text
+
+
 ## The zone's talk, made on first call (the first party member to walk in asks for it).
 static func attach(p_zone: Zone) -> PartyTalk:
 	if p_zone == null or not is_instance_valid(p_zone):

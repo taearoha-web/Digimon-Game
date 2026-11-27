@@ -123,6 +123,7 @@ func _progression() -> void:
 	var fail_keeps := true
 	var rose := 0
 	var fails := 0
+	var raised := 0
 	for i in _players(30):
 		var prev := WorldGear.gear(i, _t(0.0))
 		var t_prev := _t(0.0)
@@ -134,6 +135,7 @@ func _progression() -> void:
 				if String(e.kind) == "enhance_fail":
 					fails += 1
 					fail_keeps = fail_keeps and int(e.to) == int(e.from)
+				raised += 1 if String(e.kind) == "enhance_ok" else 0
 			for slot in ["weapon", "armor", "helm", "boots", "ring", "amulet"]:
 				var a: Dictionary = prev[slot]
 				var b: Dictionary = g[slot]
@@ -157,7 +159,10 @@ func _progression() -> void:
 	check(steady, "a worn piece's + never drops, and wings never go back")
 	check(recorded, "every change of piece is a recorded find or forging")
 	check(fail_keeps and fails > 0, "failed tries happen (%d) and keep the grade" % fails)
-	check(rose > 100, "the forge really raises the pieces (%d rises)" % rose)
+	# (Its forging is done on its trips to the blacksmith, WorldGear.forge_window: a new piece
+	# is mostly raised on the trip after it, so a reading a few hours apart sees fewer
+	# pieces caught on their way up than when it forged all through a stretch.)
+	check(rose > 60 and raised > 1500, "the forge really raises the pieces (%d rises seen, %d +1)" % [rose, raised])
 	# Enhance events match the hero's odds overall: about half of +7..+9 tries succeed.
 	var ok := 0
 	var tried := 0

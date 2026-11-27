@@ -235,6 +235,7 @@ func new_profile(class_id: StringName, hero_name: String, look := {}) -> void:
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
+	party_forge.clear()
 	if not look.is_empty():
 		profile["look"] = FaceKit.hero_look(look)
 	has_profile = true
@@ -549,6 +550,7 @@ func import_code(code: String, target_slot := -1) -> bool:
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
+	party_forge.clear()
 	current_zone = StringName(profile.zone)
 	_dirty = false
 	_autosave_timer = 0.0
@@ -982,6 +984,7 @@ func load_game(from_slot := -1) -> bool:
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
+	party_forge.clear()
 	current_zone = StringName(profile.get("zone", "town"))
 	_dirty = false
 	_autosave_timer = 0.0
@@ -1995,6 +1998,12 @@ const TRAIT_NAMES := {"brave": "กล้าหาญ", "careful": "ระมั
 ## or when the hero changes character.
 var world_party: Array[int] = []
 var _party_members := {}
+## Members gone to the village's blacksmith on a forge trip (WorldGear.forge_window): their
+## enhancing is done there and only there, so one whose trip comes due says so in the party
+## chat and goes (party_refresh); after it, by a roll of its own (FORGE_BACK of a hundred), it
+## comes back to keep levelling or says goodbye. Index -> {trip, back, left (when it went)}.
+var party_forge := {}
+const FORGE_BACK := 60
 
 
 ## The members as companion sheets (class, name, level, stars, stance, potions...).
@@ -2023,6 +2032,9 @@ func party_invite(i: int, force := false) -> String:
 	if not force:
 		if not bool(s.online):
 			return "%s ออฟไลน์อยู่" % s.name
+		# At the blacksmith on its forge trip: it comes once it is done.
+		if String(s.doing) == "errand" and String(s.errand) == "enhance":
+			return "%s: ขอตีบวกที่ช่างตีเหล็กให้เสร็จก่อนนะ เดี๋ยวค่อยชวนใหม่" % s.name
 		var mate := guild() > 0 and int(s.guild) == guild()
 		if not mate and not party_levels_ok(int(s.level), int(profile.level)):
 			return "%s: เลเวลห่างกันเกินไป ไว้คราวหน้านะ" % s.name
@@ -2034,6 +2046,7 @@ func party_invite(i: int, force := false) -> String:
 	m["stance"] = "follow"
 	_party_members[i] = m
 	world_party.append(i)
+	party_forge.erase(i)
 	# In the party a member levels by the party's shared EXP only (WorldPlayers.add_exp),
 	# not by its own schedule as well.
 	WorldPlayers.pause_schedule(i, t)
@@ -2068,24 +2081,70 @@ func dismiss_party() -> void:
 	WorldPlayers.resume_all(WorldPresence.clock())
 	world_party.clear()
 	_party_members.clear()
+	party_forge.clear()
 	party_changed.emit()
 	party_roster_changed.emit()
 
 
-## Keeps the members' sheets in step with their schedules (levels up on screen) and lets
-## go of those whose session has ended.
+## Keeps the members' sheets in step with their schedules (levels up on screen), lets go
+## of those whose session has ended and of those whose forge trip came due (party_forge),
+## and takes back those done at the blacksmith who come back.
 func party_refresh(t: float) -> void:
 	for i in world_party.duplicate():
+		if not world_party.has(i):
+			continue
 		var s := WorldPlayers.state(i, t)
 		if not bool(s.online):
 			party_kick(i, "%s ออกจากเกม — ออกจากปาร์ตี้" % s.name)
+			continue
+		if String(s.doing) == "errand" and String(s.errand) == "enhance":
+			_forge_leave(i, t)
 			continue
 		var m: Dictionary = _party_members[i]
 		var up := int(s.level) > int(m.level) or int(s.stars) > int(m.get("stars", 0))
 		WorldPlayers.sync_member(m, s)
 		if up:
 			party_leveled.emit(world_party.find(i), int(s.level))
+	_forge_return(t)
 	party_changed.emit()
+
+
+## Member i's forge trip came due (its party EXP held at the trip's start: WorldPlayers.
+## add_exp): it says so and goes to the village (Zone._spawn_party: out of a field in a flash,
+## in the village it walks to the blacksmith), its own schedule carrying it through the trip.
+func _forge_leave(i: int, t: float) -> void:
+	var trip := int(WorldGear.forge_trip_at(i, WorldPlayers.work_at(i, t))[0])
+	var name := String(WorldPlayers.entry(i).name)
+	party_forge[i] = {"trip": trip, "back": hash("forge_back|%s|%d" % [name, trip]) % 100 < FORGE_BACK, "left": WorldPresence.clock()}
+	PartyTalk.forge_line(i, "go", trip)
+	party_kick(i, "%s กลับหมู่บ้านไปตีบวกที่ช่างตีเหล็ก" % name)
+
+
+## Those done at the blacksmith: back into the party (it says so) when it comes back and
+## there is room, otherwise a goodbye. One logged off meanwhile is gone.
+func _forge_return(t: float) -> void:
+	for i in party_forge.keys():
+		if not party_forge.has(i):
+			continue
+		if world_party.has(i):
+			party_forge.erase(i)
+			continue
+		# Read from when it left at the earliest (its schedule resumed then).
+		var info: Dictionary = party_forge[i]
+		if t <= float(info.left):
+			continue
+		var s := WorldPlayers.state(i, t)
+		if not bool(s.online):
+			party_forge.erase(i)
+			continue
+		if String(s.doing) == "errand" and String(s.errand) == "enhance":
+			continue
+		party_forge.erase(i)
+		var trip := int(info.trip)
+		if bool(info.back) and has_profile and world_party.size() < PARTY_MAX and party_invite(i, true) == "":
+			PartyTalk.forge_line(i, "back", trip)
+		else:
+			PartyTalk.forge_line(i, "bye", trip)
 
 
 ## How much of a monster's EXP a character of `level` gets (less for monsters far below).

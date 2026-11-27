@@ -534,6 +534,9 @@ func _give_errand(p: FieldPlayer, s: Dictionary) -> bool:
 		for npc in zone.npcs:
 			if is_instance_valid(npc) and "role" in npc and String(npc.role) == "warp":
 				p.errand_exit = (npc as Node3D).global_position + side * 1.5
+		# A stall keeper's forge trip (WorldGear.forge_window) ends back at its stall.
+		if p.stall_at.is_finite():
+			p.errand_exit = p.stall_at
 		return true
 	return false
 
