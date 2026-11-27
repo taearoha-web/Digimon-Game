@@ -294,7 +294,8 @@ static func roll_guild_match(rng: RandomNumberGenerator, guild: int, rival: int,
 ## A league round's war of all its guilds at once (GuildLeague: the four guilds in one
 ## castle war), `guilds` in team order (team 0 first: the hero's guild when `with_hero`).
 ## Each side as in roll_guild_match (its GUILD_SIDE strongest at t, online first then by
-## power; the hero takes one place on team 0 when it ranks among them). A guild with nobody
+## power; with `with_hero` the hero takes one place on team 0: it goes into the war, so it
+## ranks among them or leads the guild). A guild with nobody
 ## at Lv.100 yet sits the round out; {} when fewer than two guilds (or team 0's) can fight.
 ## The shape: {sides: [{lineup, name, guild, power}], ally / enemy (the first two sides, as
 ## roll_guild_match), ally_name, enemy_name, ally_guild, enemy_guild, guilds, hero_in}.
@@ -311,10 +312,17 @@ static func roll_guild_war(rng: RandomNumberGenerator, guilds: Array, t: float, 
 			continue
 		var mine := k == 0 and with_hero
 		var side := side_ids(g, t, hero_rank_point() if mine else -1.0)
+		var ids: Array[int] = side.ids
+		# The hero going into this war (GuildWarMatch, team 0) always holds one of the
+		# GUILD_SIDE places: it ranks among the strongest or leads the guild (the leader
+		# fights whatever its place, GuildLeague.hero_makes_side). Its guild's weakest drops
+		# out, as on the party screen (GuildWarScreen.war_mates), and its picks come first.
+		var hero_here := mine
+		if hero_here and ids.size() >= GUILD_SIDE:
+			ids.resize(GUILD_SIDE - 1)
 		var lineup: Array = []
-		for i in side.ids:
+		for i in ids:
 			lineup.append(WorldPlayers.fighter(i, t, rng))
-		var hero_here := mine and bool(side.hero)
 		if lineup.is_empty() and not hero_here:
 			if k == 0:
 				return {}

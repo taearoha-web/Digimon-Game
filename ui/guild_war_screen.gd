@@ -504,12 +504,17 @@ const PICK_COLOR := GuildWarMatch.PARTY_COLOR
 
 ## Our guild mates who fight beside the hero in the league war of the round starting at
 ## t: the line-up (GuildWarData.side_ids, the hero counted), class by class, strongest
-## first. The hero's picks come from these only (a pick never bypasses the line-up).
+## first. The hero's picks come from these only (a pick never bypasses the line-up). The
+## hero going to war always holds a place (a guild leader outside the strongest twenty
+## too), so at most GUILD_SIDE - 1, as GuildWarData.roll_guild_war lines them up.
 static func war_mates(guild: int, t: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if guild <= 0:
 		return out
-	for i in GuildWarData.side_ids(guild, t, GuildWarData.hero_rank_point()).ids:
+	var ids: Array[int] = GuildWarData.side_ids(guild, t, GuildWarData.hero_rank_point()).ids
+	if ids.size() >= GuildWarData.GUILD_SIDE:
+		ids.resize(GuildWarData.GUILD_SIDE - 1)
+	for i in ids:
 		var st := WorldPlayers.state(i, t)
 		out.append({"name": String(st.name), "class": StringName(st["class"]), "level_text": WorldPlayers.level_text(st), "online": bool(st.online),
 			"level": int(st.level), "stars": int(st.stars), "rank": int(st.level) * 1000 + int(st.stars)})

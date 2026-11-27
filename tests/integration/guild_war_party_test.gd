@@ -35,11 +35,44 @@ func _ready() -> void:
 	await _guild_war()
 	await _lobby_button()
 	_mate_order()
+	_weak_leader()
 	check(not GuildWarMatch.in_war() and GuildWarMatch.buff_reaches(null, self), "outside the war a buff reaches everyone as before")
 	print("GUILD WAR PARTY: %d checks, %d failures" % [checks, failures.size()])
 	if failures.is_empty():
 		print("PASS")
 	get_tree().quit(1 if failures.size() > 0 else 0)
+
+
+## A weak hero (no stars) leading its guild is outside the strongest twenty but still goes
+## to war (the leader fights whatever its place) and holds a place there: the party screen
+## offers the nineteen the war lines up, and a pick (even the weakest offered) fights.
+func _weak_leader() -> void:
+	var at := GuildLeague.slot_start(WorldEvents.day_of(float(WorldPlayers.START_UNIX) + 20.0 * 86400.0), 0)
+	WorldPresence.clock_offset = float(at) + 60.0 - WorldPlayers.now()
+	var kept: Dictionary = Game.profile.paragon
+	Game.profile["paragon"] = {"level": 0, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(0)}
+	var g := Game.guild()
+	var place := GuildLeague.hero_place(at)
+	check(Game.hero_leads_guild(g, float(at)) and place > GuildWarData.GUILD_SIDE and GuildLeague.hero_makes_side(at), "weak leader: outside the twenty (#%d) and still in the war" % place)
+	var mates := GuildWarScreen.war_mates(g, float(at))
+	check(mates.size() == GuildWarData.GUILD_SIDE - 1, "weak leader: the party screen offers the nineteen beside the hero (%d)" % mates.size())
+	var weakest: Dictionary = mates[0]
+	for c in mates:
+		if int(c.rank) < int(weakest.rank):
+			weakest = c
+	Game.guildwar_party_picks = PackedStringArray([String(weakest.name)])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var war := GuildWarData.roll_guild_war(rng, [g, WorldPlayers.NEVERDIE], float(at))
+	var offered := mates.map(func(c): return String(c.name))
+	var lined := (war.get("ally", []) as Array).map(func(f): return String(f.member.name))
+	offered.sort()
+	var lined_sorted := lined.duplicate()
+	lined_sorted.sort()
+	check(bool(war.get("hero_in", false)) and lined_sorted == offered, "weak leader: the war lines up the hero and exactly the nineteen offered (%d)" % lined.size())
+	check(not lined.is_empty() and lined[0] == String(weakest.name), "weak leader: the pick (the weakest offered, %s) fights, first in the line-up" % weakest.name)
+	Game.guildwar_party_picks = PackedStringArray()
+	Game.profile["paragon"] = kept
 
 
 ## The party screen's guild mates go class by class (archers, then priests, ...), each
@@ -189,10 +222,10 @@ func _hired_war() -> void:
 	await _frames(3)
 
 
-## The hero as far along as anyone can be (★300, the whole divine set at +10): it always
-## ranks among its guild's strongest twenty, so it fights in the league's wars.
+## The hero as far along as anyone can be (★500, Game.PARAGON_MAX, the whole divine set at
+## +10): it always ranks among its guild's strongest twenty, so it fights in the league's wars.
 func _max_out() -> void:
-	Game.profile["paragon"] = {"level": 300, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(300)}
+	Game.profile["paragon"] = {"level": Game.PARAGON_MAX, "exp": 0, "points": 0, "spent": 0, "alloc": Game.party_star_alloc(Game.PARAGON_MAX)}
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
 	for slot in DivineGearData.SLOTS:

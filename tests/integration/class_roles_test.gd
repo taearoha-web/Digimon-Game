@@ -288,7 +288,24 @@ func _field() -> void:
 	check(is_equal_approx(ClassRoles.outgoing(hero, mob), 1.12), "จุดตาย: +12%% under 35%% HP (%s)" % ClassRoles.outgoing(hero, mob))
 	mob.hp = int(mob.max_hp * 0.5)
 	check(is_equal_approx(ClassRoles.outgoing(hero, mob), 1.0), "and nothing above it")
-	check(is_equal_approx(ClassRoles.pierced(hero, 300.0), 270.0) and is_equal_approx(ClassRoles.pierced(_member(&"summoner"), 300.0), 270.0), "ทะลวงเกราะ: 10% of DEF ignored")
+	# The party's 10% for everyone; a member's own ★301+ เจาะเกราะ (HeroStats.SPECIAL_STATS,
+	# the world player's star pool, by the clock) is on top of it.
+	var summoner := _member(&"summoner")
+	var own := ClassRoles.own_pierce(summoner)
+	check(is_equal_approx(ClassRoles.pierce(hero), 0.1) and is_equal_approx(ClassRoles.pierce(summoner), 0.1), "ทะลวงเกราะ: the party pierces 10% for everyone")
+	check(is_equal_approx(ClassRoles.pierced(hero, 300.0), 270.0) and is_equal_approx(ClassRoles.pierced(summoner, 300.0), 270.0 * (1.0 - own)), "ทะลวงเกราะ: 10%% of DEF ignored (%s, %s; the member's own เจาะเกราะ %.3f on top)" % [ClassRoles.pierced(hero, 300.0), ClassRoles.pierced(summoner, 300.0), own])
+	check(own >= 0.0 and own <= 0.2 + 0.0001, "a member's own เจาะเกราะ is at most 20%% (%.3f)" % own)
+	# ★301+ เจาะเกราะ: 0.5% of DEF a point, at most 20% (40 points), after the party's 10%.
+	var special: Dictionary = (Game.profile.paragon as Dictionary).special
+	special["pierce"] = 10
+	hero.refresh_stats()
+	check(is_equal_approx(ClassRoles.own_pierce(hero), 0.05) and is_equal_approx(ClassRoles.pierced(hero, 300.0), 270.0 * 0.95), "เจาะเกราะ 10 points: 5%% more of DEF ignored (%s)" % ClassRoles.pierced(hero, 300.0))
+	special["pierce"] = 99
+	hero.refresh_stats()
+	check(is_equal_approx(ClassRoles.own_pierce(hero), 0.2) and is_equal_approx(ClassRoles.pierced(hero, 300.0), 216.0), "เจาะเกราะ is capped at 20%% (40 points; %s)" % ClassRoles.pierced(hero, 300.0))
+	special["pierce"] = 0
+	hero.refresh_stats()
+	check(is_equal_approx(ClassRoles.pierced(hero, 300.0), 270.0), "without points only the party pierces")
 	check(is_equal_approx(ClassRoles.pierced(mob, 300.0), 300.0), "monsters do not pierce")
 	Game.profile.mp = 0
 	var max_mp := int(hero.stats.max_mp)

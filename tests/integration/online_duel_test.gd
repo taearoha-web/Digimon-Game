@@ -4,7 +4,8 @@ extends Node
 ## around the midpoint; the opponent's RemotePlayer carries a Mob proxy the hero's hits
 ## land on, each sent as pvp_hit at the arena's damage scale (others' hits ignored) with
 ## a hit flash on the RemotePlayer; an incoming pvp_hit hurts the hero through its own
-## defence, capped by BurstGuard; the hero's fall sends duel_over, costs no gold or EXP,
+## defence as real damage (no BurstGuard per-hit or burst cap, only the MAX_HIT_FACTOR
+## sanity clamp on impossible values); the hero's fall sends duel_over, costs no gold or EXP,
 ## does not send it home and it gets up in place; leaving the ring 10 s, the zone or the
 ## connection forfeits; the opponent's forfeit, fall or drop is a win.
 ##   godot --headless --path . res://tests/integration/online_duel_test.tscn
@@ -192,17 +193,31 @@ func _incoming() -> void:
 	Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": dmg, "crit": false})
 	var lost := max_hp - int(Game.profile.hp)
 	check(lost == expect and lost < dmg, "a pvp_hit hurts the hero through its defence (%d of %d, expected %d)" % [lost, dmg, expect])
-	# A huge blow: BurstGuard caps one hit at HIT_CAP of max HP, the window at BURST_CAP.
+	# A huge blow is real damage (the owner's rule): attack against defence, no BurstGuard
+	# per-hit or burst cap. The HP is raised well over max so the blows never fell the hero.
 	BurstGuard.forget(hero.get_instance_id())
 	hero._invulnerable_until = 0
-	Game.profile.hp = max_hp
-	Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": max_hp * 4, "crit": true})
-	lost = max_hp - int(Game.profile.hp)
-	check(lost > 0 and lost <= int(max_hp * BurstGuard.HIT_CAP) + 2, "one huge pvp_hit is capped by BurstGuard (%d of %d max)" % [lost, max_hp])
+	var deep := max_hp * 100
+	var big := max_hp * 4
+	var big_lands := maxi(1, int(round(HeroStats.mitigate(float(big), def))))
+	Game.profile.hp = deep
+	Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": big, "crit": true})
+	lost = deep - int(Game.profile.hp)
+	check(lost == big_lands, "one huge pvp_hit lands in full through defence (%d, expected %d)" % [lost, big_lands])
+	check(lost > int(max_hp * BurstGuard.HIT_CAP) + 2, "one huge pvp_hit is not capped by BurstGuard's HIT_CAP (%d of %d max)" % [lost, max_hp])
+	Game.profile.hp = deep
 	for i in 4:
-		Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": max_hp * 4})
-	lost = max_hp - int(Game.profile.hp)
-	check(lost <= int(max_hp * BurstGuard.BURST_CAP) + 6, "a burst is capped too (%d)" % lost)
+		Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": big})
+	lost = deep - int(Game.profile.hp)
+	check(lost == big_lands * 4, "a burst lands in full, every hit (%d, expected %d)" % [lost, big_lands * 4])
+	check(lost > int(max_hp * BurstGuard.BURST_CAP) + 6, "a burst is not capped by BurstGuard's BURST_CAP (%d of %d max)" % [lost, max_hp])
+	# Only an impossible value is clamped, to MAX_HIT_FACTOR x max HP before defence.
+	var clamp_lands := maxi(1, int(round(HeroStats.mitigate(float(max_hp) * OnlineDuel.MAX_HIT_FACTOR, def))))
+	Game.profile.hp = deep
+	Online._dispatch({"t": "pvp_hit", "from": "p2", "to": "me", "dmg": max_hp * 1000})
+	lost = deep - int(Game.profile.hp)
+	check(lost == clamp_lands, "an impossible pvp_hit is clamped to MAX_HIT_FACTOR x max HP (%d, expected %d)" % [lost, clamp_lands])
+	Game.profile.hp = max_hp
 	# Junk or a stranger's hit does nothing.
 	var hp := int(Game.profile.hp)
 	Online._dispatch({"t": "pvp_hit", "from": "p3", "to": "me", "dmg": 500})

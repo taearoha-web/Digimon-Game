@@ -1,8 +1,9 @@
 extends Node3D
 ## Hero looks: a hero's look is {gender, body} (ChibiBodies: four characters per
 ## gender); old saves' and old clients' style, hair / eye / skin colours and accessory
-## are dropped and never rendered. World players and rivals keep the original body in
-## one of its three ready-made colourings (ChibiLook styles).
+## are dropped and never rendered. Rivals keep the original body in one of its three
+## ready-made colourings (ChibiLook styles); world players wear the character body each
+## picked (the roster's "body", any of its gender's ChibiBodies), the original one in a colouring.
 ##   godot --headless --path . res://tests/integration/chibi_look_test.tscn
 var failures := 0
 var checks := 0
@@ -167,13 +168,27 @@ func _ready() -> void:
 	check(a.randi() == b.randi(), "random_look draws the same numbers as before")
 	check(styles.size() == 3, "rivals wear all three styles")
 
-	# World players keep the original body in one of its colourings.
+	# World players wear the character body each picked (WorldPlayers.ROSTER "body", any of
+	# its gender's ChibiBodies; one without a "body" draws one from its name); the original
+	# body comes in one of its three colourings, the others in their own texture.
 	var world_styles := {}
+	var world_bodies := [{}, {}]
 	for i in mini(WorldPlayers.size(), 60):
 		var wl := WorldPlayers.look(i)
-		world_styles[int(wl.get("style", 0))] = true
-		check(int(wl.get("body", 0)) == 0, "world player %d wears the original body" % i)
-	check(world_styles.size() == 3, "world players wear all three colourings")
+		var e := WorldPlayers.entry(i)
+		var g := int(wl.get("gender", -1))
+		var body := int(wl.get("body", -1))
+		check(g == int(e.gender) and body >= 0 and body < ChibiBodies.count(g) and (not e.has("body") or body == int(e.body)), "world player %d wears its own body (%d, roster %s)" % [i, body, str(e.get("body", "-"))])
+		check(int(wl.get("style", -1)) >= 0 and int(wl.get("style", -1)) < ChibiLook.count("style"), "world player %d has a colouring" % i)
+		if g < 0 or g > 1 or body < 0:
+			continue
+		world_bodies[g][body] = true
+		if body == 0:
+			world_styles[int(wl.get("style", 0))] = true
+		else:
+			check(ChibiLook.paint(wl) == {"skin_tone": 0, "hair_tint": 0, "eye_tint": 0, "acc": 0}, "world player %d on another body is not recoloured" % i)
+	check((world_bodies[0] as Dictionary).size() == ChibiBodies.count(0) and (world_bodies[1] as Dictionary).size() == ChibiBodies.count(1), "world players wear every character of both genders (%s)" % [world_bodies])
+	check(world_styles.size() == 3, "world players on the original body wear all three colourings (%s)" % [world_styles.keys()])
 	# A colouring is for the original body only (its masks fit that texture).
 	check(int(ChibiLook.paint({"gender": 0, "style": 1, "body": 2}).hair_tint) == 0, "another body is never recoloured")
 
