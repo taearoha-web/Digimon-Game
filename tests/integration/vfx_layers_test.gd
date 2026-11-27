@@ -75,7 +75,8 @@ func _ready() -> void:
 		elif not skill.has("star"):
 			check(false, "%s has an art-direction recipe row" % id)
 	# Rows of skills the skill lines dropped may stay (HOWTO); every pool skill has one.
-	check(covered >= skills.size() - StarSkillData.IDS.size() * 5, "every class skill has a recipe row (%d / %d)" % [covered, recipe_ids.size()])
+	# Star skills (the 5 per class and the 2 Ascension ones) wear StarSkillArt's look, no row.
+	check(covered >= skills.size() - StarSkillData.IDS.size() * 5 - AscendSkillData.all_ids().size(), "every class skill has a recipe row (%d / %d)" % [covered, recipe_ids.size()])
 	for palette in SkillArtDirection.PALETTES:
 		check(SkillLayers.PALETTE_ELEMENT.has(palette), "palette %s has an element flavour" % palette)
 	for recipe in SkillArtDirection.RECIPES.values():

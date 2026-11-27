@@ -82,6 +82,25 @@ const RECIPES := {
 	"ring_guard": ["shield", "ffb347", "fff2d0", 6, 1.06, 0.7, 0.35],
 	"iron_prajiad": ["citadel", "ff8a2a", "fff0c8", 6, 1.1, 0.95, 0.3],
 	"vow_of_the_ring": ["hex", "ffc24a", "fff6d0", 6, 1.16, 1.15, 0.25],
+	# The Ascension's buffs (★500, AscendSkillData): the widest, fullest rings of the game, in
+	# the Ascension's own palette (AscendSkillData.COLORS), one sign per class.
+	# Warrior: a ring of eight awakened emperor swords; Archer: the hawk's eyes round the horizon;
+	# Lancer: a phalanx of eight heavenly shields; Mage: runes collapsing fast into one point;
+	# Priest: a ring of seraph wings over the party; Summoner: the claws of every beast sworn in;
+	# Defender: a ten-tower citadel; Assassin: crescents of the eternal night veil;
+	# Dark Lord: the ten-point crown of two realms; Bard (no song, so no notes): a ring of rose
+	# petals; Muay Thai: the sacred flames of the vow round the ring.
+	"sovereign_awakening": ["blade", "ffcf5a", "fff8dc", 8, 1.22, 1.45, 0.32],
+	"zenith_hawkeye": ["eye", "3ae0b0", "f0fff8", 6, 1.18, 1.75, 0.26],
+	"celestial_phalanx": ["shield", "6ab8ff", "fff4d0", 8, 1.24, 1.2, -0.14],
+	"arcane_singularity": ["rune", "c07aff", "fbf0ff", 7, 0.88, 1.25, 0.62],
+	"halo_of_eternity": ["wing", "ffe88a", "fffff0", 8, 1.24, 1.65, 0.06],
+	"covenant_of_beasts": ["claw", "8af05a", "f8ffe8", 6, 1.16, 0.95, 0.24],
+	"aegis_of_eternity": ["citadel", "8ac4ff", "fbfdff", 10, 1.26, 0.7, -0.05],
+	"veil_of_eternity": ["moon", "b05aff", "f4e6ff", 7, 1.2, 1.15, -0.32],
+	"crown_of_dual_realms": ["crown", "f0c050", "fff6d8", 10, 1.24, 2.0, -0.2],
+	"aria_of_eternity": ["petal", "ffb0e8", "fff8fc", 9, 1.2, 1.5, 0.3],
+	"sacred_ring_vow": ["flame", "ffd060", "fffae0", 8, 1.16, 1.05, 0.4],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}

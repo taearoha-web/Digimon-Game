@@ -52,7 +52,8 @@ func _settle(_field: Node3D) -> void:
 func _ready() -> void:
 	GameSettings.load_settings()
 	var skills := _skills()
-	check(skills.size() == 75, "60 class skills and 15 star skills (%d; a class converted to skill lines drops the skills in no line)" % skills.size())
+	check(skills.size() == 81, "60 class skills, 15 star skills and 6 Ascension skills (%d; a class converted to skill lines drops the skills in no line)" % skills.size())
+	check(skills.filter(func(s: Dictionary) -> bool: return AscendSkillData.is_ascend(s)).size() == 6, "each class carries its Ascension ultimate and buff")
 	var field := Node3D.new()
 	add_child(field)
 	await get_tree().process_frame

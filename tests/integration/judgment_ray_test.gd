@@ -80,7 +80,10 @@ func _ready() -> void:
 	seq.set_process(false)
 	seq._process(0.25)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"pillar deals exactly one hit; adjacent enemy untouched")
-	check(mobs[0].damage>=int(1473*HeroStats.SKILL_POWER*tune)-1 and mobs[0].damage<=int(1731*HeroStats.SKILL_POWER*tune)+1,"real single hit retains expected rank-one damage roll")
+	# Rank one at ATK 100 on DEF 0: the base design 24 on the stage's damage curve, rolled
+	# 92-108% (the stage's level comes from its line: it was Lv.96 before skill lines).
+	var design:=24.0*ClassData.damage_curve(int(skill.level))*100.0
+	check(mobs[0].damage>=int(design*0.92*HeroStats.SKILL_POWER*tune)-1 and mobs[0].damage<=int(design*1.08*HeroStats.SKILL_POWER*tune)+1,"real single hit retains expected rank-one damage roll (%d)"%mobs[0].damage)
 	check(seq.art._beam.visible and is_equal_approx(seq.art._beam.scale.y,JudgmentRayArt.HEIGHT),"pillar reaches ground on the damage frame")
 	seq._process(0.4)
 	check(mobs[0].hits==1 and mobs[1].hits==0,"shockwave and rune fragments add no damage")

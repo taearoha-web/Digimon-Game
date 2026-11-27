@@ -53,7 +53,20 @@ const MOTIFS := {
 	"divine_edict":"god_halo", "sunfall_volley":"god_halo", "heavenrend_spear":"god_halo", "astral_apocalypse":"god_halo",
 	"seraphic_judgment":"god_halo", "celestial_dragon_emperor":"god_halo", "pantheon_bastion":"god_halo",
 	"death_gods_eclipse":"god_halo", "abyssal_throne":"god_halo", "divine_symphony":"god_halo",
-	"three_realms_fist":"god_halo"
+	"three_realms_fist":"god_halo",
+	# The Ascension (★500, AscendSkillData; drawn by combat/god_art and combat/star_art through
+	# AscendSkillArt in AscendSkillData.COLORS): each skill's own sign, [ultimate, buff] per class.
+	"emperor_heavensword":"celestial", "sovereign_awakening":"lion",
+	"starfall_emperor_arrow":"constellation", "zenith_hawkeye":"reticle",
+	"dragon_emperor_lance":"drill", "celestial_phalanx":"phalanx",
+	"cosmos_genesis":"genesis", "arcane_singularity":"planets",
+	"eternal_dawn_judgment":"sunrise", "halo_of_eternity":"aureole",
+	"primordial_beast_court":"court", "covenant_of_beasts":"wolf",
+	"eternal_bastion_fall":"titan_shield", "aegis_of_eternity":"shield_ring",
+	"timeless_night_execution":"moon", "veil_of_eternity":"fang",
+	"heaven_hell_sovereign":"sovereign", "crown_of_dual_realms":"crown",
+	"universe_hymn":"god_note", "aria_of_eternity":"lyre",
+	"heavenly_master_fist":"pantheon", "sacred_ring_vow":"rosary"
 }
 const SUPPORT := ["vow_of_the_ring", "celestial_stage", "lords_dominion", "veil_of_night", "eternal_aegis", "royal_vanguard", "sylph_step", "aegis_formation", "seraph_aegis", "sacred_sanctuary", "spirit_court"]
 const DEFENDER := ["titan_shieldbreak", "judgment_rebound", "eternal_aegis", "heavens_bulwark"]
