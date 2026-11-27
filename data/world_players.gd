@@ -1473,9 +1473,16 @@ static func skill_summary(i: int, t: float) -> Dictionary:
 ## its win; a later read only looks at the tries since.
 const TRIAL_PREP_WORK := (AscensionData.HUNT_COUNT + AscensionData.TOKEN_COUNT / AscensionData.TOKEN_CHANCE) / (WorldGear.KILLS_ENDGAME * WorldGear.ELITE_SHARE)
 const TRIAL_EVERY_HOURS := 2.5
-## The guardian's blows (its swing and its moves) a second, and the share of them a
-## player of trial_hands 1 steps out of (its own dodge comes on top).
-const TRIAL_BLOWS := 0.55
+## The same guardian the hero fights (the owner's rule: one standard for everyone), a
+## second: TRIAL_BLOWS swings (each at least AscensionData.FLOOR_SHARE of max HP), a
+## volley of its field moves (BossAttack: TRIAL_VOLLEY_SHOTS shots at TRIAL_VOLLEY_MULT
+## its attack, the floor scaled the same, capped at FLOOR_MAX_SCALE) every
+## Mob.SLAM_INTERVAL, and a story move (StoryBoss: HIT_FRACTION of max HP) every
+## StoryBoss.CYCLE at the trial's average haste (AscendTrial.PHASE_HASTE); the share of
+## them a player of trial_hands 1 steps out of (its own dodge comes on top).
+const TRIAL_BLOWS := 0.5
+const TRIAL_VOLLEY_SHOTS := 2.0
+const TRIAL_VOLLEY_MULT := 1.4
 const TRIAL_EVADE := 0.7
 const TRIAL_EVADE_MAX := 0.85
 ## Lifesteal makes good at most this share of the damage that lands.
@@ -1485,10 +1492,10 @@ const TRIAL_HEAL_MAX := 0.7
 const TRIAL_SKILLS := 4
 const TRIAL_UPTIME := 0.6
 ## The margin (seconds it can fight / seconds it needs) turned into a chance: 50% at
-## TRIAL_EVEN, rising and falling by the log of the margin over TRIAL_SPREAD. (0.5 since
-## the guardian's floor went 15% -> 6% of max HP: margins grew about 2.5x, the pass rates
-## kept where they were.)
-const TRIAL_EVEN := 0.5
+## TRIAL_EVEN, rising and falling by the log of the margin over TRIAL_SPREAD. 1.0: an even
+## chance when it lasts just as long as it needs (the same fight as the hero's, no thumb
+## on the scale either way).
+const TRIAL_EVEN := 1.0
 const TRIAL_SPREAD := 0.5
 const TRIAL_MIN_CHANCE := 0.04
 const TRIAL_MAX_CHANCE := 0.92
@@ -1498,8 +1505,10 @@ const TRIAL_LEARN := 0.012
 const TRIAL_LEARN_MAX := 0.24
 ## The tries whose sheet is read (HeroStats, about a millisecond): past ★500 the gear
 ## grows slowly, so the tries between fight with the last one read, and a player who
-## keeps failing costs at most TRIAL_SHEET_AT.size() reads in all.
+## keeps failing costs a read at those tries, then one every TRIAL_SHEET_EVERY (its gear
+## goes on growing, and a later try fights with it).
 const TRIAL_SHEET_AT: Array[int] = [0, 10, 40, 160]
+const TRIAL_SHEET_EVERY := 80
 ## Per player: {k: tries looked at, pass: its win's work (INF none yet), sheet / stats:
 ## the last sheet read, odds: its chance by hands for that sheet}.
 static var _trial := {}
@@ -1554,8 +1563,16 @@ static func trial_odds(sheet: Dictionary, st: Dictionary, hands: float) -> Dicti
 	var dps := HeroStats.mitigate(float(st.atk) * per_atk * crit, float(g.def) * (1.0 - clampf(float(st.get("pierce", 0.0)), 0.0, 0.9))) * hands
 	var kill := float(g.hp) / maxf(1.0, dps)
 	var max_hp := maxf(1.0, float(st.max_hp))
-	var blow := maxf(HeroStats.mitigate(float(g.atk), float(st.def)), AscensionData.FLOOR_SHARE * max_hp) * (1.0 - clampf(float(st.get("guard", 0.0)), 0.0, 0.45))
-	var landed := TRIAL_BLOWS * (1.0 - clampf(float(st.get("dodge", 0.0)), 0.0, 0.5)) * (1.0 - clampf(TRIAL_EVADE * hands, 0.0, TRIAL_EVADE_MAX))
+	var guard := 1.0 - clampf(float(st.get("guard", 0.0)), 0.0, 0.45)
+	var swing := maxf(HeroStats.mitigate(float(g.atk), float(st.def)), AscensionData.FLOOR_SHARE * max_hp)
+	var shot := maxf(HeroStats.mitigate(float(g.atk) * TRIAL_VOLLEY_MULT, float(st.def)), minf(TRIAL_VOLLEY_MULT, AscensionData.FLOOR_MAX_SCALE) * AscensionData.FLOOR_SHARE * max_hp)
+	var haste := 0.0
+	for h in AscendTrial.PHASE_HASTE:
+		haste += float(h) / float(AscendTrial.PHASE_HASTE.size())
+	var story_every := (StoryBoss.CYCLE.x + StoryBoss.CYCLE.y) * 0.5 * haste
+	# The damage a second the guardian sends (blow = that, one blow a second).
+	var blow := (TRIAL_BLOWS * swing + TRIAL_VOLLEY_SHOTS * shot / Mob.SLAM_INTERVAL + StoryBoss.HIT_FRACTION * max_hp / story_every) * guard
+	var landed := (1.0 - clampf(float(st.get("dodge", 0.0)), 0.0, 0.5)) * (1.0 - clampf(TRIAL_EVADE * hands, 0.0, TRIAL_EVADE_MAX))
 	# Lifesteal heals between the blows, but never more than TRIAL_HEAL_MAX of what lands
 	# (a blow takes its share at once).
 	var heal := float(st.get("lifesteal", 0.0)) * dps
@@ -1599,7 +1616,7 @@ static func _trial_pass(i: int, w: float) -> float:
 	while trial_work(i, int(c.k)) <= w:
 		var k := int(c.k)
 		var at := trial_work(i, k)
-		if TRIAL_SHEET_AT.has(k) or (c.sheet as Dictionary).is_empty():
+		if TRIAL_SHEET_AT.has(k) or (k > 160 and (k - 160) % TRIAL_SHEET_EVERY == 0) or (c.sheet as Dictionary).is_empty():
 			c["sheet"] = trial_sheet(i, at)
 			c["stats"] = HeroStats.compute(c.sheet)
 			c["odds"] = {}
