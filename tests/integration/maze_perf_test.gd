@@ -8,6 +8,8 @@ extends Node
 ##   board an unpaced read works out from nothing;
 ## - a world player's forging run a stretch at a time (WorldGear.advance) is the same
 ##   forging as run in one go, events and states alike;
+## - the next guild war's sides worked out ahead (GuildWarData.warm_sides) read the very
+##   powers a cold world gives, and quicker;
 ## - the world's indices stay inside the keys that hold them (MazeWar, WorldGear).
 ## A world of the ROSTER and MAZE_PERF_N newcomers (default 1500, made as WorldPlayers makes
 ## them, past NEWCOMER_MAX), read on day MAZE_PERF_DAY (default 241) after the opening.
@@ -97,11 +99,8 @@ func _sliced(k: int, budget: int) -> Dictionary:
 	var most := 0.0
 	while true:
 		var t0 := Time.get_ticks_usec()
-		var before := str(MazeWar._prep.get("cand", "-")) + "/" + str(MazeWar._prep.get("next", "-"))
 		var done := MazeWar._prepare(k, t0 + budget)
 		most = maxf(most, _ms_since(t0))
-		if _ms_since(t0) > 10.0 and OS.get_environment("MAZE_PERF_SHOW") != "":
-			print("    slow step %.1f ms: %s -> %s" % [_ms_since(t0), before, str(MazeWar._prep.get("cand", "-")) + "/" + str(MazeWar._prep.get("next", "-"))])
 		calls += 1
 		if done:
 			break
@@ -155,40 +154,6 @@ func _ready() -> void:
 	check(most < 4096, "every world player fits WorldGear's read key (%d)" % most)
 	check(all < 4096, "the test's world fits the keys too")
 
-	if OS.get_environment("MAZE_PERF_PROFILE") != "":
-		var mx := [0.0, 0.0, 0.0, 0.0]
-		for i in MazeWar.candidates():
-			var a := Time.get_ticks_usec()
-			WorldPlayers.played_minutes(i, t)
-			var b := Time.get_ticks_usec()
-			MazeWar.ready_at(i, t)
-			var c := Time.get_ticks_usec()
-			var sim := WorldGear._new_sim(i)
-			var d := Time.get_ticks_usec()
-			mx[0] = maxf(mx[0], b - a)
-			mx[1] = maxf(mx[1], c - b)
-			mx[2] = maxf(mx[2], d - c)
-			if d - c > 3000 or c - b > 3000:
-				print("  slow: ready %d new_sim %d (player %d)" % [c - b, d - c, i])
-		print("max us: minutes %d ready %d new_sim %d" % [mx[0], mx[1], mx[2]])
-		var t0 := Time.get_ticks_usec()
-		var cmax := 0.0
-		var cand := MazeWar.candidates()
-		for k in 30:
-			var i := cand[k * 7]
-			var sim: WorldGear.Sim = WorldGear._new_sim(i)
-			WorldGear._sims[i] = sim
-			var w := WorldPlayers.work_at(i, t)
-			while WorldGear._edge(sim.chunks) <= w:
-				var a := Time.get_ticks_usec()
-				WorldGear._run_chunk(i, sim, sim.chunks)
-				sim.chunks += 1
-				var dt := Time.get_ticks_usec() - a
-				if dt > cmax:
-					cmax = dt
-					print("chunk max %d us at chunk %d of player %d (events %d)" % [dt, sim.chunks, i, sim.events.size()])
-		get_tree().quit(0)
-		return
 	# 1. Slots worked out a step at a time = the old one-go fights, on several days.
 	var slots: Array[int] = []
 	for d in [day * 0.25, day * 0.6, day - 1.0, day]:
@@ -196,6 +161,9 @@ func _ready() -> void:
 		slots.append(MazeWar.slot_of(at))
 		slots.append(MazeWar.slot_of(at) + 1)
 	slots.append(MazeWar.slot_of(t))
+	# The game's tables a first stats read builds once (HeroStats, the classes: tens of
+	# ms once a run, whatever the world's size) are built before the timing.
+	_old_power(0, t)
 	var worst := 0.0
 	var fights := 0
 	var people := 0
@@ -232,11 +200,8 @@ func _ready() -> void:
 	t_all = Time.get_ticks_usec()
 	while true:
 		var t0 := Time.get_ticks_usec()
-		var before := str(MazeWar._prep.get("k", "-")) + ":" + str(MazeWar._prep.get("cand", "-")) + "/" + str(MazeWar._prep.get("next", "-"))
 		var done := MazeWar.warm(1500)
 		warm_most = maxf(warm_most, _ms_since(t0))
-		if _ms_since(t0) > 8.0 and OS.get_environment("MAZE_PERF_SHOW") != "":
-			print("    slow frame %d %.1f ms: %s -> %s" % [frames, _ms_since(t0), before, str(MazeWar._prep.get("k", "-")) + ":" + str(MazeWar._prep.get("cand", "-")) + "/" + str(MazeWar._prep.get("next", "-"))])
 		frames += 1
 		if frames % 40 == 0 or done:
 			t0 = Time.get_ticks_usec()
@@ -296,6 +261,40 @@ func _ready() -> void:
 		check(_gear_key(WorldGear.equip_at_work(i, w)) == String(states[i][2]), "player %d: the same gear worn" % i)
 	print("  forging a stretch at a time: longest stretch %.2f ms" % step_most)
 	check(step_most < STEP_MS, "a stretch of forging is short (%.2f ms)" % step_most)
+
+	# 4. The next guild war's sides worked out ahead (GuildWarData.warm_sides, a frame
+	# budget at a time): the round's line-ups are then quick, with the very powers a cold
+	# world works out for them in one go.
+	WorldGear.clear()
+	var at := GuildLeague.next_slot(t)
+	var side_most := 0.0
+	var side_frames := 0
+	while side_frames < 200000:
+		var t0 := Time.get_ticks_usec()
+		var done := GuildWarData.warm_sides(1000)
+		side_most = maxf(side_most, _ms_since(t0))
+		side_frames += 1
+		if done:
+			break
+	var t1 := Time.get_ticks_usec()
+	var war := GuildWarData.roll_guild_war(rng, GuildLeague.ids(), float(at), -1.0, false)
+	var war_ms := _ms_since(t1)
+	WorldGear.clear()
+	t1 = Time.get_ticks_usec()
+	var cold := GuildWarData.roll_guild_war(rng, GuildLeague.ids(), float(at), -1.0, false)
+	var cold_ms := _ms_since(t1)
+	var sides_of := func(info: Dictionary) -> String:
+		var parts: PackedStringArray = []
+		for sd in info.get("sides", []):
+			var powers: PackedStringArray = []
+			for f in sd.lineup:
+				powers.append("%d:%.4f" % [int(f.world), float(f.power)])
+			parts.append("%d=%s" % [int(sd.guild), ",".join(powers)])
+		return ";".join(parts)
+	print("  the next war's sides ahead: %d frames, longest %.1f ms; the war's line-ups then %.0f ms (cold %.0f ms)" % [side_frames, side_most, war_ms, cold_ms])
+	check(not war.is_empty() and sides_of.call(war) == sides_of.call(cold), "the line-ups read after warm_sides are the cold ones")
+	check(side_most < STEP_MS, "no frame of warm_sides takes long (%.1f ms)" % side_most)
+	check(war_ms < cold_ms, "the line-ups are quicker once their gear is worked out ahead")
 
 	MazeWar.pace_mode = -1
 	MazeWar.ai_mode = -1

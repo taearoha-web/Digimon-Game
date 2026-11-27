@@ -255,13 +255,16 @@ static func entry(i: int) -> Dictionary:
 const NEWCOMERS := Vector2i(10, 15)
 ## The first day (from the opening's Thai day) with newcomers: 23 Nov 2026.
 const NEWCOMER_FROM_DAY := 1
-## At most this many newcomers in all (about 48 days of them at 12.5 a day), so a phone
-## keeps up. tools/world_scale_bench.tscn timed the world's reads at 100 + 600 / 1500 /
-## 3000 players: every pass over everyone (a state ~80 us, a progress read ~40 us, an
-## online look-up ~3 us a player on a desktop, a phone several times that) grows with the
-## count, and the maze's cold MazeWar.slot_fights power read (1.4 s at 700 players on a
-## desktop, one frame) grows with it too: kept at 600 until that is split across frames.
-const NEWCOMER_MAX := 600
+## At most this many newcomers in all (about 96 days of them at 12.5 a day), so a phone
+## keeps up. tools/world_scale_bench.tscn timed the world's reads at 100 + 600 / 1100 /
+## 1500 players on day 241: every pass over everyone (a state ~50 us, a progress read
+## ~30 us, an online look-up ~2 us a player on a desktop, a phone several times that)
+## grows with the count (at 1300 players the occasional whole-world reads, the registry,
+## parties_at, IsleLuck.hunters_at, take about 30-50 ms on a desktop); the maze no longer
+## does (MazeWar.warm works its slots, powers and the forging behind them out a 1.5 ms
+## step a frame, its longest frame ~15 ms at 1600 players). Kept at 1200: every index
+## stays far inside the keys that hold them (WorldGear's reads: index < 4096).
+const NEWCOMER_MAX := 1200
 ## How a newcomer talks in the chats (a play style's voice: ChatThreads.voice, ChatBrain).
 const NEWCOMER_VOICES: Array[String] = ["hardcore", "regular", "student", "night_owl", "casual", "daytime", "early"]
 const _EN_HEAD: Array[String] = ["Storm", "Kira", "Neo", "Blaze", "Frost", "Pixel", "Nova", "Yuki", "Ace", "Rex",

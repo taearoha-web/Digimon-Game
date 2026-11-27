@@ -517,3 +517,50 @@ const SUPPLY_COUNT := 40
 ## EXP (stars at Lv.100) for a won war; a lost one pays gold only.
 static func exp_reward(level: int, won: bool) -> int:
 	return int(HeroStats.exp_to_next(level) * 0.12) if won else 0
+
+
+# --- Perf: the next round's sides worked out ahead (nothing here changes a result) ---
+
+## The next league round's line-ups: {at, g (next guild to list), c (its next member to
+## read), ids, next (next member whose forging to run on; -1 all done)}.
+static var _ahead := {"at": -1, "g": 0, "c": 0, "ids": [], "next": 0}
+
+
+## Works the next league round's sides out ahead, for about `budget` microseconds (Game
+## calls it each frame): each guild's GUILD_SIDE strongest (its members' levels read a
+## few at a time, a first read sums all their days played; then best_members) and their forging up to the round (WorldGear.advance, a stretch at a time), so the
+## round's line-ups (roll_guild_war, GuildLeague.side_power) read gear that is a look-up
+## instead of whole lives worked out in one frame (seconds on a cold world). The reads
+## later give the very same results: only when the work is done changes. True when ready.
+static func warm_sides(budget: int) -> bool:
+	if WorldPlayers.size() <= 0:
+		return true
+	var at := GuildLeague.next_slot(WorldPresence.clock())
+	if int(_ahead.at) != at:
+		_ahead = {"at": at, "g": 0, "c": 0, "ids": [], "next": 0}
+	elif int(_ahead.next) < 0:
+		return true
+	var until := Time.get_ticks_usec() + budget
+	var guilds := GuildLeague.ids()
+	while int(_ahead.g) < guilds.size():
+		var g: int = guilds[int(_ahead.g)]
+		if int(_ahead.c) == 0:
+			_ahead["all"] = WorldPlayers.members(g)
+		var all: Array[int] = _ahead.all
+		while int(_ahead.c) < all.size():
+			WorldPlayers.level_at(all[int(_ahead.c)], float(at))
+			_ahead.c = int(_ahead.c) + 1
+			if Time.get_ticks_usec() >= until:
+				return false
+		(_ahead.ids as Array).append_array(best_members(g, float(at), GUILD_SIDE))
+		_ahead.g = int(_ahead.g) + 1
+		_ahead.c = 0
+		return false
+	var ids: Array = _ahead.ids
+	while int(_ahead.next) < ids.size():
+		var i := int(ids[int(_ahead.next)])
+		if not WorldGear.advance(i, WorldPlayers.work_at(i, float(at)), until):
+			return false
+		_ahead.next = int(_ahead.next) + 1
+	_ahead.next = -1
+	return true

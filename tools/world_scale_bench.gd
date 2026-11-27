@@ -123,10 +123,36 @@ func _ready() -> void:
 		MazeWar._cands_n = -1
 		var cands := _ms(func(): MazeWar.candidates())
 		var inside := _ms(func(): MazeWar.inside_at(t + 100.0))
-		var k0 := MazeWar.slot_of(t + 200.0)
+		# The maze as the game reads it: warm each frame (1.5 ms budget, a cold week caught
+		# up a step at a time) and the paced board meanwhile (MazeWar.pace_mode).
+		MazeWar.reset()
+		MazeWar.ai_mode = 1
+		MazeWar.pace_mode = 1
+		# (The stats tables a first power read builds, once a run, built before the timing.)
+		MazeWar.power(0, t)
+		MazeWar._power.clear()
+		var clock0 := WorldPresence.clock_offset
+		WorldPresence.clock_offset = t + 200.0 - WorldPlayers.now()
+		var frames := 0
+		var longest := 0.0
+		var board_ms := 0.0
+		var t_warm := Time.get_ticks_usec()
+		while frames < 200000:
+			var t1 := Time.get_ticks_usec()
+			var done := MazeWar.warm(1500)
+			longest = maxf(longest, float(Time.get_ticks_usec() - t1) / 1000.0)
+			frames += 1
+			if frames % 50 == 0:
+				board_ms = maxf(board_ms, _ms(func(): MazeWar.standings(MazeWar.week_of(t + 200.0), t + 200.0)))
+			if done:
+				break
+		var warm_s := float(Time.get_ticks_usec() - t_warm) / 1000000.0
+		var k0 := MazeWar.slot_of(t + 200.0) + MazeWar.AHEAD + 1
 		var fights := _ms(func(): MazeWar.slot_fights(k0))
-		var fights2 := _ms(func(): MazeWar.slot_fights(k0 + 1))
-		out += " maze candidates %.1f, inside_at %.1f, slot_fights %.1f / next %.1f ms;" % [cands, inside, fights, fights2]
+		WorldPresence.clock_offset = clock0
+		MazeWar.pace_mode = -1
+		MazeWar.ai_mode = -1
+		out += " maze candidates %.1f, inside_at %.1f; maze warm caught the week up in %d frames (%.1f s), longest frame %.1f ms, paced board %.1f ms; a slot's fights unpaced after it %.1f ms;" % [cands, inside, frames, warm_s, longest, board_ms, fights]
 		var parties := _ms(func(): WorldParties.parties_at(t + 300.0))
 		out += " parties_at %.1f ms;" % parties
 		var hunt := _ms(func(): IsleLuck.hunters_at(t + 310.0))

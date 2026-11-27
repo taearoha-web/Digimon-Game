@@ -177,6 +177,8 @@ func _process(delta: float) -> void:
 	DailyPass.tick(delta)
 	# เขาวงกตหนึ่งในใต้หล้า: the world players' week worked out ahead, a little a frame.
 	MazeWar.warm(1500)
+	# The next guild war's line-ups' gear worked out ahead, a little a frame (perf only).
+	GuildWarData.warm_sides(1000)
 	_gq_timer += delta
 	if _gq_timer >= GQ_CHECK_INTERVAL:
 		_gq_timer = 0.0
