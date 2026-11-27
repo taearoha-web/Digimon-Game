@@ -378,6 +378,13 @@ static func craft_problem(slot: String) -> String:
 	return ""
 
 
+## The bag's line for แก่นเทวาลัย ("" for anything else).
+static func core_help(id: String) -> String:
+	if id != CORE:
+		return ""
+	return "วัตถุดิบผสม%s (★%d) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ในกระเป๋า: อาวุธ/ปีก %d แก่น · เสื้อ/หมวก/รองเท้า %d แก่น · แหวน/สร้อย %d แก่น + ทอง %s ต่อชิ้น สำเร็จทุกครั้ง · ดรอปที่%s (มอนทั่วไป %d%% บอส %d%% ได้ %d-%d แก่น)" % ["ชุดเทวาลัย", STARS, int(CRAFT_CORES.weapon), int(CRAFT_CORES.armor), int(CRAFT_CORES.ring), PlayerStall.thousands(CRAFT_GOLD), FIELD, int(CORE_CHANCE * 100.0), int(BOSS_CORE_CHANCE * 100.0), int(BOSS_CORES[0]), int(BOSS_CORES[1])]
+
+
 ## Forges one piece of the hero's class's set: CRAFT_CORES[slot] cores and CRAFT_GOLD,
 ## a sure success. Returns "ok" or why not (Thai).
 static func craft(slot: String) -> String:

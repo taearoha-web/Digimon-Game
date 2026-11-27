@@ -1102,6 +1102,8 @@ func _refresh_detail() -> void:
 			else ("วัตถุดิบแหวนและสร้อยชุดเซต 250 ดาว: ชิ้นละ %d เกล็ด + %s ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" (ผสมพลาดเกล็ดยังอยู่) · ดรอปที่วิหารบัวดาราและห้วงสมุทรอสูร (บอสให้ %d เกล็ดทุกตัว)" % [SetGearData.SCALES, SetGearData.cost_text(), EndgameFields.SCALE_BOSS]) if String(item.get("id", "")) == SetGearData.SCALE
 			else SkyIsleLoot.help(String(item.get("id", ""))) if SkyIsleLoot.help(String(item.get("id", ""))) != ""
 			else Christmas.help(String(item.get("id", ""))) if Christmas.help(String(item.get("id", ""))) != ""
+			else WeeklyCollect.help(String(item.get("id", ""))) if WeeklyCollect.help(String(item.get("id", ""))) != ""
+			else Star500Gear.core_help(String(item.get("id", ""))) if Star500Gear.core_help(String(item.get("id", ""))) != ""
 			else ("วัตถุดิบสัตว์ขี่ของ%s: ใช้สร้าง/อัปเลเวลที่เมนู สัตว์ขี่ (เลเวล n ใช้ n ชิ้น + เพชรชาออส %d×n เม็ด โอกาสสำเร็จ %s ถ้าพลาดวัตถุดิบกับเพชรจะหายไป)" % [String(MountData.info(for_mount).name), int(MountData.info(for_mount).get("chaos", 0)), MountData.chance_text(for_mount)]) if for_mount != ""
 			else ("ใช้ตีปีกที่ช่างตีเหล็ก: ปีกเลเวล 100 + เพชรชาออส 1 เม็ด + ขนนก 1 ขน ได้ปีก 100 ดาวประจำอาชีพ (โอกาส %d%%)" % int(StarWingData.CRAFT_CHANCE * 100.0)) if craft
 			else ("เจาะช่องอัญมณีเพิ่มให้อาวุธ/ชุด/ปีก ทีละ 1 ช่อง สูงสุด %d ช่อง (ตีบวก +15 ได้ช่องที่ 4) · กดที่ไอเทมแล้วเลือก \"เจาะช่องอัญมณีเพิ่ม\"" % ItemData.MAX_SOCKETS) if String(item.get("id", "")) == "drill"

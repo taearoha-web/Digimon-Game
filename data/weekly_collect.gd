@@ -143,6 +143,23 @@ static func theme(week: int) -> Dictionary:
 	return THEMES[theme_index(week)]
 
 
+## The bag's line for a piece of the collection ("" for anything else): what it is and
+## where it goes (the "สะสมของแรร์" exchange in its own theme's week).
+static func help(id: String) -> String:
+	if not id.begins_with("wk"):
+		return ""
+	var bits := id.trim_prefix("wk").split("_")
+	if bits.size() != 2 or not bits[0].is_valid_int() or not bits[1].is_valid_int():
+		return ""
+	var th := int(bits[0])
+	var k := int(bits[1])
+	if th < 0 or th >= THEMES.size() or k < 0 or k >= PIECES:
+		return ""
+	var now_th := theme_index(week_of(WorldPresence.clock())) if week_of(WorldPresence.clock()) >= 0 else -1
+	var when := "สัปดาห์นี้เป็นธีมนี้ แลกได้เลย" if now_th == th else "ธีมนี้วนกลับมาทุก %d สัปดาห์ เก็บไว้แลกตอนนั้นได้ (ไม่มีวันหมดอายุ)" % THEMES.size()
+	return "ของสะสม%s ธีม \"%s\" ระดับ%s (ชิ้นที่ %d จาก %d): นำไปแลกของรางวัลที่เมนู \"%s\" เช่น ครบ 5 ชิ้นแลกหีบสมบัตินักสะสม (ทอง เพชรชมพู เพชรชาออส อัญมณี ฯลฯ ตามระดับตัวละคร) · %s · ชิ้นละ %d แต้มจัดอันดับนักสะสมประจำสัปดาห์ · ขาย เทรด ตั้งร้าน ฝากคลังได้" % [TITLE, String(THEMES[th].name), RANKS[k], k + 1, PIECES, NAME, when, POINTS[k]]
+
+
 ## The id of piece k of theme `th`.
 static func piece_id(th: int, k: int) -> String:
 	return "wk%d_%d" % [th, k]
