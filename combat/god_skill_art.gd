@@ -206,7 +206,7 @@ static func telegraph(art: StarSkillArt, caster: Node3D, skill: Dictionary, poin
 	var cast := caster.get_node_or_null("StarCast_" + id) if is_instance_valid(caster) else null
 	_casts[id] = weakref(cast) if cast else null
 	if own != null and own.has_method("telegraph") and own.telegraph(art, caster, skill, point, time):
-		bind_roots(art.get_parent(), id, time + float(StarSkillData.GOD_BEATS.back()) + 0.6 - CAST_MARGIN)
+		bind_roots(art.get_parent(), id, time + float(AscendSkillData.god_beats(skill).back()) + 0.6 - CAST_MARGIN)
 		return
 	var c := StarSkillArt.look(skill)
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
@@ -296,10 +296,12 @@ static func strike(art: StarSkillArt, parent: Node3D, skill: Dictionary, point: 
 	var id := String(skill.id)
 	var c := StarSkillArt.look(skill)
 	var r := clampf(float(skill.get("radius", 9.0)), 4.0, 10.0)
-	var last := StarSkillData.GOD_BEATS.size() - 1
+	# The cast's own beats: the god skill's four waves and finale, or a finisher's one blow.
+	var beats := AscendSkillData.god_beats(skill)
+	var last := beats.size() - 1
 	var own := signature(id)
 	if own != null:
-		var left := float(StarSkillData.GOD_BEATS[last]) - float(StarSkillData.GOD_BEATS[mini(index, last)]) + 0.6 - CAST_MARGIN
+		var left := float(beats[last]) - float(beats[mini(index, last)]) + 0.6 - CAST_MARGIN
 		if index >= last and own.has_method("finale") and own.finale(art, parent, skill, point, source):
 			bind_roots(parent, id, left)
 			return

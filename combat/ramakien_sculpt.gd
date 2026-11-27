@@ -18,6 +18,17 @@ extends RefCounted
 ##   spirit_fist     a clenched fist with its gold bracelet, knuckles along +X, the thumb's
 ##                   side and the knuckle ridge to +Z, the forearm tapering into light
 ##   trident         the gold ตรีเพชร, along +X (prongs at +X), x from -1 to 1
+## and the ★500 หมัดบรมครูเทวะ's (HeavenlyMasterFist, combat/god_art/heavenly_master_fist.gd):
+##   master_deva     บรมครูเทวะ: a serene warm-white deity boxer, bare-chested under gold
+##                   sak yant line work, the มงคล on his brow (red cloth wound with gold,
+##                   its tail rising behind), a flame crest over the topknot, red
+##                   ประเจียด on both arms with their tails flying, hands pressed in ไหว้ครู
+##   ruean_kaew      ซุ้มเรือนแก้ว: the gold arch of flame tongues standing behind him
+##   devalai         เทวาลัย: the temple ring on the ground (unit radius): gold rims, a
+##                   ring of กนก flames laid on the floor, eight lotus pillars with flame
+##                   finials, red ประเจียด cloth swagged between them
+##   deva_fist       his colossal wrapped fist, knuckles along +X, a ประเจียด on the
+##                   forearm, fading into light
 ## and the light's cards (RamakienLight shader): quad, shaft, disc, trail, embers, veil.
 
 const SKIN := 0.0
@@ -64,6 +75,10 @@ static func build(kind: String) -> ArrayMesh:
 		"thotsakan_arms": _thotsakan_arms()
 		"spirit_fist": _spirit_fist()
 		"trident": _trident()
+		"master_deva": _master_deva()
+		"ruean_kaew": _ruean_kaew()
+		"devalai": _devalai()
+		"deva_fist": _deva_fist()
 		"quad": _card(Vector2(-0.5, -0.5), Vector2(0.5, 0.5))
 		"shaft": _card(Vector2(-0.5, 0.0), Vector2(0.5, 1.0))
 		"trail": _card(Vector2(-1.0, -0.5), Vector2(0.0, 0.5))
@@ -994,3 +1009,291 @@ static func _embers(n: int) -> void:
 				_st.set_uv(corners[i])
 				_st.set_uv2(Vector2(phase, speed))
 				_st.add_vertex(p)
+
+
+# ---------------------------------------------------------------------------
+# ★500 หมัดบรมครูเทวะ: the master deity, his arch, his temple ring and his fist
+# ---------------------------------------------------------------------------
+
+const DEVA_BODY := [[0.1, -0.06], [0.1, 0.0], [0.104, 0.06], [0.118, 0.13], [0.138, 0.2], [0.152, 0.26], [0.155, 0.3], [0.142, 0.333], [0.104, 0.357], [0.062, 0.372], [0.041, 0.386], [0.038, 0.42], [0.031, 0.44]]
+
+
+## A strip of cloth through [param pts] ([param widths] across, laid across
+## [param across] as far as the path allows), seen from both sides.
+static func _cloth(pts: Array, widths: Array, across: Vector3, mat: float, pat := P_NONE) -> void:
+	var rows: Array = []
+	var uvs: Array = []
+	var n := pts.size()
+	for i in n:
+		var p: Vector3 = pts[i]
+		var t := ((pts[mini(i + 1, n - 1)] as Vector3) - (pts[maxi(i - 1, 0)] as Vector3)).normalized()
+		var a := across - t * t.dot(across)
+		a = a.normalized() if a.length_squared() > 1e-8 else t.cross(Vector3.BACK).normalized()
+		var w := float(widths[i]) * 0.5
+		rows.append(PackedVector3Array([p - a * w, p + a * w]))
+		uvs.append(PackedVector2Array([Vector2(0.0, float(i)), Vector2(1.0, float(i))]))
+	_grid(rows, uvs, mat, pat, false)
+	_grid(rows, uvs, mat, pat, false, [], -1.0)
+
+
+## A ประเจียด round a limb at [param at] (the limb runs along [param along]): a thick roll
+## of red cloth bound by two gold threads, its knot on the [param out] side and two tails
+## flying from it ([param fly]: where they stream).
+static func _prajiad(at: Vector3, along: Vector3, r: float, out: Vector3, fly: Vector3, tail := 3.2) -> void:
+	var ax := along.normalized()
+	_torus(at, ax, r, r * 0.32, RED, P_NONE, 14, 6)
+	for k in [-1.0, 1.0]:
+		_torus(at + ax * r * 0.3 * k, ax, r * 1.02, r * 0.09, GOLD, P_ENGRAVE, 12, 4)
+	var side := (out - ax * ax.dot(out)).normalized()
+	var knot := at + side * r * 1.2
+	_ellipsoid(knot, Vector3.ONE * r * 0.36, RED, P_NONE, 5, 8)
+	var f := fly.normalized()
+	var bend := f.cross(Vector3.BACK)
+	bend = bend.normalized() if bend.length_squared() > 1e-6 else Vector3.UP
+	for k in 2:
+		var dir := (f + bend * (0.35 if k == 0 else -0.3)).normalized()
+		var pts: Array = []
+		var widths: Array = []
+		for j in 7:
+			var t := float(j) / 6.0
+			pts.append(knot + dir * r * tail * t + bend * sin(t * PI * 1.6 + float(k)) * r * 0.35 * t)
+			widths.append(r * (0.62 - 0.38 * t))
+		var across := dir.cross(Vector3.BACK)
+		_cloth(pts, widths, across if across.length_squared() > 1e-4 else Vector3.UP, RED)
+		_glow = 0.5
+		_ellipsoid(pts[6], Vector3.ONE * r * 0.14, GOLD, P_NONE, 4, 6)
+		_glow = 0.0
+
+
+## An arm of the master from shoulder to wrist: sak yant line work, a ประเจียด on the
+## upper arm, rope wraps (คาดเชือก) and a gold bracelet at the wrist.
+static func _deva_arm(s: Vector3, e: Vector3, w: Vector3, thick: float, side: float) -> void:
+	var upper := s.lerp(e, 0.5) + Vector3(side * thick * 0.28, 0, -thick * 0.1)
+	var fore := e.lerp(w, 0.38) + Vector3(side * thick * 0.12, -thick * 0.08, 0)
+	var pts := _spline([s, upper, e, fore, w], 3)
+	var radii := _lerp_list([thick * 1.24, thick * 1.2, thick * 0.8, thick * 0.95, thick * 0.62], pts.size())
+	_tube(pts, radii, 12, SKIN, P_LAI)
+	_ellipsoid(e + Vector3(side * thick * 0.1, -thick * 0.2, -thick * 0.1), Vector3.ONE * thick * 0.82, SKIN, P_LAI, 5, 8)
+	_prajiad(s.lerp(e, 0.5), e - s, thick * 1.22, Vector3(side, 0.15, 0.3), Vector3(side * 0.85, 0.25, -0.25))
+	var fw := w - e
+	_torus(w.lerp(e, 0.06), fw, thick * 0.66, thick * 0.14, GOLD, P_ENGRAVE, 12, 5)
+	for k in 3:
+		_torus(w.lerp(e, 0.16 + 0.085 * float(k)), fw, thick * (0.72 + 0.05 * float(k)), thick * 0.11, PEARL, P_NONE, 12, 4)
+
+
+## Two hands pressed together in ไหว้ครู, in the frame whose Y runs up the fingers and
+## Z out of the knuckles' side (the thumbs towards the viewer).
+static func _wai_hands(size: float) -> void:
+	for side in [-1.0, 1.0]:
+		_ellipsoid(Vector3(side * size * 0.42, size * 1.45, -size * 0.05), Vector3(size * 0.38, size * 1.5, size * 1.0), SKIN, P_NONE, 6, 10, 2.6)
+		_ellipsoid(Vector3(side * size * 0.36, size * 3.45, -size * 0.12), Vector3(size * 0.32, size * 1.4, size * 0.86), SKIN, P_NONE, 6, 10, 2.3)
+		_tone = 0.85
+		_tube([Vector3(side * size * 0.6, size * 0.45, size * 0.7), Vector3(side * size * 0.55, size * 1.5, size * 1.02), Vector3(side * size * 0.34, size * 2.35, size * 0.98)], [size * 0.34, size * 0.3, size * 0.24], 8, SKIN, P_NONE)
+		_tone = 1.0
+	# A gold glint between the palms (the master's blessing).
+	_glow = 1.0
+	_ellipsoid(Vector3(0, size * 4.9, -size * 0.1), Vector3(size * 0.22, size * 0.42, size * 0.22), GOLD, P_NONE, 4, 6)
+	_glow = 0.0
+
+
+## มงคล: a ring of red cloth wound with a gold thread round the brow, a gold ยันต์ plate
+## at the front, its tail rising up and back behind the head.
+static func _mongkhon(c: Vector3, r: float, small: float) -> void:
+	var y := Vector3(0, 1, -0.2).normalized()
+	var x := Vector3.RIGHT
+	var z := x.cross(y)
+	_torus(c, y, r, small, RED, P_NONE, 22, 7)
+	var helix: Array = []
+	var radii: Array = []
+	for k in 97:
+		var a := TAU * float(k) / 96.0
+		var ph := a * 13.0
+		var d := x * cos(a) + z * sin(a)
+		helix.append(c + d * (r + small * 1.02 * cos(ph)) + y * small * 1.02 * sin(ph))
+		radii.append(small * 0.28)
+	_tube(helix, radii, 4, GOLD, P_ENGRAVE, false)
+	# The front plate: a gold lotus bud round a glowing gem.
+	var keep := _xf
+	_xf = keep * Transform3D(Basis(Vector3.RIGHT, -0.2), c + z * (r + small * 0.9) + y * small * 0.2)
+	_plate(_flame_poly(small * 2.4, small * 3.0, 0.0, 0.0, 8), small * 0.4, GOLD, P_ENGRAVE)
+	_glow = 0.9
+	_ellipsoid(Vector3(0, small * 1.0, small * 0.25), Vector3.ONE * small * 0.45, RED, P_NONE, 4, 6)
+	_glow = 0.0
+	_xf = keep
+	# The tail (หางมงคล): out of the back of the ring, up and back, bound in gold.
+	var back := c - z * (r + small * 0.3)
+	var tail := _spline([back, back + Vector3(0, 0.03, -0.035), back + Vector3(0, 0.09, -0.06), back + Vector3(0, 0.155, -0.052)], 4)
+	var tr := _lerp_list([small * 1.05, small * 0.95, small * 0.72, small * 0.4], tail.size())
+	_tube(tail, tr, 10, RED, P_NONE)
+	for t in [0.25, 0.5, 0.75]:
+		var i := int(t * float(tail.size() - 1))
+		var along := (tail[mini(i + 1, tail.size() - 1)] as Vector3) - (tail[maxi(i - 1, 0)] as Vector3)
+		_torus(tail[i], along, float(tr[i]) * 1.05, float(tr[i]) * 0.28, GOLD, P_ENGRAVE, 10, 4)
+	_glow = 0.6
+	_ellipsoid(tail[tail.size() - 1], Vector3.ONE * small * 0.55, GOLD, P_ENGRAVE, 5, 8)
+	_glow = 0.0
+
+
+## บรมครูเทวะ (unit height, the waist at 0, facing +Z).
+static func _master_deva() -> void:
+	_torso(DEVA_BODY, 0.6, 0.262, 0.03)
+	for side in [-1.0, 1.0]:
+		_ellipsoid(Vector3(side * 0.158, 0.313, 0.0), Vector3(0.057, 0.057, 0.051), SKIN, P_LAI, 7, 12)
+	_collar(0.378, 0.054, 0.312, 0.17, 0.62, 14)
+	_sash(Vector2(0.125, 0.31), Vector2(-0.1, 0.04), DEVA_BODY, 0.6, 0.004)
+	_lathe([[0.104, 0.05], [0.108, 0.065], [0.108, 0.085], [0.104, 0.1]], Vector3.ZERO, 24, 0.64, GOLD, P_ENGRAVE)
+	for side in [-1.0, 1.0]:
+		_deva_arm(Vector3(side * 0.158, 0.313, 0.0), Vector3(side * 0.212, 0.168, 0.088), Vector3(side * 0.03, 0.282, 0.2), 0.037, side)
+	var keep := _xf
+	_xf = keep * _frame(Vector3(0, 0.282, 0.205), Vector3(0, 1, 0.12), Vector3.BACK)
+	_wai_hands(0.029)
+	_xf = keep
+	# The head: serene, hair combed back to a topknot under a flame (รัศมี), the มงคล.
+	_lathe([[0.04, 0.4], [0.042, 0.43], [0.04, 0.45]], Vector3(0, 0, 0.004), 14, 0.9, SKIN, P_NONE)
+	_head(Vector3(0, 0.475, 0.016), Vector3(0.063, 0.073, 0.061), P_DEVA, "deva")
+	_ellipsoid(Vector3(0, 0.5, -0.012), Vector3(0.066, 0.064, 0.062), INK, P_NONE, 10, 16)
+	for side in [-1.0, 1.0]:
+		_glow = 0.4
+		_ellipsoid(Vector3(side * 0.063, 0.447, 0.012), Vector3(0.008, 0.014, 0.008), GOLD, P_ENGRAVE, 4, 6)
+		_glow = 0.0
+	_mongkhon(Vector3(0, 0.513, 0.006), 0.066, 0.0125)
+	_ellipsoid(Vector3(0, 0.567, -0.012), Vector3(0.028, 0.026, 0.028), INK, P_NONE, 6, 10)
+	_torus(Vector3(0, 0.556, -0.012), Vector3.UP, 0.026, 0.006, GOLD, P_ENGRAVE, 12, 4)
+	_xf = keep * Transform3D(Basis(), Vector3(0, 0.585, -0.012))
+	_glow = 0.45
+	_plate(_flame_poly(0.05, 0.12, 0.0, 0.18, 12), 0.012, GOLD, P_ENGRAVE)
+	_glow = 0.0
+	_xf = keep
+
+
+## A point of [param curve] (Catmull-Rom points) [param t] of the way along, and its tangent.
+static func _along(curve: Array, t: float) -> Array:
+	var f := clampf(t, 0.0, 1.0) * float(curve.size() - 1)
+	var i := mini(int(f), curve.size() - 2)
+	var a: Vector3 = curve[i]
+	var b: Vector3 = curve[i + 1]
+	return [a.lerp(b, f - float(i)), (b - a).normalized()]
+
+
+## ซุ้มเรือนแก้ว: a gold arch standing in the XY plane (feet at y 0.05, its finial at 1),
+## a double rail edged outside with flame tongues, cushions at its shoulders.
+static func _ruean_kaew() -> void:
+	for side in [-1.0, 1.0]:
+		var ctrl := [Vector3(side * 0.37, 0.02, 0), Vector3(side * 0.38, 0.36, 0), Vector3(side * 0.355, 0.6, 0), Vector3(side * 0.26, 0.77, 0), Vector3(side * 0.11, 0.88, 0), Vector3(0, 0.935, 0)]
+		var curve := _spline(ctrl, 5)
+		_tube(curve, _lerp_list([0.016, 0.015, 0.013, 0.011], curve.size()), 8, GOLD, P_ENGRAVE, false)
+		var inner: Array = []
+		for p: Vector3 in curve:
+			inner.append(Vector3(p.x * 0.88, 0.02 + (p.y - 0.02) * 0.93, 0.004))
+		_tube(inner, _lerp_list([0.008, 0.007], inner.size()), 6, GOLD, P_ENGRAVE, false)
+		_glow = 0.25
+		for k in 15:
+			var t := 0.05 + 0.92 * float(k) / 14.0
+			var at: Array = _along(curve, t)
+			var tan: Vector3 = at[1]
+			var out: Vector3 = Vector3(tan.y, -tan.x, 0) * side
+			if out.dot(Vector3(side, 0.4, 0)) < 0.0:
+				out = -out
+			var keep := _xf
+			var yaxis: Vector3 = (out + tan * 0.35 * side).normalized()
+			_xf = keep * Transform3D(Basis(Vector3.BACK, atan2(-yaxis.x, yaxis.y)), (at[0] as Vector3) + out * 0.01)
+			var big := 0.055 + 0.03 * float(k % 2) + 0.02 * t
+			_plate(_flame_poly(big * 0.55, big, 0.12 * side, 0.25 * side, 8), 0.01, GOLD, P_ENGRAVE)
+			_xf = keep
+		_glow = 0.0
+		_ellipsoid(Vector3(side * 0.36, 0.6, 0.0), Vector3(0.03, 0.026, 0.026), GOLD, P_ENGRAVE, 5, 8)
+		_ellipsoid(Vector3(side * 0.37, 0.03, 0.0), Vector3(0.04, 0.03, 0.03), GOLD, P_ENGRAVE, 5, 8)
+	# The finial: a tall flame over a lotus bud with a gem.
+	var keep2 := _xf
+	_xf = keep2 * Transform3D(Basis(), Vector3(0, 0.925, 0))
+	_glow = 0.5
+	_plate(_flame_poly(0.07, 0.085, 0.0, 0.1, 10), 0.014, GOLD, P_ENGRAVE)
+	_glow = 0.9
+	_ellipsoid(Vector3(0, 0.02, 0.01), Vector3(0.012, 0.016, 0.01), RED, P_NONE, 4, 6)
+	_glow = 0.0
+	_xf = keep2
+
+
+## เทวาลัย: the temple ring laid round the master's field (unit radius, the floor at 0).
+static func _devalai() -> void:
+	_lathe([[0.935, 0.0], [0.945, 0.016], [1.0, 0.016], [1.012, 0.0]], Vector3.ZERO, 72, 1.0, GOLD, P_ENGRAVE)
+	_lathe([[0.6, 0.0], [0.606, 0.008], [0.628, 0.008], [0.634, 0.0]], Vector3.ZERO, 56, 1.0, GOLD, P_ENGRAVE)
+	# A ring of กนก flames laid on the floor, pointing out, leaning with the turn.
+	var keep := _xf
+	_glow = 0.2
+	for k in 16:
+		var a := TAU * float(k) / 16.0
+		var radial := Vector3(sin(a), 0, cos(a))
+		var tangent := Vector3(-cos(a), 0, sin(a))
+		_xf = keep * Transform3D(Basis(tangent, radial, Vector3.UP), radial * 0.655 + Vector3.UP * 0.006)
+		_plate(_flame_poly(0.075, 0.2, 0.12, 0.42, 12), 0.008, GOLD, P_ENGRAVE)
+		# Its red heart (ลายกนก: gold round a red inlay).
+		_xf = keep * Transform3D(Basis(tangent, radial, Vector3.UP), radial * 0.675 + Vector3.UP * 0.011)
+		_glow = 0.35
+		_plate(_flame_poly(0.036, 0.115, 0.12, 0.42, 10), 0.004, RED, P_NONE)
+		_glow = 0.2
+		# A small flame between each pair, at the outer rim.
+		var b := a + TAU / 32.0
+		var rb := Vector3(sin(b), 0, cos(b))
+		_xf = keep * Transform3D(Basis(Vector3(-cos(b), 0, sin(b)), rb, Vector3.UP), rb * 0.84 + Vector3.UP * 0.006)
+		_plate(_flame_poly(0.05, 0.085, 0.0, 0.2, 8), 0.006, GOLD, P_ENGRAVE)
+	_glow = 0.0
+	_xf = keep
+	# Eight lotus pillars, each under a flame finial, red cloth swagged between them.
+	var tops: Array = []
+	for k in 8:
+		var a := TAU * float(k) / 8.0 + TAU / 16.0
+		var at := Vector3(sin(a), 0, cos(a)) * 0.968
+		# A stepped base, a slim shaft, a lotus capital (บัวหัวเสา), a gem, a flame finial.
+		_lathe([[0.03, 0.0], [0.03, 0.01], [0.024, 0.012], [0.024, 0.022], [0.017, 0.026]], at, 8, 1.0, GOLD, P_ENGRAVE)
+		_lathe([[0.017, 0.026], [0.0145, 0.05], [0.0125, 0.2], [0.017, 0.206], [0.026, 0.214], [0.03, 0.222], [0.022, 0.228], [0.0, 0.23]], at, 10, 1.0, GOLD, P_ENGRAVE)
+		for y in [0.06, 0.19]:
+			_torus(at + Vector3.UP * y, Vector3.UP, 0.0145, 0.0035, GOLD, P_ENGRAVE, 10, 4)
+		_glow = 0.8
+		_ellipsoid(at + Vector3.UP * 0.234, Vector3.ONE * 0.008, RED, P_NONE, 4, 6)
+		for j in 2:
+			_xf = keep * Transform3D(Basis(Vector3.UP, a + PI * 0.5 * float(j)), at + Vector3.UP * 0.236)
+			_glow = 0.55
+			_plate(_flame_poly(0.042, 0.11, 0.0, 0.18, 10), 0.006, GOLD, P_ENGRAVE)
+		_glow = 0.0
+		_xf = keep
+		tops.append(at + Vector3.UP * 0.19)
+	for k in 8:
+		var p0: Vector3 = tops[k]
+		var p1: Vector3 = tops[(k + 1) % 8]
+		var mid := (p0 + p1) * 0.5 * 1.004 + Vector3.DOWN * 0.05
+		var swag := _spline([p0, p0.lerp(mid, 0.55) + Vector3.DOWN * 0.012, mid, p1.lerp(mid, 0.55) + Vector3.DOWN * 0.012, p1], 3)
+		_tube(swag, _lerp_list([0.006, 0.008, 0.006], swag.size()), 6, RED, P_NONE, false)
+		var thread: Array = []
+		for p: Vector3 in swag:
+			thread.append(p + Vector3.UP * 0.0075)
+		_tube(thread, _lerp_list([0.0022, 0.0022], thread.size()), 4, GOLD, P_ENGRAVE, false)
+		_glow = 0.4
+		_ellipsoid(mid, Vector3.ONE * 0.007, GOLD, P_ENGRAVE, 4, 6)
+		_glow = 0.0
+		var hang := [mid, mid + Vector3.DOWN * 0.025 + mid.normalized() * 0.004, mid + Vector3.DOWN * 0.05 + mid.normalized() * 0.002]
+		_cloth(hang, [0.01, 0.008, 0.004], mid.normalized().cross(Vector3.UP), RED)
+
+
+## A forearm (or limb) running from [param a] to [param b], fading into light towards b.
+static func _fading(a: Vector3, b: Vector3, r0: float, r1: float, sides := 10, pat := P_LAI) -> void:
+	var masks := [1.0, 0.75, 0.48, 0.26, 0.11, 0.03]
+	for k in 5:
+		_mask = float(masks[k])
+		var t0 := float(k) / 5.0
+		var t1 := float(k + 1) / 5.0
+		_tube([a.lerp(b, t0), a.lerp(b, t1)], [lerpf(r0, r1, t0), lerpf(r0, r1, t1)], sides, SKIN, pat, false)
+	_mask = 1.0
+
+
+## หมัดเทวะ: the master's wrapped fist, knuckles along +X like the spirit fist.
+static func _deva_fist() -> void:
+	_xf = Transform3D(Basis(Vector3.RIGHT, 0.8) * Basis(Vector3.RIGHT, -PI * 0.5) * Basis(Vector3.BACK, -PI * 0.5), Vector3.ZERO)
+	_fist(0.5)
+	_torus(Vector3(0, -0.03, 0), Vector3.UP, 0.33, 0.06, GOLD, P_ENGRAVE, 16, 6)
+	for k in 3:
+		_torus(Vector3(0, -0.1 - 0.06 * float(k), 0), Vector3.UP, 0.3 - 0.01 * float(k), 0.035, PEARL, P_NONE, 16, 5)
+	_tube([Vector3(0, 0.08, 0), Vector3(0, -0.2, 0)], [0.31, 0.27], 10, SKIN, P_NONE, false)
+	_prajiad(Vector3(0, -0.28, 0), Vector3.UP, 0.27, Vector3(0, 0, -1), Vector3(0.2, -1.0, -0.3), 2.6)
+	_fading(Vector3(0, -0.2, 0), Vector3(0, -0.62, 0), 0.27, 0.1)
+	_xf = Transform3D.IDENTITY

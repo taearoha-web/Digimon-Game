@@ -17,6 +17,9 @@ extends MuayThaiArt
 ##        denser and faster; then the last wave's fists fly up and fuse into one god
 ##        fist that slams down before the fighter, and gold light cracks the ground into
 ##        a temple-glass mosaic (กระจกสี) that spreads and fades; the struck burn.
+##   ★500 หมัดบรมครูเทวะ (heavenly_master_fist) is staged with this engine by its own
+##        script (combat/god_art/heavenly_master_fist.gd): the master deity, his arch, the
+##        temple ring and his colossal fist are figures here too (OWN).
 ## The giants and the tridents and fists are real sculptures (RamakienSculpt, lit by the
 ## RamakienSpirit shader: soft key light, gold fresnel rim, ลาย line work and the khon
 ## masks drawn on their surfaces); the moon, stars, embers, shafts, cloud and the glass
@@ -34,7 +37,7 @@ const HANUMAN_ID := "heaven_ring_cataclysm"
 const THOTSAKAN_ID := "three_realms_fist"
 const HANUMAN_BEATS := [0.0, 0.32, 0.64, 0.96, 1.36]
 ## The sculptures and cards this art builds itself (RamakienSculpt), cheapest first.
-const OWN := ["quad", "shaft", "trail", "bank", "disc", "embers", "veil", "trident", "spirit_fist", "hanuman", "thotsakan", "thotsakan_arms"]
+const OWN := ["quad", "shaft", "trail", "bank", "disc", "embers", "veil", "trident", "spirit_fist", "deva_fist", "ruean_kaew", "devalai", "hanuman", "master_deva", "thotsakan", "thotsakan_arms"]
 ## The model height of a giant's chest line, which is set on the screen (the bust above it).
 const CHEST := 0.25
 ## Painted ramps (MuayPaint) for the seals and script: gold leaf, red.

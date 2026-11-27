@@ -72,6 +72,11 @@ func _ready() -> void:
 						for layer in art.layers:
 							var mesh: MeshInstance3D = layer.node
 							check(mesh.mesh != null and mesh.material_override != null and mesh.mesh.get_aabb().size.length_squared() > 0.000001, "valid muay thai geometry: " + String(skill.id))
+				elif ThotsakanForm.handles(skill):
+					# The Thotsakan transformation hits through the form's punches and finisher,
+					# never a contact of its own: its wind-up, mantle, punch and finisher art are
+					# checked at every quality in thotsakan_form_test.
+					check(String(skill.id) == ThotsakanForm.ID and ThotsakanFormArt != null, "the transformation owns its presentation: " + String(skill.id))
 				elif StarSkillArt.handles(skill):
 					var art := fx.get_node_or_null("StarContact_"+String(skill.id)) as StarSkillArt
 					check(art!=null and not art.layers.is_empty(),"star silhouette exists: "+String(skill.id))

@@ -166,7 +166,11 @@ func _casts() -> void:
 					# Real frames at triple speed: the art, tweens and timers age as in play.
 					Engine.time_scale = 3.0
 					var frames := 0
-					while is_instance_valid(seq) and not seq.is_queued_for_deletion() and frames < 2000:
+					# ทศกัณฐ์'s form (three_realms_fist, ThotsakanForm) outlives its sequence: its
+					# god fist lands when the form's 8 s are up (its punches are the hero's own
+					# normal attacks: thotsakan_form_test).
+					var form_skill := ThotsakanForm.handles(god)
+					while ((is_instance_valid(seq) and not seq.is_queued_for_deletion()) or (form_skill and ThotsakanForm.of(hero) != null)) and frames < 2000:
 						await get_tree().process_frame
 						frames += 1
 						# The shared budget plus the hero's own room (VfxBudget.hero_decoration_room).
@@ -184,9 +188,13 @@ func _casts() -> void:
 								over_cap += 1
 							if not String(root.name).begins_with("StarWindup") and not String(root.name).begins_with("StarGod") and not root.layers.is_empty():
 								contact_ok = true
+						var slam := field.get_node_or_null("ThotsakanSlam") as RamakienArt
+						if slam != null and not slam.layers.is_empty():
+							contact_ok = true
 					Engine.time_scale = 1.0
 					check(over_budget == 0, "%s decorations stay within the budget q%d pressure %d" % [cls, quality, pressure])
-					check(target.contacts == StarSkillData.GOD_BEATS.size(), "%s five contacts q%d (%d)" % [cls, quality, target.contacts])
+					var contacts := 1 if form_skill else StarSkillData.GOD_BEATS.size()
+					check(target.contacts == contacts, "%s %d contacts q%d (%d)" % [cls, contacts, quality, target.contacts])
 					check(target.hp < hp0, "%s god skill deals damage" % cls)
 					check(avatar == (pressure == 0), "%s finale god avatar q%d pressure %d" % [cls, quality, pressure])
 					check(temple == (pressure == 0 and quality == 2), "%s finale temple of pillars only at high quality q%d pressure %d" % [cls, quality, pressure])

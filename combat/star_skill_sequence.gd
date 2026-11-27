@@ -14,6 +14,11 @@ var end := 0.0
 var aerial := false
 var old_wing_mode := 0
 var hit_targets: Array[WeakRef] = []
+## A finisher's dash (AscendSkillData.FINISHERS): where it aims (planned at the cast, so
+## the art can draw the run), and while it runs, the clock it started at.
+var dash_to := Vector3.INF
+var dash_from := Vector3.ZERO
+var dash_started := -1.0
 ## Share of the total multiplier per god-tier wave; the finale takes the remainder.
 const GOD_WAVE_SHARE := 0.13
 
@@ -25,7 +30,7 @@ static func launch(hero: Hero, data: Dictionary, target: Mob, aim: Vector3) -> f
 	seq.center=Vector3(aim.x,0,aim.z)
 	seq.origin=hero.global_position
 	seq.forward=Vector3(sin(hero._facing),0,cos(hero._facing))
-	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm","cosmic_encore","heaven_ring_cataclysm"]
+	seq.aerial=String(data.id) in ["celestial_swordfall","heavens_bulwark","eclipse_requiem","imperial_cataclysm","cosmic_encore"]
 	seq._plan()
 	hero.add_child(seq)
 	return minf(seq.end,2.4) if String(data.id)=="sacred_sanctuary" else seq.end
@@ -34,8 +39,11 @@ func _plan() -> void:
 	var release := float(skill.hit_delay)
 	var id := String(skill.id)
 	var beats: Array = [0.0]
-	# God-tier (300 stars): four waves 0.32 s apart, a held breath, then the finale.
-	if StarSkillData.is_god(skill): beats=StarSkillData.GOD_BEATS
+	# God-tier (300 stars): four waves 0.32 s apart, a held breath, then the finale; a
+	# finisher ultimate (AscendSkillData.FINISHERS) lands as one blow, dashing in first.
+	if StarSkillData.is_god(skill): beats=AscendSkillData.god_beats(skill)
+	if float(skill.get("dash",0.0))>0.0:
+		events.append({"at":maxf(0.0,release-AscendSkillData.DASH_LEAD-AscendSkillData.DASH_TIME),"dash":true})
 	match id:
 		"lionfang_cleave": beats=[0.0,0.26]
 		"titan_shieldbreak": beats=[0.0,0.42]
@@ -52,7 +60,11 @@ func _plan() -> void:
 		"cosmic_encore": beats=[0.0,0.32,0.64,0.96,1.36]
 		"naga_coil_fist": beats=[0.0,0.28]
 		"solar_knee_barrage": beats=[0.0,0.12,0.24,0.36,0.48,0.86]
-		"heaven_ring_cataclysm": beats=[0.0,0.32,0.64,0.96,1.36]
+		# A companion (หนุมาน, HanumanAvatar) is called at the release and deals its own blows.
+		"heaven_ring_cataclysm":
+			events.append({"at":release,"companion":true})
+			end=release+0.5
+			return
 		"crown_breaker": beats=[0.0,0.46]
 		"hunters_verdict": beats=[0.0,0.26,0.68]
 		"heartseeker": beats=[0.0,0.17,0.34,0.51,0.68,1.12]
@@ -62,6 +74,12 @@ func _plan() -> void:
 		"celestial_hunt","worldsplitter","genesis_nova": beats=[0.0,0.40,0.80,1.3]
 		"dawn_salvation": beats=[0.0,0.65,1.3]
 		"sacred_sanctuary": beats=[0.0,2.0,4.0,6.0,8.0]
+		"three_realms_fist":
+			# ทศกัณฐ์'s form (ThotsakanForm): one event on the release turns the hero; the
+			# form owns its punches and its finisher from then on.
+			events.append({"at":release,"form":true})
+			end=release+0.35
+			return
 		"celestial_swordfall":
 			for i in 10:
 				events.append({"at":release+i*0.24,"index":i,"drop":true})
@@ -84,6 +102,7 @@ func _ready() -> void:
 	if not is_instance_valid(h): queue_free(); return
 	name="StarCast_"+String(skill.id)
 	if String(skill.shape) in ["burst","self","summon"]: center=origin
+	if float(skill.get("dash",0.0))>0.0 and not h.is_riding(): dash_to=_dash_goal(h)
 	# From the saddle the rider stays seated on the mount: no rise into the sky.
 	if h.is_riding(): aerial=false
 	h.visual.skill_action(skill,float(skill.hit_delay))
@@ -113,8 +132,17 @@ func _process(delta: float) -> void:
 		cursor+=1
 		if bool(event.get("motion",false)):
 			h.visual.skill_action(skill,float(event.windup))
+		elif bool(event.get("dash",false)):
+			if dash_to!=Vector3.INF and not h.is_riding():
+				dash_from=h.global_position
+				dash_started=clock
+		elif bool(event.get("form",false)):
+			ThotsakanForm.begin(h,skill)
 		elif bool(event.get("launch",false)):
 			_launch(h,int(event.index),float(event.flight))
+		elif bool(event.get("companion",false)):
+			HanumanAvatar.summon(h,skill)
+			StarSkillArt.strike(h.field,skill,center,0,origin)
 		elif bool(event.get("drop",false)):
 			if int(event.index)==0: StarSkillArt.sword_canopy(h.field,center,float(skill.radius),3.4)
 			var spot := _sword_spot(h,int(event.index))
@@ -123,7 +151,41 @@ func _process(delta: float) -> void:
 			StarSkillArt.sword_drop(h,h.field,spot,int(event.index),0.42)
 		else: _hit(h,int(event.index),int(event.count))
 	VfxBudget.hero_end()
+	if dash_started>=0.0: _dash_step(h)
 	if clock>=end: queue_free()
+
+## Where a finisher's dash ends: towards the aimed point, at most "dash" metres, stopping
+## short of the struck body (in front of it, never inside or past it); INF when it is too
+## close to bother.
+func _dash_goal(h: Hero) -> Vector3:
+	var from := h.global_position
+	var to := Vector3(center.x,from.y,center.z)
+	var target:=victim_ref.get_ref() as Mob if victim_ref!=null else null
+	var stop := 1.1
+	if h._valid_target(target) and h._flat(target.global_position-center).length()<0.5: stop+=target.body_radius()
+	var gap := h._flat(to-from)
+	var reach := minf(gap.length()-stop,float(skill.dash))
+	if reach<0.6: return Vector3.INF
+	return from+gap.normalized()*reach
+
+## One frame of the dash: the hero is carried along its run by move_and_collide (the
+## world's walls, gates and rocks stop it, as walking would) and kept on the field; it
+## faces the run. Ends on arrival, on a wall, or with the cast.
+func _dash_step(h: Hero) -> void:
+	var t := clampf((clock-dash_started)/AscendSkillData.DASH_TIME,0.0,1.0)
+	var eased := 1.0-pow(1.0-t,3.0)
+	var want := dash_from.lerp(dash_to,eased)
+	var step := h._flat(want-h.global_position)
+	if step.length()>0.001:
+		h._face(step.normalized(),1.0,60.0)
+		var hit := h.move_and_collide(step)
+		if hit!=null:
+			var n := hit.get_normal()
+			# The ground or a slope underfoot: carry on along it; a wall ends the run.
+			if n.y>0.6: h.move_and_collide(hit.get_remainder().slide(n))
+			else: dash_started=-1.0
+		h._clamp_to_field()
+	if t>=1.0: dash_started=-1.0
 
 func _exit_tree() -> void:
 	var h := owner_ref.get_ref() as Hero if owner_ref!=null else null

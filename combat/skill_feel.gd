@@ -279,7 +279,7 @@ static func stagger(mob: Mob, lean: float) -> void:
 	var visual := mob.visual
 	if visual.has_meta(&"feel_arc"):
 		return
-	var old: Variant = visual.get_meta(&"feel_tilt", null)
+	var old: Variant = (visual.get_meta(&"feel_tilt") if visual.has_meta(&"feel_tilt") else null)
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	staggers += 1
@@ -320,10 +320,10 @@ static func launch(p_hero: Node3D, mob: Mob, dir: Vector3, w: float, slide := tr
 		# The existing slide: move_and_slide stops it at walls, the leash brings it home.
 		mob.knock_back(mob.global_position - dir, speed)
 	var visual := mob.visual
-	var old: Variant = visual.get_meta(&"feel_arc", null)
+	var old: Variant = (visual.get_meta(&"feel_arc") if visual.has_meta(&"feel_arc") else null)
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
-	var tilt: Variant = visual.get_meta(&"feel_tilt", null)
+	var tilt: Variant = (visual.get_meta(&"feel_tilt") if visual.has_meta(&"feel_tilt") else null)
 	if tilt is Tween and (tilt as Tween).is_valid():
 		(tilt as Tween).kill()
 	launches += 1

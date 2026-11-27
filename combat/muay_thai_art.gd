@@ -878,6 +878,7 @@ static func release_mesh_cache() -> void:
 	_meshes.clear()
 	_pool.clear()
 	RamakienArt.release_figures()
+	HanumanSculpt.release()
 
 
 static func _c(heat: float, mask := 1.0) -> Color:

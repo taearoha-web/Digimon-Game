@@ -355,11 +355,15 @@ func _set_anim(a: String) -> void:
 			visual.action("Spellcast_Shoot")
 		else:
 			visual.skill_action(skill, clampf(float(skill.get("hit_delay", 0.35)), 0.05, 1.5))
+			# ★300 three_realms_fist: their fighter turns into ทศกัณฐ์ here too (cosmetic).
+			if ThotsakanForm.handles(skill):
+				ThotsakanForm.begin(self, skill, true, clampf(float(skill.get("hit_delay", 0.35)), 0.05, 1.5))
 
 
 func _attack_once() -> void:
 	if _attack_anims.is_empty():
 		return
+	ThotsakanForm.swing_on(self)
 	var clip := String(_attack_anims[_combo % _attack_anims.size()])
 	_combo += 1
 	visual.action(clip, 1.2)

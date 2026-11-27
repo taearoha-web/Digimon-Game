@@ -50,6 +50,7 @@ static func warm_geometry(slicer: SceneTree = null) -> void:
 	MuayThaiArt.warm_geometry()
 	await FrameSlicer.pace(slicer)
 	await RamakienArt.warm_figures(slicer)
+	await HanumanSculpt.warm(slicer)
 	await BuffArt.warm_geometry(slicer)
 	SkillInk.warm_geometry()
 	SkillCraft.warm_geometry()

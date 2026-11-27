@@ -75,7 +75,7 @@ const DESCS := {
 		"สกิลเทวาลัย • สวมมงกุฎสองภพ โจมตี +55% ป้องกัน +40% คริ +12% ตีแล้วฟื้นเลือด 6% ของดาเมจ นาน 1 นาที (เฉพาะตัว)"],
 	&"bard": ["สกิลเทวาลัย • ไม่ใช่เพลง วงดุริยางค์จักรวาลบรรเลงบทสวด คลื่นเสียง 5 ระลอก มึน 2 วิ ศัตรูอ่อนแรง 25% นาน 10 วิ",
 		"สกิลเทวาลัย • ไม่ใช่เพลง ใช้คู่กับเพลงได้ ทีมในระยะโจมตี +50% ป้องกัน +40% คริ +12% ลดดาเมจ 10% นาน 1 นาที"],
-	&"muaythai": ["สกิลเทวาลัย • บรมครูเทวะร่ายรำไหว้ครูกลางเทวาลัย หมัดเทวะรัว 4 ระลอก ปิดด้วยหมัดยักษ์ปิดฉาก มึน 2 วิ ศัตรูติดไฟ 6 วิ ใช้คอมโบทั้งหมดเพิ่มพลัง",
+	&"muaythai": ["สกิลเทวาลัย • บรมครูเทวะลงมาไหว้ครูกลางเทวาลัย แล้วพุ่งเข้าใส่เป้าหมายพร้อมบรมครู ปล่อยหมัดเทวะหมัดเดียวระเบิดวงใหญ่ (หนักแต่ช้า) มึน 2 วิ ศัตรูติดไฟ 6 วิ ใช้คอมโบทั้งหมดเพิ่มพลัง",
 		"สกิลเทวาลัย • ATK +100% คริ +25% วิ่งเร็ว +20% ลดความเสียหาย 22% ตีแล้วฟื้นเลือด 10% ของดาเมจ นาน 1 นาที (เฉพาะตัว)"],
 }
 ## Each ultimate's own effects (on top of its god skill's shape).
@@ -92,6 +92,19 @@ const ULT_FX := {
 	&"bard": {"stun": 2.0, "weaken": [0.25, 10.0]},
 	&"muaythai": {"stun": 2.0, "burn": [0.5, 6.0], "combo_power": 0.025},
 }
+## Ultimates that land as ONE blow at the end instead of their god skill's four waves and
+## finale (GOD_BEATS): the whole multiplier (the waves' and the finale's shares together,
+## so the same total) on a single finale beat after a longer wind-up. id -> what changes:
+## shape / hit_delay as data; "dash": the hero dashes up to that many metres to the aimed
+## point just before the blow (StarSkillSequence: walls stop it, never through a body).
+const FINISHERS := {
+	"heavenly_master_fist": {"shape": "blast", "hit_delay": 2.0, "dash": 8.0},
+}
+## The finisher's single beat (seconds after the release).
+const FINISHER_BEATS := [0.0]
+## The dash ends this long before the blow, and takes this long.
+const DASH_LEAD := 0.08
+const DASH_TIME := 0.34
 ## Each buff (60 s): self_only keeps a stance on its caster.
 const BUFFS := {
 	&"warrior": {"atk": 0.6, "crit": 0.15, "guard": 0.15},
@@ -148,6 +161,9 @@ static func pool(cls: StringName) -> Array:
 	var fx: Dictionary = (god.get("fx", {}) as Dictionary).duplicate(true)
 	fx.merge(ULT_FX[cls], true)
 	ult["fx"] = fx
+	var finisher: Dictionary = FINISHERS.get(String(ult.id), {})
+	if not finisher.is_empty():
+		ult.merge({"shape": finisher.shape, "hit_delay": float(finisher.hit_delay), "dash": float(finisher.dash)}, true)
 	out.append(ult)
 	# The buff: a star buff in the class's colours, a minute long.
 	var look: Array = BUFF_LOOK[cls]
@@ -169,6 +185,17 @@ static func is_ascend(skill: Dictionary) -> bool:
 
 static func is_ult(skill: Dictionary) -> bool:
 	return is_ascend(skill) and String(skill.get("shape", "")) != "self"
+
+
+## A finisher ultimate (FINISHERS): one blow at the end, not the god skill's waves.
+static func is_finisher(skill: Dictionary) -> bool:
+	return FINISHERS.has(String(skill.get("id", "")))
+
+
+## The contact beats of a god-tier skill (StarSkillSequence, GodSkillArt): the god skill's
+## four waves and finale (StarSkillData.GOD_BEATS), or a finisher's single blow.
+static func god_beats(skill: Dictionary) -> Array:
+	return FINISHER_BEATS if is_finisher(skill) else StarSkillData.GOD_BEATS
 
 
 ## Every Ascension skill id.

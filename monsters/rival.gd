@@ -641,7 +641,7 @@ func _cast(skill: Dictionary, target: Node3D) -> void:
 		delay = maxf(delay, lerpf(1.25, 0.65, difficulty))
 	var aim := target.global_position
 	aim.y = 0.0
-	if shape == "blast":
+	if shape == "blast" and not skill.has("companion"):
 		VfxKit.danger_circle(get_parent(), aim, float(skill.radius), delay)
 	elif shape == "burst":
 		VfxKit.danger_circle(get_parent(), Vector3(global_position.x, 0.0, global_position.z), float(skill.radius), delay)
@@ -689,6 +689,14 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		return
 	if String(skill.id) == "thunder_storm":
 		ThunderStormSequence.launch(field, self, Vector3(aim.x, 0, aim.z), float(skill.radius), _victims, _storm_hit.bind(mult, color))
+		return
+	# ★200 หนุมานแผลงฤทธิ์: หนุมาน fights beside the fighter (HanumanAvatar) and deals its blows.
+	if skill.has("companion"):
+		HanumanAvatar.summon_for(self, skill)
+		return
+	# ★300 สิบเศียรสิบกรสะท้านสามภพ: the fighter turns into ทศกัณฐ์ (ThotsakanForm).
+	if ThotsakanForm.handles(skill):
+		ThotsakanForm.begin(self, skill)
 		return
 	SkillShow.play(field, skill, center, global_position)
 	MuayThai.ring_show(self, skill, center)
@@ -829,6 +837,8 @@ func _basic_attack(target: Node3D) -> void:
 			_shoot_at(victim, mult, color, attack.vfx)
 		elif _flat_distance(victim.global_position) <= float(attack.range) + 1.4:
 			_hit(victim, mult, color)
+			# ทศกัณฐ์'s form (★300 three_realms_fist): the punch strikes every foe round it too.
+			ThotsakanForm.punch_from(self)
 	, CONNECT_ONE_SHOT)
 
 

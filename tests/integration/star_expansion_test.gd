@@ -117,10 +117,13 @@ func _ready()->void:
 						hero.visual._advance_skill_motion(0.05)
 						peak=maxf(peak,hero.visual.position.y)
 						if seq.is_queued_for_deletion():break
-					var expected:int={"lionfang_cleave":2,"crown_breaker":2,"celestial_swordfall":10,"moonpiercer":1,"hunters_verdict":3,"celestial_hunt":4,"spiral_impaler":3,"heartseeker":6,"worldsplitter":4,"arcane_prism":4,"crystal_prison":2,"astral_convergence":3,"genesis_nova":4,"sanctified_chain":1,"dawn_salvation":3,"leviathan_surge":3,"titan_shieldbreak":2,"judgment_rebound":3,"heavens_bulwark":4,"umbral_lacerate":2,"shadow_execution":6,"eclipse_requiem":5,"chaos_inferno":2,"raven_sovereign":6,"imperial_cataclysm":5,"starlight_overture":3,"heartbreak_sonata":6,"cosmic_encore":5,"divine_edict":5,"sunfall_volley":5,"heavenrend_spear":5,"astral_apocalypse":5,"seraphic_judgment":5,"celestial_dragon_emperor":5,"pantheon_bastion":5,"death_gods_eclipse":5,"abyssal_throne":5,"divine_symphony":5,"naga_coil_fist":2,"solar_knee_barrage":6,"heaven_ring_cataclysm":5,"three_realms_fist":5}.get(skill.id,0)
+					# three_realms_fist's sequence only turns the hero (ThotsakanForm lands its hits later).
+					var expected:int={"lionfang_cleave":2,"crown_breaker":2,"celestial_swordfall":10,"moonpiercer":1,"hunters_verdict":3,"celestial_hunt":4,"spiral_impaler":3,"heartseeker":6,"worldsplitter":4,"arcane_prism":4,"crystal_prison":2,"astral_convergence":3,"genesis_nova":4,"sanctified_chain":1,"dawn_salvation":3,"leviathan_surge":3,"titan_shieldbreak":2,"judgment_rebound":3,"heavens_bulwark":4,"umbral_lacerate":2,"shadow_execution":6,"eclipse_requiem":5,"chaos_inferno":2,"raven_sovereign":6,"imperial_cataclysm":5,"starlight_overture":3,"heartbreak_sonata":6,"cosmic_encore":5,"divine_edict":5,"sunfall_volley":5,"heavenrend_spear":5,"astral_apocalypse":5,"seraphic_judgment":5,"celestial_dragon_emperor":5,"pantheon_bastion":5,"death_gods_eclipse":5,"abyssal_throne":5,"divine_symphony":5,"naga_coil_fist":2,"solar_knee_barrage":6,"heaven_ring_cataclysm":0,"three_realms_fist":0}.get(skill.id,0)
 					check(target.contacts==expected,"actual contacts %s: %d vs %d" % [skill.id,target.contacts,expected])
 					if skill.id=="celestial_swordfall":check(peak>=4.99,"ascends five meters")
 					if skill.shape=="summon":check(hero._summons.size()==1 and is_equal_approx(hero._summons[0].life,120.0),"summon lives 2 minutes")
+					# หนุมาน (a companion) is called at the release and deals the blows himself (hanuman_summon_test).
+					if skill.has("companion"):check(HanumanAvatar.of(hero)!=null,"the cast calls its companion "+String(skill.id))
 				field.queue_free();await field.tree_exited;await get_tree().process_frame
 				check(VfxBudget.counters()=={"particles":0,"decorations":0,"lights":0},"cast cleanup "+String(skill.id))
 	profile(&"priest")
