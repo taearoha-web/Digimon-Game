@@ -78,7 +78,9 @@ func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p
 	label.font_size = 40
 	label.outline_size = 12
 	label.modulate = Color("fff2c0")
-	label.position = Vector3(0, 3.05 if p_look.has("npc_hat") else 2.75, 0)
+	# Over a hat the label rides above the hat's own top (an eboshi stands far taller
+	# than a headband), never lower than the usual hatted height.
+	label.position = Vector3(0, maxf(3.05, _headwear_top() + 0.34) if p_look.has("npc_hat") else 2.75, 0)
 	label.visibility_range_end = 22.0
 	add_child(label)
 	marker = Label3D.new()
@@ -93,6 +95,42 @@ func setup(p_role: String, p_name: String, p_class: StringName, p_title := "", p
 	marker.visible = false
 	add_child(marker)
 	MeshKit.blob_shadow(self, 0.8)
+
+
+## Top (local y, metres) of the JapanKit hat worn on the head bone, from the hat
+## meshes' AABBs carried through the head's posed transform and the rig's, so it
+## does not wait for the bone attachment to update. -INF when no hat is worn.
+func _headwear_top() -> float:
+	var top := -INF
+	# Pose the rig on its current clip now: the rest pose tips the head forward.
+	if visual.anim and visual.anim.current_animation != "":
+		visual.anim.advance(0.0)
+	for hat in visual.find_children("Hat_*", "Node3D", true, false):
+		var attach := hat.get_parent() as BoneAttachment3D
+		var skel := attach.get_parent() as Skeleton3D if attach else null
+		if skel == null or skel.find_bone(attach.bone_name) < 0:
+			continue
+		var bone := skel.find_bone(attach.bone_name)
+		var head := skel.get_bone_global_pose_no_override(bone)
+		if bone == visual._head_bone:
+			# HeroVisual's big chibi head, applied each frame after the clip poses it.
+			head.basis = head.basis.scaled(Vector3.ONE * HeroVisual.CHIBI_HEAD)
+		var xf := _local_to(skel, self) * head * (hat as Node3D).transform
+		for mesh in hat.find_children("*", "MeshInstance3D", true, false):
+			var box := (xf * _local_to(mesh as Node3D, hat as Node3D)) * (mesh as MeshInstance3D).get_aabb()
+			top = maxf(top, box.end.y)
+	return top
+
+
+## `node`'s transform relative to its ancestor `root`.
+static func _local_to(node: Node3D, root: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var up: Node = node
+	while up != null and up != root:
+		if up is Node3D:
+			xf = (up as Node3D).transform * xf
+		up = up.get_parent()
+	return xf
 
 
 func _process(_delta: float) -> void:
