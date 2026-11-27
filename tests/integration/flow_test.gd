@@ -185,7 +185,7 @@ func _play_class(class_id: StringName) -> void:
 	print("== %s" % ClassData.get_class_data(class_id).name)
 	var town := await _start(class_id)
 	check(town != null and town.is_town and town.hero != null, "village loaded with a hero")
-	check(town.npcs.size() == 23, "twenty villagers (the raid, tomb, pet, reward and maze keepers and the chapter 2 scholar too), the guild hall door, the daily notice board and the warp crystal")
+	check(town.npcs.size() == 24, "twenty-one villagers (the raid, tomb, pet, reward and maze keepers, the chapter 2 scholar and the ★500 trial's sage too), the guild hall door, the daily notice board and the warp crystal")
 	check(main.hud.skill_slots.size() == 8 and ClassData.SLOTS == 8, "HUD has eight skill slots")
 	var bar := Game.loadout_skills()
 	check(bar.size() == 8 and not bar[0].is_empty() and not bar[1].is_empty(), "%s has skills on the bar at Lv.10" % class_id)
@@ -1075,7 +1075,7 @@ func _paragon() -> void:
 	Game.paragon()["level"] = Game.PARAGON_MAX - 1
 	Game.paragon()["exp"] = 0
 	Game.add_exp(Game.paragon_need() + 100)
-	check(int(Game.paragon().level) == Game.PARAGON_MAX and Game.PARAGON_MAX == 300, "the paragon cap is 300")
+	check(int(Game.paragon().level) == Game.PARAGON_MAX and Game.PARAGON_MAX == 500, "the paragon cap is 500")
 	var before_level := int(Game.paragon().level)
 	Game.add_exp(999999)
 	check(int(Game.paragon().level) == before_level, "no levels past the cap")
@@ -1547,10 +1547,14 @@ func _zones() -> void:
 		check(z != null and z.zone_id == id, "zone %s loads" % id)
 		check(get_tree().get_nodes_in_group("mobs").size() >= 10, "%s camps are populated (%d)" % [id, get_tree().get_nodes_in_group("mobs").size()])
 		var info := ZoneData.get_zone(id)
-		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1), "%s has the right portals" % id)
+		# The drowned abyss also has its side portal to ดินแดนเทวาลัย (outside the travel chain).
+		var side := 1 if id == DrownedAbyssData.ID else 0
+		check(z.portals.size() == (2 if info.get("next", &"") != &"" else 1) + side, "%s has the right portals" % id)
+		if side == 1:
+			check(z.portals.any(func(p): return StringName(p.to) == HeavenRealmData.ID), "the drowned abyss leads to ดินแดนเทวาลัย")
 		for camp in info.camps:
 			for m in camp.monsters:
-				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m) or DrownedAbyssData.has_monster(m) or SkyIsleData.has_monster(m), "monster %s exists" % m)
+				check(MonsterData.MONSTERS.has(m) or StarMonsters.has(m) or DivineRegionData.has_monster(m) or DrownedAbyssData.has_monster(m) or SkyIsleData.has_monster(m) or HeavenMonsters.has_monster(m), "monster %s exists" % m)
 
 
 func _items() -> void:
@@ -2178,12 +2182,12 @@ func _japan_village() -> void:
 	check(village != null, "the village is built")
 	for piece in ["Shrine", "Pagoda", "Dojo", "GeneralStore", "Forge", "Storehouse", "Izakaya", "VillageGate", "SparringRing"]:
 		check(village != null and village.get_node_or_null(piece) != null, "the village has its %s" % piece)
-	check(town.npcs.size() == 23, "twenty villagers (the raid, tomb, pet, reward and maze keepers and the chapter 2 scholar too), the guild hall door, the notice board and the warp crystal")
+	check(town.npcs.size() == 24, "twenty-one villagers (the raid, tomb, pet, reward and maze keepers, the chapter 2 scholar and the ★500 trial's sage too), the guild hall door, the notice board and the warp crystal")
 	var looks := {}
 	for npc in town.npcs:
 		if npc.visual != null:
 			looks[str(Npc.LOOKS.get(npc.role, {}))] = true
-	check(looks.size() == 20, "every villager looks different (%d looks)" % looks.size())
+	check(looks.size() == 21, "every villager looks different (%d looks)" % looks.size())
 	var board: Npc = null
 	for npc in town.npcs:
 		if npc.role == "daily":
