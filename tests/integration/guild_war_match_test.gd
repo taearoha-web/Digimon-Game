@@ -159,7 +159,7 @@ func _war(staged: bool) -> void:
 		check(dealer.global_position.distance_to(caller.global_position) < 4.0, "%s: Summon brings the party to the caller (%.1f m)" % [label, dealer.global_position.distance_to(caller.global_position)])
 		for f in keep:
 			f.global_position = keep[f]
-	# Damage rules: the war scale applies, one hit is capped, a combo is capped.
+	# Damage rules: the war scale applies; no cap on a hit or a combo (real damage).
 	var enemy: GuildFighter = m.enemies[0]
 	var max_hp := enemy.max_hp
 	# Damage is counted from the HP it has now: เบ่งเลือด raises the ceiling without filling it.
@@ -168,24 +168,12 @@ func _war(staged: bool) -> void:
 	enemy._dodge = 0.0
 	enemy.take_hit(1, false)
 	check(start_hp - enemy.hp >= int(GuildWarData.damage_scale) - 1, "%s: damage is multiplied by the war scale (1 -> %d)" % [label, start_hp - enemy.hp])
-	var before := enemy.hp
-	BurstGuard.clear()
-	enemy.take_hit(max_hp * 10, false)
-	check(before - enemy.hp <= int(max_hp * BurstGuard.HIT_CAP) + 1, "%s: a huge hit takes at most %d%% of max HP" % [label, int(BurstGuard.HIT_CAP * 100.0)])
-	check(not enemy.is_dead(), "%s: nobody is deleted by one hit" % label)
-	for i in 8:
-		enemy.take_hit(max_hp, false)
-	check(float(start_hp - enemy.hp) <= float(max_hp) * (BurstGuard.BURST_CAP + BurstGuard.HIT_CAP) + 2.0 or enemy.is_dead(), "%s: a burst inside two seconds is capped" % label)
-	# A fall scores for the other guild and the fighter comes back.
+	# Real damage (no per-hit or burst cap in the war since 27 Nov 2026): a hit of ten
+	# times its max HP fells it at once, and the fall scores for the other guild.
 	var feed_lines: Array[String] = []
 	m.feed.connect(func(text: String, _t: int): feed_lines.append(text))
-	BurstGuard.clear()
 	var score_before := m.score[0]
-	var guard := 0
-	while not enemy.is_dead() and guard < 60:
-		BurstGuard.clear()
-		enemy.take_hit(max_hp, false)
-		guard += 1
+	enemy.take_hit(max_hp * 10, false)
 	check(enemy.is_dead() and m.score[0] == score_before + 1, "%s: a fall scores a point for our guild" % label)
 	check(enemy.ride_id != "" and not enemy.is_riding() and enemy._lift == 0.0, "%s: a fall puts the rider on foot" % label)
 	check(feed_lines.size() >= 1, "%s: the fall reaches the kill feed" % label)
