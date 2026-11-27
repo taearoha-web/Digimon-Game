@@ -2410,7 +2410,7 @@ func _color_crystal() -> void:
 	if _crystal_mat != null:
 		_crystal_mat.albedo_color = _owner_color()
 		_crystal_mat.emission = _owner_color()
-	var banner: Variant = zone.get_meta(SiegeArena.BANNER_META, null) if zone != null else null
+	var banner: Variant = zone.get_meta(SiegeArena.BANNER_META) if zone != null and zone.has_meta(SiegeArena.BANNER_META) else null
 	if banner is StandardMaterial3D:
 		var tint := _owner_color().lerp(Color.WHITE, 0.35) if castle_owner < 0 else _owner_color()
 		(banner as StandardMaterial3D).albedo_color = tint

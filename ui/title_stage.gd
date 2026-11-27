@@ -385,7 +385,7 @@ func _cheer(visual: HeroVisual) -> void:
 func _idle(visual: HeroVisual) -> void:
 	if not is_instance_valid(visual):
 		return
-	var pending: Variant = visual.get_meta("cheer_tween", null)
+	var pending: Variant = visual.get_meta("cheer_tween") if visual.has_meta("cheer_tween") else null
 	if pending is Tween and (pending as Tween).is_valid():
 		(pending as Tween).kill()
 	visual.release()
