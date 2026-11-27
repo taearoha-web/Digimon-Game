@@ -5,7 +5,10 @@ extends Node3D
 ## quality and under memory pressure without script errors, draws its roots inside the
 ## VFX budget, leaves nothing behind (nodes and budget back to the baseline), and its art
 ## goes away at once when the cast stops early. Monsters borrowing a star id keep the
-## shared art; the god skills keep theirs.
+## shared art; the god skills keep theirs. The Ascension (★500, AscendSkillData) adds
+## an ultimate (god tier: its god art) and a buff (a star buff with its own signature,
+## combat/star_art/<id>.gd over AscendSkillArt) per class: the buff casts, draws and frees
+## the same way once the hero has passed the trial.
 const CLASSES := [&"archer", &"mage", &"priest"]
 var checks := 0
 var failures := 0
@@ -25,11 +28,13 @@ func check(ok: bool, note: String) -> void:
 		printerr("FAIL ", note)
 
 
-func profile(cls: StringName) -> void:
+func profile(cls: StringName, ascended := false) -> void:
 	Game.new_profile(cls, "Ranged Star QA")
 	Game.profile.level = 100
-	Game.profile.adv = 4
-	Game.profile.paragon = {"level": 300, "points": 300, "spent": 0, "exp": 0, "alloc": {}}
+	# The Ascension skills open at ★500 after the trial (JobData.ASCEND_ADV).
+	Game.profile.adv = JobData.ASCEND_ADV if ascended else 4
+	var star := JobData.ASCEND_STARS if ascended else 300
+	Game.profile.paragon = {"level": star, "points": star, "spent": 0, "exp": 0, "alloc": {}}
 	Game.profile.look = {"gender": 0}
 	Game.profile.party = []
 	Game.profile.equip = {}
@@ -39,10 +44,26 @@ func profile(cls: StringName) -> void:
 	Game.profile.mp = 100000
 
 
+## The 50..200-star skills (the Ascension's ★500 buff also carries "star": it is counted
+## on its own, ascension()).
 func stars(cls: StringName) -> Array:
 	var out := []
 	for skill in ClassData.pool(cls):
-		if skill.has("star") and not StarSkillData.is_god(skill):
+		if skill.has("star") and not StarSkillData.is_god(skill) and not AscendSkillData.is_ascend(skill):
+			out.append(skill)
+	return out
+
+
+## The class's two Ascension skills (ultimate, buff).
+func ascension(cls: StringName) -> Array:
+	return ClassData.pool(cls).filter(func(s: Dictionary) -> bool: return AscendSkillData.is_ascend(s))
+
+
+## The star skills cast on a real field: the four below the god tier and the Ascension buff.
+func casts(cls: StringName) -> Array:
+	var out := stars(cls)
+	for skill in ascension(cls):
+		if not StarSkillData.is_god(skill):
 			out.append(skill)
 	return out
 
@@ -79,6 +100,19 @@ func _ownership() -> void:
 				check(own.has_method("telegraph") and own.has_method("strike"), "%s draws its wind-up and its contacts" % id)
 			check(StarSignature.owns(skill), "%s is owned by its signature" % id)
 			check(GodSkillArt.owns(skill), "%s keeps the shared class overlays out (GodSkillArt.owns)" % id)
+		var asc := ascension(cls)
+		check(asc.size() == 2, "%s has its two Ascension skills (%d)" % [cls, asc.size()])
+		for skill in asc:
+			var id := String(skill.id)
+			check(int(skill.star) == JobData.ASCEND_STARS and ClassData.skill_tier(skill) == JobData.ASCEND_TIER, "%s opens at ★500 after the trial" % id)
+			if AscendSkillData.is_ult(skill):
+				check(StarSkillData.is_god(skill) and not StarSignature.owns(skill), "%s (ultimate) plays god art, not a star signature" % id)
+				check(GodSkillArt.owns(skill), "%s (ultimate) has its own god art (GodSkillArt.owns)" % id)
+			else:
+				check(not StarSkillData.is_god(skill), "%s (buff) sits below the god tier" % id)
+				var own := StarSignature.script_for(id)
+				check(own != null and own.has_method("telegraph") and own.has_method("strike"), "%s (buff) has its own signature" % id)
+				check(StarSignature.owns(skill) and GodSkillArt.owns(skill), "%s (buff) owns its show" % id)
 	var god := ClassData.find_skill(&"mage", "astral_apocalypse")
 	check(not StarSignature.owns(god) and GodSkillArt.owns(god), "the god skill keeps its own god art")
 	var borrowed := {"id": "crystal_prison", "star": 50, "radius": 3.0, "class": &"warrior", "shape": "blast"}
@@ -116,15 +150,16 @@ func _field(cls: StringName) -> Array:
 	return [field, hero, target]
 
 
-func _roots(field: Node, id: String) -> int:
+func _roots(field: Node, id: String, any_root := false) -> int:
 	var count := 0
 	for node in field.get_children():
-		if node is GodRangedKit and String(node.name).contains(id):
+		# The Ascension buff's crown and blessing are StarSkillArt roots (AscendSkillArt).
+		if (node is GodRangedKit or (any_root and node is StarSkillArt)) and String(node.name).contains(id):
 			count += 1
 	return count
 
 
-## Real casts of all twelve at every quality (and under memory pressure): the signature
+## Real casts of all twelve (and the three Ascension buffs) at every quality (and under memory pressure): the signature
 ## draws, no shared class overlay plays, the budget holds, everything is freed.
 func _casts() -> void:
 	for mode in [[2, 0], [1, 0], [0, 0], [2, 2]]:
@@ -132,9 +167,10 @@ func _casts() -> void:
 		MemoryGuard.force(mode[1], get_tree())
 		var label := "q%d p%d" % mode
 		for cls in CLASSES:
-			for skill in stars(cls):
+			for skill in casts(cls):
 				var id := String(skill.id)
-				profile(cls)
+				var ascend := AscendSkillData.is_ascend(skill)
+				profile(cls, ascend)
 				var parts := _field(cls)
 				var field: Node3D = parts[0]
 				var hero: Hero = parts[1]
@@ -149,7 +185,7 @@ func _casts() -> void:
 					field.queue_free()
 					await field.tree_exited
 					continue
-				var drawn := _roots(field, id) > 0
+				var drawn := _roots(field, id, ascend) > 0
 				var generic := false
 				var over := 0
 				Engine.time_scale = 3.0
@@ -157,7 +193,7 @@ func _casts() -> void:
 				while (is_instance_valid(seq) and not seq.is_queued_for_deletion()) and frames < 3000:
 					await get_tree().process_frame
 					frames += 1
-					drawn = drawn or _roots(field, id) > 0
+					drawn = drawn or _roots(field, id, ascend) > 0
 					for node in field.get_children():
 						var name := String(node.name)
 						if name.begins_with("CasterArt_") or name.begins_with("ClassFlourish_") or node is SignatureKit:
