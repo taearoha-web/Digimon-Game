@@ -37,7 +37,7 @@ extends Node
 const ID := "three_realms_fist"
 const NODE := &"ThotsakanForm"
 ## How long the form lasts (s), and how much the fighter grows.
-const SECS := 8.0
+const SECS := 20.0
 const SCALE := 1.7
 ## Grow-in and shrink-out times (s).
 const GROW := 0.35
@@ -89,6 +89,8 @@ var _cam_back := 0.0
 var _plate_ref: WeakRef
 var _plate_lift := 0.0
 var _slammed := false
+## Whether the caster was riding when the form began: it gets back on when the form ends.
+var _was_riding := false
 var _swing := 0
 ## The art: the mantle on the body (ThotsakanFormArt).
 var art: ThotsakanFormArt
@@ -137,7 +139,7 @@ static func begin(caster: Node3D, p_skill: Dictionary, p_cosmetic := false, dela
 	form.radius = PUNCH_RADIUS * clampf(scale, 0.8, 1.6)
 	form.finish_radius = float(p_skill.get("radius", BASE_RADIUS))
 	form.power = float(p_skill.get("mult", 0.0)) * _rank_power(caster, p_skill)
-	form.planned = clampi(roundi(SECS / maxf(_interval(caster), 0.2)), 1, 40)
+	form.planned = clampi(roundi(SECS / maxf(_interval(caster), 0.2)), 1, 100)
 	caster.add_child(form)
 	last = {"punches": 0, "planned": form.planned, "finished": false, "victims": 0}
 	return form
@@ -271,6 +273,7 @@ func _start(body: Node3D) -> void:
 		_base_scale = visual.scale
 	# A demon king does not ride: off the mount for the form.
 	if body.has_method("dismount") and body.has_method("is_riding") and bool(body.call("is_riding")):
+		_was_riding = true
 		body.call("dismount")
 	if body is Hero:
 		var hero := body as Hero
@@ -334,6 +337,12 @@ func stop() -> void:
 		art.close()
 	art = null
 	set_process(false)
+	# Back in the saddle as it was (ride() refuses quietly if fallen or where riding is barred).
+	if _was_riding:
+		_was_riding = false
+		var body: Variant = caster_ref.get_ref() if caster_ref != null else null
+		if body != null and is_instance_valid(body) and (body as Node).is_inside_tree() and not (body as Node).is_queued_for_deletion() and body.has_method("ride") and body.has_method("is_riding") and not bool(body.call("is_riding")):
+			body.call("ride", true)
 
 
 func _exit_tree() -> void:

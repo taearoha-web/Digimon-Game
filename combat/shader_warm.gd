@@ -51,13 +51,6 @@ const MESH_SHADERS: Array[String] = [
 	# that walks into view does not stall the frame compiling its body shader.
 	"res://shaders/kirin.gdshader",
 	"res://shaders/celestial_dragon.gdshader",
-	# ดินแดนเทวาลัย's lantern deva and cloud hermit (HeavenFolk) and their ink.
-	"res://shaders/heaven_folk.gdshader",
-	"res://shaders/heaven_folk_line.gdshader",
-	# ดินแดนเทวาลัย's gate giants (HeavenYaksha), their ink, and the golden naga.
-	"res://shaders/heaven_yaksha.gdshader",
-	"res://shaders/heaven_yaksha_outline.gdshader",
-	"res://shaders/heaven_naga.gdshader",
 	# The enhanced gear's looks (EnhanceFx): the pieces' glow, the set's orbs, lightning
 	# and the +15 god looks (all three: EnhanceFx.GOD_STYLE), worn by whoever walks in.
 	"res://shaders/enhance_glow.gdshader",
@@ -71,6 +64,23 @@ const MESH_SHADERS: Array[String] = [
 	"res://shaders/ramakien_light.gdshader",
 	"res://shaders/ramakien_veil.gdshader",
 ]
+## Shaders only one zone draws: warmed when that zone loads, not on every zone (each costs
+## the first load in the village time on a phone: the heaven realm's five added about a
+## third to it).
+const ZONE_SHADERS := {
+	# ดินแดนเทวาลัย's monsters: the lantern deva and cloud hermit (HeavenFolk), the kinnari
+	# and garuda (HeavenBird), the gate giants (HeavenYaksha) and the golden naga, with
+	# their ink.
+	&"heaven_realm": [
+		"res://shaders/heaven_folk.gdshader",
+		"res://shaders/heaven_folk_line.gdshader",
+		"res://shaders/heaven_bird.gdshader",
+		"res://shaders/heaven_bird_ink.gdshader",
+		"res://shaders/heaven_yaksha.gdshader",
+		"res://shaders/heaven_yaksha_outline.gdshader",
+		"res://shaders/heaven_naga.gdshader",
+	],
+}
 ## Effect shaders that particles or multimeshes draw (the instanced variant).
 const INSTANCED_SHADERS: Array[String] = [
 	"res://shaders/skill_layer_glow.gdshader",
@@ -104,7 +114,11 @@ static func warm(parent: Node3D, at: Vector3, slicer: SceneTree = null) -> void:
 	holder.global_position = at + Vector3(0, 1.0, 0)
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.01, 0.01)
-	for path in MESH_SHADERS:
+	var paths: Array = MESH_SHADERS.duplicate()
+	var zone_id: Variant = parent.get("zone_id")
+	if zone_id != null:
+		paths.append_array(ZONE_SHADERS.get(StringName(zone_id), []))
+	for path in paths:
 		var mat := _material(path)
 		if mat == null:
 			continue

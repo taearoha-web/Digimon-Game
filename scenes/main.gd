@@ -39,6 +39,8 @@ var title_screen: CanvasLayer
 var class_screen: CanvasLayer
 
 var _fade: ColorRect
+## On the fade while a zone builds: where to and how far along (Zone.load_progress).
+var _loading: Label
 var _traveling := false
 
 
@@ -57,6 +59,17 @@ func _ready() -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.modulate.a = 0.0
 	fade_layer.add_child(_fade)
+	_loading = Label.new()
+	_loading.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_loading.offset_top = -150
+	_loading.offset_bottom = -90
+	_loading.offset_left = -400
+	_loading.offset_right = 400
+	_loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading.add_theme_font_size_override("font_size", 26)
+	_loading.add_theme_color_override("font_color", Color("ffe9a8"))
+	_loading.visible = false
+	_fade.add_child(_loading)
 	add_child(ToastLayer.new())
 	var flash_layer := CanvasLayer.new()
 	flash_layer.layer = 80
@@ -429,7 +442,14 @@ func go(zone_id: StringName, instant := false, warping := false) -> void:
 	# The zone builds a slice per frame behind the black fade (no long freeze); wait for it,
 	# then let two frames draw it once (first-draw shader/texture work) before fading in.
 	if not z.is_built:
+		var where := String(ZoneData.get_zone(zone_id).get("name", ""))
+		_loading.text = "กำลังโหลด %s..." % where
+		_loading.visible = true
+		z.load_progress.connect(func(share: float, what: String):
+			if is_instance_valid(_loading):
+				_loading.text = "กำลังโหลด %s... %d%%\n%s" % [where, int(share * 100.0), what])
 		await z.built
+	_loading.visible = false
 	BootTrace.mark("zone_built")
 	zone = z
 	await get_tree().process_frame

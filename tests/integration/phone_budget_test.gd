@@ -75,7 +75,10 @@ func _shader_coverage() -> void:
 		if f.ends_with(".gd"):
 			scripts.append("res://combat/class_art/" + f)
 	var warmed := {}
-	for p in ShaderWarm.MESH_SHADERS + ShaderWarm.INSTANCED_SHADERS:
+	var zone_shaders: Array = []
+	for list in ShaderWarm.ZONE_SHADERS.values():
+		zone_shaders.append_array(list)
+	for p in ShaderWarm.MESH_SHADERS + ShaderWarm.INSTANCED_SHADERS + zone_shaders:
 		warmed[p] = true
 	var re := RegEx.create_from_string("preload\\(\"(res://shaders/[^\"]+\\.gdshader)\"\\)")
 	var found := 0
@@ -85,8 +88,11 @@ func _shader_coverage() -> void:
 			found += 1
 			check(warmed.has(m.get_string(1)), "%s's shader %s is drawn while the zone loads" % [path.get_file(), m.get_string(1).get_file()])
 	check(found >= 15, "the newer effects' shaders were found (%d)" % found)
-	for p in ShaderWarm.MESH_SHADERS + ShaderWarm.INSTANCED_SHADERS:
+	for p in ShaderWarm.MESH_SHADERS + ShaderWarm.INSTANCED_SHADERS + zone_shaders:
 		check(ResourceLoader.exists(p), "%s exists" % p)
+	# Zone-only shaders are not warmed on every zone (the first load in the village).
+	for p in zone_shaders:
+		check(not ShaderWarm.MESH_SHADERS.has(p), "%s is warmed only in its own zone" % p.get_file())
 
 
 func _shader_warm() -> void:

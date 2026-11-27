@@ -118,6 +118,7 @@ func _ready() -> void:
 	Engine.time_scale = 1.0
 	await _form_and_balance()
 	await _death_and_revive()
+	await _ride_back()
 	await _zone_change()
 	await _rivals()
 	await _remote_player()
@@ -135,7 +136,7 @@ func _catalogue() -> void:
 	check(not s.is_empty() and StarSkillData.is_god(s) and String(s.shape) == "burst", "the god skill is still a god-tier burst")
 	check(int(s.mp) == 300 and is_equal_approx(float(s.cd), 60.0), "MP 300, cooldown 60 s (mp %d cd %.0f)" % [int(s.mp), float(s.cd)])
 	check(absf(float(s.mult) - 56.7) < 0.05, "its total multiplier stays 56.7 (%.2f)" % float(s.mult))
-	check(String(s.desc).contains("แปลงร่างเป็นทศกัณฐ์") and String(s.desc).contains("8 วิ") and String(s.desc).contains("หมัดยักษ์") and String(s.desc).contains("ติดไฟ"), "the Thai description tells the form")
+	check(String(s.desc).contains("แปลงร่างเป็นทศกัณฐ์") and String(s.desc).contains("20 วิ") and String(s.desc).contains("หมัดยักษ์") and String(s.desc).contains("ติดไฟ"), "the Thai description tells the form")
 	check(s.fx.has("combo_power") and s.fx.has("stun") and s.fx.has("burn"), "finisher keeps stun, burn and combo_power")
 	check(ThotsakanForm.handles(s) and not ThotsakanForm.handles(ClassData.find_skill(MT, "heavenly_master_fist")), "the form is three_realms_fist's own (not the ★500 ult built from it)")
 
@@ -194,10 +195,10 @@ func _fight(count: int, with_form: bool) -> Dictionary:
 			return out
 		var began := sim
 		var burned_mid := false
-		while ThotsakanForm.of(hero) != null and sim - began < 12.0:
+		while ThotsakanForm.of(hero) != null and sim - began < ThotsakanForm.SECS + 4.0:
 			hero.stats["crit"] = 0.0
 			out.scale_peak = maxf(out.scale_peak, hero.visual.scale.x)
-			if form.clock > 4.0 and form.clock < 7.5 and (foes.back() as Mob)._burn_time > 0.0:
+			if form.clock > ThotsakanForm.SECS * 0.5 and form.clock < ThotsakanForm.SECS - 0.5 and (foes.back() as Mob)._burn_time > 0.0:
 				burned_mid = true
 			if form.finished and not out.stunned and form._slammed:
 				out.stunned = (foes[0] as Mob)._stun > 0.5
@@ -211,7 +212,7 @@ func _fight(count: int, with_form: bool) -> Dictionary:
 		# The fire burns on after the slam.
 		await _wait(6.4)
 	else:
-		# Only its normal punches, as long as the form's release to its end (8.8 s).
+		# Only its normal punches, as long as the form's release to its end.
 		await _wait(ThotsakanForm.SECS + ThotsakanForm.FINISH_WINDUP + ThotsakanForm.SHRINK)
 		hero.engaged = false
 		await _wait(0.6)
@@ -255,7 +256,7 @@ func _form_and_balance() -> void:
 	var old_one := await _old(1)
 	check(one.scale_peak > ThotsakanForm.SCALE - 0.05 and one.scale_peak < ThotsakanForm.SCALE + 0.05, "the hero grows to x%.1f (%.2f)" % [ThotsakanForm.SCALE, one.scale_peak])
 	check(absf(one.scale_end - 1.0) < 0.001, "and is its own size again after (%.3f)" % one.scale_end)
-	check(one.finished and absf(float(one.secs) - (ThotsakanForm.SECS + ThotsakanForm.FINISH_WINDUP)) < 0.25, "the form lasts 8 s and the god fist lands (%.2f s)" % float(one.secs))
+	check(one.finished and absf(float(one.secs) - (ThotsakanForm.SECS + ThotsakanForm.FINISH_WINDUP)) < 0.25, "the form lasts 20 s and the god fist lands (%.2f s)" % float(one.secs))
 	check(one.stunned, "the god fist stuns")
 	check(int(one.punches) >= int(one.planned) - 2 and int(one.punches) <= int(one.planned) + 1 and int(one.planned) >= 10, "the hero punches through the form (%d of %d planned)" % [int(one.punches), int(one.planned)])
 	var form_one := float(one.lost[0]) - float(plain.lost[0])
@@ -314,6 +315,45 @@ func _death_and_revive() -> void:
 	check(ThotsakanForm.of(hero) == null, "no form punches after")
 	await _drop(field)
 	check(VfxBudget.counters() == {"particles": 0, "decorations": 0, "lights": 0}, "death leaves nothing %s" % VfxBudget.counters())
+
+
+## The owner's rule: a rider is taken off its mount for the form and gets back on when
+## the form ends (not after a fall).
+func _ride_back() -> void:
+	profile()
+	Game.profile["mounts"] = {"fire_drake": 1}
+	Game.profile["mount"] = "fire_drake"
+	var field := _field()
+	var hero := _hero(field)
+	await get_tree().process_frame
+	check(hero.ride(true) and hero.is_riding(), "riding before the cast")
+	var foe := _target(field, hero, Vector3(0, 0, 1.8))
+	hero.target = foe
+	hero._cast(god())
+	await _wait(float(god().hit_delay) + 1.2)
+	check(ThotsakanForm.of(hero) != null and not hero.is_riding(), "off the mount for the form")
+	await _wait(ThotsakanForm.SECS + ThotsakanForm.FINISH_WINDUP + ThotsakanForm.LINGER + ThotsakanForm.SHRINK + 0.6)
+	check(ThotsakanForm.of(hero) == null and hero.is_riding(), "back in the saddle when the form ends")
+	await _drop(field)
+	# A fall ends the form without the ride (a fresh rider).
+	profile()
+	Game.profile["mounts"] = {"fire_drake": 1}
+	Game.profile["mount"] = "fire_drake"
+	field = _field()
+	hero = _hero(field)
+	await get_tree().process_frame
+	hero.ride(true)
+	foe = _target(field, hero, Vector3(0, 0, 1.8))
+	hero.target = foe
+	hero._cast(god())
+	await _wait(float(god().hit_delay) + 1.2)
+	check(ThotsakanForm.of(hero) != null and not hero.is_riding(), "off the mount for a second rider's form")
+	hero._die()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	check(not hero.is_riding(), "a fallen hero is not put back on its mount")
+	hero.revive()
+	await _drop(field)
 
 
 func _zone_change() -> void:

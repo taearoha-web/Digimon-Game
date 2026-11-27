@@ -1,6 +1,6 @@
 extends Node
 ## The Muay Thai ★200 หนุมานแผลงฤทธิ์ (HanumanAvatar): a real cast calls หนุมาน beside the
-## fighter (no rise into the sky, no area blast); he fights for 10 s, one foe at a time,
+## fighter (no rise into the sky, no area blast); he fights for 20 s, one foe at a time,
 ## leaping between several; his blows add up to the old skill's whole multiplier (one share
 ## of it per blow, 1.0 in all, the damage the old blast dealt a target within 10%), every
 ## blow the hero's (kill credit, combo); the stun and the kick on his last; nothing targets
@@ -96,11 +96,11 @@ func _profile() -> void:
 
 func _data() -> void:
 	var skill := ClassData.find_skill(MT, ID)
-	check(not skill.is_empty() and skill.has("companion") and float(skill.companion.secs) == HanumanAvatar.LIFE, "the skill calls a companion for 10 s")
+	check(not skill.is_empty() and skill.has("companion") and float(skill.companion.secs) == HanumanAvatar.LIFE, "the skill calls a companion for 20 s")
 	check(bool(skill.get("requires_wings", false)) and String(skill.shape) == "blast", "still a cape skill aimed like before")
-	check(String(skill.desc).contains("อัญเชิญหนุมาน") and String(skill.desc).contains("10 วิ") and String(skill.desc).contains("ทีละตัว"), "the description tells the new skill (%s)" % skill.desc)
-	check(is_equal_approx(HanumanAvatar.REGULAR_SHARE * HanumanAvatar.REGULAR + HanumanAvatar.FINAL_SHARE, 1.0), "the blows' shares add up to the whole multiplier")
-	check(HanumanAvatar.ARRIVE + HanumanAvatar.SLOT * HanumanAvatar.REGULAR + HanumanAvatar.FINALE <= HanumanAvatar.LIFE, "every blow lands within his 10 s")
+	check(String(skill.desc).contains("อัญเชิญหนุมาน") and String(skill.desc).contains("20 วิ") and String(skill.desc).contains("ทีละตัว"), "the description tells the new skill (%s)" % skill.desc)
+	check(is_equal_approx(HanumanAvatar.REGULAR_SHARE * HanumanAvatar.REGULAR + HanumanAvatar.FINAL_SHARE, HanumanAvatar.TOTAL_SHARE), "the blows' shares add up to TOTAL_SHARE (the combo they build brings the rest)")
+	check(HanumanAvatar.ARRIVE + HanumanAvatar.SLOT * HanumanAvatar.REGULAR + HanumanAvatar.FINALE <= HanumanAvatar.LIFE, "every blow lands within his 20 s")
 	print("heaven_ring_cataclysm final mult: %.3f (38 x %.4f tune)" % [float(skill.mult), float(skill.mult) / 38.0])
 
 
@@ -180,10 +180,10 @@ func _cast_and_fight() -> void:
 	_run(h, 3.0)
 	check(h.blows >= 3 and h.dealt_share > 0.0, "he is fighting after 3 s (%d blows)" % h.blows)
 	_run(h, HanumanAvatar.LIFE)
-	check(h.gone or not is_instance_valid(h), "he leaves when his 10 s are up")
+	check(h.gone or not is_instance_valid(h), "he leaves when his 20 s are up")
 	check(HanumanAvatar.of(hero) == null, "no Hanuman left after the end")
 	check(h.blows == HanumanAvatar.REGULAR + 1, "every blow landed: %d of %d" % [h.blows, HanumanAvatar.REGULAR + 1])
-	check(absf(h.dealt_share - 1.0) < 0.001, "the shares dealt add up to 1.0 (%.3f)" % h.dealt_share)
+	check(absf(h.dealt_share - HanumanAvatar.TOTAL_SHARE) < 0.001, "the shares dealt add up to TOTAL_SHARE (%.3f)" % h.dealt_share)
 	var total := 0
 	var struck := 0
 	var all_hero := true

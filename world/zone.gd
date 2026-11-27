@@ -9,6 +9,9 @@ signal interact_changed(label: String)
 signal npc_interact(role: String)
 signal hero_died()
 signal banner_requested(text: String)
+## While a staged zone builds behind the fade: how far along (0..1) and what it is doing
+## (Main shows it on the loading screen instead of a plain black one).
+signal load_progress(share: float, text: String)
 ## A ranked duel ended (result: see Game.pvp_finish).
 signal pvp_finished(result: Dictionary)
 signal guildwar_finished(result: Dictionary)
@@ -197,7 +200,17 @@ func _slice() -> void:
 		await FrameSlicer.pace(get_tree())
 
 
+## The loading screen's line and share for each build phase (load_progress).
+const LOAD_STEPS := {
+	"build_world": [0.25, "เตรียมเอฟเฟกต์"], "warm_art": [0.4, "เตรียมตัวละคร"], "spawn_hero": [0.45, "เตรียมแสงและสกิล"],
+	"warm_shaders": [0.75, "เรียกเพื่อนร่วมทีม"], "spawn_party": [0.8, "เตรียมเสียง"], "spawn_fighters": [0.8, "เตรียมเสียง"],
+	"audio": [0.85, "ปล่อยมอนสเตอร์"], "spawn_mobs": [0.9, "ผู้เล่นในโลก"], "world_players": [0.97, "เกือบเสร็จแล้ว"],
+}
+
+
 func _phase(label: String) -> void:
+	if LOAD_STEPS.has(label):
+		load_progress.emit(float(LOAD_STEPS[label][0]), String(LOAD_STEPS[label][1]))
 	if not phase_log and not BootTrace.zone_phases:
 		return
 	var now := Time.get_ticks_usec()

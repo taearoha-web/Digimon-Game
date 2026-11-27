@@ -9,7 +9,7 @@ extends Node3D
 ## with a leap and a trident slam (stun, kick) before he bows and dissolves into gold.
 ##
 ## Damage: the skill's whole multiplier, as the old blast dealt to each target, spread over
-## his blows: REGULAR blows of REGULAR_SHARE and the slam's FINAL_SHARE (1.0 in all) on
+## his blows: REGULAR blows of REGULAR_SHARE and the slam's FINAL_SHARE (TOTAL_SHARE in all) on
 ## a fixed clock of SLOT seconds a blow, so the total holds whatever the leaps. The
 ## caller deals every blow: the hero's through Hero._deal (kill credit, drops, combo, the
 ## coliseum and online duels' PvpProxy, the guild war's fighters, the hit-heal), an AI
@@ -25,12 +25,16 @@ extends Node3D
 ## outline pass and the ลาย detail.
 
 const ID := "heaven_ring_cataclysm"
-const LIFE := 10.0
+const LIFE := 20.0
 const ARRIVE := 0.7
 const SLOT := 0.62
-const REGULAR := 13
+const REGULAR := 29
 const FINAL_SHARE := 0.16
-const REGULAR_SHARE := (1.0 - FINAL_SHARE) / float(REGULAR)
+## His blows build the fighter's Muay Thai combo (+1% a stack) over the 20 s, so their
+## base shares add to TOTAL_SHARE, the combo's growth bringing the total to about the old
+## blast's (hanuman_summon_test).
+const TOTAL_SHARE := 0.93
+const REGULAR_SHARE := (TOTAL_SHARE - FINAL_SHARE) / float(REGULAR)
 ## The finale (leap and slam) after the last regular blow; the bow and dissolve fill the rest.
 const FINALE := 0.8
 const FINALE_HIT := 0.5
