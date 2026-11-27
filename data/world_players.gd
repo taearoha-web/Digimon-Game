@@ -18,7 +18,8 @@ extends RefCounted
 ## real) and only comes to the village for short errands (errand_at: a quest, the forge,
 ## new skills); with the divine set complete it spends its sessions on the endgame
 ## (endgame_plan) and enhances the set once it has climbed to ★300 (JobData.GOD_STARS; the
-## stars go on to ★500, Game.PARAGON_MAX). Otherwise the village belongs to the stall keepers
+## stars go on to ★500, Game.PARAGON_MAX, where each fights บททดสอบเทวาลัย itself and is
+## Ascended only once it wins: ascended_at). Otherwise the village belongs to the stall keepers
 ## (the "afk" style, and divine players taking a break, endgame_plan's "stall"): resting
 ## players who sell the good things they found (StallStock).
 ## Everyone plays the roster's class from Lv.1 (no Vagabond start any more).
@@ -328,7 +329,7 @@ static func reset_roster() -> void:
 	_index.clear()
 	_gen_day = -1
 	_gen_count = 0
-	for cache in [_at, _cum, _minutes_cache, _sessions, _eff, _hw_share, _hw_cache, _name_hash]:
+	for cache in [_at, _cum, _minutes_cache, _sessions, _eff, _hw_share, _hw_cache, _name_hash, _trial]:
 		(cache as Dictionary).clear()
 	WorldGear.clear()
 	WorldParties.clear_cache()
@@ -1362,13 +1363,18 @@ static func sync_member(m: Dictionary, s: Dictionary) -> bool:
 
 
 ## The character sheet of a world player at its level and stars (for HeroStats): the
-## gear it found and its job (the God step at Lv.100 ★300: JobData.adv_for), plus every stat point spent like a player does (60% main
+## gear it found and its job (the God step at Lv.100 ★300, the Ascension once it has passed
+## the trial: ascended_sheet), plus every stat point spent like a player does (60% main
 ## stat, 40% vitality), its star points and the skill points it earned spent at the
 ## Skill Master (skill_ranks). All of it follows what its own play reached.
 static func profile(m: Dictionary) -> Dictionary:
+	return _profile(m, ascended_sheet(m))
+
+
+static func _profile(m: Dictionary, ascended: bool) -> Dictionary:
 	var level := int(m.level)
 	var stars := Game.party_stars(m)
-	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for(level, stars),
+	var p := {"class": m["class"], "level": level, "attrs": {}, "equip": equip(m), "adv": JobData.adv_for(level, stars, ascended),
 		"paragon": {"level": stars, "alloc": Game.party_star_alloc(stars), "special": Game.party_special_alloc(stars, m["class"])}}
 	var points := Game.STAT_POINTS_PER_LEVEL * (level - 1)
 	var main := String(JobData.resolve(StringName(m["class"]), int(p.adv)).main)
@@ -1376,7 +1382,7 @@ static func profile(m: Dictionary) -> Dictionary:
 	attrs[main] = int(points * 0.6)
 	attrs["vit"] = int(attrs["vit"]) + int(points * 0.4)
 	p["attrs"] = attrs
-	p["skills"] = skill_ranks(StringName(m["class"]), level, stars)
+	p["skills"] = skill_ranks(StringName(m["class"]), level, stars, ascended)
 	# Its mount (mount_of): the stats count like the hero's (HeroStats.mount_bonus).
 	var ride := mount_of(m)
 	p["mounts"] = {String(ride.id): int(ride.level)} if not ride.is_empty() else {}
@@ -1386,15 +1392,16 @@ static func profile(m: Dictionary) -> Dictionary:
 
 ## Skill points a player has earned by `level` and `stars`, the way the hero earns them
 ## (Game): one to start and one each level, the job advancements' (JobData.TIER_SKILL_POINTS)
-## and two at each star tier (StarProgression.grant_milestones).
-static func skill_points(level: int, stars: int) -> int:
+## and two at each star tier (StarProgression.grant_milestones), and the Ascension's once
+## it has passed the trial ([param ascended], ascended_at).
+static func skill_points(level: int, stars: int, ascended := false) -> int:
 	var points := level
 	for k in JobData.adv_for_level(level):
 		points += int(JobData.TIER_SKILL_POINTS[k])
 	if level >= Game.MAX_LEVEL:
 		for tier in StarProgression.TIERS:
 			points += 2 if stars >= int(tier) else 0
-	if JobData.is_ascended(JobData.adv_for(level, stars)):
+	if JobData.is_ascended(JobData.adv_for(level, stars, ascended)):
 		points += JobData.ASCEND_SKILL_POINTS
 	return points
 
@@ -1403,21 +1410,23 @@ static func skill_points(level: int, stars: int) -> int:
 ## `stars`: every skill it has unlocked starts at rank 1, and the points it earned
 ## (skill_points) go one at a time to the lowest-ranked skill (the longest-known first),
 ## like a player keeping its whole bar up, up to SkillRank.MAX; points it has no use
-## for yet wait for the next skill.
-static func skill_ranks(cls: StringName, level: int, stars: int) -> Dictionary:
+## for yet wait for the next skill. [param ascended]: it has passed the trial (ascended_at),
+## which opens the two Ascension skills at ★500.
+static func skill_ranks(cls: StringName, level: int, stars: int, ascended := false) -> Dictionary:
 	var unlocked: Array = []
 	# A class with skill lines: its lines (ranks are kept per line, ClassData.rank_id).
 	for skill in ClassData.pool(cls):
 		if int(skill.level) <= level and (not ClassData.has_lines(cls) or ClassData.is_line(cls, String(skill.id)) or skill.has("star")):
-			# The Ascension's skills only once it has passed the trial (★500, JobData.adv_for).
-			if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(level, stars)):
+			# The Ascension's skills only once it has passed the trial (★500 and its own win
+			# against the guardian, ascended_at).
+			if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(level, stars, ascended)):
 				continue
 			unlocked.append(skill)
 	unlocked.sort_custom(func(a, b): return int(a.level) < int(b.level))
 	var ranks := {}
 	for skill in unlocked:
 		ranks[String(skill.id)] = 1
-	var points := skill_points(level, stars)
+	var points := skill_points(level, stars, ascended)
 	for rank in range(1, SkillRank.MAX):
 		for skill in unlocked:
 			if points <= 0:
@@ -1433,11 +1442,283 @@ static func skill_summary(i: int, t: float) -> Dictionary:
 	var p := progress_at(i, t)
 	var level := int(p.level)
 	var cls := StringName(String(entry(i)["class"]))
-	var ranks := skill_ranks(cls, level, int(p.stars))
+	var ranks := skill_ranks(cls, level, int(p.stars), ascended_at(i, t))
 	var stars := 0
 	for id in ranks:
 		stars += int(ranks[id])
 	return {"skills": ranks.size(), "stars": stars, "max": ranks.size() * SkillRank.MAX}
+
+
+# --- The Ascension trial (บททดสอบเทวาลัย, AscensionData) ---------------------------------
+
+## A world player at ★500 is not Ascended by its stars: like the hero it walks the trial's
+## steps and must defeat the guardian (AscensionData.BOSS_ID) itself. Everything is read off
+## its own work (work_at: its play, the same on every device), so the answer is the same
+## everywhere and only ever goes from "not yet" to "passed":
+## * ★500 is reached at star500_work(); the hunt and the tokens then take TRIAL_PREP_WORK
+##   (the elites the two steps ask for at the endgame maps' elite kill rate, WorldGear),
+##   so the first try comes about a day and a half of a hardcore player's play later;
+## * then a try every TRIAL_EVERY_HOURS of its play (about a session) until it wins;
+## * each try is fought with what it really has then: its God sheet at that work (the
+##   gear WorldGear forged, its stat and skill points, adv 5) against the guardian's own
+##   stats (MonsterData.stats_for, the trial's level): trial_odds estimates the seconds it
+##   needs to bring the guardian down and the seconds it lasts (each blow at least
+##   AscensionData.FLOOR_SHARE of its max HP, the blows it does not dodge or step out of,
+##   its lifesteal; past ENRAGE_SECONDS the blows land ENRAGE_ATK times harder), and turns
+##   the margin into a chance (trial_chance); a seeded roll of its name and the try's
+##   number decides (_try_roll). Its hands (trial_hands, by name) and what it learns from
+##   each failed try (TRIAL_LEARN) count; a chance below TRIAL_MIN_CHANCE is no chance.
+## So the strong pass in a try or two, the weak keep failing until their gear grows, and
+## some never pass. Kept per player (_trial): the tries looked at so far and the work of
+## its win; a later read only looks at the tries since.
+const TRIAL_PREP_WORK := (AscensionData.HUNT_COUNT + AscensionData.TOKEN_COUNT / AscensionData.TOKEN_CHANCE) / (WorldGear.KILLS_ENDGAME * WorldGear.ELITE_SHARE)
+const TRIAL_EVERY_HOURS := 2.5
+## The guardian's blows (its swing and its moves) a second, and the share of them a
+## player of trial_hands 1 steps out of (its own dodge comes on top).
+const TRIAL_BLOWS := 0.55
+const TRIAL_EVADE := 0.7
+const TRIAL_EVADE_MAX := 0.85
+## Lifesteal makes good at most this share of the damage that lands.
+const TRIAL_HEAL_MAX := 0.7
+## Damage a second: the bar's TRIAL_SKILLS best single-target skills at their rank and
+## the basic attack (like tools/balance.gd), TRIAL_UPTIME of the fight spent hitting.
+const TRIAL_SKILLS := 4
+const TRIAL_UPTIME := 0.6
+## The margin (seconds it can fight / seconds it needs) turned into a chance: 50% at
+## TRIAL_EVEN, rising and falling by the log of the margin over TRIAL_SPREAD.
+const TRIAL_EVEN := 0.2
+const TRIAL_SPREAD := 0.5
+const TRIAL_MIN_CHANCE := 0.04
+const TRIAL_MAX_CHANCE := 0.92
+## Hands: TRIAL_HANDS[0]..[1] by name; each failed try adds TRIAL_LEARN, up to TRIAL_LEARN_MAX.
+const TRIAL_HANDS := Vector2(0.7, 1.15)
+const TRIAL_LEARN := 0.012
+const TRIAL_LEARN_MAX := 0.24
+## The tries whose sheet is read (HeroStats, about a millisecond): past ★500 the gear
+## grows slowly, so the tries between fight with the last one read, and a player who
+## keeps failing costs at most TRIAL_SHEET_AT.size() reads in all.
+const TRIAL_SHEET_AT: Array[int] = [0, 10, 40, 160]
+## Per player: {k: tries looked at, pass: its win's work (INF none yet), sheet / stats:
+## the last sheet read, odds: its chance by hands for that sheet}.
+static var _trial := {}
+static var _guardian := {}
+
+
+## The work at which every world player reaches ★500 (Game.PARAGON_MAX).
+static func star500_work() -> float:
+	var steps := _steps()
+	return steps[mini(Game.MAX_LEVEL - 1 + JobData.ASCEND_STARS, steps.size() - 1)]
+
+
+## The work of player i's try k (0 the first).
+static func trial_work(i: int, k: int) -> float:
+	return star500_work() + TRIAL_PREP_WORK + float(k) * TRIAL_EVERY_HOURS * 60.0 * efficiency(i)
+
+
+## Player i's own hands in the trial (fixed by name).
+static func trial_hands(i: int) -> float:
+	return lerpf(TRIAL_HANDS.x, TRIAL_HANDS.y, float(hash("trial_hands|%s" % entry(i).name) % 10000) / 9999.0)
+
+
+## The guardian as the trial stage fights it: {hp, atk, def}.
+static func guardian() -> Dictionary:
+	if _guardian.is_empty():
+		_guardian = MonsterData.stats_for(AscensionData.BOSS_ID, AscendTrial.BOSS_LEVEL)
+	return _guardian
+
+
+## {kill (seconds to bring the guardian down), last (seconds it lasts), margin} of the
+## God sheet `sheet` with its stats `st` against the guardian, at hands `hands`.
+static func trial_odds(sheet: Dictionary, st: Dictionary, hands: float) -> Dictionary:
+	var g := guardian()
+	var cls := StringName(sheet["class"])
+	var data := JobData.resolve(cls, int(sheet.adv))
+	var crit := 1.0 + clampf(float(st.crit), 0.0, 1.0) * (HeroStats.CRIT_DAMAGE - 1.0 + float(st.get("crit_dmg", 0.0)))
+	var attack: Dictionary = data.get("attack", {"mult": 1.0, "interval": 1.0})
+	var per_atk := float(attack.get("mult", 1.0)) / (maxf(0.3, float(attack.get("interval", 1.0))) * 1.05)
+	var ranks: Dictionary = sheet.get("skills", {})
+	var level := int(sheet.level)
+	var stars := int((sheet.get("paragon", {}) as Dictionary).get("level", 0))
+	var rates: Array = []
+	for skill in ClassData.pool(cls):
+		if float(skill.get("mult", 0.0)) <= 0.0 or not ClassData.knows(skill, level, 1 + int(sheet.adv), stars):
+			continue
+		var rank := int(ranks.get(ClassData.rank_id(skill), ranks.get(String(skill.id), 1)))
+		rates.append(float(skill.mult) * SkillRank.power(rank) / (float(skill.get("cd", 1.0)) * (1.0 - clampf(float(st.get("cdr", 0.0)), 0.0, 0.5)) + 0.9))
+	rates.sort()
+	rates.reverse()
+	for k in mini(TRIAL_SKILLS, rates.size()):
+		per_atk += float(rates[k]) * TRIAL_UPTIME
+	var dps := HeroStats.mitigate(float(st.atk) * per_atk * crit, float(g.def) * (1.0 - clampf(float(st.get("pierce", 0.0)), 0.0, 0.9))) * hands
+	var kill := float(g.hp) / maxf(1.0, dps)
+	var max_hp := maxf(1.0, float(st.max_hp))
+	var blow := maxf(HeroStats.mitigate(float(g.atk), float(st.def)), AscensionData.FLOOR_SHARE * max_hp) * (1.0 - clampf(float(st.get("guard", 0.0)), 0.0, 0.45))
+	var landed := TRIAL_BLOWS * (1.0 - clampf(float(st.get("dodge", 0.0)), 0.0, 0.5)) * (1.0 - clampf(TRIAL_EVADE * hands, 0.0, TRIAL_EVADE_MAX))
+	# Lifesteal heals between the blows, but never more than TRIAL_HEAL_MAX of what lands
+	# (a blow takes its share at once).
+	var heal := float(st.get("lifesteal", 0.0)) * dps
+	var lose := maxf(blow * landed - heal, blow * landed * (1.0 - TRIAL_HEAL_MAX))
+	var lose_enraged := maxf(blow * AscensionData.ENRAGE_ATK * landed - heal, blow * AscensionData.ENRAGE_ATK * landed * (1.0 - TRIAL_HEAL_MAX))
+	var last := max_hp / maxf(0.001, lose)
+	if last > AscensionData.ENRAGE_SECONDS:
+		last = AscensionData.ENRAGE_SECONDS + (max_hp - lose * AscensionData.ENRAGE_SECONDS) / maxf(0.001, lose_enraged)
+	return {"kill": kill, "last": last, "margin": last / maxf(0.001, kill), "dps": dps}
+
+
+## The chance a try with this margin (trial_odds) wins.
+static func trial_chance(margin: float) -> float:
+	var p := 1.0 / (1.0 + exp(-(log(maxf(margin, 0.0001)) - log(TRIAL_EVEN)) / TRIAL_SPREAD))
+	return 0.0 if p < TRIAL_MIN_CHANCE else minf(p, TRIAL_MAX_CHANCE)
+
+
+## Player i's God sheet and stats at work w (what it fights the guardian with: adv 5,
+## no Ascension skills).
+static func trial_sheet(i: int, w: float) -> Dictionary:
+	var p := progress_for(0.0, efficiency(i), w)
+	var e := entry(i)
+	var m := {"class": String(e["class"]), "name": String(e.name), "level": int(p.level), "stars": int(p.stars),
+		"frac": float(p.frac), "divine_frac": float(p.divine_frac), "after": float(p.after)}
+	return _profile(m, false)
+
+
+## The seeded roll of player i's try k (0..1): its name and the try's number alone.
+static func _try_roll(i: int, k: int) -> float:
+	return float(hash("trial|%s|%d" % [entry(i).name, k]) % 1000000) / 1000000.0
+
+
+## Looks at player i's tries up to work w (each once): the work of its win, INF none yet.
+static func _trial_pass(i: int, w: float) -> float:
+	var c: Dictionary = _trial.get(i, {})
+	if c.is_empty():
+		c = {"k": 0, "pass": INF, "sheet": {}, "stats": {}, "odds": {}}
+		_trial[i] = c
+	if float(c.pass) < INF:
+		return float(c.pass)
+	while trial_work(i, int(c.k)) <= w:
+		var k := int(c.k)
+		var at := trial_work(i, k)
+		if TRIAL_SHEET_AT.has(k) or (c.sheet as Dictionary).is_empty():
+			c["sheet"] = trial_sheet(i, at)
+			c["stats"] = HeroStats.compute(c.sheet)
+			c["odds"] = {}
+		# The odds change only with a new sheet read or what it has learnt (TRIAL_LEARN).
+		var hands := trial_hands(i) + minf(float(k) * TRIAL_LEARN, TRIAL_LEARN_MAX)
+		var odds: Dictionary = c.odds
+		if not odds.has(hands):
+			odds[hands] = trial_chance(float(trial_odds(c.sheet, c.stats, hands).margin))
+		var chance := float(odds[hands])
+		c["k"] = k + 1
+		if _try_roll(i, k) < chance:
+			c["pass"] = at
+			c["sheet"] = {}
+			c["stats"] = {}
+			c["odds"] = {}
+			return at
+	return INF
+
+
+## Whether player i has passed the trial by work w (its sheet's work, work_of / work_at).
+static func ascended_at_work(i: int, w: float) -> bool:
+	if i < 0 or w < trial_work(i, 0):
+		return false
+	return _trial_pass(i, w) <= w
+
+
+## Whether player i has passed the trial by real time t (JobData.adv_for's Ascension step).
+static func ascended_at(i: int, t: float) -> bool:
+	if _all.is_empty():
+		_roster()
+	if i < 0 or i >= _all.size():
+		return false
+	return ascended_at_work(i, work_at(i, t))
+
+
+## Whether member sheet m (a world player's, by name or "index") has passed the trial at
+## the play its sheet shows (work_of); never below ★500, never for a sheet of nobody's.
+static func ascended_sheet(m: Dictionary) -> bool:
+	if int(m.get("level", 1)) < Game.MAX_LEVEL or int(m.get("stars", 0)) < JobData.ASCEND_STARS:
+		return false
+	var i := int(m.index) if m.has("index") and int(m.index) >= 0 and int(m.index) < _all.size() and String(entry(int(m.index)).name) == String(m.get("name", entry(int(m.index)).name)) else _sheet_index(m)
+	if i < 0:
+		return false
+	return ascended_at_work(i, work_of(m, i))
+
+
+## The tries player i has made by work w (its win included), for its card and chat.
+static func trial_tries(i: int, w: float) -> int:
+	if i < 0 or w < trial_work(i, 0):
+		return 0
+	var at := _trial_pass(i, w)
+	if at <= w:
+		return int(_trial[i].k)
+	return int(floor((w - trial_work(i, 0)) / (TRIAL_EVERY_HOURS * 60.0 * efficiency(i)))) + 1
+
+
+## The world players who passed the trial between real times t0 and t1 (tests; a pass
+## over everyone: the Announcer uses take_ascended instead).
+static func ascended_between(t0: float, t1: float) -> Array[int]:
+	var out: Array[int] = []
+	if t1 <= t0:
+		return out
+	var first := star500_work() + TRIAL_PREP_WORK
+	for i in _all.size():
+		if t1 < joined_at(i):
+			continue
+		var w1 := work_at(i, t1)
+		if w1 < first or not ascended_at_work(i, w1):
+			continue
+		if not ascended_at_work(i, work_at(i, t0)):
+			out.append(i)
+	return out
+
+
+## The world players found to have passed the trial since the last call (the Announcer's
+## "ผ่านบททดสอบเทวาลัย" line, once a WATCH_EVERY seconds): WATCH_SLICE players a call,
+## round the world in turn, each compared with what it was the last time it was looked at,
+## so a pass is told within a few minutes and a call costs a few work reads (a player whose
+## forging WorldGear has not worked out that far yet waits for a later round). Nothing is
+## told for a player seen for the first time, or across a gap longer than WATCH_GAP (a
+## game back from the background does not replay what it missed).
+const WATCH_SLICE := 40
+const WATCH_GAP := 1800.0
+static var _watch := {}
+static var _watch_next := 0
+
+
+static func take_ascended(t: float) -> Array[int]:
+	var out: Array[int] = []
+	var n := _all.size()
+	if n == 0:
+		return out
+	var first := star500_work() + TRIAL_PREP_WORK
+	for _k in mini(WATCH_SLICE, n):
+		var i := _watch_next % n
+		_watch_next = (_watch_next + 1) % n
+		if t < joined_at(i):
+			continue
+		var w := work_at(i, t)
+		# A try not looked at yet whose forging is not worked out (WorldGear.warm does it a
+		# little each frame) waits for a later round: the watch never forces a simulation.
+		if w >= first and not _trial_known(i, w) and not WorldGear.is_warm(i, w):
+			continue
+		var now_passed := w >= first and ascended_at_work(i, w)
+		var was: Variant = _watch.get(i)
+		_watch[i] = [t, now_passed]
+		if now_passed and was != null and not bool(was[1]) and t - float(was[0]) <= WATCH_GAP:
+			out.append(i)
+	return out
+
+
+## Whether player i's tries up to work w are all looked at already (a read is a look-up).
+static func _trial_known(i: int, w: float) -> bool:
+	var c: Dictionary = _trial.get(i, {})
+	return not c.is_empty() and (float(c.pass) <= w or trial_work(i, int(c.k)) > w)
+
+
+## Forgets what take_ascended has seen (tests, Announcer.reset).
+static func reset_watch() -> void:
+	_watch.clear()
+	_watch_next = 0
 
 
 # --- Mounts (MountData) --------------------------------------------------------------
@@ -1776,20 +2057,35 @@ static func fighter(i: int, t: float, _rng: RandomNumberGenerator = null) -> Dic
 	}
 
 
-## Display line: "Lv.57" or "Lv.100 ★120".
 ## Whether player state (or member) s has taken the God promotion: Lv.100 and ★300
 ## (JobData.adv_for), like the hero's เทพเจ้าแห่ง<อาชีพ>.
 static func is_god(s: Dictionary) -> bool:
 	return JobData.is_god(JobData.adv_for(int(s.get("level", 1)), int(s.get("stars", 0))))
 
 
-## Its God title ("เทพเจ้าแห่งนักรบ"), "" before the promotion.
+## Its God title ("เทพเจ้าแห่งนักรบ"), "" before the promotion; its Ascension's name once it
+## has passed the trial at ★500 (ascended_of: "ascended" or "adv" when s carries one,
+## else the world player s names, at the play its sheet shows).
 static func god_title(s: Dictionary) -> String:
-	# A hardcore player at ★500 has passed the trial (JobData.adv_for): its Ascension name.
-	if JobData.is_ascended(JobData.adv_for(int(s.get("level", 1)), int(s.get("stars", 0)))):
+	if ascended_of(s):
 		return String(JobData.ascend_step(StringName(s.get("class", "warrior"))).name)
 	return JobData.god_name(StringName(s.get("class", "warrior"))) if is_god(s) else ""
 
+
+## Whether state, member sheet or plate s is Ascended: its "ascended" when it says, its
+## "adv" (a real player's own step) when it carries one, else its world player's trial
+## at the play its sheet shows (ascended_sheet). Below ★500 never.
+static func ascended_of(s: Dictionary) -> bool:
+	if int(s.get("level", 1)) < Game.MAX_LEVEL or int(s.get("stars", 0)) < JobData.ASCEND_STARS:
+		return false
+	if s.has("ascended"):
+		return bool(s.ascended)
+	if s.has("adv"):
+		return JobData.is_ascended(int(s.adv))
+	return ascended_sheet(s)
+
+
+## Display line: "Lv.57" or "Lv.100 ★120".
 
 static func level_text(s: Dictionary) -> String:
 	return "Lv.%d%s" % [int(s.level), " ★%d" % int(s.stars) if int(s.stars) > 0 else ""]

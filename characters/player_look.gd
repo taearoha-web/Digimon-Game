@@ -65,7 +65,7 @@ static func of_member(m: Dictionary, index: int) -> Dictionary:
 	var worn := RewardShop.world_cosmetics(index)
 	return {
 		"class": String(m.get("class", ClassData.DEFAULT)),
-		"adv": JobData.adv_for(level, stars),
+		"adv": JobData.adv_for(level, stars, WorldPlayers.ascended_sheet(m)),
 		"face": WorldPlayers.look(index) if index >= 0 and index < WorldPlayers.size() else FaceKit.hero_look({"gender": int(m.get("gender", 0))}),
 		"equip": wire_equip(WorldPlayers.equip(m)),
 		"wing_mode": HeroVisual.WING_STAND,

@@ -13,7 +13,12 @@ extends RefCounted
 ## Winning promotes the hero (promote): adv 6, its grand title (JobData.ascend_step), the
 ## two Ascension skills (AscendSkillData), ASCEND_SKILL_POINTS and the celebration. Falling
 ## in the trial is the game's ordinary death; the sage lets the hero try again any time.
-## AI world players at ★500 are Ascended by JobData.adv_for (no quest).
+## AI world players are held to the same rule: ★500 alone is no Ascension. Each walks the
+## steps at its own pace and then fights the guardian itself, a try about every session of
+## its play, won or lost by what it really has then against MONSTERS' guardian (its HP,
+## blows, FLOOR_SHARE, the enrage) on a seeded roll (WorldPlayers.ascended_at, the same on
+## every device): the strong pass in a few tries, the weak keep failing, some never pass.
+## Only a pass makes it Ascended (JobData.adv_for's ascended); the Announcer tells it.
 ##
 ## State lives in Game.profile.flags (integers only): STEP_FLAG (0 not taken, 1..3 the
 ## step, DONE once promoted), KILLS_FLAG, TOKENS_FLAG and TRIES_FLAG (trial attempts).

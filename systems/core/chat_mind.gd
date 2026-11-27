@@ -664,7 +664,9 @@ static func title_text(p: Dictionary) -> String:
 	var lv := int(p.get("level", 1))
 	var st := int(p.get("stars", 0))
 	var i := int(p.get("index", -1))
-	var god := WorldPlayers.god_title({"level": lv, "stars": st, "class": WorldPlayers.entry(i)["class"]}) if i >= 0 else ""
+	# Its Ascension's name only once it has passed the trial (WorldPlayers.ascended_at).
+	var god := WorldPlayers.god_title({"level": lv, "stars": st, "class": WorldPlayers.entry(i)["class"],
+		"ascended": st >= JobData.ASCEND_STARS and WorldPlayers.ascended_at(i, WorldPresence.clock())}) if i >= 0 else ""
 	var g := WorldPlayers.guild_at(i, lv) if i >= 0 else 0
 	var crown := " กิลด์%sเป็น%sสัปดาห์นี้ด้วย" % [WorldPlayers.guild_name(g), GuildLeague.CASTLE_TITLE] if g > 0 and ChatFacts.castle_king(WorldPresence.clock()) == g else ""
 	if god != "":

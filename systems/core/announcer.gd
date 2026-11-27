@@ -22,10 +22,12 @@ extends RefCounted
 ##   others cheer in the world chat (WorldPresence takes the events with take_luck).
 
 ## "crown": the week's หนึ่งในใต้หล้า (MazeCrown), read off the clock by every game like the rare dragon.
-const KINDS := ["jackpot", "rare", "crown"]
+## "ascend": a world player passed บททดสอบเทวาลัย (WorldPlayers.take_ascended, read off its play
+## the same way on every device, so never relayed).
+const KINDS := ["jackpot", "rare", "crown", "ascend"]
 ## What an `announce` frame may name, by kind (the server keeps the same lists).
 const WHATS := {"jackpot": ["", "weapon", "wings", "fragment", "egg", "chest"], "rare": ["slain"]}
-const COLORS := {"jackpot": Color("ffd23a"), "rare": Color("7dffd8"), "crown": Color("ffc23a")}
+const COLORS := {"jackpot": Color("ffd23a"), "rare": Color("7dffd8"), "crown": Color("ffc23a"), "ascend": Color("fff2a8")}
 ## The world chat's speaker of a system line (as WorldPresence's server messages).
 const SPEAKER := "ประกาศ"
 const TEXT_MAX := 120
@@ -42,6 +44,9 @@ const LUCK_CATCH_UP := 90.0
 const GENERIC_JACKPOT := "%s ได้รับของแจ็กพอตจาก%s!"
 const RARE_HERE := "%s ปรากฏตัวที่%s! เหลือ %d นาที"
 const RARE_SLAIN := "%s ปราบ%sที่%sได้แล้ว!"
+const ASCENDED := "%s ผ่าน%s เปลี่ยนอาชีพขั้นที่ 6 แล้ว!"
+## tick() looks for world players' passes this often (WorldPlayers.take_ascended).
+const ASCEND_EVERY := 15.0
 
 ## False while the announcement on its way is somebody else's (a world player's, or one
 ## that came over the network): it is shown here and never sent on.
@@ -56,6 +61,7 @@ static var _rare_told := -1
 static var _luck_t := -1.0
 static var _luck: Array = []
 static var _names := {}
+static var _ascend_t := -INF
 
 
 ## Shows [param text] to everyone. [param kind]: "jackpot" or "rare".
@@ -194,8 +200,8 @@ static func quietly(job: Callable) -> void:
 
 
 ## Once a second from the HUD (t: WorldPresence.clock()): the rare dragon's window
-## opening is told to everyone, wherever the hero is, and the world players' jackpots
-## (IsleLuck) that fell due since the last look.
+## opening is told to everyone, wherever the hero is, the world players' jackpots
+## (IsleLuck) that fell due since the last look, and those who passed the Ascension trial.
 static func tick(t: float) -> void:
 	if not ticking:
 		return
@@ -212,6 +218,11 @@ static func tick(t: float) -> void:
 			quietly(func(): SkyIsleLoot.announce(item, who))
 			_luck.append(e)
 	_luck_t = t
+	# A world player who has just passed the trial (its own tries, WorldPlayers.ascended_at).
+	if t - _ascend_t >= ASCEND_EVERY:
+		_ascend_t = t
+		for i in WorldPlayers.take_ascended(t):
+			show(clean(ASCENDED % [String(WorldPlayers.entry(i).name), AscensionData.TITLE]), "ascend")
 	DragonHunt.tick(t)
 	LoyKrathong.tick(t)
 	Christmas.tick(t)
@@ -234,6 +245,8 @@ static func reset() -> void:
 	_sent_at = -100000
 	_rare_told = -1
 	_luck_t = -1.0
+	_ascend_t = -INF
+	WorldPlayers.reset_watch()
 	relay = true
 	DragonHunt.reset()
 	LoyKrathong.reset()

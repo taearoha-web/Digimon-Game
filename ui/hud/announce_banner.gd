@@ -19,8 +19,8 @@ const HOLD := 3.6
 const SLIDE_OUT := 0.4
 ## A line wider than the strip crosses it at this speed (logical px a second).
 const SCROLL_SPEED := 150.0
-const ICONS := {"jackpot": "★", "rare": "◆", "crown": "♛"}
-const SFX := {"jackpot": &"confirm_big", "rare": &"encounter", "crown": &"confirm_big"}
+const ICONS := {"jackpot": "★", "rare": "◆", "crown": "♛", "ascend": "✦"}
+const SFX := {"jackpot": &"confirm_big", "rare": &"encounter", "crown": &"confirm_big", "ascend": &"confirm_big"}
 
 ## The strip's bottom on screen while a line is up, 0 without: the toasts start under it
 ## (ToastLayer.lane_top), so a toast never lies on a banner.

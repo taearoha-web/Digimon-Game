@@ -428,7 +428,8 @@ func _update_label() -> void:
 		return
 	_label_key = key
 	var line := "%s Lv.%d%s" % [who, lv, " ★%d" % stars if stars > 0 else ""]
-	var god := WorldPlayers.god_title({"class": look.get("class", ClassData.DEFAULT), "level": lv, "stars": stars})
+	# Its own step (look.adv): a real player at ★500 is Ascended only once it passed the trial.
+	var god := WorldPlayers.god_title({"class": look.get("class", ClassData.DEFAULT), "level": lv, "stars": stars, "adv": int(look.get("adv", 0))})
 	if god != "" and JobData.is_god(int(look.get("adv", 0))):
 		line = "✦ %s ✦\n%s" % [god, line]
 	if anim == "dead":

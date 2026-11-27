@@ -4,7 +4,8 @@ extends RefCounted
 ## ultimate above its ★300 god skill and a grand buff. Both are star skills (StarSkillSequence
 ## plays them) at ★500 (JobData.ASCEND_STARS) marked "ascend": ClassData.skill_tier puts
 ## them at JobData.ASCEND_TIER, so only a hero who passed the trial (AscensionData) casts
-## them; AI world players at ★500 have passed it (JobData.adv_for) and cast them too.
+## them; AI world players cast them too once they have won the trial themselves
+## (WorldPlayers.ascended_at, JobData.adv_for's ascended), never by ★500 alone.
 ##
 ## The ultimate is built on the class's god skill (same gesture, animation and shape,
 ## GOD_BEATS waves and finale) with ULT_POWER its TOTAL multiplier, more MP and a long

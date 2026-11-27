@@ -14,8 +14,10 @@ extends RefCounted
 ##
 ## Past the God step lies the Ascension (adv 6, ASCEND_ADV, "เปลี่ยนอาชีพขั้นที่ 6"): never
 ## bought from the Job Master, it is granted by the celestial sage's trial (AscensionData,
-## "บททดสอบเทวาลัย") to a God at ★500 (ASCEND_STARS). Its grand title (ASCEND_TITLES) lifts
-## the legend step's bonuses by ASCEND_SCALE (a step above the God step, see ascend_step)
+## "บททดสอบเทวาลัย") to a God at ★500 (ASCEND_STARS) who defeats its guardian; the world
+## players too must win it (WorldPlayers.ascended_at, adv_for's ascended). Its grand title
+## (ASCEND_TITLES) lifts the legend step's bonuses by ASCEND_SCALE (a step above the God
+## step, see ascend_step)
 ## and opens the two Ascension skills of the class (AscendSkillData, tier ASCEND_TIER).
 
 const TIER_LEVELS := [20, 40, 60, 80, 100]
@@ -23,7 +25,8 @@ const TIER_COSTS := [1500, 6000, 20000, 60000, 1000000]
 const TIER_SKILL_POINTS := [2, 3, 4, 5, 6]
 const MAX_ADV := 6
 ## The steps a hero takes by level alone (Lv.20/40/60/80); companions and guild-war
-## fighters stop here, a world player at ★300 takes the God step too (adv_for).
+## fighters stop here, a world player at ★300 takes the God step too (adv_for), and the
+## Ascension only once it has passed the trial (WorldPlayers.ascended_at).
 const LEGEND_ADV := 4
 ## The God step (adv 5) and the stars it needs.
 const GOD_ADV := 5
@@ -379,11 +382,13 @@ static func adv_for_level(level: int) -> int:
 
 
 ## The steps a world player has taken (WorldPlayers.profile): the level steps, and at
-## Lv.100 with ★300 (GOD_STARS) the God step too (the fee is earned along the way), and a
-## hardcore player at ★500 (ASCEND_STARS) has passed the trial: the Ascension, the same
-## for every client (guild war, name plates), never rolled.
-static func adv_for(level: int, stars: int) -> int:
-	if level >= 100 and stars >= ASCEND_STARS:
+## Lv.100 with ★300 (GOD_STARS) the God step too (the fee is earned along the way). ★500
+## (ASCEND_STARS) alone is not the Ascension: like the hero, a world player must pass the
+## trial (บททดสอบเทวาลัย), so [param ascended] is whether it has (WorldPlayers.ascended_at /
+## ascended_sheet: its own tries against the guardian, read off its seeds and its play,
+## the same on every client). Without it a ★500 player stays a God.
+static func adv_for(level: int, stars: int, ascended := false) -> int:
+	if level >= 100 and stars >= ASCEND_STARS and ascended:
 		return ASCEND_ADV
 	if level >= 100 and stars >= GOD_STARS:
 		return GOD_ADV

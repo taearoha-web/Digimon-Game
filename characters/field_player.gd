@@ -249,8 +249,9 @@ func _level_text() -> String:
 	if world_index >= 0 and LegendWings.ai_holds(world_index):
 		_label.modulate = LegendWings.COLOR
 		line = "「%s」 %s" % [LegendWings.TAG, line]
-	# A God (Lv.100 ★300) wears its title over the name, like the hero's name plate.
-	var god := WorldPlayers.god_title({"class": member["class"], "level": int(member.level), "stars": stars})
+	# A God (Lv.100 ★300) wears its title over the name, like the hero's name plate; its
+	# Ascension's once it has passed the trial (the member sheet's own play, ascended_sheet).
+	var god := WorldPlayers.god_title({"class": member["class"], "level": int(member.level), "stars": stars, "ascended": WorldPlayers.ascended_sheet(member)})
 	if god != "":
 		line = "✦ %s ✦\n%s" % [god, line]
 	if doing == "errand" and not party_mode and ERRAND_TAGS.has(errand):

@@ -4,7 +4,8 @@ extends Node
 ## rules, icons, art), the gate (★500 and the trial, never the Job Master), the sage's
 ## dialog and the three steps through the real Main (hunt, tokens, the trial stage with its
 ## guardian's moves, phases and enrage), a failed try and a retry, the promotion with its
-## banner and celebration, the AI players' deterministic Ascension (JobData.adv_for), the
+## banner and celebration, the AI players' own trial (WorldPlayers.ascended_at: no Ascension
+## by ★500 alone; their tries against the guardian, deterministic; the announcement), the
 ## save check, repair and a save / load.
 ##   godot --headless --audio-driver Dummy --path . res://tests/integration/ascension_test.tscn
 
@@ -193,17 +194,169 @@ func _skills() -> void:
 # --- AI world players --------------------------------------------------------------------
 
 func _ai() -> void:
-	check(JobData.adv_for(100, 500) == 6 and JobData.adv_for(100, 499) == 5 and JobData.adv_for(99, 500) == JobData.LEGEND_ADV, "adv_for: ★500 Ascended, ★499 a God")
-	var ranks := WorldPlayers.skill_ranks(&"lancer", 100, 500)
-	var lower := WorldPlayers.skill_ranks(&"lancer", 100, 499)
+	# ★500 alone is no Ascension: adv_for's Ascension step needs the trial won (ascended).
+	check(JobData.adv_for(100, 500) == JobData.GOD_ADV and JobData.adv_for(100, 500, true) == JobData.ASCEND_ADV, "adv_for: ★500 stays a God until it has passed the trial")
+	check(JobData.adv_for(100, 499, true) == JobData.GOD_ADV and JobData.adv_for(99, 500, true) == JobData.LEGEND_ADV, "adv_for: never Ascended below Lv.100 ★500")
+	var ranks := WorldPlayers.skill_ranks(&"lancer", 100, 500, true)
+	var not_yet := WorldPlayers.skill_ranks(&"lancer", 100, 500)
+	var lower := WorldPlayers.skill_ranks(&"lancer", 100, 499, true)
 	for id in AscendSkillData.IDS[&"lancer"]:
-		check(ranks.has(id) and not lower.has(id), "a ★500 AI knows %s, a ★499 one does not" % id)
-	check(WorldPlayers.skill_points(100, 500) == WorldPlayers.skill_points(100, 499) + JobData.ASCEND_SKILL_POINTS, "the Ascension's skill points")
-	check(WorldPlayers.god_title({"class": &"bard", "level": 100, "stars": 500}) == String(JobData.ascend_step(&"bard").name), "a ★500 AI's plate names its Ascension")
+		check(ranks.has(id) and not not_yet.has(id) and not lower.has(id), "%s: only a ★500 AI that passed the trial knows it" % id)
+	check(WorldPlayers.skill_points(100, 500, true) == WorldPlayers.skill_points(100, 500) + JobData.ASCEND_SKILL_POINTS, "the Ascension's skill points")
+	check(WorldPlayers.skill_points(100, 500) == WorldPlayers.skill_points(100, 499), "no Ascension points for ★500 alone")
+	check(WorldPlayers.god_title({"class": &"bard", "level": 100, "stars": 500, "ascended": true}) == String(JobData.ascend_step(&"bard").name), "a ★500 plate that passed names its Ascension")
+	check(WorldPlayers.god_title({"class": &"bard", "level": 100, "stars": 500}) == JobData.god_name(&"bard"), "a ★500 plate of nobody's is still a God")
+	check(WorldPlayers.god_title({"class": &"bard", "level": 100, "stars": 500, "adv": JobData.GOD_ADV}) == JobData.god_name(&"bard"), "a real player's ★500 God plate (adv 5) is a God")
 	check(WorldPlayers.god_title({"class": &"bard", "level": 100, "stars": 300}) == JobData.god_name(&"bard"), "a ★300 AI is still a God")
 	var ult: Dictionary = ClassData.find_skill(&"assassin", "timeless_night_execution")
-	check(ClassData.knows(ult, 100, 1 + JobData.adv_for(100, 500), 500) and not ClassData.knows(ult, 100, 1 + JobData.adv_for(100, 499), 499), "a rival / guild fighter casts it at ★500 only")
-	check(ClassData.knows(ult, 100, ClassData.tier_of(&"assassin", JobData.adv_for(100, 500)), 500), "the same through tier_of")
+	check(ClassData.knows(ult, 100, 1 + JobData.adv_for(100, 500, true), 500) and not ClassData.knows(ult, 100, 1 + JobData.adv_for(100, 500), 500), "a rival / guild fighter casts it only after the trial")
+	check(ClassData.knows(ult, 100, ClassData.tier_of(&"assassin", JobData.adv_for(100, 500, true)), 500) and not ClassData.knows(ult, 100, ClassData.tier_of(&"assassin", JobData.adv_for(100, 500)), 500), "the same through tier_of")
+	_ai_trial()
+
+
+## The world players' own trial (WorldPlayers.ascended_at): read off their work, the same
+## on every device; a ★500 player is no Ascended before its win, the weak fail, the strong
+## pass, some pass within days and not everyone, and the answers never change.
+func _ai_trial() -> void:
+	var was_festival := WorldEvents.festival_enabled
+	WorldEvents.festival_enabled = false
+	WorldPlayers.clear_bonus()
+	var n := mini(WorldPlayers.ROSTER.size(), WorldPlayers.size())
+	var w500 := WorldPlayers.star500_work()
+	check(WorldPlayers.TRIAL_PREP_WORK > 0.0 and WorldPlayers.trial_work(0, 0) > w500, "the first try comes after the hunt and the tokens (%.0f probe minutes past ★500)" % WorldPlayers.TRIAL_PREP_WORK)
+	var hours := (WorldPlayers.trial_work(0, 1) - WorldPlayers.trial_work(0, 0)) / 60.0 / WorldPlayers.efficiency(0)
+	check(is_equal_approx(hours, WorldPlayers.TRIAL_EVERY_HOURS), "a try every %.1f hours of its play" % hours)
+	# The guardian is the trial's own (AscensionData's MONSTERS through MonsterData).
+	var g := WorldPlayers.guardian()
+	var mob := MonsterData.stats_for(AscensionData.BOSS_ID, AscendTrial.BOSS_LEVEL)
+	check(int(g.hp) == int(mob.hp) and int(g.atk) == int(mob.atk), "the AI fights the stage's guardian (hp %d atk %d)" % [int(g.hp), int(g.atk)])
+	# Weak and strong: the same sheet scaled down and up.
+	var i0 := 0
+	var sheet := WorldPlayers.trial_sheet(i0, WorldPlayers.trial_work(i0, 0))
+	check(int(sheet.adv) == JobData.GOD_ADV and int(sheet.level) == 100 and int(sheet.paragon.level) == JobData.ASCEND_STARS, "a try is fought as the ★500 God it is")
+	var st := HeroStats.compute(sheet)
+	var weak := st.duplicate()
+	weak.atk = float(st.atk) * 0.2
+	weak.max_hp = int(float(st.max_hp) * 0.5)
+	var strong := st.duplicate()
+	strong.atk = float(st.atk) * 6.0
+	strong.max_hp = int(float(st.max_hp) * 3.0)
+	strong.lifesteal = 0.1
+	var mid := WorldPlayers.trial_odds(sheet, st, 1.0)
+	var low := WorldPlayers.trial_odds(sheet, weak, 1.0)
+	var high := WorldPlayers.trial_odds(sheet, strong, 1.0)
+	check(float(low.kill) > float(mid.kill) and float(high.kill) < float(mid.kill) and float(high.last) > float(low.last), "more attack kills faster, more HP lasts longer")
+	check(WorldPlayers.trial_chance(float(low.margin)) == 0.0, "a weak sheet has no chance (margin %.2f)" % float(low.margin))
+	check(WorldPlayers.trial_chance(float(high.margin)) >= 0.85, "a strong sheet nearly always wins (margin %.2f)" % float(high.margin))
+	check(WorldPlayers.trial_odds(sheet, st, 1.2).margin > WorldPlayers.trial_odds(sheet, st, 0.8).margin, "better hands, better odds")
+	print("  AI trial: %s kill %.0fs last %.0fs margin %.2f chance %.2f" % [WorldPlayers.entry(i0).name, float(mid.kill), float(mid.last), float(mid.margin), WorldPlayers.trial_chance(float(mid.margin))])
+	# Every roster player: not Ascended at ★500 before its first try; the answers stable.
+	var passes := {}
+	var never_early := true
+	var first_try := []
+	for i in n:
+		never_early = never_early and not WorldPlayers.ascended_at_work(i, w500) and not WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 0) - 1.0)
+		first_try.append(WorldPlayers.trial_chance(float(WorldPlayers.trial_odds(WorldPlayers.trial_sheet(i, WorldPlayers.trial_work(i, 0)), HeroStats.compute(WorldPlayers.trial_sheet(i, WorldPlayers.trial_work(i, 0))), WorldPlayers.trial_hands(i)).margin)))
+		for k in [0, 5, 15, 30, 60, 150]:
+			if not passes.has(k):
+				passes[k] = 0
+			passes[k] += 1 if WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, k)) else 0
+	check(never_early, "no world player is Ascended at ★500 before its first try")
+	# Deterministic: the same answers read in another order with the caches emptied.
+	var late := []
+	for i in n:
+		late.append(WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 40)))
+	WorldPlayers._trial.clear()
+	var same := true
+	for i in range(n - 1, -1, -1):
+		var a := WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 40))
+		var b := WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 3))
+		same = same and a == bool(late[i]) and (not b or a)
+		same = same and WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 40)) == a
+	check(same, "the same pass or fail whatever was read first, and a pass is never taken back")
+	print("  AI trial passes of %d roster players by try %s: %s" % [n, str(passes.keys()), str(passes.values())])
+	check(int(passes[0]) < n / 2, "most do not pass at the first try (%d / %d)" % [int(passes[0]), n])
+	check(int(passes[15]) >= n / 5 and int(passes[15]) < n, "a fair share passes within about three days of tries (%d / %d)" % [int(passes[15]), n])
+	check(int(passes[150]) < n, "some never pass (%d / %d after a month of tries)" % [int(passes[150]), n])
+	check(int(passes[150]) >= int(passes[15]) and int(passes[15]) >= int(passes[0]), "passes only add up")
+	# The strongest first try wins within a few; a no-chance first try fails it.
+	var best := 0
+	var none := -1
+	for i in n:
+		best = i if float(first_try[i]) > float(first_try[best]) else best
+		if none < 0 and float(first_try[i]) == 0.0:
+			none = i
+	check(WorldPlayers.ascended_at_work(best, WorldPlayers.trial_work(best, 4)), "the strongest (%s, %.0f%% a try) passes within five tries" % [WorldPlayers.entry(best).name, 100.0 * float(first_try[best])])
+	check(none >= 0 and not WorldPlayers.ascended_at_work(none, WorldPlayers.trial_work(none, 0)), "a weak one fails its first try")
+	# One who passes: a God at ★500 until the try it wins, Ascended from it.
+	var who := -1
+	for i in n:
+		if WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 30)) and not WorldPlayers.ascended_at_work(i, WorldPlayers.trial_work(i, 0)):
+			who = i
+			break
+	check(who >= 0, "someone passes after failing first")
+	if who >= 0:
+		var win := WorldPlayers._trial_pass(who, INF)
+		var e := WorldPlayers.entry(who)
+		var cls := StringName(e["class"])
+		var before := _sheet_at(who, win - 1.0)
+		var after := _sheet_at(who, win + 1.0)
+		var sb := WorldPlayers.profile(before)
+		var sa := WorldPlayers.profile(after)
+		check(int(before.stars) == JobData.ASCEND_STARS and int(sb.adv) == JobData.GOD_ADV and not WorldPlayers.ascended_sheet(before), "%s at ★500 before its win: a God (adv %d)" % [e.name, int(sb.adv)])
+		check(int(sa.adv) == JobData.ASCEND_ADV and WorldPlayers.ascended_sheet(after), "%s after its win: Ascended" % e.name)
+		for id in AscendSkillData.IDS[cls]:
+			check(not (sb.skills as Dictionary).has(id) and (sa.skills as Dictionary).has(id), "%s: %s only after the win" % [e.name, id])
+		check(WorldPlayers.god_title(before) == JobData.god_name(cls) and WorldPlayers.god_title(after) == String(JobData.ascend_step(cls).name), "%s: its plate turns from God to %s" % [e.name, WorldPlayers.god_title(after)])
+		check(PlayerLook.of_member(before, who).adv == JobData.GOD_ADV and PlayerLook.of_member(after, who).adv == JobData.ASCEND_ADV, "its look follows")
+		check(WorldPlayers.trial_tries(who, win) >= 2 and WorldPlayers.trial_tries(who, win) == WorldPlayers.trial_tries(who, win + 1000.0), "its tries stop at the win (%d)" % WorldPlayers.trial_tries(who, win))
+		# In real time: the world chat's announcement (Announcer, WorldPlayers.take_ascended).
+		var t_win := _time_of_work(who, win)
+		check(not WorldPlayers.ascended_at(who, t_win - 120.0) and WorldPlayers.ascended_at(who, t_win + 120.0), "ascended_at follows its play in real time")
+		Announcer.reset()
+		var heard: Array = []
+		var sink := func(text: String, kind: String): heard.append([text, kind])
+		Announcer.listen(sink)
+		for _k in int(ceil(float(WorldPlayers.size()) / float(WorldPlayers.WATCH_SLICE))) + 1:
+			WorldPlayers.take_ascended(t_win - 120.0)
+		var told: Array[int] = []
+		for _k in int(ceil(float(WorldPlayers.size()) / float(WorldPlayers.WATCH_SLICE))) + 1:
+			told.append_array(WorldPlayers.take_ascended(t_win + 120.0))
+		check(told.has(who), "the watch finds %s's pass" % e.name)
+		Announcer.reset()
+		Announcer.ticking = true
+		for _k in int(ceil(float(WorldPlayers.size()) / float(WorldPlayers.WATCH_SLICE))) + 1:
+			Announcer._ascend_t = -INF
+			Announcer.tick(t_win - 120.0)
+		for _k in int(ceil(float(WorldPlayers.size()) / float(WorldPlayers.WATCH_SLICE))) + 1:
+			Announcer._ascend_t = -INF
+			Announcer.tick(t_win + 120.0)
+		var line := Announcer.ASCENDED % [String(e.name), AscensionData.TITLE]
+		check(heard.any(func(h): return String(h[0]) == Announcer.clean(line) and String(h[1]) == "ascend"), "the world chat announces: %s" % line)
+		Announcer.unlisten(sink)
+		Announcer.reset()
+	WorldEvents.festival_enabled = was_festival
+
+
+## World player i's member sheet at work w (what its play shows then).
+func _sheet_at(i: int, w: float) -> Dictionary:
+	var p := WorldPlayers.progress_for(0.0, WorldPlayers.efficiency(i), w)
+	var e := WorldPlayers.entry(i)
+	return {"class": String(e["class"]), "name": String(e.name), "level": int(p.level), "stars": int(p.stars),
+		"frac": float(p.frac), "divine_frac": float(p.divine_frac), "after": float(p.after)}
+
+
+## The real time world player i's work reaches w (work_at only grows).
+func _time_of_work(i: int, w: float) -> float:
+	var lo := WorldPlayers.joined_at(i)
+	var hi := lo + 400.0 * 86400.0
+	for _k in 60:
+		var mid := (lo + hi) * 0.5
+		if WorldPlayers.work_at(i, mid) >= w:
+			hi = mid
+		else:
+			lo = mid
+	return hi
 
 
 # --- The gate ----------------------------------------------------------------------------

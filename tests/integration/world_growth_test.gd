@@ -114,12 +114,14 @@ func _growth(sample: Array[int]) -> void:
 						size_late += float(size)
 			# Skills: the stars bought are the points earned, one star each for free.
 			var cls := StringName(String(s["class"]))
-			var ranks := WorldPlayers.skill_ranks(cls, int(s.level), int(s.stars))
+			# (The Ascension's skills and points once it has won the trial, ascended_at.)
+			var won := WorldPlayers.ascended_at(i, t)
+			var ranks := WorldPlayers.skill_ranks(cls, int(s.level), int(s.stars), won)
 			var stars := 0
 			for id in ranks:
 				stars += int(ranks[id])
 				skill_true = skill_true and int(ranks[id]) >= 1 and int(ranks[id]) <= SkillRank.MAX
-			skill_true = skill_true and stars - ranks.size() <= WorldPlayers.skill_points(int(s.level), int(s.stars))
+			skill_true = skill_true and stars - ranks.size() <= WorldPlayers.skill_points(int(s.level), int(s.stars), won)
 			var sum := WorldPlayers.skill_summary(i, t)
 			skill_true = skill_true and int(sum.stars) == stars and int(sum.skills) == ranks.size()
 			if String(s["class"]) == job:

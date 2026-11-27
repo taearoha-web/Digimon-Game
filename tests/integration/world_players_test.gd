@@ -53,8 +53,11 @@ func _skill_ranks() -> void:
 	for i in WorldPlayers.size():
 		var cls := StringName(WorldPlayers.entry(i)["class"])
 		var last := {}
-		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200], [100, 300], [100, 499], [100, 500]]:
-			var ranks := WorldPlayers.skill_ranks(cls, int(step[0]), int(step[1]))
+		# ★500 without the trial, then ★500 having passed it (WorldPlayers.ascended_at: a world
+		# player is Ascended only by its own win against the guardian, never by its stars).
+		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200], [100, 300], [100, 499], [100, 500], [100, 500, true]]:
+			var won: bool = step.size() > 2 and bool(step[2])
+			var ranks := WorldPlayers.skill_ranks(cls, int(step[0]), int(step[1]), won)
 			var spent := 0
 			for id in ranks:
 				spent += int(ranks[id]) - 1
@@ -65,16 +68,20 @@ func _skill_ranks() -> void:
 				if ClassData.has_lines(cls) and not skill.has("star") and not ClassData.is_line(cls, String(skill.id)):
 					continue
 				# The Ascension's skills (AscendSkillData) only once a world player has passed
-				# the trial at ★500 (JobData.adv_for).
-				if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(int(step[0]), int(step[1]))):
+				# the trial at ★500 (JobData.adv_for's ascended).
+				if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(int(step[0]), int(step[1]), won)):
 					continue
 				unlocked += 1 if int(skill.level) <= int(step[0]) else 0
-			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1])), unlocked * (SkillRank.MAX - 1))
+			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1]), won), unlocked * (SkillRank.MAX - 1))
 			last = ranks
 	check(spent_ok, "every unlocked skill is known, and the ranks bought are the skill points earned")
 	check(steady, "more play never takes a rank away")
 	check(WorldPlayers.skill_points(100, 200) == WorldPlayers.skill_points(100, 0) + 2 * StarProgression.TIERS.size() and WorldPlayers.skill_points(20, 0) > WorldPlayers.skill_points(19, 0) + 1, "points come with levels, job advancements and star tiers")
 	check(WorldPlayers.skill_points(100, 300) == WorldPlayers.skill_points(100, 200), "no star tier past ★200, so no more points to ★300")
+	check(WorldPlayers.skill_points(100, 500) == WorldPlayers.skill_points(100, 499) and WorldPlayers.skill_points(100, 500, true) == WorldPlayers.skill_points(100, 500) + JobData.ASCEND_SKILL_POINTS, "★500 alone adds no Ascension points: only the trial's win does")
+	var no_trial := WorldPlayers.skill_ranks(&"warrior", 100, 500)
+	var won := WorldPlayers.skill_ranks(&"warrior", 100, 500, true)
+	check(AscendSkillData.IDS[&"warrior"].all(func(id): return not no_trial.has(id) and won.has(id)), "the Ascension skills come with the trial's win, not with ★500")
 	var early := WorldPlayers.skill_ranks(&"warrior", 12, 0)
 	var first := ""
 	var low := 999
