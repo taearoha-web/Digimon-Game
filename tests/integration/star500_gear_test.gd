@@ -224,7 +224,7 @@ func _drops() -> void:
 				check(Game._valid_item(d), "a dropped piece is valid")
 	var piece_rate := float(pieces) / n
 	check(piece_rate > 0.0014 and piece_rate < 0.0026, "a monster drops a piece about 0.2%% of kills (%.4f)" % piece_rate)
-	check(float(cores) / n > 0.016 and float(cores) / n < 0.024, "and a core about 2%% (%.4f)" % (float(cores) / n))
+	check(float(cores) / n > 0.007 and float(cores) / n < 0.013, "and a core about 1%% (the owner's rate) (%.4f)" % (float(cores) / n))
 	check(float(own) / pieces > 0.2 and float(own) / pieces < 0.42, "a monster's piece is the own class about 30%% (%.2f)" % (float(own) / pieces))
 	var boss_n := 20000
 	var boss_pieces := 0

@@ -62,7 +62,7 @@ const AURA_PIECES := 4
 ## Drops (drop()): a piece per kill, a stack of cores per kill, a boss's odds.
 const PIECE_CHANCE := 0.002
 const BOSS_PIECE_CHANCE := 0.1
-const CORE_CHANCE := 0.02
+const CORE_CHANCE := 0.01
 const BOSS_CORE_CHANCE := 0.6
 const BOSS_CORES := [1, 3]
 ## A boss's piece is for the hero's own class this often (a monster's: ItemData.drop_class).
