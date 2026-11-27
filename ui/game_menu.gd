@@ -882,7 +882,7 @@ func _build_set_craft(middle: VBoxContainer) -> void:
 ## hero's class (Star500Gear), each for แก่นเทวาลัย and gold, a sure success.
 func _build_star500_craft(box: VBoxContainer, cls: String) -> void:
 	box.add_child(UIUtil.label("ผสม%s (★%d)" % [Star500Gear.set_label(cls), Star500Gear.STARS], &"HeaderLabel"))
-	var intro := UIUtil.label("สวมใส่ได้ที่ ดาว %d · %s ดรอปที่%s (บอสดรอปบ่อย) · มีอยู่ %d · ผสมสำเร็จทุกครั้ง · โบนัสเซต: %s" % [Star500Gear.STARS, String(ItemData.JEWELS[Star500Gear.CORE].name), Star500Gear.FIELD, Game.jewel_count(Star500Gear.CORE), Star500Gear.bonus_text()], &"SmallLabel")
+	var intro := UIUtil.label("สวมใส่ได้ที่ ดาว %d · %s ดรอปที่%s (บอสดรอปบ่อย) · มีอยู่ %d · โอกาสสำเร็จ %d%% (พลาดแล้วแก่นกับทองหาย) · โบนัสเซต: %s" % [Star500Gear.STARS, String(ItemData.JEWELS[Star500Gear.CORE].name), Star500Gear.FIELD, Game.jewel_count(Star500Gear.CORE), int(Star500Gear.CRAFT_CHANCE * 100.0), Star500Gear.bonus_text()], &"SmallLabel")
 	intro.name = "Star500Intro"
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
@@ -915,7 +915,7 @@ func _build_star500_craft(box: VBoxContainer, cls: String) -> void:
 		need.add_theme_color_override("font_color", Color("8dffb0") if problem == "" else Color("ff8a8a"))
 		need.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(need)
-		var craft := UIUtil.button("ผสม", &"PrimaryButton", Vector2(140, 56))
+		var craft := UIUtil.button("ผสม (%d%%)" % int(Star500Gear.CRAFT_CHANCE * 100.0), &"PrimaryButton", Vector2(140, 56))
 		craft.name = "Craft"
 		craft.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		craft.disabled = problem != ""
@@ -926,6 +926,8 @@ func _build_star500_craft(box: VBoxContainer, cls: String) -> void:
 				Game.say("ผสมสำเร็จ! ได้ %s แสงแห่งเทวาลัยเจิดจ้า!" % Star500Gear.item_name(cls, slot), &"success")
 				AudioManager.play_sfx(&"level_up")
 				Game.screen_flash.emit(Star500Gear.COLOR, 0.3)
+			elif result == "fail":
+				Game.say("ผสมพลาด... แก่นเทวาลัยกับเหรียญสลายหายไป ลองใหม่อีกครั้ง", &"warning")
 			else:
 				Game.say(result, &"warning")
 			_queue_rebuild())

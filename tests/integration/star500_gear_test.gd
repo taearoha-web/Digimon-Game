@@ -269,7 +269,12 @@ func _craft() -> void:
 	check(Star500Gear.craft_problem("armor").contains("เหรียญ"), "no gold: refused")
 	Game.profile.gold = Star500Gear.CRAFT_GOLD * 2
 	var before: int = Game.profile.inv.size()
-	check(Star500Gear.craft("wings") == "ok", "cores and gold forge the wings")
+	# The owner's 25%: a failed try spends the cores and the gold and gives nothing.
+	check(is_equal_approx(Star500Gear.CRAFT_CHANCE, 0.25), "the forge succeeds 25% of the time")
+	check(Star500Gear.craft("wings", 0.25) == "fail" and Game.jewel_count(Star500Gear.CORE) == 100 - int(Star500Gear.CRAFT_CORES.wings) and int(Game.profile.gold) == Star500Gear.CRAFT_GOLD and Game.profile.inv.size() == before, "a failed try uses up the cores and the gold, nothing made")
+	Game.add_item(ItemData.jewel(Star500Gear.CORE, int(Star500Gear.CRAFT_CORES.wings)))
+	Game.profile.gold = Star500Gear.CRAFT_GOLD * 2
+	check(Star500Gear.craft("wings", 0.249) == "ok", "cores and gold forge the wings")
 	check(Game.jewel_count(Star500Gear.CORE) == 100 - int(Star500Gear.CRAFT_CORES.wings) and int(Game.profile.gold) == Star500Gear.CRAFT_GOLD, "the cores and gold are spent")
 	var made: Array = Game.profile.inv.filter(Star500Gear.is_item)
 	check(made.size() == 1 and made[0]["class"] == "priest" and made[0].slot == "wings" and Game.profile.inv.size() == before + 1, "the hero's own class's piece is in the bag")

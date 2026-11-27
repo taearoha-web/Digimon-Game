@@ -70,7 +70,9 @@ const BOSS_OWN_CLASS := 0.5
 ## How often each slot drops, relative (the wings a little rarer).
 const SLOT_WEIGHT := {"weapon": 1.0, "armor": 1.0, "helm": 1.0, "boots": 1.0, "ring": 1.0, "amulet": 1.0, "wings": 0.6}
 
-## The forge (craft()): แก่นเทวาลัย a piece and gold, never fails.
+## The forge (craft()): แก่นเทวาลัย a piece and gold, at CRAFT_CHANCE (the owner's 25%); a
+## failed try uses up the cores and the gold, like the 250★ set's.
+const CRAFT_CHANCE := 0.25
 const CORE := "heaven_core"
 const CRAFT_CORES := {"weapon": 30, "armor": 20, "helm": 20, "boots": 20, "ring": 15, "amulet": 15, "wings": 30}
 const CRAFT_GOLD := 3000000
@@ -382,12 +384,13 @@ static func craft_problem(slot: String) -> String:
 static func core_help(id: String) -> String:
 	if id != CORE:
 		return ""
-	return "วัตถุดิบผสม%s (★%d) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ในกระเป๋า: อาวุธ/ปีก %d แก่น · เสื้อ/หมวก/รองเท้า %d แก่น · แหวน/สร้อย %d แก่น + ทอง %s ต่อชิ้น สำเร็จทุกครั้ง · ดรอปที่%s (มอนทั่วไป %d%% บอส %d%% ได้ %d-%d แก่น)" % ["ชุดเทวาลัย", STARS, int(CRAFT_CORES.weapon), int(CRAFT_CORES.armor), int(CRAFT_CORES.ring), PlayerStall.thousands(CRAFT_GOLD), FIELD, int(CORE_CHANCE * 100.0), int(BOSS_CORE_CHANCE * 100.0), int(BOSS_CORES[0]), int(BOSS_CORES[1])]
+	return "วัตถุดิบผสม%s (★%d) ที่ช่างตีเหล็ก ปุ่ม \"ผสมชุดเซต\" ในกระเป๋า: อาวุธ/ปีก %d แก่น · เสื้อ/หมวก/รองเท้า %d แก่น · แหวน/สร้อย %d แก่น + ทอง %s ต่อครั้ง โอกาสสำเร็จ %d%% (พลาดแล้วแก่นกับทองหาย) · ดรอปที่%s (มอนทั่วไป %d%% บอส %d%% ได้ %d-%d แก่น)" % ["ชุดเทวาลัย", STARS, int(CRAFT_CORES.weapon), int(CRAFT_CORES.armor), int(CRAFT_CORES.ring), PlayerStall.thousands(CRAFT_GOLD), int(CRAFT_CHANCE * 100.0), FIELD, int(CORE_CHANCE * 100.0), int(BOSS_CORE_CHANCE * 100.0), int(BOSS_CORES[0]), int(BOSS_CORES[1])]
 
 
 ## Forges one piece of the hero's class's set: CRAFT_CORES[slot] cores and CRAFT_GOLD,
-## a sure success. Returns "ok" or why not (Thai).
-static func craft(slot: String) -> String:
+## spent on every try; it succeeds at CRAFT_CHANCE. `roll` (0-1) replaces the random
+## roll (tests); below 0 rolls Game.rng. Returns "ok", "fail" or why not (Thai).
+static func craft(slot: String, roll := -1.0) -> String:
 	var problem := craft_problem(slot)
 	if problem != "":
 		return problem
@@ -395,6 +398,13 @@ static func craft(slot: String) -> String:
 	if not Game.spend_gold(CRAFT_GOLD):
 		return "เหรียญไม่พอ"
 	Game._spend_jewels(CORE, int(CRAFT_CORES[slot]))
+	if roll < 0.0:
+		roll = Game.rng.randf()
+	if roll >= CRAFT_CHANCE:
+		Game.inventory_changed.emit()
+		Game.profile_changed.emit()
+		Game.mark_dirty()
+		return "fail"
 	Game.give_or_store(item(cls, slot))
 	Game.inventory_changed.emit()
 	Game.profile_changed.emit()
