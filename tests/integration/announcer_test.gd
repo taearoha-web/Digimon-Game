@@ -325,7 +325,15 @@ func _luck() -> void:
 		var s := WorldPlayers.state(int(e.index), float(e.at))
 		whats[String(e.what)] = int(whats.get(String(e.what), 0)) + 1
 		names[String(e.name)] = true
-		ok = ok and float(e.at) >= float(int(e.slot) * IsleLuck.SLOT) and float(e.at) < float((int(e.slot) + 1) * IsleLuck.SLOT)
+		# Inside its slot: a rolled jackpot at a second of [start, end); a real drop is read
+		# off WorldGear.events(start, end), whose times run start < at <= end (a drop in the
+		# slot's last second may be told at its very end, and the next slot never repeats it).
+		var slot_start := float(int(e.slot) * IsleLuck.SLOT)
+		var slot_end := float((int(e.slot) + 1) * IsleLuck.SLOT)
+		if bool(e.get("real", false)):
+			ok = ok and float(e.at) > slot_start and float(e.at) <= slot_end
+		else:
+			ok = ok and float(e.at) >= slot_start and float(e.at) < slot_end
 		ok = ok and bool(s.online) and StringName(String(s.place)) == SkyIsleData.ID and int(s.stars) >= SkyIsleData.ENTRY_STAR and String(s.name) == String(e.name)
 		ok = ok and SkyIsleLoot.is_jackpot(e.item) and (Announcer.WHATS.jackpot as Array).has(String(e.what))
 		ok = ok and (IsleLuck.KINDS + IsleLuck.DRAGON_KINDS).any(func(k): return String(k[0]) == String(e.what) and is_equal_approx(float(k[1]), float(e.rate)))
@@ -335,6 +343,10 @@ func _luck() -> void:
 			var mine := WorldGear.events(int(e.index), float(e.at) - 1.0, float(e.at)).filter(func(g): return String(g.get("key", "")) == WorldGear.DRAGON and String(g.kind) in ["drop", "spare"] and is_equal_approx(float(g.at), float(e.at)))
 			ok = ok and not mine.is_empty() and String(mine[0].slot) == String(e.what) and String(mine[0].item) == ItemData.name_of(e.item)
 	check(ok, "each winner is a ★300 world player really hunting on the isle then, with a real jackpot of its own class at the owner's rate")
+	var heard_once := {}
+	for e in events:
+		heard_once["%d|%.3f|%s" % [int(e.index), float(e.at), String(e.what)]] = true
+	check(heard_once.size() == events.size(), "no jackpot is told twice, even one at a slot's edge (%d / %d)" % [heard_once.size(), events.size()])
 	print("announcer_test: jackpots by kind %s (the weapon and wings are real drops)" % str(whats))
 	check(names.size() >= 5, "different players win (%d)" % names.size())
 	check(int(whats.get("weapon", 0)) + int(whats.get("wings", 0)) > 0, "the Dragon God's pieces the world players really drop are among them (%s)" % str(whats))

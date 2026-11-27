@@ -53,7 +53,7 @@ func _skill_ranks() -> void:
 	for i in WorldPlayers.size():
 		var cls := StringName(WorldPlayers.entry(i)["class"])
 		var last := {}
-		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200], [100, 300]]:
+		for step in [[10, 0], [20, 0], [35, 0], [60, 0], [85, 0], [100, 0], [100, 60], [100, 200], [100, 300], [100, 499], [100, 500]]:
 			var ranks := WorldPlayers.skill_ranks(cls, int(step[0]), int(step[1]))
 			var spent := 0
 			for id in ranks:
@@ -63,6 +63,10 @@ func _skill_ranks() -> void:
 			for skill in ClassData.pool(cls):
 				# A class with skill lines ranks each line once (ClassData.rank_id).
 				if ClassData.has_lines(cls) and not skill.has("star") and not ClassData.is_line(cls, String(skill.id)):
+					continue
+				# The Ascension's skills (AscendSkillData) only once a world player has passed
+				# the trial at ★500 (JobData.adv_for).
+				if bool(skill.get("ascend", false)) and not JobData.is_ascended(JobData.adv_for(int(step[0]), int(step[1]))):
 					continue
 				unlocked += 1 if int(skill.level) <= int(step[0]) else 0
 			spent_ok = spent_ok and ranks.size() == unlocked and spent == mini(WorldPlayers.skill_points(int(step[0]), int(step[1])), unlocked * (SkillRank.MAX - 1))

@@ -70,8 +70,9 @@ func _idle_points(w: int) -> void:
 	check(GuildLeague.credit_idle_rounds() == 0 and Game.guild_points() == 0, "no guild, no points")
 
 
-## A hero at Lv.100 with `stars`; at ★300 it also wears the whole divine set at +10, as
-## far as anyone can be (it then always ranks among its guild's strongest).
+## A hero at Lv.100 with `stars`; at the star cap (★500, Game.PARAGON_MAX) it also wears
+## the whole divine set at +10, as far as anyone can be (it then always ranks among its
+## guild's strongest: the world players' stars go on past ★300 to the cap too).
 func _hero(g := WorldPlayers.ALPHA, stars := 0) -> void:
 	Game.new_profile(&"warrior", "League4 QA", FaceKit.default_look())
 	Game.profile.level = 100
@@ -221,7 +222,7 @@ func _seeded(w: int) -> void:
 
 
 func _registration(w: int) -> void:
-	_hero(WorldPlayers.ALPHA, 300)
+	_hero(WorldPlayers.ALPHA, Game.PARAGON_MAX)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 2, 1)
 	pin(float(at) - 3600.0)
 	check(GuildLeague.next_slot(GuildLeague.now()) == at, "the next round is 18:00")
@@ -258,7 +259,7 @@ func _registration(w: int) -> void:
 	var state := GuildLeague.round_state(next)
 	check(String(state.state) == "done" and not (state.war as Dictionary).is_empty(), "the round still ran on time and has a result")
 	# Outside a guild or below Lv.100: no registering.
-	_hero(0, 300)
+	_hero(0, Game.PARAGON_MAX)
 	check(GuildLeague.register() != "ok", "no guild, no registering")
 	Game.profile.level = 99
 	check(GuildLeague.register() != "ok", "below Lv.100, no registering")
@@ -289,9 +290,9 @@ func _line_up(w: int) -> void:
 		check(not with_pick.ally.any(func(f): return String(f.member.name) == outsider), "a party pick outside the twenty stays out (%s)" % outsider)
 	Game.guildwar_party_picks = PackedStringArray()
 	# A strong hero takes a place: nineteen members and the hero.
-	_hero(g, 300)
+	_hero(g, Game.PARAGON_MAX)
 	place = GuildLeague.hero_place(at)
-	check(place >= 1 and place <= GuildWarData.GUILD_SIDE, "a ★300 hero ranks #%d" % place)
+	check(place >= 1 and place <= GuildWarData.GUILD_SIDE, "a ★%d hero ranks #%d" % [Game.PARAGON_MAX, place])
 	var strong := GuildWarData.roll_guild_match(rng, g, rival, float(at))
 	check(bool(strong.hero_in) and strong.ally.size() == GuildWarData.GUILD_SIDE - 1 and strong.enemy.size() == GuildWarData.GUILD_SIDE, "nineteen and the hero against twenty")
 	check(int(strong.ally_guild) == g and int(strong.enemy_guild) == rival, "the two guilds are named in the roster")
@@ -308,7 +309,7 @@ func _line_up(w: int) -> void:
 
 
 func _live_result(w: int) -> void:
-	_hero(WorldPlayers.NEVERDIE, 300)
+	_hero(WorldPlayers.NEVERDIE, Game.PARAGON_MAX)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 4, 2)
 	pin(float(at) + GuildWarData.DURATION + 600.0)
 	var own := GuildLeague.start_holder(at)
@@ -332,7 +333,7 @@ func _live_result(w: int) -> void:
 
 
 func _table(w: int) -> void:
-	_hero(WorldPlayers.LNW, 300)
+	_hero(WorldPlayers.LNW, Game.PARAGON_MAX)
 	# The week over: all of its rounds count (a round not over is never counted).
 	pin(GuildLeague.week_end(w) + 60.0)
 	var rows := GuildLeague.table(w, [])
@@ -393,7 +394,7 @@ func _migration() -> void:
 
 
 func _validation() -> void:
-	_hero(WorldPlayers.TITAN, 300)
+	_hero(WorldPlayers.TITAN, Game.PARAGON_MAX)
 	check(Game.guild() == WorldPlayers.TITAN and Game._valid_profile(Game.profile.duplicate(true)), "a save in Titan is valid")
 	var d := GuildLeague.data()
 	d["reg"] = GuildLeague.next_slot(GuildLeague.now())
@@ -428,7 +429,7 @@ func _validation() -> void:
 
 
 func _desk(w: int) -> void:
-	_hero(WorldPlayers.ALPHA, 300)
+	_hero(WorldPlayers.ALPHA, Game.PARAGON_MAX)
 	var at := GuildLeague.slot_start(WorldEvents.day_of(GuildLeague.week_start(w)) + 5, 0)
 	pin(float(at) - 1800.0)
 	var desk := GuildWarScreen.new()

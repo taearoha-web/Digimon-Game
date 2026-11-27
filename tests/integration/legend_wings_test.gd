@@ -67,9 +67,10 @@ func _reset() -> void:
 	awarded.clear()
 
 
-## A Lv.100 hero with `stars` in guild g (at ★300 in the whole divine set at +10: as
-## strong as anyone can be).
-func _hero(g: int, stars := 300, cls := &"warrior", hero_name := "Legend QA") -> void:
+## A Lv.100 hero with `stars` in guild g (at the star cap, ★500 Game.PARAGON_MAX, in the
+## whole divine set at +10: as strong as anyone can be; the world players' stars go on
+## past ★300 to the cap too).
+func _hero(g: int, stars := Game.PARAGON_MAX, cls := &"warrior", hero_name := "Legend QA") -> void:
 	Game.new_profile(cls, hero_name, FaceKit.default_look())
 	Game.profile.level = 100
 	Game.profile.adv = 4
@@ -390,7 +391,7 @@ func _streak_hero_picks() -> void:
 ## letter; a weak hero is passed over for a world player: a real chance, never forced.
 func _ai_leader_and_hero() -> void:
 	_reset()
-	_hero(WorldPlayers.NEVERDIE, 300, &"mage", "Strong QA")
+	_hero(WorldPlayers.NEVERDIE, Game.PARAGON_MAX, &"mage", "Strong QA")
 	var close := GuildLeague.week_end(W0)
 	var leader := WorldPlayers.guild_leader(WorldPlayers.NEVERDIE, close)
 	check(Game.set_guild_leader(WorldPlayers.NEVERDIE, leader) and Game.guild_war_leader(WorldPlayers.NEVERDIE, close) == leader, "a member leads Neverdie (%s)" % leader)
@@ -401,7 +402,7 @@ func _ai_leader_and_hero() -> void:
 	check(LegendWings.ai_holds(li) and int(WorldGear.gear(li, WorldPresence.clock()).wings.tier) == 3, "the leader's gear shows it")
 	_crown(WorldPlayers.NEVERDIE, W0 + 1)
 	var members := LegendWings.members(WorldPlayers.NEVERDIE, GuildLeague.week_end(W0 + 1))
-	check(not members.is_empty() and String(members[0].name) == "", "the ★300 hero is the guild's strongest member")
+	check(not members.is_empty() and String(members[0].name) == "", "the ★%d hero is the guild's strongest member" % Game.PARAGON_MAX)
 	check(LegendWings.tick() and LegendWings.hold_of(W0 + 1) == {"g": WorldPlayers.NEVERDIE, "n": "", "s": 2}, "the leader hands the streak's pair to the hero (%s)" % [LegendWings.hold_of(W0 + 1)])
 	check(LegendWings.is_item(Game.profile.equip.get("wings")) and int(Game.profile.equip.wings.legend_week) == W0 + 1 and _pairs().size() == 1, "worn at once, one pair")
 	check(awarded.size() == 1 and awarded[0].text.contains("ติดต่อกัน 2 สัปดาห์") and awarded[0].text.contains(leader), "the letter names the leader who handed it on")
@@ -460,7 +461,7 @@ func _refusals() -> void:
 func _storage_other_class() -> void:
 	_reset()
 	Game.slot = 1
-	_hero(WorldPlayers.ALPHA, 300, &"warrior", "Depositor")
+	_hero(WorldPlayers.ALPHA, Game.PARAGON_MAX, &"warrior", "Depositor")
 	var pair := LegendWings.item(W0, WorldPlayers.ALPHA)
 	Game.profile.inv.append(pair)
 	check(Game.deposit_item(Game.profile.inv.find(pair)) and SharedStorage.items().has(pair), "deposited in the shared storage")

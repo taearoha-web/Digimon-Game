@@ -219,13 +219,26 @@ func _band() -> void:
 		p.equip[slot] = item
 	var hero := HeroStats.compute(p)
 	var basic := float(ours.hp) / HeroStats.mitigate(float(hero.atk), float(ours.def))
-	var die := float(hero.max_hp) / HeroStats.mitigate(float(ours.atk), float(hero.def))
-	var die_boss := float(hero.max_hp) / HeroStats.mitigate(float(god.atk) * 1.6, float(hero.def))
+	# The isle's own tuning is measured on that hero's DEF / max HP before the whole-outfit
+	# bonus (HeroStats.outfit_bonus: armour, helm and boots all at +15 give DEF and max HP
+	# +50%, a later owner's rule that applies on every field alike).
+	var outfit := HeroStats.outfit_bonus(p.equip)
+	check(is_equal_approx(outfit, float(HeroStats.OUTFIT_PLUS_BONUS[15])), "that hero's +15 outfit has its bonus (+%d%%)" % int(outfit * 100.0))
+	var raw_hp := float(hero.max_hp) / (1.0 + outfit)
+	var raw_def := float(hero.def) / (1.0 + outfit)
+	var die := raw_hp / HeroStats.mitigate(float(ours.atk), raw_def)
+	var die_boss := raw_hp / HeroStats.mitigate(float(god.atk) * 1.6, raw_def)
 	check(basic > 110.0 and basic < 300.0, "a ★300 Dark Lord in the 250★ set +15 needs a farmable number of basic hits (%.0f)" % basic)
 	# The owner's harder isle: normal monsters hit twice as hard (about 9 hits, was 18), the
 	# Dragon God twice as hard (a heavy hit takes about a third of that hero: about 2.7, was 5-6).
 	check(die > 6.0 and die < 14.0, "the monsters hurt that hero hard (%.1f hits to fall)" % die)
 	check(die_boss > 2.0 and die_boss < 4.0, "the Dragon God's slam hurts hard, a few to fall (%.1f hits to fall)" % die_boss)
+	# The full +15 outfit then lasts longer by its DEF and HP (each x1.5): a sturdier hero,
+	# yet the Dragon God's slam still takes a real share of it.
+	var worn_die := float(hero.max_hp) / HeroStats.mitigate(float(ours.atk), float(hero.def))
+	var worn_boss := float(hero.max_hp) / HeroStats.mitigate(float(god.atk) * 1.6, float(hero.def))
+	check(worn_die > die * 1.5 and worn_boss > die_boss * 1.5, "the +15 outfit makes that hero sturdier (%.1f / %.1f hits to fall)" % [worn_die, worn_boss])
+	check(worn_boss < 10.0, "even in the +15 outfit the Dragon God's slam takes a real share (%.1f hits to fall)" % worn_boss)
 	for id in SkyIsleData.MONSTERS:
 		var raw: Dictionary = SkyIsleData.MONSTERS[id]
 		var want := float(raw.atk) * (SkyIsleData.NORMAL_ATK if SkyIsleData.NORMALS.has(id) else 1.0)
