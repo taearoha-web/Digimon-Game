@@ -1485,8 +1485,10 @@ const TRIAL_HEAL_MAX := 0.7
 const TRIAL_SKILLS := 4
 const TRIAL_UPTIME := 0.6
 ## The margin (seconds it can fight / seconds it needs) turned into a chance: 50% at
-## TRIAL_EVEN, rising and falling by the log of the margin over TRIAL_SPREAD.
-const TRIAL_EVEN := 0.2
+## TRIAL_EVEN, rising and falling by the log of the margin over TRIAL_SPREAD. (0.5 since
+## the guardian's floor went 15% -> 6% of max HP: margins grew about 2.5x, the pass rates
+## kept where they were.)
+const TRIAL_EVEN := 0.5
 const TRIAL_SPREAD := 0.5
 const TRIAL_MIN_CHANCE := 0.04
 const TRIAL_MAX_CHANCE := 0.92

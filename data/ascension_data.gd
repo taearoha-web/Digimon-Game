@@ -56,9 +56,10 @@ const ENRAGE_ATK := 2.5
 ## The guardian tests the hero, however well geared: a blow at its own base strength takes
 ## at least FLOOR_SHARE of the hero's max HP before the hero's guard and shields (a move
 ## of k times its strength k times that; enraged, ENRAGE_ATK times). The owner found a
-## +15 ★500 hero took about 1% a blow. FLOOR_META on the guardian holds its base attack.
-const FLOOR_SHARE := 0.15
-## ... and the floor never grows past FLOOR_MAX_SCALE times that (37.5%): the story moves
+## +15 ★500 hero took about 1% a blow; at 15% it hit 40k a blow in a row (too much): 6%.
+## FLOOR_META on the guardian holds its base attack.
+const FLOOR_SHARE := 0.06
+## ... and the floor never grows past FLOOR_MAX_SCALE times that (15%): the story moves
 ## already hit a share of max HP of their own (StoryBoss.HIT_FRACTION, 35%), and their raw
 ## blow, many times the guardian's attack, once made the floor over 100% (300k+ on the
 ## owner's hero).
