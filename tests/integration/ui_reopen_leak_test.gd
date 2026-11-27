@@ -82,6 +82,13 @@ func _ready() -> void:
 	# compiled; fill it first, or the healer's glow would read as growth.
 	for i in MaterialKeeper.RING_SIZE + 8:
 		VfxKit._glow(Color.WHITE, 1.0)
+	# Game._process works out the next guild war's line-ups (GuildWarData.warm_sides, ~200
+	# cached world-player objects) and the maze's week (MazeWar.warm) a little a frame for
+	# the first seconds in town: finish both now, or that bounded warm-up would read as
+	# growth of whichever screen is measured first.
+	for i in 10000:
+		if GuildWarData.warm_sides(1000000) and MazeWar.warm(1000000):
+			break
 	var screens := _screens()
 	for name in screens.keys():
 		var action: Callable = screens[name]
