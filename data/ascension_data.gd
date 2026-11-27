@@ -48,6 +48,12 @@ const BOSS_NAME := "อนันตเทวะ ผู้พิทักษ์�
 ## Past this the guardian is enraged: its blows and moves grow far stronger and faster.
 const ENRAGE_SECONDS := 300.0
 const ENRAGE_ATK := 2.5
+## The guardian tests the hero, however well geared: a blow at its own base strength takes
+## at least FLOOR_SHARE of the hero's max HP before the hero's guard and shields (a move
+## of k times its strength k times that; enraged, ENRAGE_ATK times). The owner found a
+## +15 ★500 hero took about 1% a blow. FLOOR_META on the guardian holds its base attack.
+const FLOOR_SHARE := 0.15
+const FLOOR_META := &"hp_floor_atk"
 const STEPS := [
 	{"name": "ล่าผู้พิทักษ์แห่งเทวาลัย", "desc": "ปราบมอนสเตอร์ชั้นยอดในดินแดนเทวาลัย %d ตัว (บอสนับ %d)"},
 	{"name": "ตราแห่งเทวาลัย", "desc": "เก็บตราเทวาลัย %d ชิ้นจากมอนสเตอร์ในดินแดนเทวาลัย"},

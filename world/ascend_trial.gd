@@ -81,6 +81,7 @@ func spawn_boss() -> void:
 	state = "fight"
 	boss = Mob.new()
 	boss.setup(AscensionData.BOSS_ID, BOSS_LEVEL, ALTAR, hero)
+	boss.set_meta(AscensionData.FLOOR_META, float(boss.stats.atk))
 	boss.position = ALTAR + Vector3(0, 0.3, 0)
 	zone.add_child(boss)
 	boss.hostile = true

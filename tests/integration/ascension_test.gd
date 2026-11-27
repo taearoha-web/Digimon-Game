@@ -304,6 +304,20 @@ func _trial() -> void:
 	check(heaven_hp <= 0 or boss.max_hp > heaven_hp, "the guardian outlasts the heaven realm's boss")
 	check(hit < float(stats.max_hp) * 0.25, "a ★500 hero survives several blows (%.1f%%)" % (100.0 * hit / float(stats.max_hp)))
 	check(float(boss.max_hp) / maxf(1.0, god_hit) > 12.0, "it takes effort: many god casts")
+	# However well geared (the owner's +15 hero took ~1% a blow), a blow takes at least
+	# FLOOR_SHARE of max HP before guard and shields.
+	check(boss.has_meta(AscensionData.FLOOR_META), "the guardian carries its base attack for the floor")
+	var saved_def: Variant = hero.stats.def
+	hero.stats.def = 10000000.0
+	hero._invulnerable_until = 0
+	Game.profile.hp = int(hero.stats.max_hp)
+	var hp0 := int(Game.profile.hp)
+	hero.stats.dodge = 0.0
+	Mob.strike(hero, float(boss.stats.atk), boss)
+	var floor_hit := hp0 - int(Game.profile.hp)
+	check(floor_hit >= int(float(hero.stats.max_hp) * AscensionData.FLOOR_SHARE * 0.5), "a huge DEF still takes a real share a blow (%d of %d HP, before guard: %.0f%%)" % [floor_hit, int(hero.stats.max_hp), AscensionData.FLOOR_SHARE * 100.0])
+	hero.stats.def = saved_def
+	Game.profile.hp = int(hero.stats.max_hp)
 	# The phases.
 	boss.take_hit(int(boss.max_hp * 0.35), false, Color.WHITE, hero)
 	check(stage.phase == 1 and moves.moves.size() == 4 and moves.moves.has("veil"), "70%%: phase two widens the moves")

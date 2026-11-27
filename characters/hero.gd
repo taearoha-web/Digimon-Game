@@ -1809,6 +1809,10 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, effective_def())))))
+	# The Ascension trial's guardian: a share of max HP at least (AscensionData.FLOOR_SHARE).
+	if _attacker != null and is_instance_valid(_attacker) and _attacker.has_meta(AscensionData.FLOOR_META):
+		var base := maxf(1.0, float(_attacker.get_meta(AscensionData.FLOOR_META)))
+		amount = maxi(amount, int(round(raw / base * AscensionData.FLOOR_SHARE * float(stats.max_hp))))
 	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_buffs, amount, float(stats.get("guard", 0.0)))
 	_reflect(amount, _attacker)
