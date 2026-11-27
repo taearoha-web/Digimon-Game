@@ -307,7 +307,7 @@ func _sanctum_part_one() -> void:
 func _abyss_part_one() -> void:
 	print("== The abyss")
 	await _go(DrownedAbyssData.ID)
-	check(_zone().portals.size() == 2 and not _zone().story_portal_open(), "no throne portal before the finale (the way back and the way on to the isle only)")
+	check(_zone().portals.size() == 3 and not _zone().story_portal_open() and _zone().portals.any(func(p): return StringName(p.to) == HeavenRealmData.ID), "no throne portal before the finale (the way back, the way on to the isle and the side portal to ดินแดนเทวาลัย only)")
 	var exile := _npc("abyss_exile")
 	check(exile != null, "the exile stands at the abyss entrance")
 	_turn_in("abyss_exile", "ch2_exile")
@@ -450,7 +450,7 @@ func _finale() -> void:
 	_accept("scholar", StoryChapter2.FINALE)
 	check(StoryChapter2.portal_open(), "the throne portal is open while the finale is active")
 	await _go(DrownedAbyssData.ID)
-	check(_zone().story_portal_open() and _zone().portals.size() == 3, "the abyss shows the throne portal")
+	check(_zone().story_portal_open() and _zone().portals.size() == 4, "the abyss shows the throne portal")
 	check(_zone().has_node("Portal_" + String(StoryChapter2.STAGE_ID)), "the portal is built in the world")
 	await _go(StoryChapter2.STAGE_ID)
 	var zone := _zone()
@@ -514,7 +514,7 @@ func _finale() -> void:
 		await get_tree().process_frame
 		guard += 1
 	await _wait(0.3)
-	check(_zone() != null and _zone().zone_id == DrownedAbyssData.ID and not _zone().story_portal_open() and _zone().portals.size() == 2, "back in the abyss without the portal")
+	check(_zone() != null and _zone().zone_id == DrownedAbyssData.ID and not _zone().story_portal_open() and _zone().portals.size() == 3, "back in the abyss without the portal")
 	check(_zone().hero.visual.find_child("ShadowStarAura", true, false) != null, "the hero wears the shadow star aura")
 	check(_tracker().find("บทที่ 2") < 0, "the tracker drops the chapter line when it is over")
 	check(Game.save() and Game.load_game() and StoryChapter2.finished() and Achievements.title_of(Game.profile) == StoryChapter2.END_TITLE, "the finished chapter and its title survive save / load")
