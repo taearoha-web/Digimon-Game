@@ -126,7 +126,7 @@ const COLORS := {
 	"timeless_night_execution": ["ff3a7a", "ffe6f0", "1a0420"], "veil_of_eternity": ["b05aff", "f4e6ff", "1a0a3e"],
 	"heaven_hell_sovereign": ["c06aff", "ffe8a0", "1a0630"], "crown_of_dual_realms": ["f0c050", "fff6d8", "3a1060"],
 	"universe_hymn": ["ff6ae0", "fff0fb", "2a0a4a"], "aria_of_eternity": ["ffb0e8", "fff8fc", "5a2a6a"],
-	"heavenly_master_fist": ["ffa030", "fff4d0", "5a1a08"], "sacred_ring_vow": ["ffd060", "fffae0", "6a3010"],
+	"heavenly_master_fist": ["ffa030", "fff4d0", "5a1a08"], "sacred_ring_vow": ["ff7a1a", "ffd23c", "4a1206"],
 }
 
 static var _pools := {}

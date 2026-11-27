@@ -8,6 +8,10 @@ uniform vec4 primary : source_color;
 uniform vec4 accent : source_color;
 uniform float phase = 0.0;
 uniform bool grove = false;
+// Painted ink (BuffArt._vow_mesh): COLOR.r the tone from the dark outline (shade) through the
+// body (primary) to the highlight (accent), COLOR.g the opacity; keeps its hue on a bright field.
+uniform bool paint = false;
+uniform vec4 shade : source_color = vec4(0.28, 0.08, 0.02, 1.0);
 uniform float growth = 1.0;
 varying vec3 local_pos;
 void vertex() {
@@ -27,6 +31,12 @@ void fragment() {
 	float sweep = pow(max(0.5 + 0.5 * sin(local_pos.y * 3.0 - TIME * 1.1 + phase), 0.0), 12.0);
 	ALBEDO = mix(primary.rgb, accent.rgb, clamp(edge * 0.5 + inlay * 0.45 + sweep * 0.3, 0.0, 1.0));
 	ALPHA = 0.40 + edge * 0.24 + inlay * 0.15;
+	if (paint) {
+		float tone = clamp(COLOR.r, 0.0, 1.0);
+		vec3 cel = tone < 0.5 ? mix(shade.rgb, primary.rgb, tone * 2.0) : mix(primary.rgb, accent.rgb, tone * 2.0 - 1.0);
+		ALBEDO = mix(cel, accent.rgb, sweep * 0.35 * smoothstep(0.4, 0.9, tone));
+		ALPHA = clamp(COLOR.g, 0.0, 1.0) * 0.94;
+	}
 	if (grove) {
 		ALBEDO = mix(primary.rgb * (0.75 + edge * 0.3), accent.rgb, COLOR.r);
 		ALBEDO += accent.rgb * sweep * 0.18;
@@ -119,6 +129,8 @@ func _build() -> void:
 	mat.set_shader_parameter("accent", look.accent)
 	mat.set_shader_parameter("phase", float(lane) * 1.7)
 	mat.set_shader_parameter("grove", look.shape == "grove")
+	mat.set_shader_parameter("paint", look.shape == "kanok")
+	mat.set_shader_parameter("shade", (look.primary as Color).darkened(0.74))
 	if look.shape == "grove":
 		mat.set_shader_parameter("growth", 0.0)
 		create_tween().tween_method(func(value: float): mat.set_shader_parameter("growth", value), 0.0, 1.0, 0.85)

@@ -100,7 +100,9 @@ const RECIPES := {
 	"veil_of_eternity": ["moon", "b05aff", "f4e6ff", 7, 1.2, 1.15, -0.32],
 	"crown_of_dual_realms": ["crown", "f0c050", "fff6d8", 10, 1.24, 2.0, -0.2],
 	"aria_of_eternity": ["petal", "ffb0e8", "fff8fc", 9, 1.2, 1.5, 0.3],
-	"sacred_ring_vow": ["flame", "ffd060", "fffae0", 8, 1.16, 1.05, 0.4],
+	# Muay Thai's is painted (BuffAura's ink: dark outline, flame body, gold highlight) so it
+	# keeps its fire on a bright field: กนก flames round the feet, the มงคล of fire overhead.
+	"sacred_ring_vow": ["kanok", "ff7a1a", "ffd23c", 8, 1.16, 1.05, 0.4],
 }
 static var _meshes: Dictionary = {}
 static var _names: Dictionary = {}
@@ -174,6 +176,9 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 		_append_tinted(build, EliteSkillArt.geometry(elite_shapes[id]), Transform3D(Basis.from_scale(size), at), 0.3)
 		build.generate_normals()
 		_meshes[id] = build.commit()
+		return _meshes[id]
+	if look.get("shape", "") == "kanok":
+		_meshes[id] = _vow_mesh(look)
 		return _meshes[id]
 	if look.shape == "grove":
 		var grove := _grove_mesh()
@@ -265,6 +270,56 @@ static func mesh_for(look: Dictionary) -> ArrayMesh:
 	var result := st.commit()
 	_meshes[id] = result
 	return result
+
+## The sacred vow (สัจจะวงประเจียดเทวา) for BuffAura's painted ink (COLOR.r the tone: 0 the
+## dark outline, 0.5 the flame, 1 the gold; COLOR.g the opacity): an interrupted ring of
+## outlined gold at the feet with a กนก flame on every gap (two crossed, so it reads from any
+## side while the aura turns), and the มงคล headband of sacred fire floating over the head.
+## The body stays clear between the knees and the crown. One mesh, one draw.
+static func _vow_mesh(look: Dictionary) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := int(look.count)
+	var radius := float(look.radius)
+	var ground := SurfaceTool.new()
+	ground.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in n:
+		var a := TAU * float(i) / n + PI / n
+		var span := TAU / n * 0.66
+		BardSkillArt._ground_ring(ground, radius - 0.07, radius + 0.07, 0.04, MuayThaiArt._c(0.0, 0.9), MuayThaiArt._c(0.0, 0.9), 10, a - span * 0.5, a + span * 0.5)
+		BardSkillArt._ground_ring(ground, radius - 0.035, radius + 0.035, 0.045, MuayThaiArt._c(0.9), MuayThaiArt._c(0.9), 10, a - span * 0.5, a + span * 0.5)
+	_append_arrays(st, ground.commit_to_arrays(), Transform3D.IDENTITY)
+	var flame := MuayThaiArt.mesh("kanok").surface_get_arrays(0)
+	for i in n:
+		var a := TAU * float(i) / n
+		var at := Vector3(sin(a), 0.02, cos(a)) * radius
+		var h := 0.86 if i % 2 == 0 else 0.62
+		for turn in [0.0, PI * 0.5]:
+			_append_arrays(st, flame, Transform3D(Basis(Vector3.UP, a + turn) * Basis.from_scale(Vector3(h * 0.78, h, 1.0)), at))
+	# The มงคล over the head: the twisted cord, five flames standing on it.
+	var crown := Vector3.UP * 2.9
+	_append_arrays(st, MuayThaiArt.mesh("headband").surface_get_arrays(0), Transform3D(Basis().scaled(Vector3.ONE * 0.5), crown))
+	for i in 5:
+		var a := TAU * float(i) / 5.0
+		var at := crown + Vector3(sin(a), 0.02, cos(a)) * 0.5
+		for turn in [0.0, PI * 0.5]:
+			_append_arrays(st, flame, Transform3D(Basis(Vector3.UP, a + turn) * Basis.from_scale(Vector3(0.24, 0.36, 1.0)), at))
+	return st.commit()
+
+
+## Appends a painted piece's arrays (vertices, normals, colours) under [param xf].
+static func _append_arrays(st: SurfaceTool, arrays: Array, xf: Transform3D) -> void:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals = arrays[Mesh.ARRAY_NORMAL]
+	var colors = arrays[Mesh.ARRAY_COLOR]
+	var has_n: bool = normals is PackedVector3Array and not (normals as PackedVector3Array).is_empty()
+	var has_c: bool = colors is PackedColorArray and not (colors as PackedColorArray).is_empty()
+	var nb := xf.basis.inverse().transposed()
+	for i in verts.size():
+		st.set_color(colors[i] if has_c else Color(0.5, 1.0, 0.0))
+		st.set_normal((nb * (normals[i] as Vector3)).normalized() if has_n else Vector3.UP)
+		st.add_vertex(xf * verts[i])
+
 
 static func _append(st: SurfaceTool, mesh: Mesh, basis: Basis, pos: Vector3, size: Vector3) -> void:
 	st.append_from(mesh, 0, Transform3D(basis * Basis.from_scale(size), pos))
