@@ -149,7 +149,7 @@ func _ready() -> void:
 		for canvas in [Vector2(1558, 720), Vector2(1280, 720), Vector2(1280, 960)]:
 			var lay := HUD.action_layout(canvas)
 			var me: Vector2 = lay.rally
-			var others: Array = [[lay.team_buff, HUD.TEAM_BUFF_RADIUS], [lay.attack, HUD.ATTACK_RADIUS], [lay.utility[2] + Vector2(-72, 0), 28.0], [lay.utility[2] + Vector2(-72, -72), 28.0]]
+			var others: Array = [[lay.team_buff, HUD.TEAM_BUFF_RADIUS], [lay.attack, HUD.ATTACK_RADIUS], [lay.raven, 28.0], [lay.raven_mode, 28.0]]
 			for c in lay.skills:
 				others.append([c, HUD.SKILL_RADIUS])
 			for c in lay.utility:

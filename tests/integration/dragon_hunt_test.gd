@@ -287,7 +287,7 @@ func _tab() -> void:
 	var chip := DragonHunt.chip_text(WorldPresence.clock())
 	check(chip.begins_with(DragonHunt.NAME) and chip.contains("x2") and chip.contains("แต้มล่า 300") and WorldEvents.chip_lines(WorldPresence.clock()).has(chip), "the HUD chip line (%s)" % chip)
 	check(DragonHunt.chip_text(thai(2026, 12, 8, 12)) == "", "no chip line between hunts")
-	check(GameMenu.TABS.any(func(tab): return tab[0] == "hunt" and tab[1] == "ล่ามังกรแก้ว"), "the menu has the tab")
+	check(GameMenu.EVENT_PAGES.any(func(tab): return tab[0] == "hunt" and tab[1] == "ล่ามังกรแก้ว") and not GameMenu.TABS.any(func(tab): return tab[0] == "hunt"), "the hunt's page opens from the HUD's event box, not the tab bar")
 	var menu := GameMenu.new()
 	add_child(menu)
 	await get_tree().process_frame

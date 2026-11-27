@@ -702,8 +702,8 @@ func _team_buff(m: GuildWarMatch, zone: Zone, hero: Hero, label: String) -> void
 			others.append([c, HUD.SKILL_RADIUS, "skill"])
 		for c in lay.utility:
 			others.append([c, 28.0, "utility"])
-		others.append([lay.utility[2] + Vector2(-72, 0), 28.0, "raven"])
-		others.append([lay.utility[2] + Vector2(-72, -72), 28.0, "raven mode"])
+		others.append([lay.raven, 28.0, "raven"])
+		others.append([lay.raven_mode, 28.0, "raven mode"])
 		others.append([lay.attack, HUD.ATTACK_RADIUS, "attack"])
 		var clear := true
 		for o in others:

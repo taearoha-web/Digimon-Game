@@ -513,7 +513,7 @@ func _naga() -> void:
 
 func _tab() -> void:
 	at(thai(2026, 11, 23, 12))
-	check(GameMenu.TABS.any(func(tab): return tab[0] == "loyk" and tab[1] == "ลอยกระทง"), "the menu has the tab")
+	check(GameMenu.EVENT_PAGES.any(func(tab): return tab[0] == "loyk" and tab[1] == "ลอยกระทง") and not GameMenu.TABS.any(func(tab): return tab[0] == "loyk"), "the festival's page opens from the HUD's event box, not the tab bar")
 	var menu := GameMenu.new()
 	add_child(menu)
 	await get_tree().process_frame

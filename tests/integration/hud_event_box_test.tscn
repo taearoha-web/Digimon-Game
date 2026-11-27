@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/integration/hud_event_box_test.gd" id="1"]
+
+[node name="HudEventBoxTest" type="Node"]
+script = ExtResource("1")

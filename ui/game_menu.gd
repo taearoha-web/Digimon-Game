@@ -12,8 +12,11 @@ signal dungeon_requested()
 ## เขาวงกตหนึ่งในใต้หล้า from its board tab: Main sends the hero in.
 signal maze_requested()
 
+## The event pages (DragonHunt, WeeklyCollect, LoyKrathong): not in the tab bar, opened
+## from their lines in the HUD's event box under the minimap while the event runs.
+const EVENT_PAGES := [["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["loyk", LoyKrathongView.TAB_NAME]]
 const TABS := [
-	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["hunt", DragonHuntView.TAB_NAME], ["weekly", WeeklyCollect.NAME], ["loyk", LoyKrathongView.TAB_NAME], ["maze", MazeBoardView.TAB_NAME], ["settings", "ตั้งค่า"],
+	["character", "ตัวละคร"], ["inventory", "กระเป๋า"], ["skills", "สกิล"], ["quests", "เควสต์"], ["pass", "ภารกิจ & บัตร"], ["achievements", "ความสำเร็จ"], ["titles", "ตำแหน่ง"], ["mounts", "สัตว์ขี่"], ["league", "ลีกกิลด์"], ["reward", RewardShop.SHOP_NAME], ["maze", MazeBoardView.TAB_NAME], ["settings", "ตั้งค่า"],
 ]
 
 var is_open := false

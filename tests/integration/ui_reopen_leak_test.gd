@@ -112,7 +112,7 @@ func _ready() -> void:
 
 func _screens() -> Dictionary:
 	var out := {}
-	for tab in GameMenu.TABS:
+	for tab in GameMenu.TABS + GameMenu.EVENT_PAGES:
 		var id := StringName(tab[0])
 		out["menu:%s" % id] = func():
 			main.menu.open_menu(id)
@@ -120,7 +120,7 @@ func _screens() -> Dictionary:
 			main.menu.close_menu()
 			await _frames(2)
 	out["menu:all tabs"] = func():
-		for tab in GameMenu.TABS:
+		for tab in GameMenu.TABS + GameMenu.EVENT_PAGES:
 			main.menu.open_menu(StringName(tab[0]))
 			await _frames(2)
 		main.menu.close_menu()

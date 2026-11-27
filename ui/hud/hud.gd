@@ -3,7 +3,7 @@ extends CanvasLayer
 ## Always-on screen UI (landscape, touch first):
 ##   left            joystick
 ##   bottom          eight skills in one row, big Attack button at the right
-##   far right       HP potion, MP potion, auto and target in a vertical column
+##   above skills    HP potion, MP potion, auto, target and the raven in one row
 ##   top left        hero panel, self / ally buffs, companions
 ##   top centre      target or boss health
 ##   top right       gold, zone name, menu
@@ -38,8 +38,8 @@ const SKILL_SLOT_CLEAR := 44.0
 ## The chat's gap past the joystick's resting ring (a thumb on the stick's edge must not
 ## land on the chat).
 const CHAT_STICK_GAP := 40.0
-## The potion / auto / target column's centre from the frame's right edge.
-const UTILITY_X := -36.0
+## The potion / auto / target / raven row's gap above the skill medallions.
+const UTILITY_ROW_GAP := 10.0
 ## The target / boss bar: at most this wide, centred between the hero panel and the
 ## gold / menu row, never under either.
 const TOP_CENTER_MAX := 500.0
@@ -57,10 +57,10 @@ const CHAT_CARD_GAP := 8.0
 ## The last skill slot's centre from the frame's right edge (clear of the attack button).
 const SKILL_ROW_RIGHT := -194.0
 ## The tracker and the world-event chip under the minimap: their top and right edge
-## (the minimap's left edge, clear of the raven buttons left of the auto button) and
-## the gap the chip keeps under the tracker's lines.
+## (lined up with the minimap's right edge: the action buttons sit above the skill row)
+## and the gap the chip keeps under the tracker's lines.
 const TRACKER_TOP := 252.0
-const TRACKER_RIGHT := -146.0
+const TRACKER_RIGHT := -6.0
 const EVENT_CHIP_GAP := 6.0
 ## What the raven mode button announces for each mode (DarkRaven.Mode).
 const RAVEN_MODE_TIPS := ["โจมตีเดี่ยว จิกเป้าหมายของเราแรงขึ้น", "โจมตีหมู่ จิกทีละกลุ่มรอบเป้าหมาย", "ออโต้ เลือกเหยื่อเองและจิกเป็นกลุ่มเมื่อศัตรูรวมตัว"]
@@ -115,6 +115,15 @@ var _tracker_timer := 0.0
 ## and placed by _place_event_chip under however many tracker lines there are.
 var _event_chip: PanelContainer
 var _event_label: Label
+## The events with a page: [id, chip text (t), colour, menu page]. Their line in the event
+## box is a button that opens the page; it shows only while the event runs.
+var EVENT_BUTTONS := [
+	[&"loyk", LoyKrathong.chip_text, LoyKrathong.COLOR, &"loyk"],
+	[&"hunt", DragonHunt.chip_text, DragonHunt.COLOR, &"hunt"],
+	[&"weekly", WeeklyCollect.chip_text, WeeklyCollect.COLOR, &"weekly"],
+	[&"xmas", Christmas.chip_text, Christmas.COLOR, &"reward"],
+]
+var _event_buttons := {}
 var _event_in := 0.0
 var _boss_name: Label
 var _boss_bar: ProgressBar
@@ -368,17 +377,37 @@ func _process(delta: float) -> void:
 		var t := WorldPresence.clock()
 		Announcer.tick(t)
 		announce.hold = _war() != null
-		var lines := PackedStringArray()
-		# The field boss of this field while it is down (who took it, when it is back).
-		var boss_line := BossWorld.chip_text(zone.zone_id, t) if is_instance_valid(zone) and zone.data.has("boss") else ""
-		for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t), boss_line] + WorldEvents.chip_lines(t):
-			if line != "":
-				lines.append(line)
-		_event_label.text = "\n".join(lines)
-		pass_dot.visible = DailyPass.claimable() > 0
-		_event_chip.visible = _event_label.text != "" and _war() == null and maze_hud == null
-		_place_event_chip()
+		_update_event_box(t)
 
+
+## The event box under the minimap at time t: the events with a page as buttons, the
+## rest as lines; hidden when empty, in the guild war and in the maze.
+func _update_event_box(t: float) -> void:
+	var lines := PackedStringArray()
+	# The field boss of this field while it is down (who took it, when it is back).
+	var boss_line := BossWorld.chip_text(zone.zone_id, t) if is_instance_valid(zone) and zone.data.has("boss") else ""
+	# The events with a page of their own are buttons (tap: that page); each shows only
+	# while its event runs (its chip_text is "" outside it), the rest are plain lines.
+	var shown := 0
+	for e in EVENT_BUTTONS:
+		var text := String((e[1] as Callable).call(t))
+		var button: Button = _event_buttons.get(e[0])
+		if button == null:
+			continue
+		button.visible = text != ""
+		if text != "":
+			shown += 1
+			var dot := " ●" if e[0] == &"hunt" and Game.has_profile and DragonHunt.claimable() > 0 else ""
+			button.text = text + dot + "  ›"
+	var page_lines := [LoyKrathong.chip_text(t), DragonHunt.chip_text(t), WeeklyCollect.chip_text(t), Christmas.chip_text(t)]
+	for line in [Game.exp_boost_text(), GuildLeague.chip_text(t), GuildHallData.chip_text(t), boss_line] + WorldEvents.chip_lines(t):
+		if line != "" and not line in page_lines:
+			lines.append(line)
+	_event_label.text = "\n".join(lines)
+	_event_label.visible = _event_label.text != ""
+	pass_dot.visible = DailyPass.claimable() > 0
+	_event_chip.visible = (_event_label.text != "" or shown > 0) and _war() == null and maze_hud == null
+	_place_event_chip()
 
 ## The target and boss bars sit between the hero panel and the top-right row, centred in
 ## the gap and never wider than it (they ran under the gold and online chips on a phone).
@@ -603,10 +632,38 @@ func _build_tracker(frame: Control) -> void:
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	_event_chip.add_theme_stylebox_override("panel", style)
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 2)
+	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_event_chip.add_child(rows)
+	for e in EVENT_BUTTONS:
+		var button := Button.new()
+		button.name = "Event_" + String(e[0])
+		button.flat = true
+		button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override("font_size", 14)
+		for key in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			button.add_theme_color_override(key, e[2])
+		button.add_theme_constant_override("outline_size", 4)
+		button.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+		button.custom_minimum_size = Vector2(0, 28)
+		var pad := StyleBoxFlat.new()
+		pad.bg_color = Color(1, 1, 1, 0.06)
+		pad.set_corner_radius_all(8)
+		pad.content_margin_left = 6
+		pad.content_margin_right = 4
+		for st in ["normal", "hover", "pressed", "focus"]:
+			button.add_theme_stylebox_override(st, pad)
+		button.visible = false
+		var tab: StringName = e[3]
+		button.pressed.connect(func(): menu_requested.emit(tab))
+		rows.add_child(button)
+		_event_buttons[e[0]] = button
 	_event_label = UIUtil.label("", &"SmallLabel", HORIZONTAL_ALIGNMENT_RIGHT)
 	_event_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_event_label.add_theme_color_override("font_color", UIPalette.GOLD)
-	_event_chip.add_child(_event_label)
+	rows.add_child(_event_label)
 	_event_chip.visible = false
 	frame.add_child(_event_chip)
 
@@ -1627,17 +1684,20 @@ static func action_layout(canvas_size: Vector2) -> Dictionary:
 	var centers: Array[Vector2] = []
 	for i in ClassData.SLOTS:
 		centers.append(Vector2(SKILL_ROW_RIGHT - (ClassData.SLOTS - 1 - i) * spacing, SKILL_ROW_Y))
+	# The potions, auto, target and the raven's two buttons in one row just above the
+	# skill row, over its right-hand slots (the owner's layout: the right edge under the
+	# minimap stays free for the event box).
+	var row_y := SKILL_ROW_Y - SKILL_RADIUS - UTILITY_ROW_GAP - 28.0
 	var utility: Array[Vector2] = []
-	# Keep the top potion below the minimap, including a phone's safe insets.
-	var utility_spacing := clampf((canvas_size.y - 466.0) / 3.0, 62.0, 72.0)
-	for i in 4:
-		utility.append(Vector2(UTILITY_X, -184.0 - (3 - i) * utility_spacing))
-	# The team-buff button: left of the target button, under the raven buttons and above
-	# the attack button (clear of all three, touch margins included).
-	var team_buff := utility[3] + Vector2(-72, 0)
-	# The rally button (รวมพล): one more step left of it.
-	var rally := utility[3] + Vector2(-144, 0)
-	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "attack": Vector2(-84, -84), "team_buff": team_buff, "rally": rally}
+	for k in 4:
+		utility.append(Vector2(centers[ClassData.SLOTS - 1 - k].x, row_y))
+	var raven := Vector2(centers[ClassData.SLOTS - 5].x, row_y)
+	var raven_mode := Vector2(centers[ClassData.SLOTS - 6].x, row_y)
+	# A second row, only while they show: บัฟทีม over the HP potion, รวมพล beside it.
+	var row2_y := row_y - 28.0 - UTILITY_ROW_GAP - TEAM_BUFF_RADIUS
+	var team_buff := Vector2(utility[0].x, row2_y)
+	var rally := Vector2(utility[1].x, row2_y)
+	return {"skills": centers, "skill_spacing": spacing, "utility": utility, "raven": raven, "raven_mode": raven_mode, "attack": Vector2(-84, -84), "team_buff": team_buff, "rally": rally}
 
 
 func _layout_actions() -> void:
@@ -1654,10 +1714,9 @@ func _layout_actions() -> void:
 	for i in utilities.size():
 		var button: TouchButton = utilities[i]
 		_place_corner(button, positions.utility[i] + Vector2.ONE * button.radius, button.radius)
-	# The raven button sits just left of the auto button.
-	_place_corner(raven_button, positions.utility[2] + Vector2(-72, 0) + Vector2.ONE * raven_button.radius, raven_button.radius)
-	# Its mode button sits right above it.
-	_place_corner(raven_mode_button, positions.utility[2] + Vector2(-72, -72) + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
+	# The raven's buttons follow on in the same row.
+	_place_corner(raven_button, positions.raven + Vector2.ONE * raven_button.radius, raven_button.radius)
+	_place_corner(raven_mode_button, positions.raven_mode + Vector2.ONE * raven_mode_button.radius, raven_mode_button.radius)
 	_place_corner(team_buff_button, positions.team_buff + Vector2.ONE * TEAM_BUFF_RADIUS, TEAM_BUFF_RADIUS)
 	_place_corner(rally_button, positions.rally + Vector2.ONE * TEAM_BUFF_RADIUS, TEAM_BUFF_RADIUS)
 	_place_corner(attack_button, positions.attack + Vector2.ONE * ATTACK_RADIUS, ATTACK_RADIUS)

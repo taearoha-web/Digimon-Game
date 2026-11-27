@@ -430,7 +430,7 @@ func _ui() -> void:
 	_give(th, [5, 3, 1, 1, 1])
 	var menu := GameMenu.new()
 	add_child(menu)
-	check(GameMenu.TABS.any(func(p): return String(p[0]) == "weekly" and String(p[1]) == WeeklyCollect.NAME), "the menu has the สะสมของแรร์ tab")
+	check(GameMenu.EVENT_PAGES.any(func(p): return String(p[0]) == "weekly" and String(p[1]) == WeeklyCollect.NAME) and not GameMenu.TABS.any(func(p): return String(p[0]) == "weekly"), "the สะสมของแรร์ page opens from the HUD's event box, not the tab bar")
 	menu.open_menu(&"weekly")
 	await get_tree().process_frame
 	await get_tree().process_frame
