@@ -50,7 +50,8 @@ func _ready() -> void:
 		add_child(zone)
 		await get_tree().physics_frame
 		await get_tree().physics_frame
-		check(zone.is_built and zone.npcs.size() == 23, "seed %d: the village is built with its villagers (%d)" % [layout_seed, zone.npcs.size()])
+		# 24: the Job Master's neighbour, the celestial sage of บททดสอบเทวาลัย (AscensionData), joined.
+		check(zone.is_built and zone.npcs.size() == 24, "seed %d: the village is built with its villagers (%d)" % [layout_seed, zone.npcs.size()])
 		var blocked := _blocked(zone)
 		check(blocked.is_empty(), "seed %d: no villager or the spot in front of them is inside a rock, tree or wall (%s)" % [layout_seed, blocked])
 		zone.queue_free()

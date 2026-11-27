@@ -195,8 +195,9 @@ const STYLES := {
 	"early": {"weekday": [[6.0, 2.5], [12.0, 1.0]], "weekend": [[6.5, 3.5], [15.5, 2.0]], "jitter": 0.7, "skip": 0.08, "eff": 0.30, "label": "สายตื่นเช้า"},
 	"overseas": {"weekday": [[1.5, 4.0], [7.5, 2.5]], "weekend": [[1.0, 5.0], [9.0, 3.0]], "jitter": 1.0, "skip": 0.1, "eff": 0.32, "label": "อยู่ต่างประเทศ"},
 	# Stall keepers / AFK: online most of the day, always in the village (town), slow EXP.
-	# A short break between sessions (each at its own time), so the stalls are always kept.
-	"afk": {"weekday": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "weekend": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "jitter": 0.3, "stretch": [0.96, 1.04], "phase": 8.0, "skip": 0.02, "eff": 0.03, "label": "ตั้งร้าน/AFK", "town": true},
+	# A short break between sessions (spread down the roster so the breaks never bunch up)
+	# and no whole day off, so the stalls are always kept.
+	"afk": {"weekday": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "weekend": [[0.0, 7.8], [8.0, 7.8], [16.0, 7.8]], "jitter": 0.3, "stretch": [0.96, 1.04], "phase": 8.0, "spread": true, "skip": 0.0, "eff": 0.03, "label": "ตั้งร้าน/AFK", "town": true},
 }
 ## The world's clock runs SPEED times faster than real time: a day of the schedules
 ## (morning, afternoon, the busy evening, the night) passes every 24 / SPEED real hours,

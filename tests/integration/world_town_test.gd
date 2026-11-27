@@ -87,7 +87,8 @@ func _busy(from_day: float, days: float) -> void:
 	check(low_online >= MIN_ONLINE, "day %d+: at least %d players online at every moment (%d)" % [int(from_day), MIN_ONLINE, low_online])
 	check(scheduled_in_town == 0, "day %d+: no player with a play schedule spends its session in the village (%d moments)" % [int(from_day), scheduled_in_town])
 	# Where everyone is, every two real hours: online scheduled players are out in a field
-	# (or the endgame), and whoever is in the village keeps a stall.
+	# (or the endgame), and whoever is in the village keeps a stall (a scheduled player only
+	# in the endgame: ★300 JobData.GOD_STARS with the divine set, endgame_plan's "stall").
 	var wrong: Array[String] = []
 	var stalls_full := 0
 	t = start
@@ -100,7 +101,7 @@ func _busy(from_day: float, days: float) -> void:
 			var in_town := String(s.place) == "town"
 			if in_town != (String(s.doing) in ["stall", "errand"]):
 				wrong.append("%s %s/%s" % [s.name, s.place, s.doing])
-			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not (bool(s.divine) and int(s.stars) >= Game.PARAGON_MAX):
+			if not WorldPlayers.in_town_style(i) and String(s.doing) == "stall" and not (bool(s.divine) and int(s.stars) >= JobData.GOD_STARS):
 				wrong.append("%s (%s) keeps a stall" % [s.name, s.style])
 			if WorldPlayers.in_town_style(i) and String(s.doing) != "stall":
 				wrong.append("%s (stall keeper) away from its stall" % s.name)

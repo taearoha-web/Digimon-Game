@@ -114,15 +114,19 @@ const ORDER: Array[String] = ["slimes", "chickens", "cactus", "mush_king", "orcs
 ## Meadow keeps its introductory rewards. Later turn-ins pay a predictable
 ## fraction of a level, with a larger boss bonus, including the Paragon finale.
 ## Past Lv.100 a ★ quest pays about one ★ of Paragon EXP (two for a boss).
+## The most gold one quest pays.
+const GOLD_MAX := 100000
+
+
 static func reward_for_level(level: int, boss: bool, star := 0) -> Dictionary:
 	var lv := clampi(level, 1, 100)
 	if star > 0:
 		var need := float(HeroStats.star_need(star))
 		return {
 			"exp": int(round(need * (2.0 if boss else 1.0))),
-			# Gold grows gently with ★ so the richest turn-in (a 200★ boss, about
-			# 89k) stays inside the late-game upgrade economy (at most 100k).
-			"gold": int(round(50.0 * pow(100.0, 1.45) * (1.0 + float(star) / 400.0) * (1.5 if boss else 1.0))),
+			# Gold grows gently with ★ and stops at GOLD_MAX so even the richest turn-in
+			# (the heaven realm's ★360 boss) stays inside the late-game upgrade economy.
+			"gold": mini(GOLD_MAX, int(round(50.0 * pow(100.0, 1.45) * (1.0 + float(star) / 400.0) * (1.5 if boss else 1.0)))),
 		}
 	return {
 		"exp": int(round(float(HeroStats.exp_to_next(lv)) * (1.5 if boss else 0.9))),
