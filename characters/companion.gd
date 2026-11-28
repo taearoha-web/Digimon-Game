@@ -864,7 +864,7 @@ func _try_skills(distance: float) -> bool:
 	return true
 
 
-## The two buff skills this party member brings (ClassData.ai_buff_kit).
+## The three buff skills this party member brings (ClassData.ai_buff_kit).
 func _buff_kit() -> Array:
 	var lv := int(member.get("level", 1)) + 9
 	if _kit_level != lv:

@@ -87,7 +87,7 @@ func _ready() -> void:
 
 ## BuffBook: one song per recipient beside the 2 + 2, never evicting or evicted.
 func _song_slot() -> void:
-	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 2 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside two self slots (friends unlimited)")
+	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 3 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside three self slots (friends unlimited)")
 	var list: Array[Dictionary] = []
 	for ally in [false, true]:
 		for id in ["a", "b"]:

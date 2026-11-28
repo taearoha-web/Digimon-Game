@@ -188,7 +188,7 @@ func _skills() -> void:
 		check(float(buff.fx.buff.secs) == 60.0 and not BuffBook.is_song_skill(buff), "%s buff lasts a minute, not a song" % cls)
 		print("  %s: %s (%s) x%.1f mp %d cd %.0f | %s (%s) %s" % [cls, ult.name, ult.id, float(ult.mult), int(ult.mp), float(ult.cd), buff.name, buff.id, JSON.stringify(buff.fx.buff)])
 	check(seen.size() == 22, "22 Ascension skills (%d)" % seen.size())
-	check(BuffBook.own_limit(&"defender") == 3, "the Defender keeps three own buffs")
+	check(BuffBook.own_limit(&"defender") == 4, "the Defender keeps four own buffs")
 
 
 # --- AI world players --------------------------------------------------------------------

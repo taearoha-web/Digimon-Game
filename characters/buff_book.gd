@@ -12,14 +12,14 @@ var _synced_alive := false
 var _synced_auras := -1
 
 
-## Own buffs: two slots (a third replaces the oldest); the Defender keeps three
+## Own buffs: three slots (a fourth replaces the oldest); the Defender keeps four
 ## (own_limit). Buffs from friends have no limit: every friend's buff is kept (each
 ## skill once, a recast refreshes it).
-const GROUP_LIMIT := 2
-const DEFENDER_LIMIT := 3
+const GROUP_LIMIT := 3
+const DEFENDER_LIMIT := 4
 
 
-## How many of its own buffs a class keeps at once: the Defender three, everyone else two.
+## How many of its own buffs a class keeps at once: the Defender four, everyone else three.
 static func own_limit(cls: Variant) -> int:
 	return DEFENDER_LIMIT if StringName(str(cls)) == &"defender" else GROUP_LIMIT
 ## Songs (the Bard's, "song" in the buff) keep slots of their own: two per

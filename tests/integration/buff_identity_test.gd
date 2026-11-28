@@ -53,7 +53,7 @@ func _ready() -> void:
 		# An AI Priest also keeps every heal that buffs (ClassData.AI_ALL_HEALS).
 		var heal_buffs := buffs.filter(func(sk): return ClassData.AI_ALL_HEALS.has(cls) and sk.get("fx", {}).has("heal"))
 		var picks := kit.filter(func(id): return not heal_buffs.any(func(sk): return ClassData.rank_id(sk) == id))
-		check(picks.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most two buff skills: %s" % [cls, kit])
+		check(picks.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most three buff skills: %s" % [cls, kit])
 		check(picks.size() == mini(2, buffs.size() - heal_buffs.size()), "%s AI fills both buff picks when it can: %s" % [cls, kit])
 		for sk in heal_buffs:
 			check(kit.has(ClassData.rank_id(sk)), "AI Priest keeps its heal-buff %s" % sk.id)

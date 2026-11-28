@@ -21,7 +21,7 @@ var rival_name := ""
 var duel_over := false
 
 var _profile: Dictionary = {}
-## The two buff skills this player brings (ClassData.ai_buff_kit).
+## The three buff skills this player brings (ClassData.ai_buff_kit).
 var _buff_kit: Array = []
 var _equip: Dictionary = {}
 var _look: Dictionary = {}
@@ -183,7 +183,7 @@ func _stars() -> int:
 
 
 ## Faithful: every buff skill of its class it knows by level, job and stars (star buffs
-## too), as the player brings them; an ordinary AI brings ClassData.ai_buff_kit's two.
+## too), as the player brings them; an ordinary AI brings ClassData.ai_buff_kit's three.
 func _own_buff_kit() -> Array:
 	var out: Array = []
 	for skill in class_data.get("skills", []):
@@ -697,6 +697,9 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 	# ★300 สิบเศียรสิบกรสะท้านสามภพ: the fighter turns into ทศกัณฐ์ (ThotsakanForm).
 	if ThotsakanForm.handles(skill):
 		ThotsakanForm.begin(self, skill)
+		return
+	# ★500 ultimates with mechanics of their own (AscendUlt), when their script plays an AI's.
+	if AscendUlt.handles(skill) and AscendUlt.rival_cast(self, skill, aim, target if alive else null):
 		return
 	SkillShow.play(field, skill, center, global_position)
 	MuayThai.ring_show(self, skill, center)

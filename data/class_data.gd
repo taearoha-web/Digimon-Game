@@ -534,7 +534,7 @@ static func get_skill(class_id: StringName, index: int) -> Dictionary:
 
 ## AI players carry at most AI_BUFF_SKILLS buff skills (a class's signature buff, e.g.
 ## the Defender's เบ่งเลือด, always among them). Songs and healing skills don't count.
-const AI_BUFF_SKILLS := 2
+const AI_BUFF_SKILLS := 3
 
 
 ## A skill that grants a buff (not a song). A heal that also buffs (Unbreakable,
@@ -544,7 +544,7 @@ static func is_buff_skill(skill: Dictionary) -> bool:
 	return fx is Dictionary and (fx as Dictionary).get("buff") is Dictionary and not bool((fx as Dictionary).buff.get("song", false))
 
 
-## AI healers that keep every heal-that-buffs (beyond the two buff picks), and how much
+## AI healers that keep every heal-that-buffs (beyond the three buff picks), and how much
 ## their heals give: an AI Priest casts all its heals but each one at half strength, so a
 ## guild with healers stays beatable.
 const AI_ALL_HEALS := [&"priest"]
@@ -600,7 +600,7 @@ static func ai_buff_kit(class_id: StringName, level: int, who: String) -> Array:
 	if signature != "" and open.has(signature):
 		kit.append(signature)
 		open.erase(signature)
-	# An AI healer keeps every heal that also buffs, on top of its two buff picks.
+	# An AI healer keeps every heal that also buffs, on top of its three buff picks.
 	var heals: Array = []
 	if AI_ALL_HEALS.has(class_id):
 		for id in open.duplicate():

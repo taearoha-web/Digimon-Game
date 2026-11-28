@@ -44,6 +44,12 @@ func _plan() -> void:
 	if StarSkillData.is_god(skill): beats=AscendSkillData.god_beats(skill)
 	if float(skill.get("dash",0.0))>0.0:
 		events.append({"at":maxf(0.0,release-AscendSkillData.DASH_LEAD-AscendSkillData.DASH_TIME),"dash":true})
+	# A ★500 ultimate with mechanics of its own (AscendUlt): one event at the release hands
+	# the cast to its script, which owns its blows and art from then on.
+	if AscendUlt.handles(skill):
+		events.append({"at":release,"ult":true})
+		end=release+AscendUlt.lead(skill)
+		return
 	match id:
 		"lionfang_cleave": beats=[0.0,0.26]
 		"titan_shieldbreak": beats=[0.0,0.42]
@@ -138,6 +144,8 @@ func _process(delta: float) -> void:
 				dash_started=clock
 		elif bool(event.get("form",false)):
 			ThotsakanForm.begin(h,skill)
+		elif bool(event.get("ult",false)):
+			AscendUlt.hero_cast(h,skill,center,victim_ref.get_ref() as Mob if victim_ref!=null else null)
 		elif bool(event.get("launch",false)):
 			_launch(h,int(event.index),float(event.flight))
 		elif bool(event.get("companion",false)):

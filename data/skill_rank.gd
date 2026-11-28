@@ -112,7 +112,7 @@ static func scaled_fx(fx: Dictionary, rank: int) -> Dictionary:
 		if extra > 0.0:
 			var buff: Dictionary = (out.get("buff", {}) as Dictionary).duplicate()
 			if buff.is_empty():
-				# A heal-only skill: its shield does not take one of the two buff slots.
+				# A heal-only skill: its shield does not take one of the three buff slots.
 				buff["overheal"] = true
 			buff["shield"] = float(buff.get("shield", 0.0)) + extra
 			buff["secs"] = float(buff.get("secs", 60.0))
