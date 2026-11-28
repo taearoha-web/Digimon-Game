@@ -26,26 +26,26 @@ func _ready() -> void:
 	Game.profile.mp = 99999
 	var list: Array[Dictionary] = []
 	for ally in [false, true]:
-		for id in ["a", "b"]:
+		for id in (["a", "b"] if ally else ["a", "b", "x"]):
 			list = BuffBook.insert(list, {"atk": 0.2, "def": 0.3, "speed": 0.1, "secs": 60}, Color.WHITE, id, ally, id, 100)
-	check(list.size() == 4, "independent two self plus two friend slots")
+	check(list.size() == 5, "independent three self plus two friend slots")
 	list = BuffBook.insert(list, {"atk": 0.6, "secs": 60}, Color.WHITE, "c", false, "c", 200)
-	check(not BuffBook.contains(list, "a", false, 200) and BuffBook.contains(list, "a", true, 200), "third self removes only oldest self")
+	check(not BuffBook.contains(list, "a", false, 200) and BuffBook.contains(list, "a", true, 200), "fourth self removes only oldest self")
 	list = BuffBook.insert(list, {"atk": 0.5, "secs": 60}, Color.WHITE, "c", true, "c", 300)
 	check(BuffBook.contains(list, "a", true, 300) and BuffBook.contains(list, "c", true, 300) and BuffBook.group_count(list, true, 300) == 3, "friends' buffs have no limit: a third friend buff keeps the first two")
 	for extra in ["f1", "f2", "f3"]:
 		list = BuffBook.insert(list, {"atk": 0.1, "secs": 60}, Color.WHITE, extra, true, extra, 300)
-	check(BuffBook.group_count(list, true, 300) == 6 and BuffBook.group_count(list, false, 300) == 2, "six friend buffs kept beside the two own slots")
+	check(BuffBook.group_count(list, true, 300) == 6 and BuffBook.group_count(list, false, 300) == 3, "six friend buffs kept beside the three own slots")
 	list = BuffBook.insert(list, {"atk": 0.5, "secs": 60}, Color.WHITE, "c", true, "c", 300)
 	check(BuffBook.group_count(list, true, 300) == 6, "the same friend skill again refreshes, never doubles")
 	list = list.filter(func(b): return not (bool(b.ally) and String(b.skill_id) in ["c", "f1", "f2", "f3"]))
 	list = BuffBook.insert(list, {"atk": 0.9, "secs": 90}, Color.WHITE, "renamed", false, "b", 400)
-	check(list.size() == 4 and list.back().until == 90400 and list.back().atk == 0.9, "refresh by stable skill id updates potency and duration once")
+	check(list.size() == 5 and list.back().until == 90400 and list.back().atk == 0.9, "refresh by stable skill id updates potency and duration once")
 	list = BuffBook.insert(list, {"secs": 60}, Color.WHITE, "d", false, "d", 500)
-	check(BuffBook.contains(list, "b", false, 500) and not BuffBook.contains(list, "c", false, 500), "refreshed skill becomes newest")
+	check(BuffBook.contains(list, "b", false, 500) and BuffBook.contains(list, "c", false, 500) and not BuffBook.contains(list, "x", false, 500), "refreshed skill becomes newest")
 	list = BuffBook.insert(list, {"secs": 60}, Color.WHITE, "e", true, "e", 100000)
 	check(list.size() == 1, "expired buffs removed before applying limits")
-	# AI players bring two buff skills at most (the Defender's เบ่งเลือด always one).
+	# AI players bring three buff skills at most (the Defender's เบ่งเลือด always one).
 	for cls in [&"warrior", &"archer", &"mage", &"priest", &"summoner", &"lancer", &"defender", &"assassin", &"darklord", &"bard"]:
 		var kit := ClassData.ai_buff_kit(cls, 100, "QA Bot")
 		# A class with skill lines: only each line's Lv.100 stage is cast, picked by line id.
@@ -54,7 +54,7 @@ func _ready() -> void:
 		var heal_buffs := buffs.filter(func(sk): return ClassData.AI_ALL_HEALS.has(cls) and sk.get("fx", {}).has("heal"))
 		var picks := kit.filter(func(id): return not heal_buffs.any(func(sk): return ClassData.rank_id(sk) == id))
 		check(picks.size() <= ClassData.AI_BUFF_SKILLS, "%s AI brings at most three buff skills: %s" % [cls, kit])
-		check(picks.size() == mini(2, buffs.size() - heal_buffs.size()), "%s AI fills both buff picks when it can: %s" % [cls, kit])
+		check(picks.size() == mini(ClassData.AI_BUFF_SKILLS, buffs.size() - heal_buffs.size()), "%s AI fills its buff picks when it can: %s" % [cls, kit])
 		for sk in heal_buffs:
 			check(kit.has(ClassData.rank_id(sk)), "AI Priest keeps its heal-buff %s" % sk.id)
 		for sk in buffs:
@@ -76,32 +76,33 @@ func _ready() -> void:
 	hero.set_physics_process(false)
 	cast_buff(hero, "silraphim")
 	cast_buff(hero, "energy_shield")
+	cast_buff(hero, "vague")
 	cast_buff(hero, "holy_valor", true)
 	cast_buff(hero, "forest_blessing", true)
-	check(hero._buffs.size() == 4 and hero._auras.size() == 4, "four actual buffs produce four skill-specific auras")
+	check(hero._buffs.size() == 5 and hero._auras.size() == 5, "five actual buffs produce five skill-specific auras")
 	var old: BuffAura = hero._auras["silraphim:false"]
 	cast_buff(hero, "magic_overdrive")
 	check(old.is_queued_for_deletion() and not old.visible, "old art hidden immediately on replacement")
 	check(not BuffBook.contains(hero._buffs, "silraphim", false), "old self stat entry is removed")
-	var expected := Game.stats_now({"atk": BuffBook.stack([0.9, 0.4, 0.12]), "def": BuffBook.stack([0.6, 0.3, 0.25]), "crit": 0.15, "speed": 0.0})
+	var expected := Game.stats_now({"atk": BuffBook.stack([0.9, 0.4, 0.12]), "def": BuffBook.stack([0.6, 0.7, 0.3, 0.25]), "crit": 0.15, "speed": 0.2})
 	check(hero.stats.atk == expected.atk and hero.stats.def == expected.def, "real computed stats exclude replaced buff and preserve ally effects")
 	cast_buff(hero, "energy_shield", true)
-	check(hero._buffs.size() == 5 and BuffBook.contains(hero._buffs, "energy_shield", false) and BuffBook.contains(hero._buffs, "energy_shield", true), "same skill from self and ally can coexist in separate groups")
-	check(hero._auras.size() == 4 and not hero._auras.has("holy_valor:true"), "only the two newest friends' buffs wear body art (own two always)")
+	check(hero._buffs.size() == 6 and BuffBook.contains(hero._buffs, "energy_shield", false) and BuffBook.contains(hero._buffs, "energy_shield", true), "same skill from self and ally can coexist in separate groups")
+	check(hero._auras.size() == 5 and not hero._auras.has("holy_valor:true"), "only the two newest friends' buffs wear body art (own three always)")
 	cast_buff(hero, "energy_shield", true)
-	check(hero._buffs.size() == 5, "same ally skill never duplicates across repeated casts")
+	check(hero._buffs.size() == 6, "same ally skill never duplicates across repeated casts")
 	var buddy := Companion.new()
 	buddy.hero = hero
 	buddy.field = field
 	buddy.stats = {"atk": 100.0}
-	for id in ["silraphim", "energy_shield", "magic_overdrive"]:
+	for id in ["silraphim", "energy_shield", "vague", "magic_overdrive"]:
 		buddy._apply_self(ClassData.find_skill(&"mage", id))
-	check(buddy._book.buffs.size() == 2 and not BuffBook.contains(buddy._book.buffs, "silraphim", false), "companion self casts also cap at two")
-	check(BuffBook.group_count(hero._buffs, true) >= 3 and BuffBook.group_count(hero._buffs, false) == 2, "companion casts preserve the hero's own two slots")
+	check(buddy._book.buffs.size() == 3 and not BuffBook.contains(buddy._book.buffs, "silraphim", false), "companion self casts also cap at three")
+	check(BuffBook.group_count(hero._buffs, true) >= 3 and BuffBook.group_count(hero._buffs, false) == 3, "companion casts preserve the hero's own three slots")
 	for id in ["forest_blessing", "spirit_link", "gaia_blessing"]:
 		var skill := ClassData.find_skill(&"summoner", id)
 		buddy.receive_party_buff(skill.fx.buff, skill.color, skill.name, id)
-	check(buddy._book.buffs.size() == 5 and BuffBook.group_count(buddy._book.buffs, true) == 3, "companion keeps every friend's buff beside its own two")
+	check(buddy._book.buffs.size() == 6 and BuffBook.group_count(buddy._book.buffs, true) == 3, "companion keeps every friend's buff beside its own three")
 	var incoming: Array = []
 	for b in buddy._book.buffs:
 		incoming.append(float(b.get("atk", 0.0)))
@@ -128,8 +129,8 @@ func _ready() -> void:
 	# Skills that are in no skill line any more may keep their recipe.
 	check(count <= BuffArt.RECIPES.size(), "complete buff catalog (%d buffs, %d recipes)" % [count, BuffArt.RECIPES.size()])
 	await settle()
-	# Four buffs here; a Bard song adds one more lane of its own (bard_song_test checks five).
-	check(VfxBudget.counters().decorations <= 4, "persistent hero art at most four draws plus one song")
+	# Five buffs here (three own, the two newest friends'); a Bard song adds one more lane of its own.
+	check(VfxBudget.counters().decorations <= 5, "persistent hero art at most five draws plus one song")
 	check(VfxBudget.counters().particles == 0 and VfxBudget.counters().lights == 0, "buff persistence adds no particles or lights")
 	# HUD geometry at phone and desktop landscape aspect ratios.
 	var hud := HUD.new()
@@ -154,7 +155,7 @@ func _ready() -> void:
 		check(buffs_rect.position.y >= status_rect.end.y, "buffs below own status " + str(resolution))
 		check(target_rect.position.x > buffs_rect.end.x, "enemy bar separated from own buffs " + str(resolution))
 		check(target_rect.end.x < resolution.x - 160, "enemy bar clear of minimap " + str(resolution))
-		check(hud._timers._rows.self.get_child_count() == 3 and hud._timers._rows.ally.get_child_count() == 1 + BuffBook.group_count(hero._buffs, true), "label plus one chip per buff (own two, every friend buff)")
+		check(hud._timers._rows.self.get_child_count() == 4 and hud._timers._rows.ally.get_child_count() == 1 + BuffBook.group_count(hero._buffs, true), "label plus one chip per buff (own three, every friend buff)")
 	var zone := Zone.new()
 	hud.zone = zone
 	mob.is_boss = true

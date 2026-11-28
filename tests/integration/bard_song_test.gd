@@ -85,29 +85,29 @@ func _ready() -> void:
 	get_tree().quit(0 if failures == 0 else 1)
 
 
-## BuffBook: one song per recipient beside the 2 + 2, never evicting or evicted.
+## BuffBook: one song per recipient beside the 3 + 2, never evicting or evicted.
 func _song_slot() -> void:
 	check(BuffBook.SONG_LIMIT == 2 and BuffBook.GROUP_LIMIT == 3 and BuffBook.SONG_FAMILIES == ["attack", "ward"], "two song slots (an attack and a ward song) beside three self slots (friends unlimited)")
 	var list: Array[Dictionary] = []
 	for ally in [false, true]:
-		for id in ["a", "b"]:
+		for id in (["a", "b"] if ally else ["a", "b", "x"]):
 			list = BuffBook.insert(list, {"atk": 0.2, "secs": 60}, Color.WHITE, id, ally, id, 100)
 	list = BuffBook.insert(list, {"atk": 0.15, "song": true, "secs": 60}, Color.WHITE, "march", false, "march", 200)
-	check(list.size() == 5 and BuffBook.group_count(list, false, 200) == 2 and BuffBook.group_count(list, true, 200) == 2, "2 self + 2 ally + 1 song coexist")
+	check(list.size() == 6 and BuffBook.group_count(list, false, 200) == 3 and BuffBook.group_count(list, true, 200) == 2, "3 self + 2 ally + 1 song coexist")
 	list = BuffBook.insert(list, {"def": 0.3, "guard": 0.08, "song": true, "secs": 60}, Color.WHITE, "ballad", true, "ballad", 300)
-	check(list.size() == 6 and BuffBook.songs_of(list, 300).size() == 2 and BuffBook.contains(list, "march", false, 300) and BuffBook.contains(list, "ballad", true, 300), "a ward song plays beside an attack song whatever its ally flag")
+	check(list.size() == 7 and BuffBook.songs_of(list, 300).size() == 2 and BuffBook.contains(list, "march", false, 300) and BuffBook.contains(list, "ballad", true, 300), "a ward song plays beside an attack song whatever its ally flag")
 	check(BuffBook.song_family({"atk": 0.4}) == "attack" and BuffBook.song_family({"def": 0.3}) == "ward" and BuffBook.song_family({"shield": 0.1, "atk": 0.1}) == "ward", "a song's family: ward when it guards, else attack")
 	check(not BuffBook.song_slot_free(list, 300) and BuffBook.identity(BuffBook.song_to_replace(list, "attack", 300)) == "march" and BuffBook.identity(BuffBook.song_to_replace(list, "ward", 300)) == "ballad", "each family's slot is taken by its own song")
 	list = BuffBook.insert(list, {"atk": 0.3, "secs": 60}, Color.WHITE, "c", false, "c", 400)
-	check(list.size() == 6 and not BuffBook.contains(list, "a", false, 400) and BuffBook.contains(list, "a", true, 400) and BuffBook.contains(list, "march", false, 400) and BuffBook.contains(list, "ballad", true, 400), "a third regular buff evicts only the oldest regular one of its group, never a song")
+	check(list.size() == 7 and not BuffBook.contains(list, "a", false, 400) and BuffBook.contains(list, "a", true, 400) and BuffBook.contains(list, "march", false, 400) and BuffBook.contains(list, "ballad", true, 400), "a fourth regular buff evicts only the oldest regular one of its group, never a song")
 	list = BuffBook.insert(list, {"atk": 0.5, "song": true, "secs": 60}, Color.WHITE, "hymn", false, "hymn", 500)
-	check(list.size() == 6 and BuffBook.group_count(list, false, 500) == 2 and BuffBook.group_count(list, true, 500) == 2, "a song never evicts a regular buff")
+	check(list.size() == 7 and BuffBook.group_count(list, false, 500) == 3 and BuffBook.group_count(list, true, 500) == 2, "a song never evicts a regular buff")
 	check(not BuffBook.contains(list, "march", false, 500) and BuffBook.contains(list, "hymn", false, 500) and BuffBook.contains(list, "ballad", true, 500), "two attack songs never stack: the new one takes over from the old one, the ward song stays")
 	list = BuffBook.insert(list, {"atk": 0.4, "song": true, "secs": 60}, Color.WHITE, "anthem", true, "anthem", 600)
-	check(list.size() == 6 and BuffBook.songs_of(list, 600).size() == 2 and not BuffBook.contains(list, "hymn", false, 600) and BuffBook.contains(list, "anthem", true, 600), "an attack song from someone else takes over the attack slot too")
+	check(list.size() == 7 and BuffBook.songs_of(list, 600).size() == 2 and not BuffBook.contains(list, "hymn", false, 600) and BuffBook.contains(list, "anthem", true, 600), "an attack song from someone else takes over the attack slot too")
 	list = BuffBook.insert(list, {"atk": 0.55, "song": true, "secs": 60}, Color.WHITE, "anthem", true, "anthem", 20000)
 	var song := BuffBook.song_of(list, 20000)
-	check(list.size() == 6 and BuffBook.identity(song) == "anthem" and int(song.until) == 80000 and is_equal_approx(float(song.atk), 0.55), "recasting the song refreshes its strength and minute")
+	check(list.size() == 7 and BuffBook.identity(song) == "anthem" and int(song.until) == 80000 and is_equal_approx(float(song.atk), 0.55), "recasting the song refreshes its strength and minute")
 	check(is_equal_approx(BuffBook.song_left_of(list, "anthem", 20000), 60.0) and BuffBook.song_left_of(list, "march", 20000) == 0.0, "each song counts its own time")
 	check(is_equal_approx(BuffBook.song_left(list, 20000), 60.0) and BuffBook.song_left(list, 81000) == 0.0 and BuffBook.song_of(list, 81000).is_empty(), "the songs count down and end")
 	var songs: Array = []
@@ -177,7 +177,7 @@ func _auras_and_hud() -> void:
 	bars.update_entries(status, 0.1)
 	check(bars._rows.song.visible and bars._rows.song.get_child_count() == 2 and bars._rows.song.get_child(0).text == "เพลง\n1/2", "the song has its own HUD lane (เพลง 1/2)")
 	check(bars._rows.self.get_child_count() == 3 and bars._rows.ally.get_child_count() == 3, "self and ally lanes keep two chips each")
-	check(bars._rows.self.get_child(0).text == "ใช้เอง\n2/2" and bars._rows.ally.get_child(0).text == "จากเพื่อน\n2", "self lane reads N/2, friends lane just the count")
+	check(bars._rows.self.get_child(0).text == "ใช้เอง\n2/3" and bars._rows.ally.get_child(0).text == "จากเพื่อน\n2", "self lane reads N/3, friends lane just the count")
 	hero._buffs.clear()
 	hero._sync_auras(Time.get_ticks_msec())
 	bars.update_entries(hero.timer_status(), 0.1)
