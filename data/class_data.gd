@@ -565,7 +565,8 @@ static func _heals_and_buffs(skill: Dictionary) -> bool:
 ## which reach the whole party. _build_pools marks those buffs "team" (BuffBook.reaches_party);
 ## a stance (self_only) stays the caster's whatever its class.
 const PARTY_BUFF_CLASSES := [&"priest", &"bard"]
-const PARTY_BUFF_SKILLS := ["brace"]
+## ★500 buff: aegis_of_eternity (ผู้พิทักษ์ทีม) is a team buff too (its DEF and the guard link).
+const PARTY_BUFF_SKILLS := ["brace", "aegis_of_eternity"]
 
 
 ## Whether [param skill] of class [param cls] is a buff that reaches the party.

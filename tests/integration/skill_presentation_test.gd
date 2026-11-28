@@ -77,6 +77,11 @@ func _ready() -> void:
 					# never a contact of its own: its wind-up, mantle, punch and finisher art are
 					# checked at every quality in thotsakan_form_test.
 					check(String(skill.id) == ThotsakanForm.ID and ThotsakanFormArt != null, "the transformation owns its presentation: " + String(skill.id))
+				elif AscendUlt.handles(skill):
+					# A ★500 ultimate with its own script (AscendUlt) draws its blows itself from the
+					# release (hero and AI alike), never a generic contact: its wind-up art and script
+					# are checked in that ultimate's own test.
+					check(AscendUlt.script_for(skill) != null and GodSkillArt.signature(String(skill.id)) != null, "the ultimate owns its presentation: " + String(skill.id))
 				elif StarSkillArt.handles(skill):
 					var art := fx.get_node_or_null("StarContact_"+String(skill.id)) as StarSkillArt
 					check(art!=null and not art.layers.is_empty(),"star silhouette exists: "+String(skill.id))

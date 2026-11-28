@@ -1,5 +1,5 @@
 extends RefCounted
-## Defender Ascension buff (★500): อีจิสแห่งนิรันดร์. The class's support star art under the
+## Defender Ascension buff (★500): ผู้พิทักษ์ทีม. The class's support star art under the
 ## Ascension's crown (AscendSkillArt); cosmetic only.
 const ID := "aegis_of_eternity"
 

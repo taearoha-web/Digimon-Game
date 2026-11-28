@@ -35,7 +35,8 @@ func check(ok: bool, message: String) -> void:
 static func expected(cls: StringName, skill: Dictionary) -> bool:
 	if bool(skill.fx.buff.get("self_only", false)):
 		return false
-	return cls == &"priest" or cls == &"bard" or String(skill.id) == "brace"
+	# ★500 buff: aegis_of_eternity (ผู้พิทักษ์ทีม) is a Defender team buff too, like เบ่งเลือด.
+	return cls == &"priest" or cls == &"bard" or String(skill.id) in ["brace", "aegis_of_eternity"]
 
 
 static func buff_skills(cls: StringName) -> Array:

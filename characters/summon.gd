@@ -40,6 +40,9 @@ const KINDS := {
 	"treant": {"model": "big/MushroomKing", "height": 2.1, "hover": 0.0, "tint": Color(0.8, 1.4, 0.6), "ranged": false, "speed": 4.4, "range": 2.6, "color": Color("b0e070")},
 	"drake": {"model": "flying/Dragon", "height": 1.5, "hover": 0.9, "tint": Color(0.7, 1.5, 1.2), "ranged": true, "speed": 6.0, "range": 8.5, "color": Color("7affd0")},
 	"elder_dragon": {"model": "flying/Dragon_Evolved", "height": 2.15, "hover": 0.8, "tint": Color(1.7, 1.4, 0.5), "ranged": true, "speed": 6.0, "range": 9.5, "color": Color("ffd84a")},
+	## ★500 buff: covenant_of_beasts — the Titan (AscendBuffsB.call_titan): a giant sculpted in code
+	## (TitanVisual), the summoner's for the buff's minute; it slams an area (AscendBuffsB.titan_slam).
+	"titan": {"legend": true, "titan": true, "model": "", "height": 4.6, "hover": 0.0, "tint": Color.WHITE, "ranged": false, "speed": 5.8, "range": 3.6, "color": Color("8af05a"), "name": "ไททันพันธสัญญา", "hp_share": 2.5},
 	"sword": {"proc": true, "real_sword": true, "hover": 1.7, "ranged": false, "speed": 9.0, "range": 1.6, "color": Color("e6f4ff")},
 }
 ## Health as a share of the summoner's: legends stand longer, but no summon outlasts a swarm.
@@ -88,6 +91,10 @@ var _sigil: MeshInstance3D
 var _move_cds: Dictionary = {}
 var _cast_until := 0.0
 var _heal_timer := 3.0
+## ★500 buff: covenant_of_beasts — ATK / DEF / HP / speed share its summoner's covenant adds
+## (AscendBuffsB.sync_summon keeps it and the max HP in step).
+var ascend_boost := 0.0
+var _ascend_wait := 0.0
 
 const SPIRIT_SHADER := preload("res://shaders/vfx_spirit.gdshader")
 ## The three sword models a Dancing Sword cycles through, and how long they stand on screen.
@@ -107,9 +114,12 @@ func setup(p_summoner: Node3D, p_skill_id: String, p_spec: Dictionary, p_damage_
 	rank = clampi(p_rank, 1, 10)
 	size_mult = size_for_rank(rank)
 	life = float(spec.get("secs", LIFETIME))
+	## ★500 buff: covenant_of_beasts — called while it runs: 1.5x the lifetime.
+	life *= AscendBuffsB.new_summon_life(p_summoner, spec, self)
 	_kind_id = String(spec.get("kind", "wolf"))
 	_kind = KINDS.get(_kind_id, KINDS["wolf"])
 	var share := LEGEND_HP_SHARE if bool(_kind.get("legend", false)) else HP_SHARE
+	share = float(_kind.get("hp_share", share))
 	max_hp = maxi(300, int(round(float(_summoner_stats().max_hp) * share * SkillRank.summon_hp_scale(rank))))
 	hp = max_hp
 	_slot = slot
@@ -134,6 +144,11 @@ func _ready() -> void:
 		add_child(fairy)
 		fairy.setup_fairy(float(_kind.hover))
 		_visual = fairy
+	elif bool(_kind.get("titan", false)):
+		var titan := TitanVisual.new()
+		add_child(titan)
+		titan.build(float(_kind.height), _kind.color)
+		_visual = titan
 	else:
 		_visual = MonsterVisual.new()
 		add_child(_visual)
@@ -351,7 +366,8 @@ func _summoner_heal(fraction: float) -> void:
 ## One basic hit before mitigation: the summoner's attack, the skill, the hit share
 ## and the hero's summoner star set.
 func _basic_raw() -> float:
-	var raw := float(_summoner_stats().atk) * damage_mult * HIT_SHARE
+	## ★500 buff: covenant_of_beasts — its ATK share (ascend_boost).
+	var raw := float(_summoner_stats().atk) * damage_mult * HIT_SHARE * (1.0 + ascend_boost)
 	if hero and StarProgression.has_full_set(Game.profile, "summoner"):
 		raw *= 1.15
 	return raw
@@ -364,6 +380,12 @@ func _process(delta: float) -> void:
 	_age += delta
 	life -= delta
 	_book.tick(self, not _dead and not _fading, func(): return (float(_kind.height) if _kind.has("height") else 1.6) + float(_kind.hover))
+	## ★500 buffs: the covenant's boost (a few times a second), regen / cleanse from the party (AscendBuffsB).
+	_ascend_wait -= delta
+	if _ascend_wait <= 0.0 and not _dead and not _fading:
+		_ascend_wait = 0.25
+		AscendBuffsB.sync_summon(self, summoner)
+	AscendBuffsB.tick(self, delta)
 	if skill_id == "eclipse_sovereign" and life <= 0.7 and not _star_departed and not _dead:
 		_star_departed = true
 		_star_wave(3.0, 7.5, 2)
@@ -386,7 +408,7 @@ func _process(delta: float) -> void:
 		want_range = _reach() * 0.85
 	var to := goal - global_position
 	to.y = 0.0
-	var speed := float(_kind.speed) * (1.0 + _book.total("speed"))
+	var speed := float(_kind.speed) * (1.0 + _book.total("speed")) * (1.0 + ascend_boost) ## ★500 buff: covenant_of_beasts
 	var casting := _age < _cast_until
 	if to.length() > want_range + 0.3 and not casting:
 		var step := minf(to.length() - want_range, speed * delta * (1.0 if _valid(_target) else 1.6))
@@ -511,7 +533,7 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 	if _dead or _fading or not _summoner_alive():
 		return
 	var def_share := 0.8 if bool(_kind.get("legend", false)) else 0.6
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(_summoner_stats().def) * def_share * (1.0 + _book.total("def"))))))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, float(_summoner_stats().def) * def_share * (1.0 + _book.total("def")) * (1.0 + ascend_boost))))) ## ★500 buff: covenant_of_beasts
 	amount = BuffBook.absorb(_book.buffs, amount)
 	if attacker is Rival and (attacker as Rival).war_scale > 1.0:
 		amount = BurstGuard.take(get_instance_id(), amount, max_hp)
@@ -596,7 +618,8 @@ func _hit(mob: Mob, raw: float) -> void:
 
 
 func _attack() -> void:
-	_attack_timer = float(spec.get("interval", 1.0))
+	## ★500 buffs: covenant_of_beasts (ascend_boost) and aria_of_eternity (aspd) quicken its swings.
+	_attack_timer = float(spec.get("interval", 1.0)) / ((1.0 + ascend_boost) * AscendBuffsB.attack_rate(_book.buffs))
 	var mob := _target
 	var mob_ref: WeakRef = weakref(mob)
 	var color: Color = _kind.color
@@ -606,7 +629,10 @@ func _attack() -> void:
 		var victim: Mob = mob_ref.get_ref() as Mob
 		if _dead or _fading or not _valid(victim) or not _summoner_alive():
 			return
-		_hit(victim, _basic_raw())
+		if bool(_kind.get("titan", false)):
+			AscendBuffsB.titan_slam(self, victim, _basic_raw()) ## ★500 buff: covenant_of_beasts
+		else:
+			_hit(victim, _basic_raw())
 		if spec.has("heal") and not is_fairy():
 			_summoner_heal(float(spec.heal))
 	if bool(_kind.ranged):

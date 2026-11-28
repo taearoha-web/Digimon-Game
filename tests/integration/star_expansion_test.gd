@@ -129,15 +129,15 @@ func _ready()->void:
 	profile(&"priest")
 	var field:=Node3D.new();add_child(field)
 	var hero:=Hero.new();hero.field=field;field.add_child(hero);hero.set_physics_process(false)
-	for id in ["seraph_aegis","sacred_sanctuary","royal_vanguard"]:
-		var cls:=&"warrior" if id=="royal_vanguard" else &"priest"
+	for id in ["seraph_aegis","sacred_sanctuary","royal_vanguard","sylph_step"]:
+		var cls:=&"warrior" if id=="royal_vanguard" else &"archer" if id=="sylph_step" else &"priest"
 		var entry:=ClassData.find_skill(cls,id)
 		hero.receive_buff(entry.fx.buff,entry.color,entry.name,false,id)
-	check(not BuffBook.contains(hero._buffs,"seraph_aegis",false) and hero._buffs.size()==2,"third self buff replaces oldest")
+	check(not BuffBook.contains(hero._buffs,"seraph_aegis",false) and hero._buffs.size()==3,"fourth self buff replaces oldest")
 	for id in ["seraph_aegis","aegis_formation"]:
 		var entry:=ClassData.find_skill(&"lancer" if id=="aegis_formation" else &"priest",id)
 		hero.receive_buff(entry.fx.buff,entry.color,entry.name,true,id)
-	check(hero._buffs.size()==4,"two self plus two allied buffs")
+	check(hero._buffs.size()==5,"three self plus two allied buffs")
 	check(BuffBook.absorb(hero._buffs,100)==0,"shield absorbs actual damage")
 	field.queue_free();await field.tree_exited
 	Game.has_profile=false

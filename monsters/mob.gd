@@ -188,7 +188,7 @@ func _leash() -> float:
 
 
 func set_dormant(on: bool) -> void:
-	if on and (hostile or _returning or _dead or is_boss or _burn_time > 0.0):
+	if on and (hostile or _returning or _dead or is_boss or _burn_time > 0.0 or dark_fire_left > 0.0):
 		on = false
 	if on == _dormant:
 		return
@@ -244,6 +244,7 @@ func set_targeted(on: bool) -> void:
 func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = null) -> bool:
 	if _dead:
 		return false
+	amount = int(ceil(float(amount) * taken_mult()))
 	set_dormant(false)
 	_credit(attacker, mini(amount, hp))
 	add_threat(attacker, float(mini(amount, hp)))
@@ -440,6 +441,10 @@ func _physics_process(delta: float) -> void:
 	if _stun <= 0.0:
 		if chase_target:
 			desired = _chase(chase_target, delta, speed_factor)
+			## ★500 buff: zenith_hawkeye — an AI archer's run speed (AscendBuffs.run_mult; 1 for monsters).
+			if self is Rival:
+				desired *= AscendBuffs.run_mult(self)
+				desired *= AscendBuffsB.run_rate(self) ## ★500 buff: aria_of_eternity's run speed
 		elif _returning:
 			var to_home := home - global_position
 			to_home.y = 0.0
@@ -821,7 +826,8 @@ func _tick_status(delta: float) -> void:
 		_burn_tick += delta
 		if _burn_tick >= 0.5:
 			_burn_tick -= 0.5
-			var amount := maxi(1, int(_burn_dps * 0.5))
+			# Every source lands harder on a vulnerable body (taken_mult), a burn too.
+			var amount := maxi(1, int(_burn_dps * 0.5 * taken_mult()))
 			# The one who lit it may have left the zone since (a world player logging off):
 			# then the burn counts for nobody.
 			if is_instance_valid(burn_source):
@@ -832,6 +838,9 @@ func _tick_status(delta: float) -> void:
 			BattleVfx.damage_number(get_parent(), top_point(), str(amount), false, 0.7)
 			if hp <= 0:
 				_die()
+	## ★500 buff: crown_of_dual_realms — the dark fire's own burn.
+	if dark_fire_left > 0.0 and not _dead:
+		_tick_dark_fire(delta)
 
 
 func _die() -> void:
@@ -928,6 +937,30 @@ func apply_weaken(fraction: float, seconds: float) -> void:
 	_mark_feedback("weaken", stronger)
 
 
+## Vulnerable (the Bard's ★500 ระบำสะกดใจ while it dances): every hit it takes lands
+## [param fraction] harder for [param seconds] (GameClock); the stronger wins, the longer
+## time stays. Mob.take_hit and GuildFighter._receive read taken_mult().
+var _vuln := 0.0
+var _vuln_until := 0.0
+
+
+func apply_vulnerable(fraction: float, seconds: float) -> void:
+	if _dead or fraction <= 0.0 or seconds <= 0.0:
+		return
+	var now := GameClock.msec() * 0.001
+	if now >= _vuln_until:
+		_vuln = 0.0
+	_vuln = maxf(_vuln, fraction)
+	_vuln_until = maxf(_vuln_until, now + seconds)
+
+
+## Damage taken multiplier now: 1 + the running vulnerability.
+func taken_mult() -> float:
+	var mult := 1.0 + _vuln if _vuln > 0.0 and GameClock.msec() * 0.001 < _vuln_until else 1.0
+	## ★500 buff: crown_of_dual_realms — dark fire adds its share on top (dark_fire_vuln).
+	return mult + dark_fire_vuln()
+
+
 ## Seconds left of a mark ("shred" / "weaken"), 0 without it. The AI reads it so it
 ## does not mark again what is still marked.
 func debuff_left(key: String) -> float:
@@ -1010,3 +1043,85 @@ func _tint_marks() -> void:
 	if _label_color == null:
 		_label_color = _label.modulate
 	_label.modulate = MARK_TINTS[2 if cracked and sapped else (0 if cracked else 1)]
+
+
+# --- ★500 buff: crown_of_dual_realms (เพลิงมืดเผาผลาญ): dark fire -------------------------
+## A dark burn every hit of the Dark Lord's ★500 buff leaves (AscendBuffsB.after_hit): its
+## own damage over time beside a burn, and while it burns the body takes its share more
+## damage from EVERY source (taken_mult). A dark-purple flame shows it (AscendBuffsB.DarkFlame).
+var dark_fire_left := 0.0
+var dark_fire_source: Node
+var _dark_fire_dps := 0.0
+var _dark_fire_vuln := 0.0
+var _dark_fire_tick := 0.0
+
+
+## Lit (or fed) for [param seconds]: the stronger burn and the longer time win.
+func apply_dark_fire(dps: float, seconds: float, vuln: float, source: Node = null) -> void:
+	if _dead or seconds <= 0.0:
+		return
+	var burning := dark_fire_left > 0.0
+	_dark_fire_dps = maxf(_dark_fire_dps if burning else 0.0, dps)
+	_dark_fire_vuln = maxf(_dark_fire_vuln if burning else 0.0, vuln)
+	dark_fire_left = maxf(dark_fire_left, seconds)
+	dark_fire_source = source
+	set_dormant(false)
+	if is_instance_valid(visual) and is_inside_tree():
+		AscendBuffsB.DarkFlame.ensure(self, visual.height)
+		if not burning and get_parent() is Node3D and mark_word_ok():
+			BattleVfx.floating_text(get_parent(), mark_word_point(0.3), "เพลิงมืด!", AscendBuffsB.FIRE_CORE, 0.7)
+
+
+## The extra share of damage taken while dark fire burns (0 when it does not).
+func dark_fire_vuln() -> float:
+	return _dark_fire_vuln if dark_fire_left > 0.0 else 0.0
+
+
+func clear_dark_fire() -> void:
+	dark_fire_left = 0.0
+	_dark_fire_dps = 0.0
+	_dark_fire_vuln = 0.0
+	_dark_fire_tick = 0.0
+	AscendBuffsB.DarkFlame.remove(self)
+
+
+func _tick_dark_fire(delta: float) -> void:
+	dark_fire_left -= delta
+	_dark_fire_tick += delta
+	if _dark_fire_tick >= 0.5:
+		_dark_fire_tick -= 0.5
+		var amount := maxi(1, int(_dark_fire_dps * 0.5 * taken_mult()))
+		if is_instance_valid(dark_fire_source):
+			_credit(dark_fire_source, mini(amount, hp))
+		hp = maxi(0, hp - amount)
+		_bar.set_ratio(float(hp) / float(max_hp))
+		_bar.visible = true
+		BattleVfx.damage_number(get_parent(), top_point(), str(amount), false, 0.7)
+		if hp <= 0:
+			_die()
+			return
+	if dark_fire_left <= 0.0:
+		clear_dark_fire()
+
+
+## ★500 buff: halo_of_eternity (แสงฟื้นต่อเนื่อง) on an AI fighter of the Priest's party:
+## stun, slow, burn, dark fire, armour crack, weakness and vulnerability go. True when one did.
+func cleanse_status() -> bool:
+	var now := GameClock.msec() * 0.001
+	var any := _stun > 0.0 or _slow > 0.0 or _burn_time > 0.0 or _shred_time > 0.0 or _weaken_time > 0.0 or dark_fire_left > 0.0 or (_vuln > 0.0 and now < _vuln_until)
+	_stun = 0.0
+	_slow = 0.0
+	_burn_time = 0.0
+	if _shred_time > 0.0:
+		_shred_time = 0.0
+		_shred = 0.0
+		stats.def = _unshredded_def
+	if _weaken_time > 0.0:
+		_weaken_time = 0.0
+		_weaken = 0.0
+		stats.atk = _unweakened_atk
+	_vuln = 0.0
+	_vuln_until = 0.0
+	clear_dark_fire()
+	_tint_marks()
+	return any

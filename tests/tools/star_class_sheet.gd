@@ -80,6 +80,31 @@ func _peak(skill: Dictionary) -> float:
 		return d + (0.85 if AscendSkillData.is_ascend(skill) else 0.35)
 	if AscendSkillData.is_finisher(skill):
 		return d + 0.12
+	# ดาบเหินฟ้า: its foes in the air, mid-slash; หอกพายุบูมเมอแรง: the storm on its way out.
+	if id == "emperor_heavensword":
+		return d + 0.74
+	if id == "dragon_emperor_lance":
+		return d + 0.42
+	# เทวทูตคุ้มชีวิต: the angel just landed in its burst; หลอมรวมอสูร: the chimera rearing.
+	if id == "eternal_dawn_judgment":
+		return d + 0.68
+	if id == "primordial_beast_court":
+		return d + 1.6
+	# กำแพงโล่ถล่ม: the wall mid-drive, carrying its foes; ประหารเลือดพร่อง: the one slash.
+	if id == "eternal_bastion_fall":
+		return d + 1.05
+	if id == "timeless_night_execution":
+		return d + 0.58
+	# เลนส์ตะวัน: the beam burning its line; ประตูมิติร้อยบาน: the portals mid-volley.
+	if id == "starfall_emperor_arrow":
+		return d + 1.4
+	if id == "cosmos_genesis":
+		return d + 1.15
+	# สัญญาโลหิต: the blood moon swelling over the thorns; ระบำสะกดใจ: the foes mid-dance.
+	if id == "heaven_hell_sovereign":
+		return d + 1.55
+	if id == "universe_hymn":
+		return d + 1.2
 	if StarSkillData.is_god(skill):
 		return d + 0.7
 	if id == "celestial_swordfall":
@@ -99,6 +124,10 @@ func _shot(cls: StringName, skill: Dictionary) -> Image:
 		mob.hp = 100000000; mob.max_hp = mob.hp
 		mobs.append(mob)
 	hero.target = mobs[0]
+	# The fusion (หลอมรวมอสูร) feeds the summons out: give it the two legends.
+	if String(skill.id) == "primordial_beast_court":
+		for id in ["moonwolf_pact", "eclipse_sovereign"]:
+			hero._summon(ClassData.find_skill(cls, id), 1.0)
 	await get_tree().create_timer(0.15).timeout
 	Game.profile.mp = 1000000
 	var star := int(skill.star)

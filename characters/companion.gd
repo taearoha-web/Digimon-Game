@@ -213,6 +213,8 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.8)
 		return
+	## ★500 buffs: dark fire on it (more taken), aegis_of_eternity's guardian takes its share (AscendBuffsB).
+	raw = AscendBuffsB.intercept(self, _book.buffs, raw * AscendBuffsB.taken_mult(self), _attacker)
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, float(stats.def) * (1.0 + _book.total("def") + legend_aura()))))))
 	amount = ClassRoles.guard(self, amount)
 	amount = BuffBook.absorb(_book.buffs,amount, float(stats.get("guard", 0.0)))
@@ -316,6 +318,9 @@ func heal_fraction(fraction: float) -> void:
 
 
 func _die() -> void:
+	# ★500 เทวทูตคุ้มชีวิต (EternalDawnJudgment): a guarded companion gets back up instead.
+	if not _dead and EternalDawnJudgment.spare(self):
+		return
 	dismount()
 	_dead = true
 	target = null
@@ -363,6 +368,10 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		global_position = hero.global_position + Vector3(1.5, 0.2, 0.0) if hero.global_position.is_finite() else Vector3.ZERO
 	_book.tick(self, not _dead, func(): return BuffAura.measure_top(visual, self))
+	## ★500 buffs: sovereign_awakening's drain, zenith_hawkeye's stillness (AscendBuffs).
+	AscendBuffs.tick(self, delta)
+	## ★500 buffs: halo_of_eternity's regen + cleanse, aegis_of_eternity's regen, dark fire on it (AscendBuffsB).
+	AscendBuffsB.tick(self, delta)
 	_sync_hp_buff()
 	fade_label(delta)
 	if _dead:
@@ -599,7 +608,7 @@ func _fight(delta: float) -> Vector3:
 			_face(back, delta, 14.0)
 			return back.normalized() * float(stats.speed) * 1.2
 	if distance > reach:
-		return to.normalized() * float(stats.speed) * 1.05
+		return to.normalized() * float(stats.speed) * 1.05 * AscendBuffs.run_mult(self) * AscendBuffsB.run_rate(self) ## ★500 buffs: zenith_hawkeye, aria_of_eternity
 	if _try_skills(to.length()):
 		return Vector3.ZERO
 	if _attack_timer <= 0.0:
@@ -721,7 +730,8 @@ func legend_aura() -> float:
 
 func _basic_attack() -> void:
 	var attack: Dictionary = data.attack
-	_attack_timer = float(attack.interval) * 1.05
+	## ★500 buff: aria_of_eternity — attack speed (AscendBuffsB.attack_rate).
+	_attack_timer = float(attack.interval) * 1.05 / AscendBuffsB.attack_rate(_book.buffs)
 	var anims: Array = attack.anims
 	var clip: String = anims[_combo % anims.size()]
 	_combo += 1
@@ -769,9 +779,11 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 		raw *= HeroStats.SKILL_POWER
 		raw *= MuayThai.finisher(self, skill.get("fx", {}))
 	raw *= ClassRoles.outgoing(self, mob)
-	var crit := randf() < float(stats.crit) * (1.0 + legend_aura()) + _book.total("crit") + ClassRoles.crit_bonus(self)
+	## ★500 buffs: zenith_hawkeye's readied shot / veil_of_eternity's hunt — a sure crit (AscendBuffs).
+	var sure := AscendBuffs.take_sure_crit(self, mob)
+	var crit := sure >= 0.0 or randf() < float(stats.crit) * (1.0 + legend_aura()) + _book.total("crit") + ClassRoles.crit_bonus(self)
 	if crit:
-		raw *= HeroStats.CRIT_DAMAGE
+		raw *= HeroStats.CRIT_DAMAGE + maxf(sure, 0.0)
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))
 	if skill is Dictionary and not skill.is_empty():
 		SkillTableau.contact(field, skill, mob.hit_point(), crit)
@@ -783,9 +795,12 @@ func _deal(mob: Mob, mult: float, color: Color, _vfx: StringName, melee: bool, s
 	var killed := mob.take_hit(amount, crit, color, self)
 	BattleVfx.dealing_other = false
 	ClassRoles.after_hit(self, mob, amount)
+	## ★500 buff: crown_of_dual_realms — the hit sets dark fire (AscendBuffsB).
+	AscendBuffsB.after_hit(self, _book.buffs, mob, _buffed_atk())
 	if skill is Dictionary and not skill.is_empty():
 		MuayThai.skill_fx(self, mob, skill.get("fx", {}))
 	if killed:
+		AscendBuffs.on_kill(self, mob) ## ★500 buff: veil_of_eternity
 		return
 	if melee:
 		mob.knock_back(global_position, 2.5)
@@ -1038,8 +1053,11 @@ func _shape_score(skill: Dictionary, distance: float, hero_hp: float) -> float:
 
 
 func _cast(skill: Dictionary) -> void:
-	mp -= float(skill.mp)
-	cooldowns[skill.id] = float(skill.cd) * 1.15
+	## ★500 buff: arcane_singularity — an echo (AscendBuffs) costs no MP or cooldown.
+	if not AscendBuffs.echoing(self):
+		mp -= float(skill.mp)
+		cooldowns[skill.id] = float(skill.cd) * 1.15
+		AscendBuffs.roll_echo(self, skill)
 	var delay := float(skill.hit_delay)
 	visual.skill_action(skill, delay)
 	_cast_until = Time.get_ticks_msec() + int(delay * 1000.0) + 90
@@ -1193,6 +1211,8 @@ func _apply_self(skill: Dictionary) -> void:
 		VfxKit.heal(field, global_position, color)
 	if fx.has("buff"):
 		var buff: Dictionary = fx.buff
+		## ★500 buffs (AscendBuffsB): a song under aria_of_eternity, aegis_of_eternity's guardian.
+		buff = AscendBuffsB.cast_buff(self, _book.buffs, buff)
 		# The party-buff rule (BuffBook.reaches_party): only a Priest's or a Bard's buff and
 		# เบ่งเลือด reach the party; any other class's stays on the caster (and its own
 		# summons); a stance (self_only) stays on the one who cast it.
@@ -1201,6 +1221,8 @@ func _apply_self(skill: Dictionary) -> void:
 		elif not BuffBook.is_self_only(buff):
 			_buff_own_summons(buff, color, String(skill.name), String(skill.id))
 		_book.add(buff, color, String(skill.name), false, String(skill.id), BuffBook.own_limit(member.get("class", "")))
+		## ★500 buff: covenant_of_beasts — the Titan, the summons out now last longer.
+		AscendBuffsB.after_cast(self, buff)
 		# Persistent buff halo and the skill silhouette carry this feedback.
 
 

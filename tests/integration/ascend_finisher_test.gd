@@ -125,7 +125,7 @@ func _run(hero: Hero, id: String, cls: StringName, speed := 3.0) -> void:
 ## contacts add up to (its control case below) and what the four waves and the finale of
 ## the ultimate added up to before.
 func _totals() -> void:
-	for pair in [[&"muaythai", ID, 1], [&"warrior", "divine_edict", 5], [&"warrior", "emperor_heavensword", 5]]:
+	for pair in [[&"muaythai", ID, 1], [&"warrior", "divine_edict", 5], [&"warrior", "emperor_heavensword", 6]]:
 		var cls: StringName = pair[0]
 		var id: String = pair[1]
 		profile(cls)

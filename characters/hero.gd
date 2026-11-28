@@ -1011,6 +1011,10 @@ func _tick_timers(delta: float) -> void:
 	if not _dead:
 		ClassRoles.regen(self, delta)
 	_gem_set_tick(delta)
+	## ★500 buffs: sovereign_awakening's drain, zenith_hawkeye's stillness (AscendBuffs).
+	AscendBuffs.tick(self, delta)
+	## ★500 buffs: halo_of_eternity's regen + cleanse, aegis_of_eternity's regen, dark fire on the hero (AscendBuffsB).
+	AscendBuffsB.tick(self, delta)
 
 
 ## The party's roles give HP or MP back (ClassRoles: พรแห่งแสง, พันธะวิญญาณ, เงามืด).
@@ -1119,7 +1123,8 @@ func _skill_range(skill: Dictionary) -> float:
 
 func _basic_attack() -> void:
 	var attack: Dictionary = Game.class_data().attack
-	_attack_timer = float(attack.interval) * (1.0 - _haste())
+	## ★500 buff: aria_of_eternity — attack speed (AscendBuffsB.attack_rate).
+	_attack_timer = float(attack.interval) * (1.0 - _haste()) / AscendBuffsB.attack_rate(_buffs)
 	_since_hurt = minf(_since_hurt, 1.0)
 	var anims: Array = attack.anims
 	var clip: String = anims[_combo % anims.size()]
@@ -1229,16 +1234,22 @@ func _cast(skill: Dictionary) -> void:
 
 func _cast_now(skill: Dictionary) -> void:
 	if _dead or Time.get_ticks_msec() < _cast_until: return
-	if not Game.skill_unlocked(skill) or float(cooldowns.get(skill.id,0.0)) > 0.0: return
-	if bool(skill.get("requires_wings",false)) and not visual.has_wings(): return
-	var cost := mp_cost(skill)
-	if int(Game.profile.mp) < cost:
-		return
-	Game.profile.mp -= cost
+	## ★500 buff: arcane_singularity — an echo (AscendBuffs) casts with no checks, MP or cooldown.
+	var echo := AscendBuffs.echoing(self)
+	if not echo:
+		if not Game.skill_unlocked(skill) or float(cooldowns.get(skill.id,0.0)) > 0.0: return
+		if bool(skill.get("requires_wings",false)) and not visual.has_wings(): return
+		var cost := mp_cost(skill)
+		if int(Game.profile.mp) < cost:
+			return
+		Game.profile.mp -= cost
 	last_cast_id=String(skill.id)
-	cooldowns[skill.id] = cooldown_of(skill)
+	if not echo:
+		cooldowns[skill.id] = cooldown_of(skill)
 	_since_hurt = minf(_since_hurt, 1.0)
-	skill_fired.emit(Game.class_data().skills.find(skill))
+	if not echo:
+		skill_fired.emit(Game.class_data().skills.find(skill))
+		AscendBuffs.roll_echo(self, skill)
 	skill = _ranked(skill)
 	if skill.has("star"):
 		if _valid_target(target): _face(_flat(target.global_position-global_position), 1.0, 60.0)
@@ -1507,8 +1518,12 @@ func _apply_self_fx(skill: Dictionary) -> void:
 		buff = SkillRank.with_int_hp(skill, buff, int((Game.profile.get("attrs", {}) as Dictionary).get("int", 0)))
 		if BuffBook.is_song(buff) and StarProgression.has_full_set(Game.profile, "bard"):
 			buff = BuffBook.boost_song(buff, SONG_SET_BOOST)
+		## ★500 buffs (AscendBuffsB): a song under aria_of_eternity, aegis_of_eternity's guardian.
+		buff = AscendBuffsB.cast_buff(self, _buffs, buff)
 		receive_buff(buff, color, String(skill.name), false, String(skill.id))
 		spread_buff(buff, color, String(skill.name), String(skill.id))
+		## ★500 buff: covenant_of_beasts — the Titan, the summons out now last longer.
+		AscendBuffsB.after_cast(self, buff)
 
 
 # --- The Dark Lord's raven and Summon -----------------------------------------
@@ -1724,12 +1739,17 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 		if _star_combo_count>=6: raw*=1.25; _star_combo_count=0
 	# The party's roles (ClassRoles): แนวหน้า / ตราเวท / จุดตาย, ตาเหยี่ยว, ทะลวงเกราะ.
 	raw *= ClassRoles.outgoing(self, mob)
-	var crit := randf() < float(stats.crit) + ClassRoles.crit_bonus(self)
+	## ★500 buffs: zenith_hawkeye's readied shot / veil_of_eternity's hunt — a sure crit (AscendBuffs).
+	var sure := AscendBuffs.take_sure_crit(self, mob)
+	var crit := sure >= 0.0 or randf() < float(stats.crit) + ClassRoles.crit_bonus(self)
 	if crit:
-		raw *= crit_mult()
+		raw *= crit_mult() + maxf(sure, 0.0)
 		if StarProgression.has_full_set(Game.profile,"assassin"):
 			raw *= 1.1
-	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(self, float(mob.stats.def))))))
+	# ARMOUR PEN 100%: a hit marked "ignore_def" (the Assassin ★500 ประหารเลือดพร่อง,
+	# combat/ascend_ult/timeless_night_execution.gd) takes no mitigation from the mob's DEF.
+	var armour := 0.0 if bool(skill.get("ignore_def", false)) else ClassRoles.pierced(self, float(mob.stats.def))
+	var amount := maxi(1, int(round(HeroStats.mitigate(raw, armour))))
 	if skill.has("star"):
 		pass # StarSkillSequence owns exactly one authored impact per contact beat.
 	elif not skill.is_empty():
@@ -1743,6 +1763,8 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 	BattleVfx.number_tint = Color(0, 0, 0, 0)
 	_leech(amount)
 	ClassRoles.after_hit(self, mob, amount)
+	## ★500 buff: crown_of_dual_realms — the hit sets dark fire (AscendBuffsB).
+	AscendBuffsB.after_hit(self, _buffs, mob, float(stats.atk))
 	# The Muay Thai fighter: a skill's extra combo and its kick (MuayThai).
 	if not skill.is_empty():
 		MuayThai.skill_fx(self, mob, skill.get("fx", {}))
@@ -1756,6 +1778,7 @@ func _deal_now(mob: Mob, mult: float, color: Color, vfx: StringName, melee: bool
 		# Weight-scaled hit-stop, camera, element flash, the throw and the combo count.
 		SkillFeel.hit(self, mob, skill, amount, crit, killed)
 	if killed:
+		AscendBuffs.on_kill(self, mob) ## ★500 buff: veil_of_eternity
 		return
 	if melee:
 		mob.knock_back(global_position, 3.0)
@@ -1809,6 +1832,8 @@ func take_damage(raw: float, _attacker: Node = null) -> void:
 	if randf() < float(stats.dodge):
 		BattleVfx.floating_text(field, global_position + Vector3(0, 2.4, 0), "หลบ!", Color("9fe8ff"), 0.9)
 		return
+	## ★500 buffs: dark fire on the hero (more taken), aegis_of_eternity's guardian takes its share (AscendBuffsB).
+	raw = AscendBuffsB.intercept(self, _buffs, raw * AscendBuffsB.taken_mult(self), _attacker)
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(_attacker, effective_def())))))
 	# The Ascension trial's guardian: a share of max HP at least (AscensionData.FLOOR_SHARE).
 	if _attacker != null and is_instance_valid(_attacker) and _attacker.has_meta(AscensionData.FLOOR_META):
@@ -2002,6 +2027,9 @@ func _reflect_flash(attacker: Node3D) -> void:
 
 func _die() -> void:
 	if _dead:
+		return
+	# ★500 เทวทูตคุ้มชีวิต (EternalDawnJudgment): a guarded hero gets back up instead.
+	if EternalDawnJudgment.spare(self):
 		return
 	_dead = true
 	dismount()

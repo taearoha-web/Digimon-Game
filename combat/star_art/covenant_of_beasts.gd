@@ -1,5 +1,5 @@
 extends RefCounted
-## Summoner Ascension buff (★500): พันธสัญญาสรรพสัตว์. The class's support star art under the
+## Summoner Ascension buff (★500): พันธสัญญาไททัน. The class's support star art under the
 ## Ascension's crown (AscendSkillArt); cosmetic only.
 const ID := "covenant_of_beasts"
 

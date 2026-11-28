@@ -184,7 +184,7 @@ func _skills() -> void:
 		# The buff: a star buff (never god-tier), the party rule, its own art.
 		check(not StarSkillData.is_god(buff) and String(buff.shape) == "self" and buff.fx.has("buff"), "%s buff is a star buff" % cls)
 		check(StarSignature.owns(buff), "%s buff has its signature art" % cls)
-		check(bool(buff.fx.buff.get("team", false)) == (cls in [&"priest", &"bard"]), "%s buff reaches the party only for priest / bard" % cls)
+		check(bool(buff.fx.buff.get("team", false)) == (cls in [&"priest", &"bard", &"defender"]), "%s buff reaches the party only for priest / bard / defender (ผู้พิทักษ์ทีม)" % cls)
 		check(float(buff.fx.buff.secs) == 60.0 and not BuffBook.is_song_skill(buff), "%s buff lasts a minute, not a song" % cls)
 		print("  %s: %s (%s) x%.1f mp %d cd %.0f | %s (%s) %s" % [cls, ult.name, ult.id, float(ult.mult), int(ult.mp), float(ult.cd), buff.name, buff.id, JSON.stringify(buff.fx.buff)])
 	check(seen.size() == 22, "22 Ascension skills (%d)" % seen.size())

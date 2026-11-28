@@ -1,5 +1,5 @@
 extends RefCounted
-## Bard Ascension buff (★500): อาเรียนิรันดร์. The class's support star art under the
+## Bard Ascension buff (★500): เสียงสะท้อน. The class's support star art under the
 ## Ascension's crown (AscendSkillArt); cosmetic only.
 const ID := "aria_of_eternity"
 

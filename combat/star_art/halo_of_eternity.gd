@@ -1,5 +1,5 @@
 extends RefCounted
-## Priest Ascension buff (★500): รัศมีแห่งนิรันดร์. The class's support star art under the
+## Priest Ascension buff (★500): แสงฟื้นต่อเนื่อง. The class's support star art under the
 ## Ascension's crown (AscendSkillArt); cosmetic only.
 const ID := "halo_of_eternity"
 

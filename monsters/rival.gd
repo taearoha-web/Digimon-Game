@@ -331,6 +331,9 @@ func _markable() -> bool:
 func _tick_status(delta: float) -> void:
 	super._tick_status(delta)
 	_expire_marks()
+	## ★500 buffs: halo_of_eternity's regen + cleanse, aegis_of_eternity's regen (AscendBuffsB).
+	if not _frozen and not duel_over:
+		AscendBuffsB.tick(self, delta)
 
 
 func debuff_left(key: String) -> float:
@@ -412,6 +415,9 @@ func role_restore(kind: String, amount: int) -> void:
 
 
 func _die() -> void:
+	# ★500 เทวทูตคุ้มชีวิต (EternalDawnJudgment): a guarded fighter gets back up instead.
+	if not _dead and EternalDawnJudgment.spare(self):
+		return
 	_buff_art.clear(self)
 	_dismiss_summons()
 	super._die()
@@ -488,6 +494,8 @@ func _tick(delta: float) -> void:
 	if not _top_fn.is_valid():
 		_top_fn = func(): return BuffAura.measure_top(_rv, self)
 	_buff_art.tick(self, not is_dead() and not duel_over, _top_fn)
+	## ★500 buffs: sovereign_awakening's drain, zenith_hawkeye's stillness (AscendBuffs).
+	AscendBuffs.tick(self, delta)
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_potion_cd = maxf(0.0, _potion_cd - delta)
 	mp = minf(float(rstats.max_mp), mp + float(rstats.max_mp) * 0.025 * delta)
@@ -629,9 +637,12 @@ func _shape_score(skill: Dictionary, shape: String, distance: float, hp_ratio: f
 
 func _cast(skill: Dictionary, target: Node3D) -> void:
 	_flush_cooldowns()
-	mp -= skill_mp(skill)
-	cooldowns[skill.id] = skill_cd(skill)
-	casts[String(skill.id)] = int(casts.get(String(skill.id), 0)) + 1
+	## ★500 buff: arcane_singularity — an echo (AscendBuffs) costs no MP or cooldown.
+	if not AscendBuffs.echoing(self):
+		mp -= skill_mp(skill)
+		cooldowns[skill.id] = skill_cd(skill)
+		casts[String(skill.id)] = int(casts.get(String(skill.id), 0)) + 1
+		AscendBuffs.roll_echo(self, skill, target)
 	skill = _ranked(skill)
 	var shape := String(skill.shape)
 	var color: Color = skill.color
@@ -712,6 +723,8 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				_heal(float(fx.heal) * ClassData.ai_heal_mult(StringName(member["class"])))
 			if fx.has("buff"):
 				var buff: Dictionary = fx.buff
+				## ★500 buffs (AscendBuffsB): a song under aria_of_eternity, aegis_of_eternity's guardian.
+				buff = AscendBuffsB.cast_buff(self, _buff_art.buffs, buff)
 				# A second buff adds to the first (the strongest of each counts), it does not
 				# wipe it or a party mate's (a lone duel rival only ever has one running).
 				_atk_boost = maxf(_atk_boost, 1.0 + float(buff.get("atk", 0.0)))
@@ -724,6 +737,8 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 				var display_buff := buff.duplicate()
 				display_buff.secs = secs
 				_buff_art.add(display_buff, color, String(skill.name), false, String(skill.id), BuffBook.own_limit(member.get("class", "")))
+				## ★500 buff: covenant_of_beasts — the Titan, the summons out now last longer.
+				AscendBuffsB.after_cast(self, display_buff)
 		"burst":
 			VfxKit.shockwave(field, global_position + Vector3(0, 0.15, 0), color, float(skill.radius) * 1.15)
 			if fx.has("heal"):
@@ -767,8 +782,10 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	# The party's roles (ClassRoles); ทะลวงเกราะ is applied where the victim takes the blow.
 	raw *= ClassRoles.outgoing(self, victim)
 	raw *= MuayThai.finisher(self, fx)
-	if randf() < float(rstats.crit) + ClassRoles.crit_bonus(self) + _buff_crit:
-		raw *= HeroStats.CRIT_DAMAGE + (float(rstats.get("crit_dmg", 0.0)) if faithful else 0.0)
+	## ★500 buffs: zenith_hawkeye's readied shot / veil_of_eternity's hunt — a sure crit (AscendBuffs).
+	var sure := AscendBuffs.take_sure_crit(self, victim)
+	if sure >= 0.0 or randf() < float(rstats.crit) + ClassRoles.crit_bonus(self) + _buff_crit:
+		raw *= HeroStats.CRIT_DAMAGE + (float(rstats.get("crit_dmg", 0.0)) if faithful else 0.0) + maxf(sure, 0.0)
 	VfxKit.impact(get_parent(), victim.global_position + Vector3(0, 1.1, 0), color if color != Color.WHITE else Color("fff0c0"), 0.9)
 	# With the war scale on, the hero is protected like every fighter: no single hit or combo
 	# takes more than BurstGuard allows, however many enemies strike at once.
@@ -783,6 +800,10 @@ func _hit(victim: Node3D, mult: float, color: Color, fx := {}) -> void:
 	if victim is Rival or victim is Hero:
 		dealt += maxi(0, hp_before - _hp_of(victim))
 	ClassRoles.after_hit(self, victim, hp_before - _hp_of(victim))
+	## ★500 buff: crown_of_dual_realms — the hit sets dark fire (AscendBuffsB).
+	AscendBuffsB.after_hit(self, _buff_art.buffs, victim, float(rstats.atk) * _atk_boost)
+	if not _alive(victim):
+		AscendBuffs.on_kill(self, victim) ## ★500 buff: veil_of_eternity
 	# The Muay Thai fighter: extra combo, and its kick throws a fighter (or the hero leading
 	# a guild onto the altar) back (MuayThai.kick).
 	if not fx.is_empty() and _alive(victim):
@@ -822,7 +843,8 @@ func _shoot_at(victim: Node3D, mult: float, color: Color, vfx: StringName, fx :=
 
 func _basic_attack(target: Node3D) -> void:
 	var attack: Dictionary = class_data.attack
-	_attack_timer = float(attack.interval) * ((1.0 - haste()) if faithful else lerpf(1.6, 1.0, difficulty))
+	## ★500 buff: aria_of_eternity — attack speed (AscendBuffsB.attack_rate).
+	_attack_timer = float(attack.interval) * ((1.0 - haste()) if faithful else lerpf(1.6, 1.0, difficulty)) / AscendBuffsB.attack_rate(_buff_art.buffs)
 	var anims: Array = attack.anims
 	var clip: String = anims[_combo % anims.size()]
 	_combo += 1

@@ -1,5 +1,5 @@
 extends RefCounted
-## Darklord Ascension buff (★500): มงกุฎสองภพ. The class's support star art under the
+## Darklord Ascension buff (★500): เพลิงมืดเผาผลาญ. The class's support star art under the
 ## Ascension's crown (AscendSkillArt); cosmetic only.
 const ID := "crown_of_dual_realms"
 

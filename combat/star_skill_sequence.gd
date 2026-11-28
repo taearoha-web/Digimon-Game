@@ -256,10 +256,14 @@ func _hit(h: Hero, index: int, count: int) -> void:
 		if index==0:
 			var fx:Dictionary=skill.get("fx",{})
 			if fx.has("buff"):
-				h.receive_buff(fx.buff,skill.color,skill.name,false,skill.id)
+				## ★500 buffs (AscendBuffsB): a song under aria_of_eternity, aegis_of_eternity's guardian.
+				var buff:Dictionary=AscendBuffsB.cast_buff(h,h._buffs,fx.buff)
+				h.receive_buff(buff,skill.color,skill.name,false,skill.id)
 				# The party-buff rule (Hero.spread_buff): a Priest's or a Bard's star buff reaches
 				# the team within 12 m; every other class's stays the hero's (and its own summons').
-				h.spread_buff(fx.buff,skill.color,skill.name,skill.id,origin,12.0)
+				h.spread_buff(buff,skill.color,skill.name,skill.id,origin,12.0)
+				## ★500 buff: covenant_of_beasts — the Titan, the summons out now last longer.
+				AscendBuffsB.after_cast(h,buff)
 		if id=="sacred_sanctuary":
 			# The field belongs to its buff; replacement ends healing immediately.
 			if not BuffBook.contains(h._buffs,id,false): return

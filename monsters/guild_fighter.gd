@@ -747,6 +747,8 @@ func take_hit(amount: int, crit: bool, _color := Color.WHITE, attacker: Node = n
 		dbg.dodged += 1
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return false
+	## ★500 buff: aegis_of_eternity — a guardian of its party takes its share (AscendBuffsB).
+	amount = AscendBuffsB.intercept_hit(self, _buff_art.buffs, amount, attacker)
 	return _receive(int(ceil(float(amount) * war_scale)), crit, attacker if attacker != null else hero)
 
 
@@ -758,12 +760,16 @@ func take_damage(raw: float, attacker: Node = null) -> void:
 		dbg.dodged += 1
 		BattleVfx.floating_text(get_parent(), top_point(), "หลบ!", Color("9fe8ff"), 0.9)
 		return
+	## ★500 buff: aegis_of_eternity — a guardian of its party takes its share (AscendBuffsB).
+	raw = AscendBuffsB.intercept(self, _buff_art.buffs, raw, attacker)
 	var amount := maxi(1, int(round(HeroStats.mitigate(raw, ClassRoles.pierced(attacker, float(stats.def))))))
 	_receive(amount, false, attacker)
 
 
 func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 	var now := GameClock.msec() * 0.001
+	# Vulnerable (Mob.apply_vulnerable: the Bard's ★500 dance) before the guards.
+	amount = int(ceil(float(amount) * taken_mult()))
 	# กำแพงเหล็ก: a Defender in its party takes the edge off every blow.
 	amount = ClassRoles.guard(self, amount)
 	# The player's own character: its guard and shield buffs work as the hero's do. Every
@@ -802,6 +808,9 @@ func _receive(amount: int, crit: bool, attacker: Node) -> bool:
 
 func _die() -> void:
 	if _dead:
+		return
+	# ★500 เทวทูตคุ้มชีวิต (EternalDawnJudgment): a guarded fighter gets back up instead.
+	if EternalDawnJudgment.spare(self):
 		return
 	_dead = true
 	hostile = false
@@ -1587,7 +1596,8 @@ func _resolve(skill: Dictionary, target: Node3D, aim: Vector3) -> void:
 		# class's buff (and a stance) stays on the fighter who cast it.
 		if not BuffBook.reaches_party(skill.fx.buff):
 			return
-		var buff := BuffBook.party_part(skill.fx.buff)
+		## ★500 buffs (AscendBuffsB): a song under aria_of_eternity, aegis_of_eternity's guardian.
+		var buff := BuffBook.party_part(AscendBuffsB.cast_buff(self, _buff_art.buffs, skill.fx.buff))
 		for ally in _teammates():
 			if _flat_distance(ally.global_position) > BUFF_REACH:
 				continue

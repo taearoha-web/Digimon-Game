@@ -338,9 +338,11 @@ static func pierce(attacker: Variant) -> float:
 
 
 ## [param defence] after the attacker's party pierces it, and then the attacker's own
-## ★301+ เจาะเกราะ (own_pierce).
+## ★301+ เจาะเกราะ (own_pierce), and then its armour penetration (AscendBuffs.armor_pen:
+## the ★500 หอกทะลวงเกราะ buff's "armor_pen", or a share a skill sets on its caster).
 static func pierced(attacker: Variant, defence: float) -> float:
-	return defence * (1.0 - pierce(attacker)) * (1.0 - own_pierce(attacker))
+	## ★500 buff: celestial_phalanx (general armor_pen, shared by any skill that sets META_PEN)
+	return defence * (1.0 - pierce(attacker)) * (1.0 - own_pierce(attacker)) * (1.0 - AscendBuffs.armor_pen(attacker))
 
 
 ## The attacker's own เจาะเกราะ from the special star pool (HeroStats.compute "pierce"):
@@ -385,6 +387,10 @@ static func after_hit(attacker: Variant, target: Variant, dealt: int) -> void:
 		return
 	# The Muay Thai fighter's combo and hit-heal (its own, party or not).
 	MuayThai.after_hit(attacker, dealt)
+	# A running buff's "hit_heal" for everyone else (the Dark Lord's ★500 สัญญาโลหิต drains
+	# life for 10 s); the Muay Thai fighter's own counts it in MuayThai.heal_share.
+	if not MuayThai.is_fighter(attacker):
+		_gain(attacker, &"buff_leech", float(dealt) * MuayThai.buff_total(attacker, "hit_heal"), "hp")
 	var classes := party_classes(attacker)
 	if classes.is_empty():
 		return

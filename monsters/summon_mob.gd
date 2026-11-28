@@ -26,6 +26,8 @@ var _heal_timer := 3.0
 var _expired := false
 var _age := 0.0
 var _twirl: Tween
+var _ascend_wait := 0.0
+var _splashing := false
 
 
 func setup_summon(p_caster: Rival, p_skill_id: String, p_spec: Dictionary, p_damage_mult: float, slot: int, slots: int, p_rank := 1) -> void:
@@ -37,6 +39,8 @@ func setup_summon(p_caster: Rival, p_skill_id: String, p_spec: Dictionary, p_dam
 	rank = clampi(p_rank, 1, 10)
 	size_mult = Summon.size_for_rank(rank)
 	life = float(spec.get("secs", Summon.LIFETIME))
+	## ★500 buff: covenant_of_beasts — called while it runs: 1.5x the lifetime.
+	life *= AscendBuffsB.new_summon_life(p_caster, spec, self)
 	_slot = slot
 	_slots = maxi(slots, 1)
 	_kind_id = String(spec.get("kind", "wolf"))
@@ -48,6 +52,7 @@ func setup_summon(p_caster: Rival, p_skill_id: String, p_spec: Dictionary, p_dam
 	var rs: Dictionary = p_caster.rstats
 	var legend := bool(_kind.get("legend", false))
 	var share := Summon.LEGEND_HP_SHARE if legend else Summon.HP_SHARE
+	share = float(_kind.get("hp_share", share))
 	hp = maxi(300, int(round(float(rs.max_hp) * share * (1.0 + 0.6 * float(rank - 1)))))
 	max_hp = hp
 	var model := String(_kind.get("model", ""))
@@ -76,6 +81,12 @@ func _make_visual() -> MonsterVisual:
 		fairy.setup_fairy(float(_kind.hover))
 		fairy.add_to_group("anim_lod")
 		return fairy
+	## ★500 buff: covenant_of_beasts — an enemy summoner's Titan (TitanVisual).
+	if bool(_kind.get("titan", false)):
+		var titan := TitanVisual.new()
+		add_child(titan)
+		titan.build(float(_kind.height), _kind.color)
+		return titan
 	return super._make_visual()
 
 
@@ -132,10 +143,21 @@ func _physics_process(delta: float) -> void:
 	_returning = false
 	for id in _move_cds:
 		_move_cds[id] = maxf(0.0, float(_move_cds[id]) - delta)
+	## ★500 buffs: its caster's covenant (ATK / DEF / HP / speed), regen / cleanse (AscendBuffsB).
+	_ascend_wait -= delta
+	if _ascend_wait <= 0.0:
+		_ascend_wait = 0.25
+		AscendBuffsB.sync_summon(self, caster)
 	if is_fairy():
 		_tick_fairy(delta)
 		return
 	super._physics_process(delta)
+
+
+## ★500 buff: covenant_of_beasts — its swings come quicker by the covenant's boost.
+func _strike() -> void:
+	super._strike()
+	_attack_timer /= 1.0 + float(get_meta(&"ascend_boost", 0.0))
 
 
 ## No wandering: a summon without a victim walks back beside its summoner.
@@ -199,6 +221,14 @@ func _deliver(victim: Node3D, raw: float, max_distance := 99.0) -> void:
 		if allowed < amount:
 			raw *= float(allowed) / float(amount)
 	Mob.strike(victim, raw, self)
+	## ★500 buff: covenant_of_beasts — the Titan's slam strikes all round its victim.
+	if bool(_kind.get("titan", false)) and not _splashing:
+		_splashing = true
+		VfxKit.shockwave(get_parent(), victim.global_position + Vector3(0, 0.1, 0), _kind.color, AscendBuffsB.TITAN_SPLASH)
+		for t in _targets():
+			if t != victim and _flat_distance_from(t.global_position, victim.global_position) <= AscendBuffsB.TITAN_SPLASH:
+				_deliver(t, raw * 0.6 / war_scale)
+		_splashing = false
 
 
 ## Like Summon._tick_fairy: she drifts sideways to her spot behind the caster, always
