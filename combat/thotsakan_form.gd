@@ -117,6 +117,18 @@ static func active(caster: Variant) -> bool:
 	return form != null and form.clock >= 0.0 and form.clock < SECS
 
 
+## In the form every normal attack hits BASIC_POWER times as hard: the fighter's own blow
+## on its target (Hero / Rival basic attack, basic_mult) and the spirit's punch round it
+## (punch_mult). A static var so a test can weigh the form at x1 against the old skill.
+static var basic_power := 3.0
+
+
+## What [param caster]'s normal attack is multiplied by now: basic_power in a real form.
+static func basic_mult(caster: Variant) -> float:
+	var form := of(caster)
+	return basic_power if form != null and not form.cosmetic and form.clock >= 0.0 and form.clock < SECS else 1.0
+
+
 ## [param caster] (a Hero, a Rival or any of its kinds, a RemotePlayer) turns into ทศกัณฐ์
 ## with [param p_skill] (as cast: its star rank applied). A form already running ends first
 ## (without its finisher). A cosmetic form starts after [param delay] seconds.
@@ -355,7 +367,7 @@ func _exit_tree() -> void:
 
 ## Damage of one punch on each foe in reach (a multiplier on ATK).
 func punch_mult() -> float:
-	return power * HeroStats.SKILL_POWER * PUNCH_SHARE / float(maxi(planned, 1))
+	return power * HeroStats.SKILL_POWER * PUNCH_SHARE / float(maxi(planned, 1)) * basic_power
 
 
 ## The finisher's share: its own and every punch not thrown.

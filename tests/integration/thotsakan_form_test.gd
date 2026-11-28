@@ -249,6 +249,9 @@ func _sum(list: Array) -> float:
 
 func _form_and_balance() -> void:
 	profile()
+	# The balance against the old god skill is weighed with normal attacks at x1; the x3
+	# of the form's normal attacks (ThotsakanForm.basic_power) is checked after it.
+	ThotsakanForm.basic_power = 1.0
 	# One foe: the form against the old skill (its own punches subtracted, as it throws
 	# them anyway).
 	var one := await _fight(1, true)
@@ -275,6 +278,13 @@ func _form_and_balance() -> void:
 	print("BALANCE pack of 5: each %.0f vs old %.0f -> x%.2f; pack %.0f vs old %.0f -> x%.2f" % [others, old_each, ratio_each, pack, _sum(old_five), ratio_pack])
 	check(ratio_each > 0.8 and ratio_each < 1.2, "each foe of a pack (not even targeted) takes about the old area's (x%.2f)" % ratio_each)
 	check(ratio_pack > 0.8 and ratio_pack < 1.2, "the pack takes about the old area's total (x%.2f)" % ratio_pack)
+	# In the form every normal attack hits x3: the hero's own blow and the spirit's punch.
+	ThotsakanForm.basic_power = 3.0
+	check(is_equal_approx(ThotsakanForm.basic_mult(null), 1.0), "no form: normal attacks at x1")
+	var tri := await _fight(1, true)
+	var gain := float(tri.lost[0]) - float(one.lost[0])
+	print("BASIC x3: form at x3 %.0f vs x1 %.0f (+%.0f); plain hits %.0f" % [float(tri.lost[0]), float(one.lost[0]), gain, float(plain.lost[0])])
+	check(gain > 1.6 * float(plain.lost[0]), "normal attacks in the form hit x3: the foe takes over twice the plain hits more (+%.0f vs plain %.0f)" % [gain, float(plain.lost[0])])
 	check(VfxBudget.counters() == {"particles": 0, "decorations": 0, "lights": 0}, "fights leave nothing behind %s" % VfxBudget.counters())
 
 

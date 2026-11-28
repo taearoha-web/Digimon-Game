@@ -839,8 +839,9 @@ func _basic_attack(target: Node3D) -> void:
 		if bool(attack.projectile):
 			_shoot_at(victim, mult, color, attack.vfx)
 		elif _flat_distance(victim.global_position) <= float(attack.range) + 1.4:
-			_hit(victim, mult, color)
-			# ทศกัณฐ์'s form (★300 three_realms_fist): the punch strikes every foe round it too.
+			# ทศกัณฐ์'s form (★300 three_realms_fist): the blow hits x3 (ThotsakanForm.basic_mult)
+			# and the punch strikes every foe round it too.
+			_hit(victim, mult * ThotsakanForm.basic_mult(self), color)
 			ThotsakanForm.punch_from(self)
 	, CONNECT_ONE_SHOT)
 

@@ -1154,8 +1154,9 @@ func _basic_attack() -> void:
 				return
 			VfxKit.slash_arc(field, global_position + Vector3(sin(_facing), 0, cos(_facing)) * 1.1 + Vector3(0, 1.0, 0), _facing, Color("fff2d0"), 2.0,
 					[0.5, -0.5, 0.0][_combo % 3])
-			_deal(mob, float(attack.mult), Color.WHITE, attack.vfx, true)
-			# ทศกัณฐ์'s form (★300 three_realms_fist): the punch strikes every foe round it too.
+			# ทศกัณฐ์'s form (★300 three_realms_fist): the blow hits x3 (ThotsakanForm.basic_mult)
+			# and the punch strikes every foe round it too.
+			_deal(mob, float(attack.mult) * ThotsakanForm.basic_mult(self), Color.WHITE, attack.vfx, true)
 			ThotsakanForm.punch_from(self)
 		, CONNECT_ONE_SHOT)
 
