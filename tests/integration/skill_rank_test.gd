@@ -68,10 +68,11 @@ func _check_scaling() -> void:
 	var book: Array = []
 	book = BuffBook.insert(book, {"atk": 0.3, "secs": 60.0}, Color.RED, "a", false, "a")
 	book = BuffBook.insert(book, {"def": 0.3, "secs": 60.0}, Color.RED, "b", false, "b")
+	book = BuffBook.insert(book, {"speed": 0.1, "secs": 60.0}, Color.RED, "d", false, "d")
 	book = BuffBook.insert(book, shield, Color.GREEN, "h", false, "h")
-	check(book.size() == 3, "the overheal shield does not push out the two buffs")
+	check(book.size() == 4, "the overheal shield does not push out the three buffs")
 	book = BuffBook.insert(book, {"crit": 0.1, "secs": 60.0}, Color.RED, "c", false, "c")
-	check(book.size() == 3 and BuffBook.contains(book, "h", false), "a third buff replaces a buff, not the shield")
+	check(book.size() == 4 and BuffBook.contains(book, "h", false), "a fourth buff replaces a buff, not the shield")
 	check(is_equal_approx(float(at5.fx.stun), 1.24), "★5 stun +24%")
 	check(is_equal_approx(float(buff_skill.fx.buff.atk), 0.5), "scaling does not touch the skill data")
 	check(SkillRank.scaled(buff_skill, 1) == buff_skill, "★1 is the skill as written")

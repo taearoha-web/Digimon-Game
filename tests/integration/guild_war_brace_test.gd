@@ -28,7 +28,7 @@ func _ready() -> void:
 	check(ClassData.is_signature(ClassData.find_skill(&"defender", "brace")), "เบ่งเลือด is the Defender's signature")
 	for who in ["A", "Zephyr", "Iron Wall", "โล่ทอง"]:
 		var kit := ClassData.ai_buff_kit(&"defender", 100, who)
-		check(kit.size() == 2 and kit.has("brace"), "AI Defender %s brings เบ่งเลือด plus one buff: %s" % [who, kit])
+		check(kit.size() == ClassData.AI_BUFF_SKILLS and kit.has("brace"), "AI Defender %s brings เบ่งเลือด plus two buffs: %s" % [who, kit])
 	Game.current_zone = &"guildwar"
 	Game.guildwar_save_checkpoint(4242, GuildWarData.DURATION, false, [0, 0], 0, 0, 0, {"gates": [0, 0, 0, 0, 0], "owner": -1})
 	Game.guildwar_resuming = true
