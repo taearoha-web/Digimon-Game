@@ -2,7 +2,7 @@ extends Node3D
 ## Screenshots of two ★500 buffs (AscendBuffsB): the Summoner's Titan (พันธสัญญาไททัน)
 ## beside its summoner, and dark fire (เพลิงมืดเผาผลาญ) burning on a monster the Dark Lord hit.
 ## Into ASCEND_SHOTS (env) or user://.
-##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . res://tools/ascend_buffs_b_shots.tscn
+##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --path . res://tests/tools/ascend_buffs_b_shots.tscn
 
 var cam: Camera3D
 var title: Label

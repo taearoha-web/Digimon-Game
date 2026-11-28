@@ -90,7 +90,7 @@ func _data() -> void:
 	check(String(war.name) == "ดาบเหินฟ้า" and String(lance.name) == "หอกพายุบูมเมอแรง", "the new Thai names")
 	check(String(war.shape) == "burst", "ดาบเหินฟ้า is cast round the warrior (burst)")
 	check(String(lance.gesture) == "spear_throw", "หอกพายุบูมเมอแรง winds up as a throw")
-	check(String(war.desc).contains("8 เมตร") and String(war.desc).contains("1.5 วิ") and String(war.desc).contains("4"), "the warrior's text tells its numbers")
+	check(String(war.desc).contains("10 เมตร") and String(war.desc).contains("1.5 วิ") and String(war.desc).contains("4"), "the warrior's text tells its numbers")
 	check(String(lance.desc).contains("14 เมตร") and String(lance.desc).contains("0.6 เมตร"), "the lancer's text tells its numbers")
 	var ws: Script = AscendUlt.script_for(war)
 	var ls: Script = AscendUlt.script_for(lance)
